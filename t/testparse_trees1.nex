@@ -1,0 +1,6 @@
+#NEXUS
+BEGIN TREES;
+	TREE Default_ladder = (1,(2,(3,(4,5))));
+	TREE Default_bush = (1,2,3,4,5);
+	TREE Default_symmetrical = ((1,2),(3,(4,5)));
+END;

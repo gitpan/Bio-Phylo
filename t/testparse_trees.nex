@@ -1,0 +1,14 @@
+#NEXUS
+BEGIN TREES;
+[!Parameters: ]
+	TRANSLATE
+		1 taxon_1,
+		2 taxon_2,
+		3 taxon_3,
+		4 taxon_4,
+		5 taxon_5;
+	TREE Default_ladder = (1,(2,(3,(4,5))));
+	TREE Default_bush = (1,2,3,4,5);
+	TREE Default_symmetrical = ((1,2),(3,(4,5)));
+
+END;

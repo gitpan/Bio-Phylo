@@ -1,0 +1,15 @@
+#NEXUS
+]
+nchar = 1
+ntax = 1
+taxa;
+data;
+matrix
+taxlabels
+datatype = dna
+begin data;
+datatype = dna
+nchar = 2
+ntax = 3
+matrix
+translate

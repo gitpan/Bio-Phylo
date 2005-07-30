@@ -1,0 +1,78 @@
+NAME
+
+Bio::Phylo v.0.01 - An object-oriented Perl module for analyzing and 
+manipulating phylogenetic trees. 
+
+DESCRIPTION
+
+
+
+INSTALLATION
+
+This module has two external dependencies: Math::Random, and SVG, 
+which are both available from CPAN.
+ 
+To install this module, run the following commands: 
+perl Makefile.PL
+make
+make test
+make install
+ 
+On Win32, use "nmake" instead of "make":
+http://support.microsoft.com/default.aspx?scid=kb;en-us;Q132084
+ 
+Installs without problems on:
+ 	- perl, v5.8.4 built for MSWin32-x86-multi-thread
+ 	- perl, v5.8.6 built for cygwin-thread-multi-64int
+ 	- perl, v5.8.0 built for darwin
+ 	- perl, v5.8.0 built for sun4-solaris
+ 	- perl, v5.6.1 built for i386-linux
+ 	- perl, v5.8.1-RC3 built for darwin-thread-multi-2level 
+
+AUTHOR
+
+Rutger Vos, rvosa@sfu.ca
+
+BUGS
+
+Please report any bugs or feature requests to bug-phylo@rt.cpan.org, 
+or through the web interface at
+http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Phylo. I will be 
+notified, and then you'll automatically be notified of progress 
+on your bug as I make changes. 
+ 
+ACKNOWLEDGEMENTS
+
+The author would like to thank Jason Stajich for many ideas borrowed 
+from BioPerl (http://www.bioperl.org), and Arne Mooers from the FAB* 
+lab (http://www.sfu.ca/~fabstar) for comments and requests. 
+
+SEE ALSO
+
+ The perldoc pages for:
+ 	- Bio::Phylo
+ 	- Bio::Phylo::Trees
+ 		- Bio::Phylo::Trees::Tree
+ 		- Bio::Phylo::Trees::Node
+ 	- Bio::Phylo::Taxa
+ 		- Bio::Phylo::Taxa::Taxon
+ 	- Bio::Phylo::Matrices
+ 		- Bio::Phylo::Matrices::Matrix
+ 		- Bio::Phylo::Matrices::Datum
+ 	- Bio::Phylo::Parsers
+ 		- Bio::Phylo::Parsers::Newick
+ 		- Bio::Phylo::Parsers::Nexus
+ 		- Bio::Phylo::Parsers::Table
+ 		- Bio::Phylo::Parsers::Taxlist
+ 	- Bio::Phylo::Unparsers
+ 		- Bio::Phylo::Unparsers::Newick
+ 		- Bio::Phylo::Unparsers::Pagel
+ 		- Bio::Phylo::Unparsers::Svg
+ 	- Bio::Phylo::Generator
+ 	- Bio::Phylo::Listable
+
+COPYRIGHT & LICENSE
+
+Copyright 2005 Rutger Vos, All Rights Reserved. This program is free 
+software; you can redistribute it and/or modify it under the same 
+terms as Perl itself.
