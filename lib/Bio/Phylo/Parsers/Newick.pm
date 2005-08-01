@@ -1,21 +1,21 @@
-# $Id: Newick.pm,v 1.7 2005/07/27 15:48:55 rvosa Exp $
-# Subversion: $Rev: 133 $
+# $Id: Newick.pm,v 1.4 2005/08/01 23:06:17 rvosa Exp $
+# Subversion: $Rev: 147 $
 package Bio::Phylo::Parsers::Newick;
 use strict;
 use warnings;
 use Bio::Phylo::Trees;
 use Bio::Phylo::Trees::Tree;
 use Bio::Phylo::Trees::Node;
-use base qw(Bio::Phylo::Parsers);
+use base 'Bio::Phylo::Parsers';
 
 # The bit of voodoo is for including Subversion keywords in the main source
 # file. $Rev is the subversion revision number. The way I set it up here allows
 # 'make dist' to build a *.tar.gz without the "_rev#" in the package name, while
 # it still shows up otherwise (e.g. during 'make test') as a developer release,
 # with the "_rev#".
-my $rev = '$Rev: 133 $';
+my $rev = '$Rev: 147 $';
 $rev =~ s/^[^\d]+(\d+)[^\d]+$/$1/;
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 $VERSION .= '_' . $rev;
 my $VERBOSE = 1;
 use vars qw($VERSION);
@@ -115,13 +115,17 @@ sub _parse_string {
     my $tree = new Bio::Phylo::Trees::Tree;
     $string = $self->_nodelabels($string);
     foreach ( grep /\w/, split( /[\(|,|\)|;]+/, $string ) ) {
-        my $node = new Bio::Phylo::Trees::Node;
+        my $node;
         if (/^(.+):(\d+\.?\d*e?[-|+]?\d*)$/i) {
-            $node->set_name($1);
-            $node->set_branch_length($2);
+            $node = Bio::Phylo::Trees::Node->new(
+                -name          => $1,
+                -branch_length => $2
+            );
         }
         else {
-            $node->set_name($_);
+            $node = Bio::Phylo::Trees::Node->new(
+                -name => $_,
+            );
         }
         $tree->insert($node);
     }
@@ -225,8 +229,8 @@ Rutger Vos, C<< <rvosa@sfu.ca> >>
 =head1 BUGS
 
 Please report any bugs or feature requests to
-C<bug-phylo@rt.cpan.org>, or through the web interface at
-L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Phylo>.
+C<bug-bio-phylo@rt.cpan.org>, or through the web interface at
+L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Bio-Phylo>.
 I will be notified, and then you'll automatically be notified
 of progress on your bug as I make changes.
 

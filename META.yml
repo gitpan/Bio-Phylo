@@ -1,10 +1,11 @@
 # http://module-build.sourceforge.net/META-spec.html
 #XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
 name:         Bio-Phylo
-version:      0.01
+version:      0.02
 version_from: lib/Bio/Phylo.pm
 installdirs:  site
 requires:
+    Exception::Class:              0
     Math::Random:                  0
     SVG:                           1.07
     Test::More:                    0

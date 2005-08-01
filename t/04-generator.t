@@ -1,4 +1,4 @@
-# $Id: 04-generator.t,v 1.3 2005/07/22 00:46:30 rvosa Exp $
+# $Id: 04-generator.t,v 1.4 2005/07/31 11:13:51 rvosa Exp $
 use strict;
 use warnings;
 use Test::More tests => 18;    #iterating over 10 generated trees

@@ -1,4 +1,4 @@
-# $Id: 08-datum.t,v 1.3 2005/07/22 00:46:31 rvosa Exp $
+# $Id: 08-datum.t,v 1.4 2005/07/31 11:13:52 rvosa Exp $
 use strict;
 use warnings;
 use Test::More tests => 37;

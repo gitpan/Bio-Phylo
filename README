@@ -1,16 +1,18 @@
 NAME
 
-Bio::Phylo v.0.01 - An object-oriented Perl module for analyzing and 
-manipulating phylogenetic trees. 
+Bio::Phylo v.0.01 - An object-oriented Perl module 
+for analyzing and manipulating phylogenetic trees. 
 
 DESCRIPTION
 
-
+Phylogenetics is the branch of evolutionary biology
+that deals with reconstructing and analyzing the 
+tree of life.
 
 INSTALLATION
 
-This module has two external dependencies: Math::Random, and SVG, 
-which are both available from CPAN.
+This module has two external dependencies: Math::Random, 
+and SVG, which are both available from CPAN.
  
 To install this module, run the following commands: 
 perl Makefile.PL
@@ -35,17 +37,18 @@ Rutger Vos, rvosa@sfu.ca
 
 BUGS
 
-Please report any bugs or feature requests to bug-phylo@rt.cpan.org, 
-or through the web interface at
-http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Phylo. I will be 
-notified, and then you'll automatically be notified of progress 
-on your bug as I make changes. 
+Please report any bugs or feature requests to 
+bug-phylo@rt.cpan.org, or through the web interface 
+at http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Phylo. 
+I will be notified, and then you'll automatically 
+be notified of progress on your bug as I make changes. 
  
 ACKNOWLEDGEMENTS
 
-The author would like to thank Jason Stajich for many ideas borrowed 
-from BioPerl (http://www.bioperl.org), and Arne Mooers from the FAB* 
-lab (http://www.sfu.ca/~fabstar) for comments and requests. 
+The author would like to thank Jason Stajich for many 
+ideas borrowed from BioPerl (http://www.bioperl.org), 
+and Arne Mooers from the FAB* lab (http://www.sfu.ca/~fabstar) 
+for comments and requests. 
 
 SEE ALSO
 
@@ -73,6 +76,6 @@ SEE ALSO
 
 COPYRIGHT & LICENSE
 
-Copyright 2005 Rutger Vos, All Rights Reserved. This program is free 
-software; you can redistribute it and/or modify it under the same 
-terms as Perl itself.
+Copyright 2005 Rutger Vos, All Rights Reserved. 
+This program is free software; you can redistribute 
+it and/or modify it under the same terms as Perl itself.

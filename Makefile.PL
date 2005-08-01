@@ -9,9 +9,10 @@ WriteMakefile(
     ABSTRACT_FROM       => 'lib/Bio/Phylo.pm',
     PL_FILES            => {},
     PREREQ_PM => {
-        'Test::More'    => 0,
-        'Math::Random'  => 0,
-        'SVG'           => 1.07,
+        'Test::More'       => 0,
+        'Math::Random'     => 0,
+        'SVG'              => 1.07,
+        'Exception::Class' => 0
     },
     dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
     clean               => { FILES => 'Phylo-*' },

@@ -1,5 +1,5 @@
-# $Id: Phylo.pm,v 1.5 2005/07/26 21:05:37 rvosa Exp $
-# Subversion: $Rev: 132 $
+# $Id: Phylo.pm,v 1.4 2005/08/01 23:06:15 rvosa Exp $
+# Subversion: $Rev: 147 $
 package Bio::Phylo;
 use constant TREES    => 0;
 use constant TAXA     => 1;
@@ -13,9 +13,9 @@ use warnings;
 # 'make dist' to build a *.tar.gz without the "_rev#" in the package name, while
 # it still shows up otherwise (e.g. during 'make test') as a developer release,
 # with the "_rev#".
-my $rev = '$Rev: 132 $';
+my $rev = '$Rev: 147 $';
 $rev =~ s/^[^\d]+(\d+)[^\d]+$/$1/;
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 $VERSION .= '_' . $rev;
 my $VERBOSE = 1;
 use vars qw($VERSION);
@@ -448,8 +448,8 @@ Rutger Vos, C<< <rvosa@sfu.ca> >>
 =head1 BUGS
 
 Please report any bugs or feature requests to
-C<bug-phylo@rt.cpan.org>, or through the web interface at
-L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Bio::Phylo>.
+C<bug-bio-phylo@rt.cpan.org>, or through the web interface at
+L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Bio-Phylo>.
 I will be notified, and then you'll automatically be notified of
 progress on your bug as I make changes.
 
