@@ -11,7 +11,7 @@ use warnings;
 # with the "_rev#".
 my $rev = '$Rev: 147 $';
 $rev =~ s/^[^\d]+(\d+)[^\d]+$/$1/;
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 $VERSION .= '_' . $rev;
 
 # This doesn't actually *do* anything yet. But I promise you:

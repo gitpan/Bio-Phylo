@@ -1,5 +1,5 @@
-# $Id: Datum.pm,v 1.4 2005/08/01 23:06:17 rvosa Exp $
-# Subversion: $Rev: 147 $
+# $Id: Datum.pm,v 1.6 2005/08/09 12:36:12 rvosa Exp $
+# Subversion: $Rev: 148 $
 package Bio::Phylo::Matrices::Datum;
 use strict;
 use warnings;
@@ -11,9 +11,9 @@ use base 'Bio::Phylo';
 # 'make dist' to build a *.tar.gz without the "_rev#" in the package name, while
 # it still shows up otherwise (e.g. during 'make test') as a developer release,
 # with the "_rev#".
-my $rev = '$Rev: 147 $';
+my $rev = '$Rev: 148 $';
 $rev =~ s/^[^\d]+(\d+)[^\d]+$/$1/;
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 $VERSION .= '_' . $rev;
 my $VERBOSE = 1;
 use vars qw($VERSION);
@@ -435,6 +435,7 @@ sub container_type {
 =head1 AUTHOR
 
 Rutger Vos, C<< <rvosa@sfu.ca> >>
+L<http://www.sfu.ca/~rvosa/>
 
 =head1 BUGS
 

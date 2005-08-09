@@ -1,5 +1,5 @@
-# $Id: Newick.pm,v 1.4 2005/08/01 23:06:17 rvosa Exp $
-# Subversion: $Rev: 147 $
+# $Id: Newick.pm,v 1.6 2005/08/09 12:36:13 rvosa Exp $
+# Subversion: $Rev: 148 $
 package Bio::Phylo::Parsers::Newick;
 use strict;
 use warnings;
@@ -13,9 +13,9 @@ use base 'Bio::Phylo::Parsers';
 # 'make dist' to build a *.tar.gz without the "_rev#" in the package name, while
 # it still shows up otherwise (e.g. during 'make test') as a developer release,
 # with the "_rev#".
-my $rev = '$Rev: 147 $';
+my $rev = '$Rev: 148 $';
 $rev =~ s/^[^\d]+(\d+)[^\d]+$/$1/;
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 $VERSION .= '_' . $rev;
 my $VERBOSE = 1;
 use vars qw($VERSION);
@@ -114,9 +114,9 @@ sub _parse_string {
     my ( $self, $string ) = @_;
     my $tree = new Bio::Phylo::Trees::Tree;
     $string = $self->_nodelabels($string);
-    foreach ( grep /\w/, split( /[\(|,|\)|;]+/, $string ) ) {
+    foreach ( grep ( /\w/, split( /[\(|,|\)|;]+/o, $string ) ) ) {
         my $node;
-        if (/^(.+):(\d+\.?\d*e?[-|+]?\d*)$/i) {
+        if (/^(.+):(\d+\.?\d*e?[-|+]?\d*)$/oi) {
             $node = Bio::Phylo::Trees::Node->new(
                 -name          => $1,
                 -branch_length => $2
@@ -173,8 +173,8 @@ sub _nodelabels {
     my $self   = $_[0];
     my $string = $_[1];
     my ( $x, @x );
-    while ( $string =~ /\)[:|,|;|\)]/ ) {
-        foreach ( split( /[:|,|;|\)]/, $string ) ) {
+    while ( $string =~ /\)[:|,|;|\)]/o ) {
+        foreach ( split( /[:|,|;|\)]/o, $string ) ) {
             push( @x, $1 ) if /n([0-9]+)/;
         }
         @x = sort { $a <=> $b } @x;
@@ -225,6 +225,7 @@ sub container_type {
 =head1 AUTHOR
 
 Rutger Vos, C<< <rvosa@sfu.ca> >>
+L<http://www.sfu.ca/~rvosa/>
 
 =head1 BUGS
 

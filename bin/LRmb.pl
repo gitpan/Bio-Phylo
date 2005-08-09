@@ -1,6 +1,6 @@
 #!/usr/bin/perl
-# $Id: LRmb.pl,v 1.1 2005/08/01 23:06:13 rvosa Exp $
-# Subversion: $Rev: 145 $
+# $Id: LRmb.pl,v 1.2 2005/08/09 12:36:12 rvosa Exp $
+# Subversion: $Rev: 163 $
 use strict;
 use warnings;
 use IPC::Open2;

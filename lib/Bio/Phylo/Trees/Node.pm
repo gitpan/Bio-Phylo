@@ -1,5 +1,5 @@
-# $Id: Node.pm,v 1.4 2005/08/01 23:06:18 rvosa Exp $
-# Subversion: $Rev: 147 $
+# $Id: Node.pm,v 1.6 2005/08/09 12:36:13 rvosa Exp $
+# Subversion: $Rev: 149 $
 package Bio::Phylo::Trees::Node;
 use strict;
 use warnings;
@@ -10,9 +10,9 @@ use base 'Bio::Phylo';
 # 'make dist' to build a *.tar.gz without the "_rev#" in the package name, while
 # it still shows up otherwise (e.g. during 'make test') as a developer release,
 # with the "_rev#".
-my $rev = '$Rev: 147 $';
+my $rev = '$Rev: 149 $';
 $rev =~ s/^[^\d]+(\d+)[^\d]+$/$1/;
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 $VERSION .= '_' . $rev;
 my $VERBOSE = 1;
 use vars qw($VERSION);
@@ -65,11 +65,11 @@ the tree object.
 sub new {
     my $class = shift;
     my $self  = {};
+    $self->{'PARENT'}          = undef;
     $self->{'NAME'}            = undef;
     $self->{'TAXON'}           = undef;
     $self->{'DESC'}            = undef;
     $self->{'BRANCH_LENGTH'}   = undef;
-    $self->{'PARENT'}          = undef;
     $self->{'FIRST_DAUGHTER'}  = undef;
     $self->{'LAST_DAUGHTER'}   = undef;
     $self->{'NEXT_SISTER'}     = undef;
@@ -167,7 +167,7 @@ sub set_taxon {
 
 sub set_branch_length {
     my $node = $_[0];
-    if ( $_[1] ) {
+    if ( defined($_[1]) ) {
         my $branchlength = $_[1];
         if ( $branchlength !~ m/(^[-|+]?\d+\.?\d*e?[-|+]?\d*$)/i ) {
             $node->COMPLAIN("\"$branchlength\" is a bad number format: $@");
@@ -411,6 +411,7 @@ sub get_taxon {
  Function: Retrieves a node's branch length.
  Returns : FLOAT
  Args    : NONE
+ Comments: Test for defined($node->get_branch_length) for zero-length branches.
 
 =cut
 
@@ -495,173 +496,6 @@ sub get_next_sister {
 sub get_previous_sister {
     return $_[0]->{'PREVIOUS_SISTER'};
 }
-
-=item get_generic()
-
- Type    : Accessor
- Title   : get_generic
- Usage   : my $get_generic = $node->get_generic($key);
- Function: Retrieves value of a generic key/value pair given $key.
- Returns : A SCALAR string
- Args    : Key/value pairs are stored as hashrefs. If
-           $node->set_generic(posterior => 0.3543) has been set, the value
-           can be retrieved using $node->get_generic('posterior');
-
-=cut
-
-sub get_generic {
-    return $_[0]->{'GENERIC'}->{ $_[1] };
-}
-
-=back
-
-=head2 TESTS
-
-=over
-
-=item is_terminal()
-
- Type    : Test
- Title   : is_terminal
- Usage   : $node->is_terminal;
- Function: Returns true if node has no children (i.e. is terminal).
- Returns : BOOLEAN
- Args    : none
-
-=cut
-
-sub is_terminal {
-    my $node = $_[0];
-    if ( !$node->get_first_daughter ) {
-        return 1;
-    }
-    else {
-        return;
-    }
-}
-
-=item is_internal()
-
- Type    : Test
- Title   : is_internal
- Usage   : $node->is_internal;
- Function: Returns true if node has children (i.e. is internal).
- Returns : BOOLEAN
- Args    : none
-
-=cut
-
-sub is_internal {
-    my $node = $_[0];
-    if ( $node->get_first_daughter ) {
-        return 1;
-    }
-    else {
-        return;
-    }
-}
-
-=item is_descendant_of(Bio::Phylo::Trees::Node)
-
- Type    : Test
- Title   : is_descendant_of
- Usage   : $node->is_descendant_of($grandparent);
- Function: Returns true if the node is a descendant of the argument.
- Returns : BOOLEAN
- Args    : putative ancestor - a Bio::Phylo::Trees::Node object.
-
-=cut
-
-sub is_descendant_of {
-    my ( $node, $parent ) = @_;
-    while ($node) {
-        if ( $node->get_parent ) {
-            $node = $node->get_parent;
-        }
-        else {
-            return;
-        }
-        if ( $node == $parent ) {
-            return 1;
-        }
-    }
-}
-
-=item is_ancestor_of(Bio::Phylo::Trees::Node)
-
- Type    : Test
- Title   : is_ancestor_of
- Usage   : $node->is_ancestor_of($grandchild);
- Function: Returns true if the node is an ancestor of the argument.
- Returns : BOOLEAN
- Args    : putative descendant - a Bio::Phylo::Trees::Node object.
-
-=cut
-
-sub is_ancestor_of {
-    my ( $node, $child ) = @_;
-    if ( $child->is_descendant_of($node) ) {
-        return 1;
-    }
-    else {
-        return;
-    }
-}
-
-=item is_sister_of(Bio::Phylo::Trees::Node)
-
- Type    : Test
- Title   : is_sister_of
- Usage   : $node->is_sister_of($sister);
- Function: Returns true if the node is a sister of the argument.
- Returns : BOOLEAN
- Args    : putative sister - a Bio::Phylo::Trees::Node object.
-
-=cut
-
-sub is_sister_of {
-    my ( $node, $sis ) = @_;
-    if (   $node->get_parent
-        && $sis->get_parent
-        && $node->get_parent == $sis->get_parent )
-    {
-        return 1;
-    }
-    else {
-        return;
-    }
-}
-
-=item is_outgroup_of(\@{Bio::Phylo::Trees::Node, Bio::Phylo::Trees::Node})
-
- Type    : Test
- Title   : is_outgroup_of
- Usage   : $outgroup->is_outgroup_of(\@ingroup);
- Function: Tests whether the set of \@ingroup is monophyletic
-           with respect to the $outgroup.
- Returns : BOOLEAN
- Args    : A reference to a list of Bio::Phylo::Trees::Node objects;
- Comments: This method is essentially the same as
-           Bio::Phylo::Trees::Tree::is_monophyletic.
-
-=cut
-
-sub is_outgroup_of {
-    my ( $outgroup, $nodes ) = @_;
-    for my $i ( 0 .. $#{$nodes} ) {
-        for my $j ( ( $i + 1 ) .. $#{$nodes} ) {
-            my $mrca = $nodes->[$i]->get_mrca( $nodes->[$j] );
-            return if $mrca->is_ancestor_of($outgroup);
-        }
-    }
-    return 1;
-}
-
-=back
-
-=head2 QUERIES
-
-=over
 
 =item get_ancestors()
 
@@ -915,6 +749,167 @@ sub get_rightmost_terminal {
     return $node;
 }
 
+=item get_generic()
+
+ Type    : Accessor
+ Title   : get_generic
+ Usage   : my $get_generic = $node->get_generic($key);
+ Function: Retrieves value of a generic key/value pair given $key.
+ Returns : A SCALAR string
+ Args    : Key/value pairs are stored as hashrefs. If
+           $node->set_generic(posterior => 0.3543) has been set, the value
+           can be retrieved using $node->get_generic('posterior');
+
+=cut
+
+sub get_generic {
+    return $_[0]->{'GENERIC'}->{ $_[1] };
+}
+
+=back
+
+=head2 TESTS
+
+=over
+
+=item is_terminal()
+
+ Type    : Test
+ Title   : is_terminal
+ Usage   : $node->is_terminal;
+ Function: Returns true if node has no children (i.e. is terminal).
+ Returns : BOOLEAN
+ Args    : none
+
+=cut
+
+sub is_terminal {
+    my $node = $_[0];
+    if ( !$node->get_first_daughter ) {
+        return 1;
+    }
+    else {
+        return;
+    }
+}
+
+=item is_internal()
+
+ Type    : Test
+ Title   : is_internal
+ Usage   : $node->is_internal;
+ Function: Returns true if node has children (i.e. is internal).
+ Returns : BOOLEAN
+ Args    : none
+
+=cut
+
+sub is_internal {
+    my $node = $_[0];
+    if ( $node->get_first_daughter ) {
+        return 1;
+    }
+    else {
+        return;
+    }
+}
+
+=item is_descendant_of(Bio::Phylo::Trees::Node)
+
+ Type    : Test
+ Title   : is_descendant_of
+ Usage   : $node->is_descendant_of($grandparent);
+ Function: Returns true if the node is a descendant of the argument.
+ Returns : BOOLEAN
+ Args    : putative ancestor - a Bio::Phylo::Trees::Node object.
+
+=cut
+
+sub is_descendant_of {
+    my ( $node, $parent ) = @_;
+    while ($node) {
+        if ( $node->get_parent ) {
+            $node = $node->get_parent;
+        }
+        else {
+            return;
+        }
+        if ( $node == $parent ) {
+            return 1;
+        }
+    }
+}
+
+=item is_ancestor_of(Bio::Phylo::Trees::Node)
+
+ Type    : Test
+ Title   : is_ancestor_of
+ Usage   : $node->is_ancestor_of($grandchild);
+ Function: Returns true if the node is an ancestor of the argument.
+ Returns : BOOLEAN
+ Args    : putative descendant - a Bio::Phylo::Trees::Node object.
+
+=cut
+
+sub is_ancestor_of {
+    my ( $node, $child ) = @_;
+    if ( $child->is_descendant_of($node) ) {
+        return 1;
+    }
+    else {
+        return;
+    }
+}
+
+=item is_sister_of(Bio::Phylo::Trees::Node)
+
+ Type    : Test
+ Title   : is_sister_of
+ Usage   : $node->is_sister_of($sister);
+ Function: Returns true if the node is a sister of the argument.
+ Returns : BOOLEAN
+ Args    : putative sister - a Bio::Phylo::Trees::Node object.
+
+=cut
+
+sub is_sister_of {
+    my ( $node, $sis ) = @_;
+    if (   $node->get_parent
+        && $sis->get_parent
+        && $node->get_parent == $sis->get_parent )
+    {
+        return 1;
+    }
+    else {
+        return;
+    }
+}
+
+=item is_outgroup_of(\@{Bio::Phylo::Trees::Node, Bio::Phylo::Trees::Node})
+
+ Type    : Test
+ Title   : is_outgroup_of
+ Usage   : $outgroup->is_outgroup_of(\@ingroup);
+ Function: Tests whether the set of \@ingroup is monophyletic
+           with respect to the $outgroup.
+ Returns : BOOLEAN
+ Args    : A reference to a list of Bio::Phylo::Trees::Node objects;
+ Comments: This method is essentially the same as
+           Bio::Phylo::Trees::Tree::is_monophyletic.
+
+=cut
+
+sub is_outgroup_of {
+    my ( $outgroup, $nodes ) = @_;
+    for my $i ( 0 .. $#{$nodes} ) {
+        for my $j ( ( $i + 1 ) .. $#{$nodes} ) {
+            my $mrca = $nodes->[$i]->get_mrca( $nodes->[$j] );
+            return if $mrca->is_ancestor_of($outgroup);
+        }
+    }
+    return 1;
+}
+
 =back
 
 =head2 CALCULATIONS
@@ -936,7 +931,7 @@ sub calc_path_to_root {
     my $node = $_[0];
     my $path = 0;
     while ($node) {
-        if ( $node->get_branch_length ) {
+        if ( defined($node->get_branch_length) ) {
             $path += $node->get_branch_length;
         }
         $node = $node->get_parent;
@@ -1033,7 +1028,7 @@ sub calc_max_path_to_tips {
     foreach my $child ( @{ $node->get_terminals } ) {
         $length = 0;
         while ( $child != $node ) {
-            $length += $child->get_branch_length if $child->get_branch_length;
+            $length += $child->get_branch_length if defined($child->get_branch_length);
             $child = $child->get_parent;
         }
         $maxlength = $length if $length > $maxlength;
@@ -1058,7 +1053,7 @@ sub calc_min_path_to_tips {
     foreach my $child ( @{ $node->get_terminals } ) {
         $length = 0;
         while ( $child != $node ) {
-            $length += $child->get_branch_length if $child->get_branch_length;
+            $length += $child->get_branch_length if defined($child->get_branch_length);
             $child = $child->get_parent;
         }
         $minlength = $length if !$minlength;
@@ -1084,13 +1079,13 @@ sub calc_patristic_distance {
     my $pd;
     my $mrca = $node->get_mrca($other_node);
     while ( $node != $mrca ) {
-        if ( $node->get_branch_length ) {
+        if ( defined($node->get_branch_length) ) {
             $pd += $node->get_branch_length;
         }
         $node = $node->get_parent;
     }
     while ( $other_node != $mrca ) {
-        if ( $other_node->get_branch_length ) {
+        if ( defined($other_node->get_branch_length) ) {
             $pd += $other_node->get_branch_length;
         }
         $other_node = $other_node->get_parent;
@@ -1139,6 +1134,7 @@ sub container_type {
 =head1 AUTHOR
 
 Rutger Vos, C<< <rvosa@sfu.ca> >>
+L<http://www.sfu.ca/~rvosa/>
 
 =head1 BUGS
 

@@ -1,4 +1,11 @@
 Revision history for Bio::Phylo
+0.03 09/Aug/2005 13:42 Added EXE_FILES switch to Makefile.pl, scripts
+                       in bin dir are now installed in the right location.
+                       Reorganized Node.pm: "QUERIES" are now grouped
+                       under "ACCESSORS" (doesn't change API).
+                       Added link to home page: http://www.sfu.ca/~rvosa/
+                       Changed defaults for Svg unparser.
+                       Changed parameter setting for unparsers.
 
 0.02 02/Aug/2005 00:28 More example scripts in bin folder
                        Updated documentation for bug reports

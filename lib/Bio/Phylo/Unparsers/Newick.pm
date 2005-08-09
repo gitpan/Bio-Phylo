@@ -1,5 +1,5 @@
-# $Id: Newick.pm,v 1.4 2005/08/01 23:06:19 rvosa Exp $
-# Subversion: $Rev: 147 $
+# $Id: Newick.pm,v 1.6 2005/08/09 12:36:13 rvosa Exp $
+# Subversion: $Rev: 148 $
 package Bio::Phylo::Unparsers::Newick;
 use strict;
 use warnings;
@@ -11,9 +11,9 @@ use base 'Bio::Phylo::Unparsers';
 # 'make dist' to build a *.tar.gz without the "_rev#" in the package name, while
 # it still shows up otherwise (e.g. during 'make test') as a developer release,
 # with the "_rev#".
-my $rev = '$Rev: 147 $';
+my $rev = '$Rev: 148 $';
 $rev =~ s/^[^\d]+(\d+)[^\d]+$/$1/;
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 $VERSION .= '_' . $rev;
 my $VERBOSE = 1;
 use vars qw($VERSION);
@@ -54,8 +54,21 @@ description.
 =cut
 
 sub new {
-    my $class = $_[0];
+    my $class = shift;
     my $self  = {};
+    if (@_) {
+        my %opts = @_;
+        foreach my $key ( keys %opts ) {
+            my $localkey = uc($key);
+            $localkey =~ s/-//;
+            unless ( ref $opts{$key} ) {
+                $self->{$localkey} = uc( $opts{$key} );
+            }
+            else {
+                $self->{$localkey} = $opts{$key};
+            }
+        }
+    }
     bless( $self, $class );
     return $self;
 }
@@ -79,8 +92,7 @@ sub new {
 
 sub to_string {
     my $self   = shift;
-    my %opts   = @_;
-    my $tree   = $opts{-phylo};
+    my $tree   = $self->{'PHYLO'};
     my $n      = $tree->get_root;
     my $string = $self->_to_string( $tree, $n );
     return $string;
@@ -105,19 +117,19 @@ sub to_string {
     sub _to_string {
         my ( $self, $tree, $n ) = @_;
         if ( !defined $n->get_parent ) {
-            if ( $n->get_branch_length ) {
+            if ( defined($n->get_branch_length) ) {
                 $string = $n->get_name . ':' . $n->get_branch_length . ';';
             }
             else { $string = $n->get_name . ';'; }
         }
         elsif ( !$n->get_previous_sister ) {
-            if ( $n->get_branch_length ) {
+            if ( defined($n->get_branch_length) ) {
                 $string = $n->get_name . ':' . $n->get_branch_length . $string;
             }
             else { $string = $n->get_name . $string; }
         }
         else {
-            if ( $n->get_branch_length ) {
+            if ( defined($n->get_branch_length) ) {
                 $string =
                   $n->get_name . ':' . $n->get_branch_length . ',' . $string;
             }
@@ -179,6 +191,7 @@ sub container_type {
 =head1 AUTHOR
 
 Rutger Vos, C<< <rvosa@sfu.ca> >>
+L<http://www.sfu.ca/~rvosa/>
 
 =head1 BUGS
 

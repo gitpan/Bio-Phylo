@@ -60,4 +60,5 @@ t/testparse_taxa.nex
 t/testparse_taxa_bad.nex
 t/testparse_trees.nex
 t/testparse_trees1.nex
+t/testparse_chars.nex
 t/taxa.dat

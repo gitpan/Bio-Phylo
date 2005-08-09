@@ -1,5 +1,5 @@
-# $Id: Tree.pm,v 1.4 2005/08/01 23:06:19 rvosa Exp $
-# Subversion: $Rev: 147 $
+# $Id: Tree.pm,v 1.6 2005/08/09 12:36:13 rvosa Exp $
+# Subversion: $Rev: 149 $
 package Bio::Phylo::Trees::Tree;
 use strict;
 use warnings;
@@ -11,9 +11,9 @@ use base 'Bio::Phylo::Listable';
 # 'make dist' to build a *.tar.gz without the "_rev#" in the package name, while
 # it still shows up otherwise (e.g. during 'make test') as a developer release,
 # with the "_rev#".
-my $rev = '$Rev: 147 $';
+my $rev = '$Rev: 149 $';
 $rev =~ s/^[^\d]+(\d+)[^\d]+$/$1/;
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 $VERSION .= '_' . $rev;
 my $VERBOSE = 1;
 use vars qw($VERSION);
@@ -89,25 +89,29 @@ sub _analyze {
         $_->set_last_daughter();
     }
     my ( $i, $j, $first, $next );
-    for $i ( 0 .. $#{$nodes} ) {
+    NODE: for $i ( 0 .. $#{$nodes} ) {
         $first = $nodes->[$i];
         for $j ( ( $i + 1 ) .. $#{$nodes} ) {
             $next = $nodes->[$j];
-            if ( $first->get_parent && $next->get_parent ) {
-                if ( $first->get_parent == $next->get_parent ) {
-                    $first->set_next_sister($next) if !$first->get_next_sister;
-                    $next->set_previous_sister($first)
-                      if !$next->get_previous_sister;
-                }
+            my ( $firstp, $nextp ) = ( $first->get_parent, $next->get_parent );
+            if ( $firstp && $nextp && $firstp == $nextp ) {
+                $first->set_next_sister($next) if !$first->get_next_sister;
+                $next->set_previous_sister($first)
+                if !$next->get_previous_sister;
+                next NODE;
             }
         }
     }
     foreach ( @{$nodes} ) {
-        if ( $_->get_parent && !$_->get_next_sister ) {
-            $_->get_parent->set_last_daughter($_);
-        }
-        if ( $_->get_parent && !$_->get_previous_sister ) {
-            $_->get_parent->set_first_daughter($_);
+        my $p = $_->get_parent;
+        if ( $p ) {
+            if ( !$_->get_next_sister ) {
+                $p->set_last_daughter($_);
+                next;
+            }
+            if ( !$_->get_previous_sister ) {
+                $p->set_first_daughter($_);
+            }
         }
     }
     return $tree;
@@ -308,7 +312,7 @@ sub calc_tree_length {
     my $tree = $_[0];
     my $tl   = 0;
     foreach ( @{ $tree->get_entities } ) {
-        $tl += $_->get_branch_length if $_->get_branch_length;
+        $tl += $_->get_branch_length if defined($_->get_branch_length);
     }
     return $tl;
 }
@@ -814,7 +818,7 @@ sub prune_tips {
                     my $pbl    = $p->get_branch_length;
                     my $sibnbl = $sibbl if $sibbl;
                     $sibnbl += $pbl if $pbl;
-                    $sib->set_branch_length($sibnbl) if $sibnbl;
+                    $sib->set_branch_length($sibnbl) if defined($sibnbl);
                     $sib->set_parent($gp);
                     my $pps = $p->get_previous_sister;
                     my $pns = $p->get_next_sister;
@@ -992,6 +996,7 @@ sub container_type {
 =head1 AUTHOR
 
 Rutger Vos, C<< <rvosa@sfu.ca> >>
+L<http://www.sfu.ca/~rvosa/>
 
 =head1 BUGS
 

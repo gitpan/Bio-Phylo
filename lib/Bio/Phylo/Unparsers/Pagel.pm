@@ -1,5 +1,5 @@
-# $Id: Pagel.pm,v 1.4 2005/08/01 23:06:19 rvosa Exp $
-# Subversion: $Rev: 147 $
+# $Id: Pagel.pm,v 1.6 2005/08/09 12:36:13 rvosa Exp $
+# Subversion: $Rev: 148 $
 package Bio::Phylo::Unparsers::Pagel;
 use strict;
 use warnings;
@@ -11,9 +11,9 @@ use base 'Bio::Phylo::Unparsers';
 # 'make dist' to build a *.tar.gz without the "_rev#" in the package name, while
 # it still shows up otherwise (e.g. during 'make test') as a developer release,
 # with the "_rev#".
-my $rev = '$Rev: 147 $';
+my $rev = '$Rev: 148 $';
 $rev =~ s/^[^\d]+(\d+)[^\d]+$/$1/;
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 $VERSION .= '_' . $rev;
 my $VERBOSE = 1;
 use vars qw($VERSION);
@@ -62,8 +62,21 @@ formatted to %f floats (i.e. integers, decimal point, integers).
 =cut
 
 sub new {
-    my $class = $_[0];
+    my $class = shift;
     my $self  = {};
+    if (@_) {
+        my %opts = @_;
+        foreach my $key ( keys %opts ) {
+            my $localkey = uc($key);
+            $localkey =~ s/-//;
+            unless ( ref $opts{$key} ) {
+                $self->{$localkey} = uc( $opts{$key} );
+            }
+            else {
+                $self->{$localkey} = $opts{$key};
+            }
+        }
+    }
     bless( $self, $class );
     return $self;
 }
@@ -85,8 +98,7 @@ sub new {
 
 sub to_string {
     my $self = shift;
-    my %opts = @_;
-    my $tree = $opts{-phylo};
+    my $tree = $self->{'PHYLO'};
     $tree->resolve;
     my ( $charcounter, $string ) = 0;
     foreach my $node ( @{ $tree->get_entities } ) {
@@ -159,6 +171,7 @@ sub container_type {
 =head1 AUTHOR
 
 Rutger Vos, C<< <rvosa@sfu.ca> >>
+L<http://www.sfu.ca/~rvosa/>
 
 =head1 BUGS
 
