@@ -1,10 +1,13 @@
-# $Id: Tree.pm,v 1.6 2005/08/09 12:36:13 rvosa Exp $
+# $Id: Tree.pm,v 1.7 2005/08/11 19:41:13 rvosa Exp $
 # Subversion: $Rev: 149 $
 package Bio::Phylo::Trees::Tree;
 use strict;
 use warnings;
 use Bio::Phylo::Trees::Node;
 use base 'Bio::Phylo::Listable';
+
+# One line so MakeMaker sees it.
+use Bio::Phylo;  our $VERSION = $Bio::Phylo::VERSION;
 
 # The bit of voodoo is for including Subversion keywords in the main source
 # file. $Rev is the subversion revision number. The way I set it up here allows
@@ -13,10 +16,10 @@ use base 'Bio::Phylo::Listable';
 # with the "_rev#".
 my $rev = '$Rev: 149 $';
 $rev =~ s/^[^\d]+(\d+)[^\d]+$/$1/;
-our $VERSION = '0.03';
 $VERSION .= '_' . $rev;
-my $VERBOSE = 1;
 use vars qw($VERSION);
+
+my $VERBOSE = 1;
 
 =head1 NAME
 
@@ -89,6 +92,7 @@ sub _analyze {
         $_->set_last_daughter();
     }
     my ( $i, $j, $first, $next );
+    # mmmm... O(N^2)
     NODE: for $i ( 0 .. $#{$nodes} ) {
         $first = $nodes->[$i];
         for $j ( ( $i + 1 ) .. $#{$nodes} ) {
@@ -102,6 +106,7 @@ sub _analyze {
             }
         }
     }
+    # O(N)
     foreach ( @{$nodes} ) {
         my $p = $_->get_parent;
         if ( $p ) {
@@ -909,6 +914,27 @@ sub keep_tips {
         push( @taxatoprune, $name ) unless grep( /$name/, @{$tips} );
     }
     $tree->prune_tips( \@taxatoprune );
+}
+
+=item negative_to_zero()
+
+ Type    : Tree manipulator
+ Title   : negative_to_zero
+ Usage   : $tree->negative_to_zero;
+ Function: Converts negative branch lengths to zero.
+ Returns : A Bio::Phylo::Trees::Tree object without negative branch lengths.
+ Args    : None.
+ Comments:
+
+=cut
+
+sub negative_to_zero {
+    my $tree = shift;
+    foreach my $node ( @{ $tree->get_entities } ) {
+        my $bl = $node->get_branch_length;
+        $node->set_branch_length('0.00') if $bl && $bl < 0;
+    }
+    return $tree;
 }
 
 =item remove_unbranched_internals()

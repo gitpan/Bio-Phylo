@@ -1,4 +1,4 @@
-# $Id: Phylo.pm,v 1.6 2005/08/09 12:36:12 rvosa Exp $
+# $Id: Phylo.pm,v 1.7 2005/08/11 19:41:12 rvosa Exp $
 # Subversion: $Rev: 148 $
 package Bio::Phylo;
 use constant TREES    => 0;
@@ -7,6 +7,7 @@ use constant MATRICES => 2;
 use constant COMMENTS => 3;
 use strict;
 use warnings;
+use Storable qw(dclone);
 
 # The bit of voodoo is for including Subversion keywords in the main source
 # file. $Rev is the subversion revision number. The way I set it up here allows
@@ -15,7 +16,7 @@ use warnings;
 # with the "_rev#".
 my $rev = '$Rev: 148 $';
 $rev =~ s/^[^\d]+(\d+)[^\d]+$/$1/;
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 $VERSION .= '_' . $rev;
 my $VERBOSE = 1;
 use vars qw($VERSION);
@@ -322,6 +323,23 @@ sub get {
     }
 }
 
+=item clone()
+
+ Type    : Utility method
+ Title   : clone
+ Usage   : my $clone = $object->clone;
+ Function: Creates a copy of the invocant object.
+ Returns : A copy of the invocant.
+ Args    : none.
+
+=cut
+
+sub clone {
+    my $self = shift;
+    my $clone = dclone($self);
+    return $clone;
+}
+
 =item VERBOSE()
 
 Getter and setter for the verbose level. Currently it's just 0=no messages,
@@ -363,10 +381,10 @@ sub VERBOSE {
 
 sub CITATION {
     my $self    = shift;
-    my $name    = ref $self;
-    my $version = $self->VERSION;
+    my $name    = __PACKAGE__;
+    my $version = __PACKAGE__->VERSION;
     my $string  = qq{Rutger A. Vos, 2005. $name: };
-    $string .= qq{Phylogenetic analysis using Perl, version $version};
+       $string .= qq{Phylogenetic analysis using Perl, version $version};
     return $string;
 }
 

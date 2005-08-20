@@ -4,6 +4,9 @@ package Bio::Phylo::Exceptions;
 use strict;
 use warnings;
 
+# One line so MakeMaker sees it.
+use Bio::Phylo;  our $VERSION = $Bio::Phylo::VERSION;
+
 # The bit of voodoo is for including Subversion keywords in the main source
 # file. $Rev is the subversion revision number. The way I set it up here allows
 # 'make dist' to build a *.tar.gz without the "_rev#" in the package name, while
@@ -11,7 +14,6 @@ use warnings;
 # with the "_rev#".
 my $rev = '$Rev: 147 $';
 $rev =~ s/^[^\d]+(\d+)[^\d]+$/$1/;
-our $VERSION = '0.03';
 $VERSION .= '_' . $rev;
 
 # This doesn't actually *do* anything yet. But I promise you:

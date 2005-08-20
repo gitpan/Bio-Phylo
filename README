@@ -1,6 +1,6 @@
 NAME
 
-Bio::Phylo v.0.01 - An object-oriented Perl module 
+Bio::Phylo v.0.03 - An object-oriented Perl module 
 for analyzing and manipulating phylogenetic trees. 
 
 DESCRIPTION
@@ -23,13 +23,8 @@ make install
 On Win32, use "nmake" instead of "make":
 http://support.microsoft.com/default.aspx?scid=kb;en-us;Q132084
  
-Installs without problems on:
- 	- perl, v5.8.4 built for MSWin32-x86-multi-thread
- 	- perl, v5.8.6 built for cygwin-thread-multi-64int
- 	- perl, v5.8.0 built for darwin
- 	- perl, v5.8.0 built for sun4-solaris
- 	- perl, v5.6.1 built for i386-linux
- 	- perl, v5.8.1-RC3 built for darwin-thread-multi-2level 
+Automated test results can be found at:
+http://testers.cpan.org/show/Bio-Phylo.html
 
 AUTHOR
 

@@ -1,4 +1,8 @@
 Revision history for Bio::Phylo
+0.04 20/Aug/2005 18:45 Added clone method to duplicate objects
+					   Added negative_to_zero method to remove
+					   negative branch lengths.
+					   
 0.03 09/Aug/2005 13:42 Added EXE_FILES switch to Makefile.pl, scripts
                        in bin dir are now installed in the right location.
                        Reorganized Node.pm: "QUERIES" are now grouped

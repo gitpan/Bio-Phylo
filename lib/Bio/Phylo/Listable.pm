@@ -1,9 +1,12 @@
-# $Id: Listable.pm,v 1.6 2005/08/09 12:36:12 rvosa Exp $
+# $Id: Listable.pm,v 1.7 2005/08/11 19:41:12 rvosa Exp $
 # Subversion: $Rev: 148 $
 package Bio::Phylo::Listable;
 use strict;
 use warnings;
 use base 'Bio::Phylo';
+
+# One line so MakeMaker sees it.
+use Bio::Phylo;  our $VERSION = $Bio::Phylo::VERSION;
 
 # The bit of voodoo is for including Subversion keywords in the main source
 # file. $Rev is the subversion revision number. The way I set it up here allows
@@ -12,10 +15,10 @@ use base 'Bio::Phylo';
 # with the "_rev#".
 my $rev = '$Rev: 148 $';
 $rev =~ s/^[^\d]+(\d+)[^\d]+$/$1/;
-our $VERSION = '0.03';
 $VERSION .= '_' . $rev;
-my $VERBOSE = 1;
 use vars qw($VERSION);
+
+my $VERBOSE = 1;
 
 =head1 NAME
 

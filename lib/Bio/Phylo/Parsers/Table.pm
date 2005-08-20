@@ -1,4 +1,4 @@
-# $Id: Table.pm,v 1.6 2005/08/09 12:36:13 rvosa Exp $
+# $Id: Table.pm,v 1.7 2005/08/11 19:41:13 rvosa Exp $
 # Subversion: $Rev: 148 $
 package Bio::Phylo::Parsers::Table;
 use strict;
@@ -8,6 +8,9 @@ use Bio::Phylo::Matrices::Matrix;
 use Bio::Phylo::Matrices::Datum;
 use base 'Bio::Phylo::Parsers';
 
+# One line so MakeMaker sees it.
+use Bio::Phylo;  our $VERSION = $Bio::Phylo::VERSION;
+
 # The bit of voodoo is for including Subversion keywords in the main source
 # file. $Rev is the subversion revision number. The way I set it up here allows
 # 'make dist' to build a *.tar.gz without the "_rev#" in the package name, while
@@ -15,10 +18,10 @@ use base 'Bio::Phylo::Parsers';
 # with the "_rev#".
 my $rev = '$Rev: 148 $';
 $rev =~ s/^[^\d]+(\d+)[^\d]+$/$1/;
-our $VERSION = '0.03';
 $VERSION .= '_' . $rev;
-my $VERBOSE = 1;
 use vars qw($VERSION);
+
+my $VERBOSE = 1;
 
 =head1 NAME
 
