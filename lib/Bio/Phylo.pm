@@ -18,7 +18,7 @@ use fields qw(NAME
 # with the "_rev#".
 my $rev = '$Rev: 189 $';
 $rev =~ s/^[^\d]+(\d+)[^\d]+$/$1/;
-our $VERSION = '0.05';
+our $VERSION = '0.07';
 $VERSION .= '_' . $rev;
 my $VERBOSE = 1;
 use vars qw($VERSION);

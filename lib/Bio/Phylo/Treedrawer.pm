@@ -32,14 +32,14 @@ use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
 
 =head1 NAME
 
-Bio::Phylo::Treedrawers - An object-oriented facade for drawing trees.
+Bio::Phylo::Treedrawer - An object-oriented facade for drawing trees.
 
 =head1 SYNOPSIS
 
- use Bio::Phylo::Treedrawers;
+ use Bio::Phylo::Treedrawer;
  use Bio::Phylo::IO;
  
- my $treedrawer = Bio::Phylo::Treedrawers->new(
+ my $treedrawer = Bio::Phylo::Treedrawer->new(
     -width  => 400,
     -height => 600,
     -shape  => 'CURVY',
@@ -72,10 +72,10 @@ nodes) and calls the appropriate format-specific drawer.
 
  Type    : Constructor
  Title   : new
- Usage   : my $treedrawer = Bio::Phylo::Treedrawers->new(%args);
- Function: Initializes a Bio::Phylo::Treedrawers object.
+ Usage   : my $treedrawer = Bio::Phylo::Treedrawer->new(%args);
+ Function: Initializes a Bio::Phylo::Treedrawer object.
  Alias   :
- Returns : A Bio::Phylo::Treedrawers object.
+ Returns : A Bio::Phylo::Treedrawer object.
  Args    : none.
 
 =cut
