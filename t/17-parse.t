@@ -1,15 +1,24 @@
-# $Id: 17-parse.t,v 1.4 2005/07/31 11:13:54 rvosa Exp $
+# $Id: 17-parse.t,v 1.8 2005/09/27 12:00:34 rvosa Exp $
 use strict;
 use warnings;
 use Test::More tests => 6;
-use Bio::Phylo::Parsers;
-my $parser = new Bio::Phylo::Parsers;
-$parser->VERBOSE( -level => 0 );
-ok( !$parser->parse(), '1 parse no opts' );
-ok( !$parser->parse( 'A', 'B', 'C' ), '2 parse wrong args' );
-ok( !$parser->parse( -format => 'none' ), '3 parse bad format' );
-ok( !$parser->parse( -format => 'nexus', -string => 'blah' ),
+use Bio::Phylo::IO qw(parse unparse);
+
+eval { parse() };
+ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Exceptions::OddHash' ), '1 parse no opts' );
+
+eval { parse( 'A', 'B', 'C' ) };
+ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Exceptions::OddHash' ), '2 parse wrong args' );
+
+eval { parse( -format => 'none' ) };
+ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Exceptions::BadArgs' ), '3 parse bad format' );
+
+eval { parse( -format => 'nexus', -string => 'blah' ) };
+ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Exceptions::BadArgs' ),
     '4 parse cannot string' );
-ok( !$parser->parse( -string => 'blah' ), '5 parse no format' );
-ok( $parser->parse( -format => 'taxlist', -file => 't/taxa.dat' ),
+
+eval { parse( -string => 'blah' ) };
+ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Exceptions::BadArgs' ), '5 parse no format' );
+
+ok( parse( -format => 'taxlist', -file => 't/taxa.dat' ),
     '6 parse taxon list' );

@@ -1,5 +1,5 @@
-# $Id: Makefile.PL,v 1.6 2005/08/09 12:36:11 rvosa Exp $
-# Subversion: $Rev: 163 $
+# $Id: Makefile.PL,v 1.8 2005/09/19 19:34:35 rvosa Exp $
+# Subversion: $Rev: 177 $
 use strict;
 use warnings;
 use ExtUtils::MakeMaker;
@@ -22,7 +22,8 @@ WriteMakefile(
         'Test::More'       => 0,
         'Math::Random'     => 0,
         'SVG'              => 1.07,
-        'Exception::Class' => 0
+        'Exception::Class' => 0,
+        'Scalar::Util'     => 0
     },
     dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
     clean               => { FILES => 'Phylo-*' },

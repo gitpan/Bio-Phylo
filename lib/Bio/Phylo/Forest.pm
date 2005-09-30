@@ -1,35 +1,28 @@
-# $Id: Taxa.pm,v 1.20 2005/09/29 20:31:17 rvosa Exp $
-# Subversion: $Rev: 187 $
-package Bio::Phylo::Taxa;
+# $Id: Forest.pm,v 1.10 2005/09/29 20:31:17 rvosa Exp $
+# Subversion: $Rev: 177 $
+package Bio::Phylo::Forest;
 use strict;
 use warnings;
 use base 'Bio::Phylo::Listable';
-use Bio::Phylo::CONSTANT qw(_NONE_ _TAXA_);
+use Bio::Phylo::CONSTANT qw(_NONE_ _FOREST_);
 
 # One line so MakeMaker sees it.
 use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
 
-my $VERBOSE = 1;
-
 =head1 NAME
 
-Bio::Phylo::Taxa - An object-oriented module for managing taxa.
+Bio::Phylo::Forest - The forest object, a set of phylogenetic trees.
 
 =head1 SYNOPSIS
 
- use Bio::Phylo::Taxa;
- use Bio::Phylo::Taxa::Taxon;
- 
- my $taxa  = Bio::Phylo::Taxa->new;
- my $taxon = Bio::Phylo::Taxa::Taxon->new;
- 
- $taxa->insert($taxon);
+ use Bio::Phylo::Forest;
+ my $trees = Bio::Phylo::Forest->new;
 
 =head1 DESCRIPTION
 
-The Bio::Phylo::Taxa object models a set of operational taxonomic units. The
-object subclasses the Bio::Phylo::Listable object, and so the filtering
-methods of that class are available.
+The Bio::Phylo::Forest object models a set of trees. The object subclasses the
+L<Bio::Phylo::Listable> object, so look there for more methods available to
+forest objects.
 
 =head1 METHODS
 
@@ -37,14 +30,15 @@ methods of that class are available.
 
 =over
 
-=item new()
+=item new
 
  Type    : Constructor
  Title   : new
- Usage   : my $taxa = new Bio::Phylo::Taxa;
- Function: Initializes a Bio::Phylo::Taxa object.
- Returns : A Bio::Phylo::Taxa object.
- Args    : none.
+ Usage   : my $trees = Bio::Phylo::Forest->new;
+ Function: Instantiates a Bio::Phylo::Forest object.
+ Returns : A Bio::Phylo::Forest object.
+ Args    : None required, though see the superclass Bio::Phylo::Listable from
+           which this object inherits.
 
 =cut
 
@@ -77,7 +71,7 @@ sub new {
 
  Type    : Internal method
  Title   : _container
- Usage   : $taxa->_container;
+ Usage   : $trees->_container;
  Function:
  Returns : CONSTANT
  Args    :
@@ -92,16 +86,16 @@ sub _container { _NONE_ }
 
  Type    : Internal method
  Title   : _type
- Usage   : $taxa->_type;
+ Usage   : $trees->_type;
  Function:
- Returns : SCALAR
+ Returns : CONSTANT
  Args    :
 
 =end comment
 
 =cut
 
-sub _type { _TAXA_ }
+sub _type { _FOREST_ }
 
 =back
 
@@ -111,8 +105,8 @@ sub _type { _TAXA_ }
 
 =item L<Bio::Phylo::Listable>
 
-The L<Bio::Phylo::Taxa> object inherits from the L<Bio::Phylo::Listable>
-object. Look there for more methods applicable to the taxa object.
+The forest object inherits from the L<Bio::Phylo::Listable>
+object. The methods defined therein are applicable to forest objects.
 
 =item L<Bio::Phylo::Manual>
 
@@ -136,11 +130,11 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Taxa.pm,v 1.20 2005/09/29 20:31:17 rvosa Exp $
+$Id: Forest.pm,v 1.10 2005/09/29 20:31:17 rvosa Exp $
 
 =head1 AUTHOR
 
-Rutger Vos,
+Rutger A. Vos,
 
 =over
 
@@ -159,9 +153,9 @@ for comments and requests.
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2005 Rutger Vos, All Rights Reserved.
-This program is free software; you can redistribute it and/or
-modify it under the same terms as Perl itself.
+Copyright 2005 Rutger A. Vos, All Rights Reserved. This program is free
+software; you can redistribute it and/or modify it under the same terms as Perl
+itself.
 
 =cut
 

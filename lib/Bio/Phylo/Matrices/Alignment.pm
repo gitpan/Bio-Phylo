@@ -1,35 +1,33 @@
-# $Id: Taxa.pm,v 1.20 2005/09/29 20:31:17 rvosa Exp $
-# Subversion: $Rev: 187 $
-package Bio::Phylo::Taxa;
+# $Id: Alignment.pm,v 1.8 2005/09/29 20:31:17 rvosa Exp $
+# Subversion: $Rev: 177 $
+package Bio::Phylo::Matrices::Alignment;
 use strict;
 use warnings;
+use Bio::Phylo::CONSTANT qw(_ALIGNMENT_ _MATRICES_);
 use base 'Bio::Phylo::Listable';
-use Bio::Phylo::CONSTANT qw(_NONE_ _TAXA_);
 
 # One line so MakeMaker sees it.
 use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
 
-my $VERBOSE = 1;
-
 =head1 NAME
 
-Bio::Phylo::Taxa - An object-oriented module for managing taxa.
+Bio::Phylo::Matrices::Alignment - The alignment object to aggregate sequences.
 
 =head1 SYNOPSIS
 
- use Bio::Phylo::Taxa;
- use Bio::Phylo::Taxa::Taxon;
+ use Bio::Phylo::Matrices::Alignment;
+ use Bio::Phylo::Matrices::Sequence;
  
- my $taxa  = Bio::Phylo::Taxa->new;
- my $taxon = Bio::Phylo::Taxa::Taxon->new;
+ my $alignment = Bio::Phylo::Matrices::Alignment->new;
+ my $sequence  = Bio::Phylo::Matrices::Sequence->new;
  
- $taxa->insert($taxon);
+ $alignment->insert($sequence);
 
 =head1 DESCRIPTION
 
-The Bio::Phylo::Taxa object models a set of operational taxonomic units. The
-object subclasses the Bio::Phylo::Listable object, and so the filtering
-methods of that class are available.
+This module aggregates sequence objects in a larger container object. The
+alignment object inherits from the L<Bio::Phylo::Listable|Bio::Phylo::Listable>
+object, so look there for more methods applicable to alignment objects.
 
 =head1 METHODS
 
@@ -41,10 +39,10 @@ methods of that class are available.
 
  Type    : Constructor
  Title   : new
- Usage   : my $taxa = new Bio::Phylo::Taxa;
- Function: Initializes a Bio::Phylo::Taxa object.
- Returns : A Bio::Phylo::Taxa object.
- Args    : none.
+ Usage   : my $alignment = Bio::Phylo::Matrices::Alignment->new;
+ Function: Instantiates a Bio::Phylo::Matrices::Alignment object.
+ Returns : A Bio::Phylo::Matrices::Alignment object.
+ Args    : NONE required.
 
 =cut
 
@@ -77,7 +75,7 @@ sub new {
 
  Type    : Internal method
  Title   : _container
- Usage   : $taxa->_container;
+ Usage   : $alignment->_container;
  Function:
  Returns : CONSTANT
  Args    :
@@ -86,22 +84,22 @@ sub new {
 
 =cut
 
-sub _container { _NONE_ }
+sub _container { _MATRICES_ }
 
 =begin comment
 
  Type    : Internal method
  Title   : _type
- Usage   : $taxa->_type;
+ Usage   : $alignment->_type;
  Function:
- Returns : SCALAR
+ Returns : CONSTANT
  Args    :
 
 =end comment
 
 =cut
 
-sub _type { _TAXA_ }
+sub _type { _ALIGNMENT_ }
 
 =back
 
@@ -111,8 +109,9 @@ sub _type { _TAXA_ }
 
 =item L<Bio::Phylo::Listable>
 
-The L<Bio::Phylo::Taxa> object inherits from the L<Bio::Phylo::Listable>
-object. Look there for more methods applicable to the taxa object.
+This object inherits from L<Bio::Phylo::Listable>, so the
+methods defined therein are also applicable to
+L<Bio::Phylo::Matrices::Alignment> objects.
 
 =item L<Bio::Phylo::Manual>
 
@@ -136,11 +135,11 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Taxa.pm,v 1.20 2005/09/29 20:31:17 rvosa Exp $
+$Id: Alignment.pm,v 1.8 2005/09/29 20:31:17 rvosa Exp $
 
 =head1 AUTHOR
 
-Rutger Vos,
+Rutger A. Vos,
 
 =over
 
@@ -159,9 +158,9 @@ for comments and requests.
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2005 Rutger Vos, All Rights Reserved.
-This program is free software; you can redistribute it and/or
-modify it under the same terms as Perl itself.
+Copyright 2005 Rutger A. Vos, All Rights Reserved. This program is free
+software; you can redistribute it and/or modify it under the same terms as Perl
+itself.
 
 =cut
 

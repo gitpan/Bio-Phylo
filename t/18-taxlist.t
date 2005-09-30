@@ -1,9 +1,7 @@
-# $Id: 18-taxlist.t,v 1.4 2005/07/31 11:13:54 rvosa Exp $
+# $Id: 18-taxlist.t,v 1.6 2005/09/27 12:00:34 rvosa Exp $
 use strict;
 use warnings;
-use Test::More tests => 3;
+use Test::More tests => 1;
 use Bio::Phylo;
 use Bio::Phylo::Parsers::Taxlist;
-ok( my $taxlist = new Bio::Phylo::Parsers::Taxlist, '1 init obj' );
-ok( $taxlist->container,      '2 get container' );
-ok( $taxlist->container_type, '3 get container type' );
+ok( my $taxlist = Bio::Phylo::Parsers::Taxlist->_new, '1 init obj' );

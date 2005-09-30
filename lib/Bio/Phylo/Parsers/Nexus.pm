@@ -1,5 +1,5 @@
-# $Id: Nexus.pm,v 1.7 2005/08/11 19:41:13 rvosa Exp $
-# Subversion: $Rev: 148 $
+# $Id: Nexus.pm,v 1.19 2005/09/29 20:31:18 rvosa Exp $
+# Subversion: $Rev: 195 $
 package Bio::Phylo::Parsers::Nexus;
 use strict;
 use warnings;
@@ -10,42 +10,23 @@ use Bio::Phylo::Matrices::Matrix;
 use Bio::Phylo::Matrices::Datum;
 use Bio::Phylo::Matrices;
 use Bio::Phylo::Parsers::Newick;
-use base 'Bio::Phylo::Parsers';
+use base 'Bio::Phylo::IO';
 
 # One line so MakeMaker sees it.
-use Bio::Phylo;  our $VERSION = $Bio::Phylo::VERSION;
-
-# The bit of voodoo is for including Subversion keywords in the main source
-# file. $Rev is the subversion revision number. The way I set it up here allows
-# 'make dist' to build a *.tar.gz without the "_rev#" in the package name, while
-# it still shows up otherwise (e.g. during 'make test') as a developer release,
-# with the "_rev#".
-my $rev = '$Rev: 148 $';
-$rev =~ s/^[^\d]+(\d+)[^\d]+$/$1/;
-$VERSION .= '_' . $rev;
-use vars qw($VERSION);
-
-my $VERBOSE = 1;
+use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
 
 =head1 NAME
 
-Bio::Phylo::Parsers::Nexus - A library for parsing Nexus files
-
-=head1 SYNOPSIS
-
- my $nexus = new Bio::Phylo::Parsers::Nexus;
- $nexus->parse(-file => 'data.nex', -format => 'nexus');
+Bio::Phylo::Parsers::Nexus - Parses nexus files. No serviceable parts inside.
 
 =head1 DESCRIPTION
 
-This module parses nexus files. The parser can only handle files with a single
-tree, taxon, and characters block.
+This module parses nexus files. It is called by the L<Bio::Phylo::IO> module,
+there is no direct usage. The parser can only handle files with a single tree,
+taxon, and characters block. It returns a reference to an array containing one
+or more taxa, trees and matrices objects.
 
-=head2 CONSTRUCTOR
-
-=over
-
-=item new()
+=begin comment
 
  Type    : Constructor
  Title   : new
@@ -54,22 +35,18 @@ tree, taxon, and characters block.
  Returns : A Bio::Phylo::Parsers::Nexus object.
  Args    : none.
 
+=end comment
+
 =cut
 
-sub new {
+sub _new {
     my $class = $_[0];
     my $self  = {};
     bless( $self, $class );
     return $self;
 }
 
-=back
-
-=head2 PARSER
-
-=over
-
-=item from_handle(\*FH)
+=begin comment
 
  Type    : Wrapper
  Title   : from_handle(\*FH)
@@ -78,14 +55,16 @@ sub new {
  Returns : L<Phylo>
  Args    : \*FH = file handle
 
+=end comment
+
 =cut
 
-sub from_handle {
+sub _from_handle {
     my $self = shift;
     my %opts = @_;
     my @output;
     my ( $t, $parsed, $comm, $data, $taxa, $char, $translate, $trees ) =
-      $self->parse_handle( $opts{-handle} );
+      $self->_parse_handle( $opts{-handle} );
     if ( @{$taxa} ) {
         my $taxa_obj = $self->_parse_taxa( $taxa, $parsed );
         return unless $taxa_obj;
@@ -103,7 +82,7 @@ sub from_handle {
     return \@output;
 }
 
-=item parse_handle(%options)
+=begin comment
 
 This method needs to be able to handle multiple tree blocks and multiple
 characters blocks. Also, where matches are performed on patterns that are
@@ -118,9 +97,11 @@ specification, but it seemed easier. This needs to be changed.
  Returns : Local arrays.
  Args    : \*FH is a reference to a file handle
 
+=end comment
+
 =cut
 
-sub parse_handle {
+sub _parse_handle {
     my $self   = shift;
     my $handle = $_[0];
     my ( %t, %parsed, @comm, @data, @taxa, @char, @translate, @trees );
@@ -198,7 +179,7 @@ sub parse_handle {
         \@trees );
 }
 
-=item _parse_taxa(\@taxa)
+=begin comment
 
  Type    : Parsers
  Title   : _parse_taxa(\@taxa)
@@ -206,6 +187,8 @@ sub parse_handle {
  Function: Creates Bio::Phylo::Taxa object from array of taxon names.
  Returns : A Bio::Phylo::Taxa object
  Args    : A reference to an array holding taxon names.
+
+=end comment
 
 =cut
 
@@ -215,8 +198,9 @@ sub _parse_taxa {
     my $taxa = new Bio::Phylo::Taxa;
     if ( $parsed->{ntax} != scalar @{$taxlist} ) {
         my ( $exp, $obs ) = ( $parsed->{ntax}, scalar @{$taxlist} );
-        $taxa->COMPLAIN("observed ($obs) and expected ($exp) ntax unequal: $@");
-        return;
+        Bio::Phylo::Exceptions::BadFormat->throw(
+            error => "observed ($obs) and expected ($exp) ntax unequal"
+        );
     }
     foreach ( @{$taxlist} ) {
         my $taxon = new Bio::Phylo::Taxa::Taxon;
@@ -226,7 +210,7 @@ sub _parse_taxa {
     return $taxa;
 }
 
-=item _parse_char(\@chars)
+=begin comment
 
  Type    : Parsers
  Title   : _parse_char(\@chars)
@@ -235,6 +219,8 @@ sub _parse_taxa {
            matrix.
  Returns : A Bio::Phylo::Matrices::Matrix object
  Args    : A reference to an array holding a character state matrix.
+
+=end comment
 
 =cut
 
@@ -253,10 +239,9 @@ sub _parse_char {
             if ($name) {
                 my ( $obs, $exp ) = ( length($charstring), $parsed->{nchar} );
                 if ( $obs != $exp ) {
-                    $matrix->COMPLAIN(
-"observed ($obs) and expected ($exp) nchar unequal for $name: $@"
+                    Bio::Phylo::Exceptions::BadFormat->throw(
+                        error => "observed ($obs) and expected ($exp) nchar unequal for $name"
                     );
-                    return;
                 }
                 for my $j ( 0 .. length($charstring) ) {
                     my $datum = new Bio::Phylo::Matrices::Datum;
@@ -280,14 +265,16 @@ sub _parse_char {
     return $matrices;
 }
 
-=item _parse_trees(\@trees)
+=begin comment
 
  Type    : Parsers
  Title   : _parse_trees(\@trees)
  Usage   : $nexus->_parse_trees(\@trees);
- Function: Creates Bio::Phylo::Trees object from an array of trees.
- Returns : A Bio::Phylo::Trees object
+ Function: Creates Bio::Phylo::Forest object from an array of trees.
+ Returns : A Bio::Phylo::Forest object
  Args    : A reference to an array holding newick trees.
+
+=end comment
 
 =cut
 
@@ -326,7 +313,7 @@ sub _parse_trees {
     return $trees;
 }
 
-=item _parse_comm()
+=begin comment
 
  Type    : _parse_comm
  Title   : _parse_comm()
@@ -335,6 +322,8 @@ sub _parse_trees {
  Returns : Nothing yet.
  Args    : none.
 
+=end comment
+
 =cut
 
 sub _parse_comm {
@@ -342,20 +331,50 @@ sub _parse_comm {
     return join( ' ', @{$comm} );
 }
 
+=head1 SEE ALSO
+
+=over
+
+=item L<Bio::Phylo::IO>
+
+The nexus parser is called by the L<Bio::Phylo::IO> object. Look there for
+examples of file parsing and manipulation.
+
+=item L<Bio::Phylo::Manual>
+
+Also see the manual: L<Bio::Phylo::Manual>.
+
 =back
 
-=head1 AUTHOR
+=head1 FORUM
 
-Rutger Vos, C<< <rvosa@sfu.ca> >>
-L<http://www.sfu.ca/~rvosa/>
+CPAN hosts a discussion forum for Bio::Phylo. If you have trouble
+using this module the discussion forum is a good place to start
+posting questions (NOT bug reports, see below):
+L<http://www.cpanforum.com/dist/Bio-Phylo>
 
 =head1 BUGS
 
-Please report any bugs or feature requests to
-C<bug-bio-phylo@rt.cpan.org>, or through the web interface at
-L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Bio-Phylo>.
-I will be notified, and then you'll automatically be notified
-of progress on your bug as I make changes.
+Please report any bugs or feature requests to C<< bug-bio-phylo@rt.cpan.org >>,
+or through the web interface at
+L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Bio-Phylo>. I will be notified,
+and then you'll automatically be notified of progress on your bug as I make
+changes. Be sure to include the following in your request or comment, so that
+I know what version you're using:
+
+$Id: Nexus.pm,v 1.19 2005/09/29 20:31:18 rvosa Exp $
+
+=head1 AUTHOR
+
+Rutger A. Vos,
+
+=over
+
+=item email: C<< rvosa@sfu.ca >>
+
+=item web page: L<http://www.sfu.ca/~rvosa/>
+
+=back
 
 =head1 ACKNOWLEDGEMENTS
 
@@ -366,9 +385,9 @@ for comments and requests.
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2005 Rutger Vos, All Rights Reserved.
-This program is free software; you can redistribute it and/or
-modify it under the same terms as Perl itself.
+Copyright 2005 Rutger A. Vos, All Rights Reserved. This program is free
+software; you can redistribute it and/or modify it under the same terms as Perl
+itself.
 
 =cut
 

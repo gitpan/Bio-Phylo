@@ -1,39 +1,44 @@
-# $Id: Tree.pm,v 1.7 2005/08/11 19:41:13 rvosa Exp $
-# Subversion: $Rev: 149 $
-package Bio::Phylo::Trees::Tree;
+# $Id: Tree.pm,v 1.13 2005/09/29 20:31:17 rvosa Exp $
+# Subversion: $Rev: 177 $
+package Bio::Phylo::Forest::Tree;
 use strict;
 use warnings;
-use Bio::Phylo::Trees::Node;
+use Bio::Phylo::Forest::Node;
+use Bio::Phylo::IO qw(unparse);
+use Bio::Phylo::CONSTANT qw(_TREE_ _FOREST_);
+use Scalar::Util qw(looks_like_number);
 use base 'Bio::Phylo::Listable';
 
 # One line so MakeMaker sees it.
-use Bio::Phylo;  our $VERSION = $Bio::Phylo::VERSION;
-
-# The bit of voodoo is for including Subversion keywords in the main source
-# file. $Rev is the subversion revision number. The way I set it up here allows
-# 'make dist' to build a *.tar.gz without the "_rev#" in the package name, while
-# it still shows up otherwise (e.g. during 'make test') as a developer release,
-# with the "_rev#".
-my $rev = '$Rev: 149 $';
-$rev =~ s/^[^\d]+(\d+)[^\d]+$/$1/;
-$VERSION .= '_' . $rev;
-use vars qw($VERSION);
-
-my $VERBOSE = 1;
+use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
 
 =head1 NAME
 
-Bio::Phylo::Trees::Tree - An object-oriented module for phylogenetic trees
+Bio::Phylo::Forest::Tree - The tree object.
 
 =head1 SYNOPSIS
 
- use Bio::Phylo::Trees::Tree;
- my $tree = new Bio::Phylo::Trees::Tree;
+ # some way to get a tree
+ use Bio::Phylo::IO;
+ my $string = '((A,B),C);';
+ my $forest = Bio::Phylo::IO->parse(
+    -format => 'newick',
+    -string => $string
+ );
+ my $tree = $forest->first;
+ 
+ # do something:
+ print $tree->calc_imbalance;
+ 
+ # prints "1"
+ 
 
 =head1 DESCRIPTION
 
-The object models a phylogenetic tree, which consists of Bio::Phylo::Trees::Node
-objects.
+The object models a phylogenetic tree, a container of
+L<Bio::Phylo::Forest::Node|Bio::Phylo::Forest::Node> objects. The tree object
+inherits from L<Bio::Phylo::Listable|Bio::Phylo::Listable>, so look there
+for more methods.
 
 =head1 METHODS
 
@@ -45,40 +50,53 @@ objects.
 
  Type    : Constructor
  Title   : new
- Usage   : my $tree = new Bio::Phylo::Trees::Tree;
- Function: Instantiates a Bio::Phylo::Trees::Tree object.
- Returns : A Bio::Phylo::Trees::Tree object.
- Args    : none.
+ Usage   : my $tree = Bio::Phylo::Forest::Tree->new;
+ Function: Instantiates a Bio::Phylo::Forest::Tree object.
+ Returns : A Bio::Phylo::Forest::Tree object.
+ Args    : No required arguments.
 
 =cut
 
 sub new {
-    my $class = $_[0];
-    my $self  = [];
-    bless( $self, $class );
+    my $class = shift;
+    my $self  = fields::new($class);
+    $self->SUPER::new(@_);
+    if (@_) {
+        my %opts;
+        eval { %opts = @_; };
+        if ($@) {
+            Bio::Phylo::Exceptions::OddHash->throw( error => $@ );
+        }
+        while ( my ( $key, $value ) = each %opts ) {
+            my $localkey = uc substr $key, 1;
+            eval { $self->{$localkey} = $value; };
+            if ($@) {
+                Bio::Phylo::Exceptions::BadArgs->throw(
+                    error => "invalid field specified: $key ($localkey)" );
+            }
+        }
+    }
     return $self;
 }
 
 =back
 
-=head2 TREE POPULATION
-
-=over
-
-=item _analyze()
+=begin comment
 
  Type    : Internal method
  Title   : _analyze
  Usage   : $tree->_analyze;
  Function: Traverses the tree, creates references to first_daughter,
            last_daughter, next_sister and previous_sister.
- Returns : A Bio::Phylo::Trees::Tree object.
+ Returns : A Bio::Phylo::Forest::Tree object.
  Args    : none.
  Comments: This method only looks at the parent, so theoretically
            one could mess around with the
-           Bio::Phylo::Trees::Node::parent(Bio::Phylo::Trees::Node) method and
-           subsequently call Bio::Phylo::Trees::Tree::_analyze to overwrite old
+           Bio::Phylo::Forest::Node::parent(Bio::Phylo::Forest::Node) method and
+           subsequently call Bio::Phylo::Forest::Tree::_analyze to overwrite old
            (and wrong) child and sister references with new (and correct) ones.
+
+=end comment
 
 =cut
 
@@ -92,24 +110,29 @@ sub _analyze {
         $_->set_last_daughter();
     }
     my ( $i, $j, $first, $next );
+
     # mmmm... O(N^2)
-    NODE: for $i ( 0 .. $#{$nodes} ) {
+  NODE: for $i ( 0 .. $#{$nodes} ) {
         $first = $nodes->[$i];
         for $j ( ( $i + 1 ) .. $#{$nodes} ) {
             $next = $nodes->[$j];
             my ( $firstp, $nextp ) = ( $first->get_parent, $next->get_parent );
             if ( $firstp && $nextp && $firstp == $nextp ) {
-                $first->set_next_sister($next) if !$first->get_next_sister;
-                $next->set_previous_sister($first)
-                if !$next->get_previous_sister;
+                if ( !$first->get_next_sister ) {
+                    $first->set_next_sister($next);
+                }
+                if ( !$next->get_previous_sister ) {
+                    $next->set_previous_sister($first);
+                }
                 next NODE;
             }
         }
     }
+
     # O(N)
     foreach ( @{$nodes} ) {
         my $p = $_->get_parent;
-        if ( $p ) {
+        if ($p) {
             if ( !$_->get_next_sister ) {
                 $p->set_last_daughter($_);
                 next;
@@ -122,8 +145,6 @@ sub _analyze {
     return $tree;
 }
 
-=back
-
 =head2 QUERIES
 
 =over
@@ -132,11 +153,11 @@ sub _analyze {
 
  Type    : Query
  Title   : get_terminals
- Usage   : $tree->get_terminals;
+ Usage   : my @terminals = @{ $tree->get_terminals };
  Function: Retrieves all terminal nodes in
-           the current Bio::Phylo::Trees::Tree object.
- Returns : A list of Bio::Phylo::Trees::Node objects.
- Args    : none.
+           the Bio::Phylo::Forest::Tree object.
+ Returns : An array reference of Bio::Phylo::Forest::Node objects.
+ Args    : NONE
  Comments: If the tree is valid, this method retrieves the same set
            of nodes as $node->get_terminals($root). However, because
            there is no recursion it may be faster. Also, the node
@@ -148,7 +169,9 @@ sub get_terminals {
     my $tree = $_[0];
     my @terminals;
     foreach ( @{ $tree->get_entities } ) {
-        push( @terminals, $_ ) if $_->is_terminal;
+        if ( $_->is_terminal ) {
+            push @terminals, $_;
+        }
     }
     return \@terminals;
 }
@@ -157,11 +180,10 @@ sub get_terminals {
 
  Type    : Query
  Title   : get_internals
- Usage   : $tree->get_internals;
- Function: Retrieves all internal nodes in the current Bio::Phylo::Trees::Tree
-           object.
- Returns : A list of Bio::Phylo::Trees::Node objects.
- Args    : none.
+ Usage   : my @internals = @{ $tree->get_internals };
+ Function: Retrieves all internal nodes in the Bio::Phylo::Forest::Tree object.
+ Returns : An array reference of Bio::Phylo::Forest::Node objects.
+ Args    : NONE
  Comments: If the tree is valid, this method retrieves the same set
            of nodes as $node->get_internals($root). However, because
            there is no recursion it may be faster. Also, the node
@@ -173,7 +195,9 @@ sub get_internals {
     my $tree = $_[0];
     my @internals;
     foreach ( @{ $tree->get_entities } ) {
-        push( @internals, $_ ) if $_->is_internal;
+        if ( $_->is_internal ) {
+            push @internals, $_;
+        }
     }
     return \@internals;
 }
@@ -182,20 +206,44 @@ sub get_internals {
 
  Type    : Query
  Title   : get_root
- Usage   : $tree->get_root;
- Function: Retrieves the first orphan in the current Bio::Phylo::Trees::Tree
+ Usage   : my $root = $tree->get_root;
+ Function: Retrieves the first orphan in the current Bio::Phylo::Forest::Tree
            object - which should be the root.
- Returns : A Bio::Phylo::Trees::Node object.
- Args    : none.
+ Returns : Bio::Phylo::Forest::Node
+ Args    : NONE
 
 =cut
 
 sub get_root {
     my $tree = $_[0];
     foreach ( @{ $tree->get_entities } ) {
-        return $_ unless $_->get_parent;
+        if ( !$_->get_parent ) {
+            return $_;
+        }
     }
     return;
+}
+
+=item get_mrca()
+
+ Type    : Query
+ Title   : get_mrca
+ Usage   : my $mrca = $tree->get_mrca(\@nodes);
+ Function: Retrieves the most recent common ancestor of \@nodes
+ Returns : Bio::Phylo::Forest::Node
+ Args    : A reference to an array of Bio::Phylo::Forest::Node objects in
+           $tree.
+
+=cut
+
+sub get_mrca {
+    my ( $tree, $nodes ) = @_;
+    my $mrca;
+    for my $i ( 1 .. $#{$nodes} ) {
+        $mrca ? $mrca = $mrca->get_mrca( $nodes->[$i] ) : $mrca =
+          $nodes->[0]->get_mrca( $nodes->[$i] );
+    }
+    return $mrca;
 }
 
 =back
@@ -208,11 +256,13 @@ sub get_root {
 
  Type    : Test
  Title   : is_binary
- Usage   : $tree->is_binary;
- Function: Tests whether the current Bio::Phylo::Trees::Tree
-           object is bifurcating.
- Returns : BOOLEAN.
- Args    : none.
+ Usage   : if ( $tree->is_binary ) {
+              # do something
+           }
+ Function: Tests whether the current Bio::Phylo::Forest::Tree object is
+           bifurcating.
+ Returns : BOOLEAN
+ Args    : NONE
 
 =cut
 
@@ -227,14 +277,15 @@ sub is_binary {
     return 1;
 }
 
-=item is_ultrametric($margin)
+=item is_ultrametric()
 
  Type    : Test
  Title   : is_ultrametric
- Usage   : $tree->is_ultrametric(0.01);
- Function: Tests whether the current Bio::Phylo::Trees::Tree object is
-           ultrametric.
- Returns : BOOLEAN.
+ Usage   : if ( $tree->is_ultrametric(0.01) ) {
+              # do something
+           }
+ Function: Tests whether the Bio::Phylo::Forest::Tree object is ultrametric.
+ Returns : BOOLEAN
  Args    : Optional margin between pairwise comparisons (default = 0).
  Comments: The test is done by performing all pairwise comparisons for
            root-to-tip path lengths. Since many programs introduce
@@ -248,10 +299,12 @@ sub is_binary {
 
 sub is_ultrametric {
     my ( $tree, $margin ) = @_;
-    $margin = 0 unless $margin;
+    if ( !$margin ) {
+        $margin = 0;
+    }
     my @paths;
     foreach ( @{ $tree->get_terminals } ) {
-        push( @paths, $_->calc_path_to_root );
+        push @paths, $_->calc_path_to_root;
     }
     for my $i ( 0 .. $#paths ) {
         for my $j ( ( $i + 1 ) .. $#paths ) {
@@ -260,7 +313,9 @@ sub is_ultrametric {
                 $diff = $paths[$i] / $paths[$j];
             }
             else {
-                $diff = $paths[$j] / $paths[$i] if $paths[$i];
+                if ( $paths[$i] ) {
+                    $diff = $paths[$j] / $paths[$i];
+                }
             }
             if ( $diff && ( 1 - $diff ) > $margin ) {
                 return;
@@ -270,17 +325,19 @@ sub is_ultrametric {
     return 1;
 }
 
-=item is_monophyletic(\@ARRAY, Bio::Phylo::Trees::Node)
+=item is_monophyletic()
 
  Type    : Test
  Title   : is_monophyletic
- Usage   : $tree->is_monophyletic(\@tips, $outgroup);
+ Usage   : if ( $tree->is_monophyletic(\@tips, $node) ) {
+              # do something
+           }
  Function: Tests whether the set of \@tips is
            monophyletic w.r.t. $outgroup.
- Returns : BOOLEAN.
+ Returns : BOOLEAN
  Args    : A reference to a list of nodes, and a node.
  Comments: This method is essentially the
-           same as Bio::Phylo::Trees::Node::is_outgroup_of.
+           same as &Bio::Phylo::Forest::Node::is_outgroup_of.
 
 =cut
 
@@ -295,6 +352,30 @@ sub is_monophyletic {
     return 1;
 }
 
+=item is_clade()
+
+ Type    : Test
+ Title   : is_clade
+ Usage   : if ( $tree->is_clade(\@tips) ) {
+              # do something
+           }
+ Function: Tests whether the set of \@tips forms a clade
+ Returns : BOOLEAN
+ Args    : A reference to an array of Bio::Phylo::Forest::Node objects.
+ Comments:
+
+=cut
+
+sub is_clade {
+    my ( $tree, $tips ) = @_;
+    my $mrca;
+    for my $i ( 1 .. $#{$tips} ) {
+        $mrca ? $mrca = $mrca->get_mrca( $tips->[$i] ) : $mrca =
+          $tips->[0]->get_mrca( $tips->[$i] );
+    }
+    scalar @{ $mrca->get_terminals } == scalar @{$tips} ? return 1 : return;
+}
+
 =back
 
 =head2 CALCULATIONS
@@ -305,11 +386,10 @@ sub is_monophyletic {
 
  Type    : Calculation
  Title   : calc_tree_length
- Usage   : $tree->calc_tree_length;
- Function: Calculates the sum of all branch
-           lengths (i.e. the tree length).
+ Usage   : my $tree_length = $tree->calc_tree_length;
+ Function: Calculates the sum of all branch lengths (i.e. the tree length).
  Returns : FLOAT
- Args    : none.
+ Args    : NONE
 
 =cut
 
@@ -317,7 +397,9 @@ sub calc_tree_length {
     my $tree = $_[0];
     my $tl   = 0;
     foreach ( @{ $tree->get_entities } ) {
-        $tl += $_->get_branch_length if defined($_->get_branch_length);
+        if ( defined $_->get_branch_length ) {
+            $tl += $_->get_branch_length;
+        }
     }
     return $tl;
 }
@@ -326,10 +408,10 @@ sub calc_tree_length {
 
  Type    : Calculation
  Title   : calc_tree_height
- Usage   : $tree->calc_tree_height;
+ Usage   : my $tree_height = $tree->calc_tree_height;
  Function: Calculates the height of the tree.
  Returns : FLOAT
- Args    : none.
+ Args    : NONE
  Comments: For ultrametric trees this method returns the height, but this is
            done by averaging over all root-to-tip path lengths, so for
            additive trees the result should consequently be interpreted
@@ -347,10 +429,10 @@ sub calc_tree_height {
 
  Type    : Calculation
  Title   : calc_number_of_nodes
- Usage   : $tree->calc_number_of_nodes;
+ Usage   : my $number_of_nodes = $tree->calc_number_of_nodes;
  Function: Calculates the number of nodes (internals AND terminals).
- Returns : INT.
- Args    : none.
+ Returns : INT
+ Args    : NONE
 
 =cut
 
@@ -363,10 +445,10 @@ sub calc_number_of_nodes {
 
  Type    : Calculation
  Title   : calc_number_of_terminals
- Usage   : $tree->calc_number_of_terminals;
+ Usage   : my $number_of_terminals = $tree->calc_number_of_terminals;
  Function: Calculates the number of terminal nodes.
- Returns : INT.
- Args    : none.
+ Returns : INT
+ Args    : NONE
 
 =cut
 
@@ -379,10 +461,10 @@ sub calc_number_of_terminals {
 
  Type    : Calculation
  Title   : calc_number_of_internals
- Usage   : $tree->calc_number_of_internals;
+ Usage   : my $number_of_internals = $tree->calc_number_of_internals;
  Function: Calculates the number of internal nodes.
- Returns : INT.
- Args    : none.
+ Returns : INT
+ Args    : NONE
 
 =cut
 
@@ -395,10 +477,10 @@ sub calc_number_of_internals {
 
  Type    : Calculation
  Title   : calc_total_paths
- Usage   : $tree->calc_total_paths;
+ Usage   : my $total_paths = $tree->calc_total_paths;
  Function: Calculates the sum of all root-to-tip path lengths.
- Returns : FLOAT.
- Args    : none.
+ Returns : FLOAT
+ Args    : NONE
 
 =cut
 
@@ -415,11 +497,10 @@ sub calc_total_paths {
 
  Type    : Calculation
  Title   : calc_redundancy
- Usage   : $tree->calc_redundancy;
- Function: Calculates the amount of shared
-           (redundant) history on the total.
- Returns : FLOAT.
- Args    : none
+ Usage   : my $redundancy = $tree->calc_redundancy;
+ Function: Calculates the amount of shared (redundant) history on the total.
+ Returns : FLOAT
+ Args    : NONE
  Comments: Redundancy is calculated as
  1 / ( treelength - height / ( ntax * height - height ) )
 
@@ -438,10 +519,10 @@ sub calc_redundancy {
 
  Type    : Calculation
  Title   : calc_imbalance
- Usage   : $tree->calc_imbalance;
+ Usage   : my $imbalance = $tree->calc_imbalance;
  Function: Calculates Colless' coefficient of tree imbalance.
- Returns : FLOAT.
- Args    : none
+ Returns : FLOAT
+ Args    : NONE
  Comments: As described in Colless, D.H., 1982. The theory and practice of
            phylogenetic systematics. Systematic Zoology 31(1): 100-104
 
@@ -451,9 +532,8 @@ sub calc_imbalance {
     my $tree = $_[0];
     my ( $maxic, $sum, $Ic ) = ( 0, 0 );
     if ( !$tree->is_binary ) {
-        $tree->COMPLAIN(
-            "Colless' imbalance only possible for binary trees: $@");
-        return;
+        Bio::Phylo::Exceptions::ObjectMismatch->throw(
+            error => 'Colless\' imbalance only possible for binary trees' );
     }
     my $numtips = $tree->calc_number_of_terminals;
     $numtips -= 2;
@@ -487,11 +567,11 @@ sub calc_imbalance {
 =item calc_fiala_stemminess()
 
  Type    : Calculation
- Title   : calc_stemminess
- Usage   : $tree->calc_stemminess;
+ Title   : calc_fiala_stemminess
+ Usage   : my $fiala_stemminess = $tree->calc_fiala_stemminess;
  Function: Calculates stemminess measure Fiala and Sokal (1985).
- Returns : FLOAT.
- Args    : none
+ Returns : FLOAT
+ Args    : NONE
  Comments: As described in Fiala, K.L. and R.R. Sokal, 1985. Factors determining
            the accuracy of cladogram estimation: evaluation using computer
            simulation. Evolution, 39: 609-622
@@ -520,11 +600,11 @@ sub calc_fiala_stemminess {
 =item calc_rohlf_stemminess()
 
  Type    : Calculation
- Title   : calc_stemminess
- Usage   : $tree->calc_rohlf_stemminess;
+ Title   : calc_rohlf_stemminess
+ Usage   : my $rohlf_stemminess = $tree->calc_rohlf_stemminess;
  Function: Calculates stemminess measure from Rohlf et al. (1990).
- Returns : FLOAT.
- Args    : none
+ Returns : FLOAT
+ Args    : NONE
  Comments: As described in Rohlf, F.J., W.S. Chang, R.R. Sokal, J. Kim, 1990.
            Accuracy of estimated phylogenies: effects of tree topology and
            evolutionary model. Evolution, 44(6): 1671-1684
@@ -534,9 +614,8 @@ sub calc_fiala_stemminess {
 sub calc_rohlf_stemminess {
     my $tree = $_[0];
     if ( !$tree->is_ultrametric(0.01) ) {
-        $tree->COMPLAIN(
-            "Rohlf stemminess only possible for ultrametric trees: $@");
-        return;
+        Bio::Phylo::Exceptions::ObjectMismatch->throw(
+            error => 'Rohlf stemminess only possible for ultrametric trees' );
     }
     my @internals            = @{ $tree->get_internals };
     my $total                = 0;
@@ -546,13 +625,15 @@ sub calc_rohlf_stemminess {
             my $Wj_i   = $node->get_branch_length;
             my $parent = $node->get_parent;
             my $hj     = $parent->calc_min_path_to_tips;
-            next unless $hj;
+            if ( !$hj ) {
+                next;
+            }
             $total += ( $Wj_i / $hj );
         }
     }
     unless ($total) {
-        $tree->COMPLAIN("It looks like all branches were of length zero: $@");
-        return;
+        Bio::Phylo::Exceptions::ObjectMismatch->throw(
+            error => 'it looks like all branches were of length zero' );
     }
     my $crs = $one_over_t_minus_two * $total;
     return $crs;
@@ -562,12 +643,12 @@ sub calc_rohlf_stemminess {
 
  Type    : Calculation
  Title   : calc_resolution
- Usage   : $tree->calc_resolution;
+ Usage   : my $resolution = $tree->calc_resolution;
  Function: Calculates the total number of internal nodes over the
            total number of internal nodes on a fully bifurcating
            tree of the same size.
- Returns : FLOAT.
- Args    : none
+ Returns : FLOAT
+ Args    : NONE
 
 =cut
 
@@ -581,15 +662,15 @@ sub calc_resolution {
 
  Type    : Calculation
  Title   : calc_branching_times
- Usage   : $tree->calc_branching_times;
+ Usage   : my $branching_times = $tree->calc_branching_times;
  Function: Returns a two-dimensional array. The first dimension
            consists of the "records", so that in the second
            dimension $AoA[$first][0] contains the internal node
            references, and $AoA[$first][1] the branching time
            of the internal node. The records are orderered from
            root to tips by time from the origin.
- Returns : SCALAR[][] or FALSE.
- Args    : none
+ Returns : SCALAR[][] or FALSE
+ Args    : NONE
 
 =cut
 
@@ -597,9 +678,8 @@ sub calc_branching_times {
     my $tree = $_[0];
     my @branching_times;
     if ( !$tree->is_ultrametric(0.01) ) {
-        $tree->COMPLAIN(
-            "This tree isn't ultrametric, results are meaningless: $@");
-        return;
+        Bio::Phylo::Exceptions::ObjectMismatch->throw(
+            error => 'tree isn\'t ultrametric, results would be meaningless' );
     }
     else {
         my ( $i, @temp ) = 0;
@@ -616,7 +696,7 @@ sub calc_branching_times {
 
  Type    : Calculation
  Title   : calc_ltt
- Usage   : $tree->calc_ltt;
+ Usage   : my $ltt = $tree->calc_ltt;
  Function: Returns a two-dimensional array. The first dimension
            consists of the "records", so that in the second dimension
            $AoA[$first][0] contains the internal node references, and
@@ -624,17 +704,16 @@ sub calc_branching_times {
            and $AoA[$first][2] the cumulative number of lineages over
            time. The records are orderered from root to tips by
            time from the origin.
- Returns : SCALAR[][] or FALSE.
- Args    : none
+ Returns : SCALAR[][] or FALSE
+ Args    : NONE
 
 =cut
 
 sub calc_ltt {
     my $tree = $_[0];
     if ( !$tree->is_ultrametric(0.01) ) {
-        $tree->COMPLAIN(
-            "This tree isn't ultrametric, results are meaningless: $@");
-        return;
+        Bio::Phylo::Exceptions::ObjectMismatch->throw(
+            error => 'tree isn\'t ultrametric, results would be meaningless' );
     }
     my $ltt      = ( $tree->calc_branching_times );
     my $lineages = 1;
@@ -643,6 +722,48 @@ sub calc_ltt {
         $ltt->[$i][2] = $lineages;
     }
     return $ltt;
+}
+
+=item calc_symdiff()
+
+ Type    : Calculation
+ Title   : calc_symdiff
+ Usage   : my $symdiff = $tree->calc_symdiff($other_tree);
+ Function: Returns the symmetric difference metric between $tree and
+           $other_tree, sensu Penny and Hendy, 1985.
+ Returns : SCALAR
+ Args    : A Bio::Phylo::Forest::Tree object
+ Comments: Trees in comparison must span the same set of terminal taxa
+           or results are meaningless.
+
+=cut
+
+sub calc_symdiff {
+    my ( $tree, $other_tree ) = @_;
+    my ( $symdiff, @clades1, @clades2 ) = (0);
+    foreach my $node ( @{ $tree->get_internals } ) {
+        my $tips = join ' ',
+          sort { $a cmp $b } map { $_->get_name } @{ $node->get_terminals };
+        push @clades1, $tips;
+    }
+    foreach my $node ( @{ $other_tree->get_internals } ) {
+        my $tips = join ' ',
+          sort { $a cmp $b } map { $_->get_name } @{ $node->get_terminals };
+        push @clades2, $tips;
+    }
+  OUTER: foreach my $outer (@clades1) {
+        foreach my $inner (@clades2) {
+            next OUTER if $outer eq $inner;
+        }
+        $symdiff++;
+    }
+  OUTER: foreach my $outer (@clades2) {
+        foreach my $inner (@clades1) {
+            next OUTER if $outer eq $inner;
+        }
+        $symdiff++;
+    }
+    return $symdiff;
 }
 
 =back
@@ -655,11 +776,11 @@ sub calc_ltt {
 
  Type    : Tree manipulator
  Title   : ultrametricize
- Usage   : $tree->ultrametricize();
+ Usage   : $tree->ultrametricize;
  Function: Sets all root-to-tip path lengths equal by stretching
            all terminal branches to the height of the tallest node.
- Returns : A Bio::Phylo::Trees::Tree object.
- Args    : none.
+ Returns : The modified Bio::Phylo::Forest::Tree object.
+ Args    : NONE
  Comments: This method is analogous to the 'ultrametricize' command
            in Mesquite, i.e. no rate smoothing or anything like that
            happens, just a lengthening of terminal branches.
@@ -670,7 +791,10 @@ sub ultrametricize {
     my $tree    = $_[0];
     my $tallest = 0;
     foreach ( @{ $tree->get_terminals } ) {
-        $tallest = $_->calc_path_to_root if $_->calc_path_to_root > $tallest;
+        my $path_to_root = $_->calc_path_to_root;
+        if ( $path_to_root > $tallest ) {
+            $tallest = $path_to_root;
+        }
     }
     foreach ( @{ $tree->get_terminals } ) {
         my $newbl =
@@ -680,13 +804,13 @@ sub ultrametricize {
     return $tree;
 }
 
-=item scale($height)
+=item scale()
 
  Type    : Tree manipulator
  Title   : scale
  Usage   : $tree->scale($height);
  Function: Scales the tree to the specified height.
- Returns : A Bio::Phylo::Trees::Tree object.
+ Returns : The modified Bio::Phylo::Forest::Tree object.
  Args    : $height = a numerical value indicating root-to-tip path length.
  Comments: This method uses the $tree->calc_tree_height method, and so for
            additive trees the *average* root-to-tip path length is scaled to
@@ -713,10 +837,10 @@ sub scale {
 
  Type    : Tree manipulator
  Title   : resolve
- Usage   : $tree->resolve();
+ Usage   : $tree->resolve;
  Function: Breaks polytomies by inserting additional internal nodes orderered
            from left to right.
- Returns : A binary Bio::Phylo::Trees::Tree object.
+ Returns : The modified Bio::Phylo::Forest::Tree object.
  Args    :
  Comments:
 
@@ -733,7 +857,7 @@ sub resolve {
             while ( $node->get_first_daughter->get_next_sister !=
                 $node->get_last_daughter )
             {
-                my $newnode = new Bio::Phylo::Trees::Node;
+                my $newnode = new Bio::Phylo::Forest::Node;
                 $newnode->set_branch_length(0.00);
                 $newnode->set_name( $node->get_name . 'r' . $i++ );
 
@@ -768,20 +892,25 @@ sub resolve {
 
  Type    : Tree manipulator
  Title   : prune_tips
- Usage   : $tree->prune_tips(@taxa);
+ Usage   : $tree->prune_tips(\@taxa);
  Function: Prunes specified taxa from invocant.
- Returns : A pruned Bio::Phylo::Trees::Tree object.
- Args    : A list of taxa.
+ Returns : A pruned Bio::Phylo::Forest::Tree object.
+ Args    : A reference to an array of taxon names.
  Comments:
 
 =cut
 
 sub prune_tips {
-    my ( $tree, $tips ) = @_;
+    my ( $self, $tips ) = @_;
+    my $tree = $self->get_entities;
   OUTER: for ( my $i = 0 ; $i <= $#{$tree} ; $i++ ) {
-        next OUTER unless defined $tree->[$i];
+        if ( !defined $tree->[$i] ) {
+            next OUTER;
+        }
       INNER: foreach my $tip ( @{$tips} ) {
-            last INNER unless defined $tree->[$i];
+            if ( !defined $tree->[$i] ) {
+                last INNER;
+            }
             if ( $tree->[$i]->get_name eq $tip && $tree->[$i]->is_terminal ) {
 
                 # scope out nodes that reference current
@@ -819,15 +948,21 @@ sub prune_tips {
                         $sib = $ps;
                         $sib->set_next_sister();
                     }
-                    my $sibbl  = $sib->get_branch_length;
-                    my $pbl    = $p->get_branch_length;
-                    my $sibnbl = $sibbl if $sibbl;
-                    $sibnbl += $pbl if $pbl;
-                    $sib->set_branch_length($sibnbl) if defined($sibnbl);
+                    my $sibbl = $sib->get_branch_length;
+                    my $pbl   = $p->get_branch_length;
+                    my $sibnbl;
+                    if ($sibbl) {
+                        $sibnbl = $sibbl;
+                    }
+                    if ($pbl) {
+                        $sibnbl += $pbl;
+                    }
+                    if ( defined $sibnbl ) {
+                        $sib->set_branch_length($sibnbl);
+                    }
                     $sib->set_parent($gp);
                     my $pps = $p->get_previous_sister;
                     my $pns = $p->get_next_sister;
-
                     if ($pps) {
                         $sib->set_previous_sister($pps);
                         $pps->set_next_sister($sib);
@@ -843,7 +978,9 @@ sub prune_tips {
                         $gp->set_last_daughter($sib);
                     }
                   PARENT: for ( my $j = 0 ; $j <= $#{$tree} ; $j++ ) {
-                        next PARENT unless defined $tree->[$j];
+                        if ( !defined $tree->[$j] ) {
+                            next PARENT;
+                        }
                         if ( $tree->[$j] == $p ) {
                             $tree->[$j] = undef;
                             last PARENT;
@@ -869,7 +1006,9 @@ sub prune_tips {
                     }
                     $tree->[$i] = undef;
                   PARENT: for ( my $j = 0 ; $j <= $#{$tree} ; $j++ ) {
-                        next PARENT unless defined $tree->[$j];
+                        if ( !defined $tree->[$j] ) {
+                            next PARENT;
+                        }
                         if ( $tree->[$j] == $p ) {
                             $tree->[$j] = undef;
                             last PARENT;
@@ -880,26 +1019,29 @@ sub prune_tips {
             }
             elsif ( $tree->[$i]->get_name eq $tip && $tree->[$i]->is_internal )
             {
-                $tree->COMPLAIN("$tip is an internal node. Tips only please!");
-                return;
+                Bio::Phylo::Exceptions::ObjectMismatch->throw(
+                    error => "$tip is an internal node. Tips only please!" );
             }
         }
     }
 
     # splice undef nodes here
     for ( my $j = $#{$tree} ; $j >= 0 ; $j-- ) {
-        splice( @{$tree}, $j, 1 ) unless defined $tree->[$j];
+        if ( !defined $tree->[$j] ) {
+            splice @{$tree}, $j, 1;
+        }
     }
+    return $self;
 }
 
 =item keep_tips()
 
  Type    : Tree manipulator
  Title   : keep_tips
- Usage   : $tree->keep_tips(@taxa);
+ Usage   : $tree->keep_tips(\@taxa);
  Function: Keeps specified taxa from invocant.
- Returns : A pruned Bio::Phylo::Trees::Tree object.
- Args    : A list of taxa.
+ Returns : The pruned Bio::Phylo::Forest::Tree object.
+ Args    : A list of taxon names.
  Comments:
 
 =cut
@@ -908,12 +1050,15 @@ sub keep_tips {
     my ( $tree, $tips ) = @_;
     my ( @allnames, @taxatoprune );
     foreach my $tip ( @{ $tree->get_terminals } ) {
-        push( @allnames, $tip->get_name );
+        push @allnames, $tip->get_name;
     }
     foreach my $name (@allnames) {
-        push( @taxatoprune, $name ) unless grep( /$name/, @{$tips} );
+        if ( grep /$name/, @{$tips} ) {
+            push @taxatoprune, $name;
+        }
     }
     $tree->prune_tips( \@taxatoprune );
+    return $tree;
 }
 
 =item negative_to_zero()
@@ -922,8 +1067,8 @@ sub keep_tips {
  Title   : negative_to_zero
  Usage   : $tree->negative_to_zero;
  Function: Converts negative branch lengths to zero.
- Returns : A Bio::Phylo::Trees::Tree object without negative branch lengths.
- Args    : None.
+ Returns : The modified Bio::Phylo::Forest::Tree object.
+ Args    : NONE
  Comments:
 
 =cut
@@ -932,7 +1077,69 @@ sub negative_to_zero {
     my $tree = shift;
     foreach my $node ( @{ $tree->get_entities } ) {
         my $bl = $node->get_branch_length;
-        $node->set_branch_length('0.00') if $bl && $bl < 0;
+        if ( $bl && $bl < 0 ) {
+            $node->set_branch_length('0.00');
+        }
+    }
+    return $tree;
+}
+
+=item exponentiate()
+
+ Type    : Tree manipulator
+ Title   : exponentiate
+ Usage   : $tree->exponentiate($power);
+ Function: Raises branch lengths to $power.
+ Returns : The modified Bio::Phylo::Forest::Tree object.
+ Args    : A $power in any of perl's number formats.
+
+=cut
+
+sub exponentiate {
+    my ( $tree, $power ) = @_;
+    if ( ! looks_like_number $power ) {
+        Bio::Phylo::Exceptions::BadNumber->throw(
+            error => "Power \"$power\" is a bad number" );
+    }
+    else {
+        foreach my $node ( @{ $tree->get_entities } ) {
+            my $bl = $node->get_branch_length;
+            $node->set_branch_length( $bl**$power );
+        }
+    }
+    return $tree;
+}
+
+=item log_transform()
+
+ Type    : Tree manipulator
+ Title   : log_transform
+ Usage   : $tree->log_transform($base);
+ Function: Log $base transforms branch lengths.
+ Returns : The modified Bio::Phylo::Forest::Tree object.
+ Args    : A $base in any of perl's number formats.
+
+=cut
+
+sub log_transform {
+    my ( $tree, $base ) = @_;
+    if ( ! looks_like_number $base ) {
+        Bio::Phylo::Exceptions::BadNumber->throw(
+            error => "Base \"$base\" is a bad number" );
+    }
+    else {
+        foreach my $node ( @{ $tree->get_entities } ) {
+            my $bl = $node->get_branch_length;
+            my $newbl;
+            eval { $newbl = ( log $bl ) / ( log $base ); };
+            if ($@) {
+                Bio::Phylo::Exceptions::OutOfBounds->throw(
+                    error => "Invalid input for log transform: $@" );
+            }
+            else {
+                $node->set_branch_length($newbl);
+            }
+        }
     }
     return $tree;
 }
@@ -941,10 +1148,10 @@ sub negative_to_zero {
 
  Type    : Tree manipulator
  Title   : remove_unbranched_internals
- Usage   : $tree->remove_unbranched_internals();
+ Usage   : $tree->remove_unbranched_internals;
  Function: Collapses internal nodes with fewer than 2 children.
- Returns : A Bio::Phylo::Trees::Tree object.
- Args    : None.
+ Returns : The modified Bio::Phylo::Forest::Tree object.
+ Args    : NONE
  Comments:
 
 =cut
@@ -964,7 +1171,7 @@ sub remove_unbranched_internals {
                   $tree->[$i]->get_first_daughter->get_branch_length;
                 $childbl += $tree->[$i]->get_branch_length;
                 $tree->[$i]->get_first_daughter->set_branch_length($childbl);
-                splice( @{$tree}, $i, 1 );
+                splice @{$tree}, $i, 1;
                 $tree->_analyze;
             }
             elsif (!$tree->[$i]->get_parent
@@ -972,65 +1179,108 @@ sub remove_unbranched_internals {
                 && scalar $tree->[$i]->get_children == 1 )
             {
                 $tree->[$i]->get_first_daughter->set_parent();
-                splice( @{$tree}, $i, 1 );
+                splice @{$tree}, $i, 1;
             }
         }
         else {
-            splice( @{$tree}, $i, 1 );
+            splice @{$tree}, $i, 1;
         }
     }
+    return $self;
 }
+
+=item to_newick()
+
+ Type    : Stringifier
+ Title   : to_newick
+ Usage   : my $string = $tree->to_newick;
+ Function: Turns the invocant tree object into a newick string
+ Returns : SCALAR
+ Args    : NONE
+
+=cut
+
+sub to_newick {
+    return unparse( -format => 'newick', -phylo => $_[0] );
+}
+
+=begin comment
+
+ Type    : Internal method
+ Title   : _container
+ Usage   : $tree->_container;
+ Function:
+ Returns : CONSTANT
+ Args    :
+
+=end comment
+
+=cut
+
+sub _container { _FOREST_ }
+
+=begin comment
+
+ Type    : Internal method
+ Title   : _type
+ Usage   : $tree->_type;
+ Function:
+ Returns : CONSTANT
+ Args    :
+
+=end comment
+
+=cut
+
+sub _type { _TREE_ }
 
 =back
 
-=head2 CONTAINER
+=head1 SEE ALSO
 
 =over
 
-=item container
+=item L<Bio::Phylo::Listable>
 
- Type    : Internal method
- Title   : container
- Usage   : $tree->container;
- Function:
- Returns : SCALAR
- Args    :
+The L<Bio::Phylo::Forest::Tree|Bio::Phylo::Forest::Tree> object inherits from
+the L<Bio::Phylo::Listable|Bio::Phylo::Listable> object, so the methods defined
+therein also apply to trees.
 
-=cut
+=item L<Bio::Phylo::Manual>
 
-sub container {
-    return 'TREES';
-}
-
-=item container_type
-
- Type    : Internal method
- Title   : container_type
- Usage   : $tree->container_type;
- Function:
- Returns : SCALAR
- Args    :
-
-=cut
-
-sub container_type {
-    return 'TREE';
-}
+Also see the manual: L<Bio::Phylo::Manual|Bio::Phylo::Manual>.
 
 =back
 
-=head1 AUTHOR
+=head1 FORUM
 
-Rutger Vos, C<< <rvosa@sfu.ca> >>
-L<http://www.sfu.ca/~rvosa/>
+CPAN hosts a discussion forum for Bio::Phylo. If you have trouble
+using this module the discussion forum is a good place to start
+posting questions (NOT bug reports, see below):
+L<http://www.cpanforum.com/dist/Bio-Phylo>
 
 =head1 BUGS
 
-Please report any bugs or feature requests to
-C<bug-bio-phylo@rt.cpan.org>, or through the web interface at
-L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Bio-Phylo>.
-I will be notified, and then you'll automatically be notified
-of progress on your bug as I make changes.
+Please report any bugs or feature requests to C<< bug-bio-phylo@rt.cpan.org >>,
+or through the web interface at
+L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Bio-Phylo>. I will be notified,
+and then you'll automatically be notified of progress on your bug as I make
+changes. Be sure to include the following in your request or comment, so that
+I know what version you're using:
+
+$Id: Tree.pm,v 1.13 2005/09/29 20:31:17 rvosa Exp $
+
+=head1 AUTHOR
+
+Rutger A. Vos,
+
+=over
+
+=item email: C<< rvosa@sfu.ca >>
+
+=item web page: L<http://www.sfu.ca/~rvosa/>
+
+=back
 
 =head1 ACKNOWLEDGEMENTS
 
@@ -1041,9 +1291,9 @@ for comments and requests.
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2005 Rutger Vos, All Rights Reserved.
-This program is free software; you can redistribute it and/or
-modify it under the same terms as Perl itself.
+Copyright 2005 Rutger A. Vos, All Rights Reserved. This program is free
+software; you can redistribute it and/or modify it under the same terms as Perl
+itself.
 
 =cut
 

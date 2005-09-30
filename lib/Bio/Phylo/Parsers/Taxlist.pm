@@ -1,73 +1,52 @@
-# $Id: Taxlist.pm,v 1.7 2005/08/11 19:41:13 rvosa Exp $
-# Subversion: $Rev: 148 $
+# $Id: Taxlist.pm,v 1.18 2005/09/29 20:31:18 rvosa Exp $
+# Subversion: $Rev: 193 $
 package Bio::Phylo::Parsers::Taxlist;
 use strict;
 use warnings;
 use Bio::Phylo;
 use Bio::Phylo::Taxa;
 use Bio::Phylo::Taxa::Taxon;
-use base 'Bio::Phylo::Parsers';
+use base 'Bio::Phylo::IO';
 
 # One line so MakeMaker sees it.
-use Bio::Phylo;  our $VERSION = $Bio::Phylo::VERSION;
-
-# The bit of voodoo is for including Subversion keywords in the main source
-# file. $Rev is the subversion revision number. The way I set it up here allows
-# 'make dist' to build a *.tar.gz without the "_rev#" in the package name, while
-# it still shows up otherwise (e.g. during 'make test') as a developer release,
-# with the "_rev#".
-my $rev = '$Rev: 148 $';
-$rev =~ s/^[^\d]+(\d+)[^\d]+$/$1/;
-$VERSION .= '_' . $rev;
-use vars qw($VERSION);
-
-my $VERBOSE = 1;
+use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
 
 =head1 NAME
 
-Bio::Phylo::Parsers::Taxlist - A library for parsing plain text tables.
-
-=head1 SYNOPSIS
-
- my $taxlist = new Bio::Phylo::Parsers::Taxlist;
- my $taxa = $taxlist->parse(
-        -file => 'data.dat',
-        );
+Bio::Phylo::Parsers::Taxlist - Parses lists of taxon names. No serviceable parts
+inside.
 
 =head1 DESCRIPTION
 
-This module is used for importing sets of taxa, from a plain text file, one
-taxon on each line.
+This module is used for importing sets of taxa from plain text files, one taxon
+on each line. It is called by the L<Bio::Phylo::IO|Bio::Phylo::IO> object, so
+look there for usage examples. If you want to parse from a string, you
+may need to indicate the field separator (default is '\n') to the
+Bio::Phylo::IO->parse call:
 
-=head2 CONSTRUCTOR
+ -fieldsep => '\n',
 
-=over
-
-=item new()
+=begin comment
 
  Type    : Constructor
  Title   : new
- Usage   : my $taxlist = new Bio::Phylo::Parsers::Taxlist;
+ Usage   : my $taxlist = Bio::Phylo::Parsers::Taxlist->new;
  Function: Initializes a Bio::Phylo::Parsers::Taxlist object.
  Returns : A Bio::Phylo::Parsers::Taxlist object.
  Args    : none.
 
+=end comment
+
 =cut
 
-sub new {
+sub _new {
     my $class = $_[0];
     my $self  = {};
-    bless( $self, $class );
+    bless $self, $class;
     return $self;
 }
 
-=back
-
-=head2 PARSER
-
-=over
-
-=item from_handle(%options)
+=begin comment
 
  Type    : parser
  Title   : from_handle(%options)
@@ -77,78 +56,83 @@ sub new {
  Args    : -handle => (\*FH), -file => (filename)
  Comments:
 
+=end comment
+
 =cut
 
-sub from_handle {
+*_from_handle = \&_from_both;
+*_from_string = \&_from_both;
+
+sub _from_both {
     my $self    = shift;
     my %opts    = @_;
-    my $taxa    = new Bio::Phylo::Taxa;
-    my $version = $self->VERSION;
-    while ( readline( $opts{-handle} ) ) {
-        chomp;
-        if ($_) {
-            my $taxon       = new Bio::Phylo::Taxa::Taxon;
-            my $date        = localtime;
-            my $description =
-              qq{Read from $opts{-file} using Phylo version $version on $date};
-            $taxon->set_name($_);
-            $taxon->set_desc($description);
-            $taxa->insert($taxon);
+    if ( ! $opts{'-fieldsep'} ) {
+        $opts{'-fieldsep'} = "\n";
+    }
+    my $taxa    = Bio::Phylo::Taxa->new;
+    if ( $opts{'-handle'} ) {
+        while ( readline $opts{'-handle'} ) {
+            chomp;
+            if ($_) {
+                $taxa->insert( Bio::Phylo::Taxa::Taxon->new( -name => $_ ) );
+            }
+        }
+    }
+    elsif ( $opts{'-string'} ) {
+        foreach( split /$opts{'-fieldsep'}/, $opts{'-string'} ) {
+            chomp;
+            if ($_) {
+                $taxa->insert( Bio::Phylo::Taxa::Taxon->new( -name => $_ ) );
+            }
         }
     }
     return $taxa;
 }
 
-=back
-
-=head2 CONTAINER
+=head1 SEE ALSO
 
 =over
 
-=item container
+=item L<Bio::Phylo::IO>
 
- Type    : Internal method
- Title   : container
- Usage   : $taxlist->container;
- Function:
- Returns : SCALAR
- Args    :
+The taxon list parser is called by the L<Bio::Phylo::IO|Bio::Phylo::IO> object.
+Look there for examples.
 
-=cut
+=item L<Bio::Phylo::Manual>
 
-sub container {
-    return 'NONE';
-}
-
-=item container_type
-
- Type    : Internal method
- Title   : container_type
- Usage   : $taxlist->container_type;
- Function:
- Returns : SCALAR
- Args    :
-
-=cut
-
-sub container_type {
-    return 'TAXLIST';
-}
+Also see the manual: L<Bio::Phylo::Manual|Bio::Phylo::Manual>.
 
 =back
 
-=head1 AUTHOR
+=head1 FORUM
 
-Rutger Vos, C<< <rvosa@sfu.ca> >>
-L<http://www.sfu.ca/~rvosa/>
+CPAN hosts a discussion forum for Bio::Phylo. If you have trouble
+using this module the discussion forum is a good place to start
+posting questions (NOT bug reports, see below):
+L<http://www.cpanforum.com/dist/Bio-Phylo>
 
 =head1 BUGS
 
-Please report any bugs or feature requests to
-C<bug-bio-phylo@rt.cpan.org>, or through the web interface at
-L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Bio-Phylo>.
-I will be notified, and then you'll automatically be notified
-of progress on your bug as I make changes.
+Please report any bugs or feature requests to C<< bug-bio-phylo@rt.cpan.org >>,
+or through the web interface at
+L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Bio-Phylo>. I will be notified,
+and then you'll automatically be notified of progress on your bug as I make
+changes. Be sure to include the following in your request or comment, so that
+I know what version you're using:
+
+$Id: Taxlist.pm,v 1.18 2005/09/29 20:31:18 rvosa Exp $
+
+=head1 AUTHOR
+
+Rutger A. Vos,
+
+=over
+
+=item email: C<< rvosa@sfu.ca >>
+
+=item web page: L<http://www.sfu.ca/~rvosa/>
+
+=back
 
 =head1 ACKNOWLEDGEMENTS
 
@@ -159,9 +143,9 @@ for comments and requests.
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2005 Rutger Vos, All Rights Reserved.
-This program is free software; you can redistribute it and/or
-modify it under the same terms as Perl itself.
+Copyright 2005 Rutger A. Vos, All Rights Reserved. This program is free
+software; you can redistribute it and/or modify it under the same terms as Perl
+itself.
 
 =cut
 

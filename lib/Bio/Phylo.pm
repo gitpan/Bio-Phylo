@@ -1,258 +1,37 @@
-# $Id: Phylo.pm,v 1.7 2005/08/11 19:41:12 rvosa Exp $
-# Subversion: $Rev: 148 $
+# $Id: Phylo.pm,v 1.20 2005/09/29 20:31:16 rvosa Exp $
+# Subversion: $Rev: 189 $
 package Bio::Phylo;
-use constant TREES    => 0;
-use constant TAXA     => 1;
-use constant MATRICES => 2;
-use constant COMMENTS => 3;
 use strict;
 use warnings;
+use Scalar::Util qw(looks_like_number);
+use Bio::Phylo::Exceptions;
 use Storable qw(dclone);
+use fields qw(NAME                
+              DESC 
+              SCORE 
+              GENERIC);
 
 # The bit of voodoo is for including Subversion keywords in the main source
 # file. $Rev is the subversion revision number. The way I set it up here allows
 # 'make dist' to build a *.tar.gz without the "_rev#" in the package name, while
 # it still shows up otherwise (e.g. during 'make test') as a developer release,
 # with the "_rev#".
-my $rev = '$Rev: 148 $';
+my $rev = '$Rev: 189 $';
 $rev =~ s/^[^\d]+(\d+)[^\d]+$/$1/;
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 $VERSION .= '_' . $rev;
 my $VERBOSE = 1;
 use vars qw($VERSION);
 
 =head1 NAME
 
-Bio::Phylo - A base module for analyzing and manipulating phylogenetic trees.
-
-=head1 SYNOPSIS
-
- use Bio::Phylo;
-
- #instantiate a new object
- my $phylo = new Bio::Phylo;
-
- #and destroy it
- $phylo->DESTROY;
+Bio::Phylo - Phylogenetic analysis using perl.
 
 =head1 DESCRIPTION
 
-=head2 INTRODUCTION
-
-The Bio::Phylo package consists of a collection of Perl
-libraries (OO-style) for parsing, generating and
-analyzing phylogenetic trees. The intended audience are
-biologists who are well versed in phylogenetic theory
-and comfortable with text editors. The simplest usage
-of Bio::Phylo would be for file conversion, in which case
-only a few lines of code would suffice. However, the
-libraries offer more, and in order to make these features
-more easily accessible I should start with a description
-of how Bio::Phylo sees trees, taxa, and matrices.
-
-=head3 THE Bio::Phylo OBJECT MODEL
-
-=head4 TREES
-
-According to Bio::Phylo, there are Trees (which are
-modelled by the Bio::Phylo::Trees object), which contain
-Bio::Phylo::Trees::Tree objects, which contain
-Bio::Phylo::Trees::Node objects.
-
-=over
-
-=item The Bio::Phylo::Trees::Node object
-
-A node 'knows' a couple
-of things: its name, its branch length (i.e. the length
-of the branch connecting it and its parent), who its
-parent is, its next sister (on its right), its previous
-sister (on the left), its first daughter and its last
-daughter. These properties can be retrieved and
-modified by methods classified as ACCESSORS and MUTATORS.
-
-From this set of properties follows a number of
-things which must be either true or false. For example,
-if a node has no children it is a terminal node. By asking
-a node whether it "is_terminal", it replies either with
-true (i.e. 1) or false (undef). Methods such as this
-are classified as TESTS.
-
-Likewise, based on the properties of an individual
-node we can perform a query to retrieve nodes related
-to it. For example, by asking the node to
-"get_ancestors" it returns a list of its ancestors,
-being all the nodes and the path from its parent to,
-and including, the root. These methods are QUERIES.
-
-Lastly, some CALCULATIONS can be performed by the
-node. By asking the node to "calc_path_to_root" it
-calculates the sum of the lengths of the branches
-connecting it and the root. Of course, in order to make
-all this possible, a node has to exist, so it needs to
-be constructed. The CONSTRUCTOR is the Bio::Phylo::Node->new()
-method.
-
-Once a node has served its purpose it
-can be destroyed. For this purpose there is a
-DESTRUCTOR, which cleans up once we're done with the
-node. However, in most cases you don't have to worry
-about constructing and destroying nodes as this is done
-for you by a parser or a generator as needs arise.
-
-For a detailed description of all the node methods,
-their arguments and return values, consult the node
-documentation, which, after install, can be viewed by
-issuing the "perldoc Bio::Phylo::Trees::Node" command.
-
-=item The Bio::Phylo::Trees::Tree object
-
-A tree knows very
-little. All it really holds is a set of nodes, which
-are there because of TREE POPULATION, i.e. the process
-of inserting nodes in the tree. The tree can be queried
-in a number of ways, for example, we can ask the tree
-to "get_entities", to which the tree replies with a list
-of all the nodes it holds. Be advised that this doesn't
-mean that the nodes are connected in a meaningful way,
-if at all. The tree doesn't care, the nodes are
-supposed to know who their parents, sisters, and
-daughters are. But, we can still get, for example, all
-the terminal nodes (i.e. the tips) in the tree by
-retrieving all the nodes in the tree and asking each
-one of them whether it "is_terminal", discarding the
-ones that aren't.
-
-Based on the set of nodes the tree holds it can
-perform calculations, such as "calc_tree_length", which
-simply means that the tree iterates over all its nodes,
-summing their branch lengths, and returning the total.
-
-The tree object also has a constructor and a
-destructor, but normally you don't have to worry about
-that. All the tree methods can be viewed by issuing the
-"perldoc Bio::Phylo::Trees::Tree" command.
-
-=item The Bio::Phylo::Trees object
-
-The object containing all others is the Trees object. It
-serves merely as a container to hold multiple trees, which
-are inserted in the Trees object using the "insert()" method,
-and retrieved using the "get_entities" method. More information
-can be found in the Bio::Phylo::Trees perldoc page.
-
-=back
-
-=head3 CREATING NODES AND TREES
-
-=over
-
-=item The Bio::Phylo::Parsers::* objects
-
-Trees are probably most easily imported from files. To
-this end Bio::Phylo::Parsers objects are available. The
-constructor and destructor aside, these have only one method
-intended for outside access: "parse", with arguments
-indicating the tree format, and the location of the
-tree file.
-
-=item The Bio::Phylo::Generator object
-
-For simulations you can also generate trees. The currently
-available models are Yule, Hey and equiprobable. Consult the
-perldoc pages for Bio::Phylo::Generator to learn more about
-how to address this object.
-
-=back
-
-=head2 USEFUL FEATURES
-
-The following features are of particular interest:
-
-=over
-
-=item Stemminess and Balance measures
-
-A number of analysis methods heretofore unavailable are included
-in this package, such as calculation of two stemminess indices
-(Fiala et al, 1985; Rohlf et al., 1990).
-
-=item Filters
-
-Sets of objects can be filtered based on the results of any
-calculation available in this package. For example: Trees can
-be filtered on tree length, or imbalance, and so on. Nodes can
-be filtered based on their distance to the root, or to the tips,
-and so on. In addition, sets of objects can be filtered based on
-the string results of any method. For example, on a tree that
-contains species from the genera Lemur, Hapalemur, Eulemur and
-Otolemur these can all be filtered out by searching on the
-/^.*lemur$/i pattern.
-
-=item Converters
-
-The Phylo packages includes a number of parsers and unparsers,
-and additional ones can be included simply by writing the
-appropriate package and dropping the file in the Parsers or
-Unparsers folder. No modification of any of the other source is
-required, as long as a very limited set of methods is supported.
-With the currently packaged parsers, one can for example import
-taxa from one file, a tree from another, and a data matrix from
-a third file, then crossreference the three, and output them in
-a format suitable for Discrete, Continuous or Multistate. (The
-tree is resolved on the fly.)
-
-=back
-
-=head2 REQUIREMENTS
-
-Phylo has the following requirements:
-
-=over
-
-=item A recent version of perl (5.6.* or 5.8.*);
-
-The module should then build on all platforms. A quick test
-yielded success on all platforms that I tried:
-
-    - perl, v5.8.4 built for MSWin32-x86-multi-thread
-    - perl, v5.8.6 built for cygwin-thread-multi-64int
-    - perl, v5.8.0 built for darwin
-    - perl, v5.8.0 built for sun4-solaris
-    - perl, v5.6.1 built for i386-linux
-    - perl, v5.8.1-RC3 built for darwin-thread-multi-2level
-
-Older versions of perl5 may or may not work. Perl4 definitely won't work.
-
-=item Any version of the Math::Random module for generating Yule and Hey trees.
-
-Math::Random can be installed from the comprehensive perl archive network by
-issuing:
-
-    perl -MCPAN -e 'install Math::Random'
-
-or, on Windows:
-
-    ppm
-    install Math::Random
-
-from the command line.
-
-=item Any version of the SVG module for drawing trees.
-
-SVG.pm can be installed from the comprehensive perl archive network by
-issuing:
-
-    perl -MCPAN -e 'install SVG'
-
-or, on Windows:
-
-    ppm
-    install SVG
-
-from the command line.
-
-=back
+This is the base class for the Bio::Phylo package. All other modules inherit
+from it, the methods defined here are applicable to all. Consult the manual
+for usage examples: L<Bio::Phylo::Manual>.
 
 =head1 METHODS
 
@@ -263,26 +42,235 @@ from the command line.
 =item new()
 
 The Bio::Phylo object itself, and thus its constructor, is rarely, if ever, used
-directly. Rather, all other objects in this package inherit its methods.
+directly. Rather, all other objects in this package inherit its methods, and call
+its constructor internally.
 
  Type    : Constructor
  Title   : new
- Usage   : my $phylo = new Bio::Phylo;
+ Usage   : my $phylo = Bio::Phylo->new;
  Function: Instantiates Bio::Phylo object
  Returns : a Bio::Phylo object
- Args    : none
+ Args    : -name    => (object name)
+           -desc    => (object description)
+           -score   => (numerical score)
+           -generic => (generic key/value pair)
 
 =cut
 
 sub new {
-    my $class = shift;
-    my $self  = [];
-    $self->[TREES]    = [];
-    $self->[TAXA]     = [];
-    $self->[MATRICES] = [];
-    $self->[COMMENTS] = [];
-    bless( $self, $class );
+    my Bio::Phylo $self = shift;
+    unless (ref $self) {
+        $self = fields::new($self);
+    }
+    if (@_) {
+        my %opts;
+        eval { %opts = @_; };
+        if ($@) {
+            Bio::Phylo::Exceptions::OddHash->throw(
+                error => $@
+            );        
+        }
+        while ( my ( $key, $value ) = each %opts ) {
+            my $localkey = uc substr $key, 1;
+            eval { $self->{$localkey} = $value; };
+            if ($@) {
+                Bio::Phylo::Exceptions::BadArgs->throw(
+                    error => "invalid field specified: $key ($localkey)"
+                );
+            }
+        }
+    }
     return $self;
+}
+
+=back
+
+=head2 MUTATORS
+
+=over
+
+=item set_name()
+
+ Type    : Mutator
+ Title   : set_name
+ Usage   : $obj->set_name($name);
+ Function: Assigns an object's name.
+ Returns : Modified object.
+ Args    : Argument must be a string that doesn't contain [;|,|:\(|\)]
+
+=cut
+
+sub set_name {
+    my ( $self, $name ) = @_;
+    my $ref = ref $self;
+    if ( $name =~ m/([;|,|:|\(|\)])/ ) {
+        Bio::Phylo::Exceptions::BadString->throw(
+            error => "\"$name\" is a bad name format for $ref names"
+        );
+    }
+    else {
+        $self->{'NAME'} = $name;
+    }
+    return $self;
+}
+
+=item set_desc()
+
+ Type    : Mutator
+ Title   : set_desc
+ Usage   : $obj->set_desc($desc);
+ Function: Assigns an object's description.
+ Returns : Modified object.
+ Args    : Argument must be a string.
+ 
+=cut
+
+sub set_desc {
+    my ( $self, $desc ) = @_;
+    $self->{'DESC'} = $desc;
+    return $self;
+}
+
+=item set_score()
+
+ Type    : Mutator
+ Title   : set_score
+ Usage   : $obj->set_score($score);
+ Function: Assigns an object's numerical score.
+ Returns : Modified object.
+ Args    : Argument must be any of perl's number formats.
+
+=cut
+
+sub set_score {
+    my $self = $_[0];
+    if ( defined $_[1] ) {
+        my $score = $_[1];
+        if ( looks_like_number $score ) {
+            $self->{'SCORE'} = $score;
+        }
+        else {
+            Bio::Phylo::Exceptions::BadNumber->throw(
+                error => "Score \"$score\" is a bad number"                
+            );            
+        }
+    }
+    else {
+        $self->{'SCORE'} = undef;
+    }
+    return $self;
+}
+
+=item set_generic()
+
+ Type    : Mutator
+ Title   : set_generic
+ Usage   : $obj->set_generic(%generic);
+ Function: Assigns generic key/value pairs to the invocant.
+ Returns : Modified object.
+ Args    : Valid arguments constitute key/value pairs, for example:
+           $node->set_generic(posterior => 0.87565);
+
+=cut
+
+sub set_generic {
+    my $self = shift;
+    if (@_) {
+        my %args;
+        eval { %args = @_ };
+        if ($@) {
+            Bio::Phylo::Exceptions::OddHash->throw(
+                error => $@
+            );
+        }
+        else {
+            foreach my $key ( keys %args ) {
+                $self->{'GENERIC'}->{$key} = $args{$key};
+            }
+        }
+    }
+    else {
+        $self->{'GENERIC'} = undef;
+    }
+    return $self;
+}
+
+=back
+
+=head2 ACCESSORS
+
+=over
+
+=item get_name()
+
+ Type    : Accessor
+ Title   : get_name
+ Usage   : my $name = $obj->get_name;
+ Function: Returns the object's name (if any).
+ Returns : A string
+ Args    : None
+
+=cut
+
+sub get_name {
+    return $_[0]->{'NAME'};
+}
+
+=item get_desc()
+
+ Type    : Accessor
+ Title   : get_desc
+ Usage   : my $desc = $obj->get_desc;
+ Function: Returns the object's description (if any).
+ Returns : A string
+ Args    : None
+
+=cut
+
+sub get_desc {
+    return $_[0]->{'DESC'};
+}
+
+=item get_score()
+
+ Type    : Accessor
+ Title   : get_score
+ Usage   : my $score = $obj->get_score;
+ Function: Returns the object's numerical score (if any).
+ Returns : A number
+ Args    : None
+
+=cut
+
+sub get_score {
+    return $_[0]->{'SCORE'};
+}
+
+=item get_generic()
+
+ Type    : Accessor
+ Title   : get_generic
+ Usage   : my $value = $obj->get_generic($key);
+           or
+           my %hash = %{ $obj->get_generic($key) };
+ Function: Returns the object's generic data. If an
+           argument is used, it is considered a key
+           for which the associated value is return.
+           Without arguments, a reference to the whole
+           hash is returned.
+ Returns : A string or hash reference.
+ Args    : None
+ 
+=cut 
+
+sub get_generic {
+    my ( $self, $key ) = @_;
+    if ( defined $key ) {
+        return $self->{'GENERIC'}->{$key};
+    }
+    else {
+        return $self->{'GENERIC'};
+    }
 }
 
 =back
@@ -293,21 +281,20 @@ sub new {
 
 =item get()
 
-All objects in the package subclass the Bio::Phylo object, and so,
-for example, you can do $node->get('get_branch_length'); instead
-of $node->get_branch_length. This is a useful feature for listable
-objects especially, as the have the get_by_value method, which
-allows you to retrieve, for instance, a list of nodes whose branch
-length exceeds a certain value. That method (and get_by_regular_expression)
-uses this $obj->get method.
+All objects in the package subclass the Bio::Phylo object, and so, for example,
+you can do $node->get('get_branch_length'); instead of $node->get_branch_length.
+This is a useful feature for listable objects especially, as they have the
+get_by_value method, which allows you to retrieve, for instance, a list of nodes
+whose branch length exceeds a certain value. That method (and
+get_by_regular_expression) uses this $obj->get method.
 
  Type    : Accessor
  Title   : get
  Usage   : my $treelength = $tree->get('calc_tree_length');
  Function: Alternative syntax for safely accessing any of the object data;
            useful for interpolating runtime $vars.
- Returns : A SCALAR numerical value.
- Args    : a SCALAR variable, e.g. $var = 'calc_matrix_size';
+ Returns : (context dependent)
+ Args    : a SCALAR variable, e.g. $var = 'calc_tree_length';
 
 =cut
 
@@ -318,8 +305,9 @@ sub get {
     }
     else {
         my $ref = ref $self;
-        $self->COMPLAIN("sorry, a \"$ref\" can't \"$var\": $@");
-        return;
+        Bio::Phylo::Exceptions::UnknownMethod->throw(
+            error => "sorry, a \"$ref\" can't \"$var\""
+        );
     }
 }
 
@@ -360,8 +348,14 @@ and so on?
 sub VERBOSE {
     my $class = shift;
     if (@_) {
-        my %opt = @_;
-        $VERBOSE = $opt{-level};
+        my %opt;
+        eval { %opt = @_; };
+        if ($@) {
+            Bio::Phylo::Exceptions::OddHash->throw(
+                error => $@
+            );
+        }
+        $VERBOSE = $opt{'-level'};
     }
     return $VERBOSE;
 }
@@ -388,29 +382,6 @@ sub CITATION {
     return $string;
 }
 
-=item COMPLAIN()
-
- Type    : Internal method
- Title   : COMPLAIN
- Usage   : $phylo->COMPLAIN("error");
- Function: Prints error message to STDERR if verbose level > 0
- Alias   :
- Returns : TRUE
- Args    : String, error message
- Comments:
-
-=cut
-
-sub COMPLAIN {
-    my ( $phylo, $complaint ) = @_;
-    my $length = length($complaint) * $phylo->VERBOSE;
-    $complaint = substr( $complaint, 0, $length );
-    my ( $package, $file, $line ) = caller;
-    my $level2 = qq{package: $package, file: $file, line: $line};
-    print STDERR qq{$complaint};
-    return 1;
-}
-
 =item VERSION()
 
  Type    : Accessor
@@ -425,7 +396,6 @@ sub COMPLAIN {
 =cut
 
 sub VERSION {
-    shift;
     return $VERSION;
 }
 
@@ -453,31 +423,87 @@ future, for additional debugging messages.
 =cut
 
 sub DESTROY {
-    my $self = $_[0];
     return 1;
+}
+
+=begin comment
+
+ Type    : Interface
+ Title   : container
+ Usage   : $phylo->_container;
+ Function:
+ Returns : CONSTANT
+ Args    :
+ 
+=end comment
+
+=cut
+
+sub _container {
+    Bio::Phylo::Exceptions::NotImplemented->throw(
+        error => 'Attempt to call interface method'
+    );
+}
+
+=begin comment
+
+ Type    : Interface
+ Title   : _type
+ Usage   : $phylo->_type;
+ Function:
+ Returns : CONSTANT
+ Args    :
+ 
+=end comment
+
+=cut
+
+sub _type {
+    Bio::Phylo::Exceptions::NotImplemented->throw(
+        error => 'Attempt to call interface method'
+    );
 }
 
 =back
 
-=head1 AUTHOR
+=head1 SEE ALSO
 
-Rutger Vos, C<< <rvosa@sfu.ca> >>
-L<http://www.sfu.ca/~rvosa/>
+Also see the manual: L<Bio::Phylo::Manual>.
+
+=head1 FORUM
+
+CPAN hosts a discussion forum for Bio::Phylo. If you have trouble using this
+module the discussion forum is a good place to start posting questions (NOT bug
+reports, see below): L<http://www.cpanforum.com/dist/Bio-Phylo>
 
 =head1 BUGS
 
-Please report any bugs or feature requests to
-C<bug-bio-phylo@rt.cpan.org>, or through the web interface at
-L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Bio-Phylo>.
-I will be notified, and then you'll automatically be notified of
-progress on your bug as I make changes.
+Please report any bugs or feature requests to C<< bug-bio-phylo@rt.cpan.org >>,
+or through the web interface at
+L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Bio-Phylo>. I will be notified,
+and then you'll automatically be notified of progress on your bug as I make
+changes. Be sure to include the following in your request or comment, so that
+I know what version you're using:
+
+$Id: Phylo.pm,v 1.20 2005/09/29 20:31:16 rvosa Exp $
+
+=head1 AUTHOR
+
+Rutger Vos,
+
+=over
+
+=item email: C<< rvosa@sfu.ca >>
+
+=item web page: L<http://www.sfu.ca/~rvosa/>
+
+=back
 
 =head1 ACKNOWLEDGEMENTS
 
-The author would like to thank Jason Stajich for many ideas borrowed
-from BioPerl L<http://www.bioperl.org>, and CIPRES
-L<http://www.phylo.org> and FAB* L<http://www.sfu.ca/~fabstar> for
-comments and requests.
+The author would like to thank Jason Stajich for many ideas borrowed from
+BioPerl L<http://www.bioperl.org>, and CIPRES L<http://www.phylo.org> and
+FAB* L<http://www.sfu.ca/~fabstar> for comments and requests.
 
 =head1 COPYRIGHT & LICENSE
 

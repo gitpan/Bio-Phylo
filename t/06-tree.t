@@ -1,10 +1,10 @@
-# $Id: 06-tree.t,v 1.4 2005/07/31 11:13:51 rvosa Exp $
+# $Id: 06-tree.t,v 1.9 2005/09/27 12:00:33 rvosa Exp $
 use strict;
 use warnings;
 use Test::More tests => 48;
-use Bio::Phylo::Parsers;
-use Bio::Phylo::Trees::Node;
-use Bio::Phylo::Trees::Tree;
+use Bio::Phylo::IO qw(parse unparse);
+use Bio::Phylo::Forest::Node;
+use Bio::Phylo::Forest::Tree;
 
 my $data;
 while (<DATA>) {
@@ -13,9 +13,9 @@ while (<DATA>) {
 
 Bio::Phylo->VERBOSE( -level => 0 );
 
-ok( my $phylo = new Bio::Phylo::Parsers, '1 init' );
+ok( 1, '1 init' );
 
-ok( my $trees = $phylo->parse(
+ok( my $trees = parse(
     -string => $data,
     -format => 'newick' ),
 '2 parse' );
@@ -66,11 +66,21 @@ ok( $tree->is_binary, '17 is binary' );
 # methods on unresolved tree
 ok( !$unresolved->is_binary,             '18 is binary' );
 ok( !$unresolved->is_ultrametric,        '19 is ultrametric' );
-ok( !$unresolved->calc_rohlf_stemminess, '20 calc rohlf stemminess' );
-ok( !$unresolved->calc_imbalance,        '21 calc imbalance' );
-ok( !$unresolved->calc_branching_times,  '22 calc branching times' );
-ok( !$unresolved->calc_ltt,              '23 calc ltt' );
-ok( !$tree->insert('BAD!'),              '24 insert bad obj' );
+
+eval { $unresolved->calc_rohlf_stemminess };
+ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Exceptions::ObjectMismatch' ), '20 calc rohlf stemminess' );
+
+eval { $unresolved->calc_imbalance };
+ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Exceptions::ObjectMismatch' ), '21 calc imbalance' );
+
+eval { $unresolved->calc_branching_times };
+ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Exceptions::ObjectMismatch' ), '22 calc branching times' );
+
+eval { $unresolved->calc_ltt };
+ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Exceptions::ObjectMismatch' ), '23 calc ltt' );
+
+eval { $tree->insert('BAD!') };
+ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Exceptions::ObjectMismatch' ), '24 insert bad obj' );
 
 # tests
 ok( !$tree->is_ultrametric(0.01), '25 is ultrametric' );
@@ -79,12 +89,12 @@ ok( !$tree->is_monophyletic( $children, $node ), '26 not monophyletic' );
 # test for monophyly
 my $poly = $unresolved->get_by_regular_expression(
     -value => 'get_name',
-    -match => '^poly$'
+    -match => qr/^poly$/
 );
 
 my $e = $unresolved->get_by_regular_expression(
     -value => 'get_name',
-    -match => '^E$'
+    -match => qr/^E$/
 );
 
 my $desc = $poly->[0]->get_descendants;
@@ -117,14 +127,18 @@ ok( $tree->scale(10),             '43 scale' );
 # testing on undef branch lengths
 my $undef = $treeset->[3];
 $root = $undef->get_root;
-ok( !$undef->calc_rohlf_stemminess, '44 calc rohlf stemminess' );
-ok( !$undef->get('BAD!'),           '45 bad arg get' );
+
+eval { $undef->calc_rohlf_stemminess };
+ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Exceptions::ObjectMismatch' ), '44 calc rohlf stemminess' );
+
+eval { $undef->get('BAD!') };
+ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Exceptions::UnknownMethod' ), '45 bad arg get' );
 ok( $undef->calc_imbalance,         '46 calc imbalance' );
 
 # creating a cyclical tree
-my $node1    = new Bio::Phylo::Trees::Node;
-my $node2    = new Bio::Phylo::Trees::Node;
-my $cyclical = new Bio::Phylo::Trees::Tree;
+my $node1    = new Bio::Phylo::Forest::Node;
+my $node2    = new Bio::Phylo::Forest::Node;
+my $cyclical = new Bio::Phylo::Forest::Tree;
 $node1->set_parent($node2);
 $node2->set_parent($node1);
 $cyclical->insert($node1);

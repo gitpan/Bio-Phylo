@@ -1,7 +1,7 @@
-# $Id: 04-generator.t,v 1.4 2005/07/31 11:13:51 rvosa Exp $
+# $Id: 04-generator.t,v 1.6 2005/09/20 13:22:53 rvosa Exp $
 use strict;
 use warnings;
-use Test::More tests => 18;    #iterating over 10 generated trees
+use Test::More tests => 16;    #iterating over 10 generated trees
 use Bio::Phylo;
 use Bio::Phylo::Generator;
 
@@ -33,16 +33,16 @@ ok( $gen->gen_exp_pure_birth(
     -trees => 10 ),
 '5 gen hey' );
 
-ok( !$gen->gen_exp_pure_birth(
-    -model => 'dummy',
-    -tips => 10,
-    -trees => 10 ),
+eval {
+   $gen->gen_exp_pure_birth( -model => 'dummy', -tips => 10, -trees => 10 )
+};
+ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Exceptions::BadFormat' ),
 '6 ! gen' );
 
-ok( !$gen->gen_rand_pure_birth(
-    -model => 'dummy',
-    -tips => 10,
-    -trees => 10 ),
+eval {
+   $gen->gen_rand_pure_birth( -model => 'dummy', -tips => 10, -trees => 10 )
+};
+ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Exceptions::BadFormat' ),
 '7 ! gen' );
 
 ok( my $trees = $gen->gen_equiprobable(
@@ -76,6 +76,4 @@ ok( $node2->calc_min_nodes_to_tips, '13 cmptt' );
 ok( $node3->calc_min_nodes_to_tips, '14 cmptt' );
 $lmt->set_branch_length();
 ok( $root->calc_max_path_to_tips, '15 cmaxptt' );
-ok( $gen->container,              '16 container' );
-ok( $gen->container_type,         '17 container' );
-ok( $gen->DESTROY,                '18 destroy' );
+ok( $gen->DESTROY,                '16 destroy' );

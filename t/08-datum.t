@@ -1,21 +1,26 @@
-# $Id: 08-datum.t,v 1.4 2005/07/31 11:13:52 rvosa Exp $
+# $Id: 08-datum.t,v 1.7 2005/09/25 20:55:56 rvosa Exp $
 use strict;
 use warnings;
 use Test::More tests => 37;
 use Bio::Phylo::Matrices::Datum;
 use Bio::Phylo::Taxa::Taxon;
-use Bio::Phylo::Trees;
+use Bio::Phylo::Forest;
 ok( my $datum = new Bio::Phylo::Matrices::Datum, '1 initialize' );
 $datum->VERBOSE( -level => 0 );
 
 # the name method
-ok( !$datum->set_name(':'), '2 bad name' );
+eval { $datum->set_name(':') };
+ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Exceptions::BadString' ), '2 bad name' );
 ok( $datum->set_name('OK'), '3 good name' );
 ok( $datum->get_name,       '4 retrieve name' );
 
 # the node method
-ok( !$datum->set_taxon('BAD!'),                  '5 bad node ref' );
-ok( !$datum->set_taxon( new Bio::Phylo::Trees ),      '6 bad node ref' );
+eval { $datum->set_taxon('BAD!') };
+ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Exceptions::ObjectMismatch' ), '5 bad node ref' );
+
+eval { $datum->set_taxon( new Bio::Phylo::Forest ) };
+ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Exceptions::ObjectMismatch' ), '6 bad node ref' );
+
 ok( $datum->set_taxon( new Bio::Phylo::Taxa::Taxon ), '7 good node ref' );
 ok( $datum->get_taxon,                           '8 retrieve node ref' );
 
@@ -24,46 +29,64 @@ ok( $datum->set_desc('OK'), '9 set desc' );
 ok( $datum->get_desc, '10 get desc' );
 
 # the weight method
-ok( !$datum->set_weight('BAD!'), '11 bad weight' );
+eval { $datum->set_weight('BAD!') };
+ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Exceptions::BadNumber' ), '11 bad weight' );
+
 ok( $datum->set_weight(1),       '12 good weight' );
 ok( $datum->get_weight,          '13 retrieve weight' );
 
 # char w/o type
-ok( !$datum->set_char('A'), '14 char without type' );
+eval { $datum->set_char('A') };
+ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Exceptions::BadFormat' ), '14 char without type' );
 
 # the type method
-ok( !$datum->set_type('BAD!'), '15 bad type' );
+eval { $datum->set_type('BAD!') };
+ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Exceptions::BadFormat' ), '15 bad type' );
+
 ok( $datum->set_type('DNA'),   '16 good type' );
 ok( $datum->get_type,          '17 retrieve type' );
 
 # testing char types
 $datum->set_type('DNA');
 ok( $datum->set_char('A'), '18 good DNA' );
-ok( !$datum->set_char('I'), '19 bad DNA' );
+eval { $datum->set_char('I') };
+ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Exceptions::BadString' ), '19 bad DNA' );
+
 $datum->set_type('RNA');
 ok( $datum->set_char('A'), '20 good RNA' );
-ok( !$datum->set_char('I'), '21 bad RNA' );
+eval { $datum->set_char('I') };
+ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Exceptions::BadString' ), '21 bad RNA' );
+
 $datum->set_type('STANDARD');
 ok( $datum->set_char('1'), '22 good STANDARD' );
-ok( !$datum->set_char('B'), '23 bad STANDARD' );
+eval { $datum->set_char('B') };
+ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Exceptions::BadString' ), '23 bad STANDARD' );
+
 $datum->set_type('PROTEIN');
 ok( $datum->set_char('A'), '24 good PROTEIN' );
-ok( !$datum->set_char('J'), '25 bad PROTEIN' );
+eval { $datum->set_char('J') };
+ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Exceptions::BadString' ), '25 bad PROTEIN' );
+
 $datum->set_type('NUCLEOTIDE');
 ok( $datum->set_char('A'), '26 good NUCLEOTIDE' );
-ok( !$datum->set_char('I'), '27 bad NUCLEOTIDE' );
+eval { $datum->set_char('I') };
+ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Exceptions::BadString' ), '27 bad NUCLEOTIDE' );
+
 $datum->set_type('CONTINUOUS');
 ok( $datum->set_char('-1.43345e+34'), '28 good CONTINUOUS' );
-ok( !$datum->set_char('B'),           '29 bad CONTINUOUS' );
+eval { $datum->set_char('B') };
+ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Exceptions::BadString' ), '29 bad CONTINUOUS' );
 ok( $datum->get_char,                 '30 retrieve character' );
 
 # the position method
-ok( !$datum->set_position('BAD!'), '31 bad weight' );
-ok( $datum->set_position(1),       '32 good weight' );
-ok( $datum->get_position,          '33 retrieve weight' );
+eval { $datum->set_position('BAD!') };
+ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Exceptions::BadNumber' ), '31 bad pos' );
+ok( $datum->set_position(1),       '32 good pos' );
+ok( $datum->get_position,          '33 retrieve pos' );
 
 # the get method
-ok( !$datum->get('frobnicate'), '34 bad get' );
+eval { $datum->get('frobnicate') };
+ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Exceptions::UnknownMethod' ), '34 bad get' );
 ok( $datum->get('get_type'),    '35 good get' );
-ok( $datum->container,          '36 container' );
-ok( $datum->container_type,     '37 container type' );
+ok( $datum->_container,         '36 container' );
+ok( $datum->_type,              '37 container type' );

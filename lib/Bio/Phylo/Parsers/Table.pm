@@ -1,51 +1,36 @@
-# $Id: Table.pm,v 1.7 2005/08/11 19:41:13 rvosa Exp $
-# Subversion: $Rev: 148 $
+# $Id: Table.pm,v 1.18 2005/09/29 20:31:18 rvosa Exp $
+# Subversion: $Rev: 194 $
 package Bio::Phylo::Parsers::Table;
 use strict;
 use warnings;
 use Bio::Phylo;
 use Bio::Phylo::Matrices::Matrix;
 use Bio::Phylo::Matrices::Datum;
-use base 'Bio::Phylo::Parsers';
+use base 'Bio::Phylo::IO';
 
 # One line so MakeMaker sees it.
-use Bio::Phylo;  our $VERSION = $Bio::Phylo::VERSION;
-
-# The bit of voodoo is for including Subversion keywords in the main source
-# file. $Rev is the subversion revision number. The way I set it up here allows
-# 'make dist' to build a *.tar.gz without the "_rev#" in the package name, while
-# it still shows up otherwise (e.g. during 'make test') as a developer release,
-# with the "_rev#".
-my $rev = '$Rev: 148 $';
-$rev =~ s/^[^\d]+(\d+)[^\d]+$/$1/;
-$VERSION .= '_' . $rev;
-use vars qw($VERSION);
-
-my $VERBOSE = 1;
+use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
 
 =head1 NAME
 
-Bio::Phylo::Parsers::Table - A library for parsing plain text tables.
-
-=head1 SYNOPSIS
-
- my $table = new Bio::Phylo::Parsers::Table;
- my $matrix = $table->parse(
-        -file => 'data.dat',
-        -type => 'STANDARD',
-        -separator => '\t'
-        );
+Bio::Phylo::Parsers::Table - Parses tab- (or otherwise) delimited matrices. No
+serviceable parts inside.
 
 =head1 DESCRIPTION
 
-This module is used to import data and taxa, from a plain text file, such as
-a tab-delimited file.
+This module is used to import data and taxa from plain text files or strings.
+The following additional argument must be used in the call
+to L<Bio::Phylo::IO|Bio::Phylo::IO>:
 
-=head2 CONSTRUCTOR
+ -type => (one of [DNA|RNA|STANDARD|PROTEIN|NUCLEOTIDE|CONTINUOUS])
+ 
+In addition, these arguments may be used to indicate line separators (default
+is "\n") and field separators (default is "\t"):
 
-=over
+ -fieldsep => '\t',
+ -linesep  => '\n'
 
-=item new()
+=begin comment
 
  Type    : Constructor
  Title   : new
@@ -54,108 +39,140 @@ a tab-delimited file.
  Returns : A Bio::Phylo::Parsers::Table object.
  Args    : none.
 
+=end comment
+
 =cut
 
-sub new {
+sub _new {
     my $class = $_[0];
     my $self  = {};
     bless( $self, $class );
     return $self;
 }
 
-=back
-
-=head2 PARSER
-
-=over
-
-=item from_handle(%options)
+=begin comment
 
  Type    : parser
  Title   : from_handle(%options)
- Usage   : $table->from_handle(%options);
+ Usage   : $table->_from_handle(%options);
  Function: Extracts data from file, populates matrix object
  Returns : A Bio::Phylo::Matrices::Matrix object.
- Args    : -handle => (\*FH), -separator => (record separator)
+ Args    : -handle   => (\*FH),
+           -fieldsep => (record separator)
+           -linesep  => (line separator)
+           -type     => (data type)
  Comments:
+
+=end comment
 
 =cut
 
-sub from_handle {
+*_from_handle = \&_from_both;
+*_from_string = \&_from_both;
+
+sub _from_both {
     my $self    = shift;
     my %opts    = @_;
-    my $matrix  = new Bio::Phylo::Matrices::Matrix;
-    my $date    = localtime;
-    my $version = $self->VERSION;
-    while ( readline( $opts{-handle} ) ) {
-        chomp;
-        my @temp = split( /$opts{-separator}/, $_ );
-        for my $i ( 1 .. $#temp ) {
-            my $datum = new Bio::Phylo::Matrices::Datum;
-            $datum->set_name( $temp[0] );
-            $datum->set_type( uc( $opts{'-type'} ) );
-            my $description =
-qq{$opts{'-type'} character number $i read from $opts{-file} on $date by Phylo $version};
-            $datum->set_desc($description);
-            $datum->set_weight(1);
-            $datum->set_char( $temp[$i] );
-            $datum->set_position($i);
-            $matrix->insert($datum);
+    my $matrix  = Bio::Phylo::Matrices::Matrix->new;
+    my ( $fieldre, $linere );
+    if ( $opts{'-fieldsep'} ) {
+        if ( $opts{'-fieldsep'} =~ /^\b$/ ) {
+            $fieldre = qr/$opts{'-fieldsep'}/;
+        }
+        else {
+            $fieldre = qr/\Q$opts{'-fieldsep'}/;
+        }
+    }
+    else {
+        $fieldre = qr/\t/;
+    }
+    if ( $opts{'-linesep'} ) {
+        if ( $opts{'-linesep'} =~ /^\b$/ ) {
+            $linere = qr/$opts{'-linesep'}/;
+        }
+        else {
+            $linere = qr/\Q$opts{'-linesep'}/;
+        }
+    }
+    else {
+        $linere = qr/\n/;
+    }
+    if ( $opts{'-handle'} ) {
+        while ( readline( $opts{'-handle'} ) ) {
+            chomp;
+            my @temp = split( $fieldre, $_ );
+            for my $i ( 1 .. $#temp ) {
+                my $datum = Bio::Phylo::Matrices::Datum->new(
+                    '-name' => $temp[0],
+                    '-type' => uc $opts{'-type'},
+                    '-char' => $temp[$i],
+                    '-pos'  => $i
+                );
+                $matrix->insert($datum);
+            }
+        }
+    }
+    elsif ( $opts{'-string'} ) {
+        foreach my $line ( split( $linere, $opts{'-string'} ) ) {
+            my @temp = split( $fieldre, $line );
+            for my $i ( 1 .. $#temp ) {
+                my $datum = Bio::Phylo::Matrices::Datum->new(
+                    '-name' => $temp[0],
+                    '-type' => uc $opts{'-type'},
+                    '-char' => $temp[$i],
+                    '-pos'  => $i
+                );
+                $matrix->insert($datum);
+            }
         }
     }
     return $matrix;
 }
 
-=back
-
-=head2 CONTAINER
+=head1 SEE ALSO
 
 =over
 
-=item container
+=item L<Bio::Phylo::IO>
 
- Type    : Internal method
- Title   : container
- Usage   : $table->container;
- Function:
- Returns : SCALAR
- Args    :
+The table parser is called by the L<Bio::Phylo::IO|Bio::Phylo::IO> object.
+Look there to learn how to parse tab- (or otherwise) delimited matrices.
 
-=cut
+=item L<Bio::Phylo::Manual>
 
-sub container {
-    return 'NONE';
-}
-
-=item container_type
-
- Type    : Internal method
- Title   : container_type
- Usage   : $table->container_type;
- Function:
- Returns : SCALAR
- Args    :
-
-=cut
-
-sub container_type {
-    return 'TABLE';
-}
+Also see the manual: L<Bio::Phylo::Manual|Bio::Phylo::Manual>.
 
 =back
 
-=head1 AUTHOR
+=head1 FORUM
 
-Rutger Vos, C<< <rvosa@sfu.ca> >>
-L<http://www.sfu.ca/~rvosa/>
+CPAN hosts a discussion forum for Bio::Phylo. If you have trouble
+using this module the discussion forum is a good place to start
+posting questions (NOT bug reports, see below):
+L<http://www.cpanforum.com/dist/Bio-Phylo>
 
 =head1 BUGS
 
-Please report any bugs or feature requests to
-C<bug-bio-phylo@rt.cpan.org>, or through the web interface at
-L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Bio-Phylo>.
-I will be notified, and then you'll automatically be notified
-of progress on your bug as I make changes.
+Please report any bugs or feature requests to C<< bug-bio-phylo@rt.cpan.org >>,
+or through the web interface at
+L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Bio-Phylo>. I will be notified,
+and then you'll automatically be notified of progress on your bug as I make
+changes. Be sure to include the following in your request or comment, so that
+I know what version you're using:
+
+$Id: Table.pm,v 1.18 2005/09/29 20:31:18 rvosa Exp $
+
+=head1 AUTHOR
+
+Rutger A. Vos,
+
+=over
+
+=item email: C<< rvosa@sfu.ca >>
+
+=item web page: L<http://www.sfu.ca/~rvosa/>
+
+=back
 
 =head1 ACKNOWLEDGEMENTS
 
@@ -166,9 +183,9 @@ for comments and requests.
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2005 Rutger Vos, All Rights Reserved.
-This program is free software; you can redistribute it and/or
-modify it under the same terms as Perl itself.
+Copyright 2005 Rutger A. Vos, All Rights Reserved. This program is free
+software; you can redistribute it and/or modify it under the same terms as Perl
+itself.
 
 =cut
 

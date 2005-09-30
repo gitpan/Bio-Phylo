@@ -1,33 +1,24 @@
-# $Id: Listable.pm,v 1.7 2005/08/11 19:41:12 rvosa Exp $
-# Subversion: $Rev: 148 $
+# $Id: Listable.pm,v 1.23 2005/09/29 20:31:17 rvosa Exp $
+# Subversion: $Rev: 185 $
 package Bio::Phylo::Listable;
 use strict;
 use warnings;
 use base 'Bio::Phylo';
+use Bio::Phylo::CONSTANT qw(:all);
+use fields qw(ENTITIES
+              INDEX);
 
 # One line so MakeMaker sees it.
-use Bio::Phylo;  our $VERSION = $Bio::Phylo::VERSION;
-
-# The bit of voodoo is for including Subversion keywords in the main source
-# file. $Rev is the subversion revision number. The way I set it up here allows
-# 'make dist' to build a *.tar.gz without the "_rev#" in the package name, while
-# it still shows up otherwise (e.g. during 'make test') as a developer release,
-# with the "_rev#".
-my $rev = '$Rev: 148 $';
-$rev =~ s/^[^\d]+(\d+)[^\d]+$/$1/;
-$VERSION .= '_' . $rev;
-use vars qw($VERSION);
-
-my $VERBOSE = 1;
+use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
 
 =head1 NAME
 
-Bio::Phylo::Listable - A base module for analyzing and manipulating phylogenetic
-trees.
+Bio::Phylo::Listable - Abstract class for listable/iterator objects.
 
 =head1 SYNOPSIS
 
- No direct usage, abstract class.
+ No direct usage, abstract class. Methods documented here are available for
+ all objects that inherit from it.
 
 =head1 DESCRIPTION
 
@@ -35,10 +26,7 @@ A listable object is an object that contains multiple smaller objects of the
 same type. For example: a tree contains nodes, so it's a listable object.
 
 This class contains methods that are useful for all listable objects: Matrices,
-Matrix objects, Taxa, Trees, Tree objects.
-
-The underlying assumption is, as of now, that listable objects are blessed
-anonymous arrays.
+Matrix objects, Alignment objects, Taxa, Forest, Tree objects.
 
 =head1 METHODS
 
@@ -50,7 +38,7 @@ anonymous arrays.
 
  Type    : Constructor
  Title   : new
- Usage   : my $obj = new Bio::Phylo::Listable;
+ Usage   : my $obj = Bio::Phylo::Listable->new;
  Function: Instantiates a Bio::Phylo::Listable object
  Returns : A Bio::Phylo::Listable object.
  Args    : none
@@ -58,27 +46,27 @@ anonymous arrays.
 =cut
 
 sub new {
-    my $class = shift;
-    my $self  = {};
-    bless( $self, $class );
+    my Bio::Phylo::Listable $self = shift;
+    unless (ref $self) {
+        $self = fields::new($self);
+    }
+    $self->{'ENTITIES'} = [];
+    $self->{'INDEX'}    = undef;
     return $self;
 }
 
-=item insert($obj)
+=back
 
-Since listable objects are arrays, we can simply add to them (e.g. adding a node
-to a tree, without regard to how it is connected to others) by using push. To
-make sure we're pushing the right objects into the array we have to check their
-type. Since we don't want to test for ref (might break if we subclass) I created
-these container and container_type methods, that simply return a string saying
-what object is its container (e.g. for a node a TREE is its container), and what
-type of container the invocant object is (so for a node the NODE string is
-returned).
+=head2 ARRAY METHODS
+
+=over
+
+=item insert()
 
  Type    : Object method
- Title   : insert(Bio::Phylo::*)
- Usage   : $invocant->insert($obj);
- Function: Adds an object to the invocant.
+ Title   : insert
+ Usage   : $obj->insert($other_obj);
+ Function: Pushes an object into its container.
  Returns : A Bio::Phylo::Listable object.
  Args    : A Bio::Phylo::* object.
 
@@ -87,27 +75,35 @@ returned).
 sub insert {
     my ( $self, $obj ) = @_;
     my ( $sref, $oref ) = ( ref $self, ref $obj );
-    if ( $oref && $obj->can('container') ) {
-        push( @{$self}, $obj ) if $self->container_type eq $obj->container;
+    if ( $oref && $obj->can('_container') ) {
+        if ( $self->_type == $obj->_container ) {
+            push @{$self->{'ENTITIES'}}, $obj;
+        }
+        else {
+            Bio::Phylo::Exceptions::ObjectMismatch->throw(
+                error => "\"$sref\" objects don't accept \"$oref\" objects"
+            );
+        }
     }
     else {
-        $self->COMPLAIN("\"$sref\" objects don't accept \"$oref\" objects: $@");
-        return;
+        Bio::Phylo::Exceptions::ObjectMismatch->throw(
+            error => "\"$sref\" objects don't accept \"$oref\" objects"
+        );
     }
     return $self;
 }
 
-=item cross_reference(Bio::Phylo::Taxa)
+=item cross_reference()
 
 The cross_reference method links node and datum objects to the taxa they apply
-to. After crossreferencing a matrix with a taxa object every datum object has
-a reference to a taxon object stored in its datum->[TAXON] field, and every
-taxon object has a list of references to datum objects stored in its
-taxon->[DATA] field.
+to. After crossreferencing a matrix with a taxa object, every datum object has
+a reference to a taxon object stored in its C<< datum->{TAXON} >> field, and
+every taxon object has a list of references to datum objects stored in its
+C<< taxon->{DATA} >> field.
 
  Type    : Generic method
- Title   : cross_reference(Bio::Phylo::Taxa)
- Usage   : $invocant->cross_reference($taxa);
+ Title   : cross_reference
+ Usage   : $obj->cross_reference($taxa);
  Function: Crossreferences the entities in the invocant with names in $taxa
  Returns : string
  Args    : A Bio::Phylo::Taxa object
@@ -124,53 +120,60 @@ sub cross_reference {
                 foreach my $taxon ( @{ $taxa->get_entities } ) {
                     if ( $taxon->get_name eq $_->get_name ) {
                         $_->set_taxon($taxon);
-                        if ( $_->container_type eq 'DATUM' ) {
+                        if ( $_->_type == _DATUM_ ) {
                             $taxon->set_data($_);
                         }
-                        if ( $_->container_type eq 'NODE' ) {
+                        if ( $_->_type == _NODE_ ) {
                             $taxon->set_nodes($_);
                         }
                     }
                 }
             }
             else {
-                $self->COMPLAIN("$selfref can't link to $taxref: $@");
-                return;
+                Bio::Phylo::Exceptions::ObjectMismatch->throw(
+                    error => "$selfref can't link to $taxref"
+                );
             }
         }
         return $self;
     }
     else {
-        $self->COMPLAIN("$taxref does not contain taxa: $@");
-        return;
+        Bio::Phylo::Exceptions::ObjectMismatch->throw(
+            error => "$taxref does not contain taxa"
+        );
     }
 }
 
 =item get_entities()
 
-Returns the full array of objects contained by the listable object.
+Returns a reference to an array of objects contained by the listable object.
 
  Type    : Generic query
- Title   : get_data
- Usage   : $invocant->get_entities;
+ Title   : get_entities
+ Usage   : my @entities = @{ $obj->get_entities };
  Function: Retrieves all entities in the invocant.
- Returns : A list of Bio::Phylo::* objects.
+ Returns : A reference to a list of Bio::Phylo::* objects.
  Args    : none.
 
 =cut
 
 sub get_entities {
-    my $self = shift;
-    return $self;    # passes by ref
+    return $_[0]->{'ENTITIES'};
 }
+
+=back
+
+=head2 ITERATOR METHODS
+
+=over
 
 =item first()
 
 Jumps to the first element contained by the listable object.
 
- Type    : Generic query
+ Type    : Iterator
  Title   : first
- Usage   : $invocant->first;
+ Usage   : my $first_obj = $obj->first;
  Function: Retrieves the first entity in the invocant.
  Returns : A Bio::Phylo::* object
  Args    : none.
@@ -179,16 +182,17 @@ Jumps to the first element contained by the listable object.
 
 sub first {
     my $self = shift;
-    return $self->[0];
+    $self->{'INDEX'} = 0;
+    return $self->{'ENTITIES'}->[$self->{'INDEX'}];
 }
 
 =item last()
 
 Jumps to the last element contained by the listable object.
 
- Type    : Generic query
+ Type    : Iterator
  Title   : last
- Usage   : $invocant->last;
+ Usage   : my $last_obj = $obj->last;
  Function: Retrieves the last entity in the invocant.
  Returns : A Bio::Phylo::* object
  Args    : none.
@@ -197,16 +201,93 @@ Jumps to the last element contained by the listable object.
 
 sub last {
     my $self = shift;
-    return $self->[-1];
+    $self->{'INDEX'} = $#{$self->{'ENTITIES'}};
+    return $self->{'ENTITIES'}->[$self->{'INDEX'}];
+}
+
+=item current()
+
+Returns the current focal element of the listable object.
+
+ Type    : Iterator
+ Title   : current
+ Usage   : my $current_obj = $obj->current;
+ Function: Retrieves the current focal entity in the invocant.
+ Returns : A Bio::Phylo::* object
+ Args    : none.
+
+=cut
+
+sub current {
+    my $self = shift;
+    if ( ! defined $self->{'INDEX'} ) {
+    	$self->{'INDEX'} = 0;
+    }
+    return $self->{'ENTITIES'}->[$self->{'INDEX'}];
+}
+
+=item next()
+
+Returns the next focal element of the listable object.
+
+ Type    : Iterator
+ Title   : next
+ Usage   : my $next_obj = $obj->next;
+ Function: Retrieves the next focal entity in the invocant.
+ Returns : A Bio::Phylo::* object
+ Args    : none.
+
+=cut
+
+sub next {
+    my $self = shift;
+    if ( ! defined $self->{'INDEX'} ) {
+    	$self->{'INDEX'} = 0;
+    	return $self->{'ENTITIES'}->[$self->{'INDEX'}];
+    }
+    elsif ( ( $self->{'INDEX'} + 1 ) <= $#{ $self->{'ENTITIES'} } ) {
+        $self->{'INDEX'}++;
+        return $self->{'ENTITIES'}->[$self->{'INDEX'}];
+    }
+    else {
+        return;
+    }
+}
+
+=item previous()
+
+Returns the next previous element of the listable object.
+
+ Type    : Iterator
+ Title   : previous
+ Usage   : my $previous_obj = $obj->previous;
+ Function: Retrieves the previous focal entity in the invocant.
+ Returns : A Bio::Phylo::* object
+ Args    : none.
+
+=cut
+
+sub previous {
+    my $self = shift;
+    if ( ! $self->{'INDEX'} ) { # either undef or 0
+    	return;
+    }
+    elsif ( ( $self->{'INDEX'} - 1 ) >= 0 ) {
+        $self->{'INDEX'}--;
+        return $self->{'ENTITIES'}->[$self->{'INDEX'}];
+    }
+    else {
+        return;
+    }
 }
 
 =item last_index()
 
-Jumps to the last element contained by the listable object.
+Returns the highest valid index of the invocant.
 
  Type    : Generic query
  Title   : last_index
- Usage   : $invocant->last_index;
+ Usage   : my $last_index = $obj->last_index;
  Function: Returns the highest valid index of the invocant.
  Returns : An integer
  Args    : none.
@@ -215,114 +296,18 @@ Jumps to the last element contained by the listable object.
 
 sub last_index {
     my $self = shift;
-    return $#{$self};
+    return $#{$self->{'ENTITIES'}};
 }
 
-=item get_by_value(%options)
-
-The get_by_value method can be used to filter out objects contained by the
-listable object that meet a numerical condition.
-
- Type    : Generic method
- Title   : get_by_value(%options)
- Usage   : $invocant->get_by_value(-value => $value, -ge => $number );
- Function: Iterates through all objects returned by invocant and returns those
-           for which their $value (e.g. tree length) is less than (-lt),
-           less than or equal to (-le), equal to (-eq), greater than or equal to
-           (-ge), or greater than (-gt) $number.
- Returns : A list of objects
- Args    : -value = any of the numerical obj data (e.g. tree length)
-           -lt = less than
-           -le = less than or equals
-           -eq = equals
-           -ge = greater than or equals
-           -gt = greater than
-
-=cut
-
-sub get_by_value {
-    my $self = shift;
-    my %o    = @_;
-    my @results;
-    foreach my $e ( @{ $self->get_entities } ) {
-        if ( $o{ -eq } ) {
-            if ( $e->get( $o{-value} ) && $e->get( $o{-value} ) == $o{ -eq } ) {
-                push( @results, $e );
-            }
-        }
-        if ( $o{ -le } ) {
-            if ( $e->get( $o{-value} ) && $e->get( $o{-value} ) <= $o{ -le } ) {
-                push( @results, $e );
-            }
-        }
-        if ( $o{ -lt } ) {
-            if ( $e->get( $o{-value} ) && $e->get( $o{-value} ) < $o{ -lt } ) {
-                push( @results, $e );
-            }
-        }
-        if ( $o{ -ge } ) {
-            if ( $e->get( $o{-value} ) && $e->get( $o{-value} ) >= $o{ -ge } ) {
-                push( @results, $e );
-            }
-        }
-        if ( $o{ -gt } ) {
-            if ( $e->get( $o{-value} ) && $e->get( $o{-value} ) > $o{ -gt } ) {
-                push( @results, $e );
-            }
-        }
-    }
-    return \@results;    # pass by ref
-}
-
-=item get_by_regular_expression(%options)
-
-The get_by_regular_expression method can be used to filter out objects contained
-by the listable object that match a regular expression.
-
- Type    : Query
- Title   : get_by_regular_expression(-value => $varname, -match => $re)
- Usage   : $matrix->get_by_regular_expression(
-                -value => type,
-                -match => ^[D|R]NA$
-            );
- Function: Retrieves the data in the current
-           Bio::Phylo::Listable object whose $varname matches $re
- Returns : A list of Bio::Phylo::* objects.
- Args    : -value = any of the string datum props (e.g. 'type', 'char')
-           -match = a regular expression without delimiters.
- Comments: In the usage example all datum objects whose type is either DNA
-           or RNA are returned.
-
-=cut
-
-sub get_by_regular_expression {
-    my $self = shift;
-    my %o    = @_;
-    my @matches;
-    foreach my $e ( @{ $self->get_entities } ) {
-        if ( $o{-match} ) {
-            if ( $e->can( $o{-value} ) && $e->get( $o{-value} ) =~ $o{-match} )
-            {
-                push( @matches, $e );
-            }
-        }
-        else {
-            $self->COMPLAIN("Need a regular expression to evaluate: $@");
-            return;
-        }
-    }
-    return \@matches;
-}
-
-=item get_by_index($i)
+=item get_by_index()
 
 The get_by_index method is used to retrieve the i'th entity contained by a
 listable object.
 
  Type    : Query
- Title   : get_by_index($i)
- Usage   : $matrix->get_by_index($i);
- Function: Retrieves the i'the entity from a listable object.
+ Title   : get_by_index
+ Usage   : my $contained_obj = $obj->get_by_index($i);
+ Function: Retrieves the i'th entity from a listable object.
  Returns : An entity stored by a listable object.
  Args    : An index;
  Comments: Throws if out-of-bounds
@@ -333,10 +318,11 @@ sub get_by_index {
     my $self = shift;
     my $i    = shift;
     my $returnvalue;
-    eval { $returnvalue = $self->[$i]; };
+    eval { $returnvalue = $self->{'ENTITIES'}->[$i]; };
     if ($@) {
-        $self->COMPLAIN("index out of bounds: $@");
-        return;
+        Bio::Phylo::Exceptions::OutOfBounds->throw(
+            error => 'index out of bounds'
+        );
     }
     else {
         return $returnvalue;
@@ -345,25 +331,188 @@ sub get_by_index {
 
 =back
 
-=head1 AUTHOR
+=head2 VISITOR METHODS
 
-Rutger Vos, C<< <rvosa@sfu.ca> >>
-L<http://www.sfu.ca/~rvosa/>
+=over
+
+=item get_by_value()
+
+The get_by_value method can be used to filter out objects contained by the
+listable object that meet a numerical condition.
+
+ Type    : Visitor predicate
+ Title   : get_by_value
+ Usage   : my @objects = @{ $obj->get_by_value(
+              -value => $method,
+              -ge    => $number
+           ) };
+ Function: Iterates through all objects contained by $obj and returns those
+           for which the output of $method (e.g. get_tree_length) is less than
+           (-lt), less than or equal to (-le), equal to (-eq), greater than or
+           equal to (-ge), or greater than (-gt) $number.
+ Returns : A reference to an array of objects
+ Args    : -value => any of the numerical obj data (e.g. tree length)
+           -lt    => less than
+           -le    => less than or equals
+           -eq    => equals
+           -ge    => greater than or equals
+           -gt    => greater than
+
+=cut
+
+sub get_by_value {
+    my $self = shift;
+    my %o    = @_;
+    my @results;
+    foreach my $e ( @{ $self->get_entities } ) {
+        if ( $o{ -eq } ) {
+            if ( $e->get( $o{-value} ) && $e->get( $o{-value} ) == $o{ -eq } ) {
+                push @results, $e;
+            }
+        }
+        if ( $o{ -le } ) {
+            if ( $e->get( $o{-value} ) && $e->get( $o{-value} ) <= $o{ -le } ) {
+                push @results, $e;
+            }
+        }
+        if ( $o{ -lt } ) {
+            if ( $e->get( $o{-value} ) && $e->get( $o{-value} ) < $o{ -lt } ) {
+                push @results, $e;
+            }
+        }
+        if ( $o{ -ge } ) {
+            if ( $e->get( $o{-value} ) && $e->get( $o{-value} ) >= $o{ -ge } ) {
+                push @results, $e;
+            }
+        }
+        if ( $o{ -gt } ) {
+            if ( $e->get( $o{-value} ) && $e->get( $o{-value} ) > $o{ -gt } ) {
+                push @results, $e;
+            }
+        }
+    }
+    return \@results;
+}
+
+=item get_by_regular_expression()
+
+The get_by_regular_expression method can be used to filter out objects contained
+by the listable object that match a regular expression.
+
+ Type    : Visitor predicate
+ Title   : get_by_regular_expression
+ Usage   : my @objects = @{ $obj->get_by_regular_expression(
+                -value => $method,
+                -match => $re
+            ) };
+ Function: Retrieves the data in the current
+           Bio::Phylo::Listable object whose $method output matches $re
+ Returns : A list of Bio::Phylo::* objects.
+ Args    : -value => any of the string datum props (e.g. 'get_type')
+           -match => a compiled regular expression (e.g. qr/^[D|R]NA$/)
+
+=cut
+
+sub get_by_regular_expression {
+    my $self = shift;
+    my %o    = @_;
+    my @matches;
+    foreach my $e ( @{ $self->get_entities } ) {
+        if ( $o{-match} && ref $o{-match} eq 'Regexp' ) {
+            if ( $e->get( $o{-value} ) && $e->get( $o{-value} ) =~ $o{-match} ) {
+                push @matches, $e;
+            }
+        }
+        else {
+            Bio::Phylo::Exceptions::BadArgs->throw(
+                error => 'need a regular expression to evaluate'
+            );
+        }
+    }
+    return \@matches;
+}
+
+=back
+
+=head1 SEE ALSO
+
+=head2 Objects inheriting from Bio::Phylo::Listable
+
+=over
+
+=item L<Bio::Phylo::Forest>
+
+Iterate over a set of trees.
+
+=item L<Bio::Phylo::Forest::Tree>
+
+Iterate over nodes in a tree.
+
+=item L<Bio::Phylo::Matrices>
+
+Iterate over a set of matrices.
+
+=item L<Bio::Phylo::Matrices::Matrix>
+
+Iterate over the datum objects in a matrix.
+
+=item L<Bio::Phylo::Matrices::Alignment>
+
+Iterate over the sequences in an alignment.
+
+=item L<Bio::Phylo::Taxa>
+
+Iterate over a set of taxa.
+
+=back
+
+=head2 Superclass
+
+=over
+
+=item L<Bio::Phylo>
+
+The listable class inherits from L<Bio::Phylo>, so look there for more methods
+applicable to L<Bio::Phylo::Listable> objects and subclasses.
+
+=back
+
+Also see the manual: L<Bio::Phylo::Manual>.
+
+=head1 FORUM
+
+CPAN hosts a discussion forum for Bio::Phylo. If you have trouble using this
+module the discussion forum is a good place to start posting questions (NOT bug
+reports, see below): L<http://www.cpanforum.com/dist/Bio-Phylo>
 
 =head1 BUGS
 
-Please report any bugs or feature requests to
-C<bug-bio-phylo@rt.cpan.org>, or through the web interface at
-L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Bio-Phylo>.
-I will be notified, and then you'll automatically be notified of
-progress on your bug as I make changes.
+Please report any bugs or feature requests to C<< bug-bio-phylo@rt.cpan.org >>,
+or through the web interface at
+L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Bio-Phylo>. I will be notified,
+and then you'll automatically be notified of progress on your bug as I make
+changes. Be sure to include the following in your request or comment, so that
+I know what version you're using:
+
+$Id: Listable.pm,v 1.23 2005/09/29 20:31:17 rvosa Exp $
+
+=head1 AUTHOR
+
+Rutger Vos,
+
+=over
+
+=item email: C<< rvosa@sfu.ca >>
+
+=item web page: L<http://www.sfu.ca/~rvosa/>
+
+=back
 
 =head1 ACKNOWLEDGEMENTS
 
-The author would like to thank Jason Stajich for many ideas borrowed
-from BioPerl L<http://www.bioperl.org>, and CIPRES
-L<http://www.phylo.org> and FAB* L<http://www.sfu.ca/~fabstar> for
-comments and requests.
+The author would like to thank Jason Stajich for many ideas borrowed from
+BioPerl L<http://www.bioperl.org>, and CIPRES L<http://www.phylo.org> and
+FAB* L<http://www.sfu.ca/~fabstar> for comments and requests.
 
 =head1 COPYRIGHT & LICENSE
 

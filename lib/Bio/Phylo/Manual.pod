@@ -1,0 +1,881 @@
+=head1 NAME
+
+Bio::Phylo::Manual - Bio::Phylo user guide.
+
+=head1 DESCRIPTION
+
+This is the manual for Bio::Phylo. Bio::Phylo is a perl5 package for phylogenetic analysis. For installation instructions, read the README file in the root directory of the distribution.
+
+=head1 INSTANT GRATIFICATION
+
+The following sections will demonstrate some of the basic functionality, with immediate, useful results.
+
+=head2 ONE-LINERS
+
+One-liners are commands run immediately from the command line, using the C<< -e '...command...' >> switch, invoking the interpreter directly. Often, you'll include the C<< -MFoo::Bar >> switch to include C<< Foo::Bar >> at runtime. (See L<perlrun> for more info on executing the interpreter.) B<NOTE FOR WINDOWS USERS>: in the following examples, switch the quotes around, i.e. use double quotes where single quotes are used and vice versa.
+
+=head3 First steps
+
+=over
+
+=item Problem
+
+No concept is valid in Perl if it cannot be expressed in a one-liner. For the Bio::Phylo package, small operations can often be expressed using a single, erm, expression from the command line. For example:
+
+=item Solution
+
+ perl '-MBio::Phylo::IO qw(parse)' -e 'print parse(-format=>"newick",-string=>"((A,B),C);")->first->calc_imbalance'
+
+=item Discussion
+
+The C<< -MModule >> switch includes a module the way you would use C<< use Module; >> in a script. Here we use the L<Bio::Phylo::IO> module. The C<< -e >> switch is used to evaluate the following expression. We parse a string, C<< ((A,B),C); >>, of format C<< newick >>. The parser returns a L<Bio::Phylo::Forest> object (i.e. a set of trees, in this case a set of one). From this set we retrieve the first element, and calculate Colless' imbalance, which returns a number, which we print to standard out. This would print "1", obviously.
+
+=back
+
+=head3 Sets of trees
+
+=over
+
+=item Problem
+
+You want a one-liner to iterate over a set of trees:
+
+=item Solution
+
+ perl '-MBio::Phylo::IO qw(parse)' -lne 'print parse(-format=>"newick",-string=>$_)->first->calc_resolution' <filename>
+
+=item Discussion
+
+The C<< -n >> switch assumes a C<< while(<>) { ... } >> around the program, so the trees from F<filename> (that is, if they are one newick tree description per line) are copied into C<< $_ >> one tree at a time. The C<< -l >> switch appends a line break to the printed output.
+
+=back
+
+=head3 Stringifying trees
+
+=over
+
+=item Problem
+
+You don't want a number printed to C<< STDOUT >>, you want a tree:
+
+=item Solution
+
+ perl '-MBio::Phylo::IO qw(parse)' -e 'print parse(-format=>"newick",-string=>"((A,B),C);")->first->to_newick'
+
+=item Discussion
+
+If you try to print a tree object, what's written is something like C<< Bio::Phylo::Forest::Tree=ARRAY(0x1a337dc) >> (that is, the memory address that the object references). This is probably not what you want, so the tree object has a C<< $tree->to_newick >> method that stringifies the object to a newick string.
+
+=back
+
+=head2 INPUT AND OUTPUT
+
+The L<Bio::Phylo::IO> module is the unified front end for parsing and unparsing phylogenetic data objects. It is a non-OO module that optionally exports the C<< parse >> and C<< unparse >> subroutines into the caller's namespace, using the C<< use Bio::Phylo::IO qw(parse unparse); >> directive. Alternatively, you can call the subroutines as class methods. The C<< parse >> and C<< unparse >> subroutines load and dispatch the appropriate sub-modules at runtime, depending on the C<< -format >> argument.
+
+=head3 Parsing trees
+
+=over
+
+=item Problem
+
+You want to create a L<Bio::Phylo::Forest::Tree> object from a newick string.
+
+=item Solution
+
+ use Bio::Phylo::IO;
+
+ # parsing a tree from a newick string
+ my $tree_string = '(((A,B),C),D);';
+ 
+ # Call class method parse from Bio::Phylo::IO
+ my $tree = Bio::Phylo::IO->parse(
+    -string => $tree_string,
+    
+    # define 'newick' format
+    -format => 'newick' 
+ 
+ )->first;
+ # note: newick parser returns 'Bio::Phylo::Forest'
+ # Call ->first to retrieve the first tree of the forest.
+
+ print ref $tree, "\n"; # prints 'Bio::Phylo::Forest::Tree' 
+
+=item Discussion
+
+The L<Bio::Phylo::IO> module invokes specific parser modules. It is essentially a façade for the parsers. In the solution the L<Bio::Phylo::Parsers::Newick> parser turns a tree description into a L<Bio::Phylo::Forest> object. The object subclasses L<Bio::Phylo::Listable>, as a forest models a set of trees that you can iterate over. By calling the C<< ->first >> method, we get the first tree in the forest - a L<Bio::Phylo::Forest::Tree> object (in the example it's a very small forest, consisting of just this single tree).
+
+=back
+
+=head3 Parsing tables
+
+=over
+
+=item Problem
+
+You want to create a L<Bio::Phylo::Matrices::Matrix> object from a string.
+
+=item Solution
+
+ use Bio::Phylo::IO;
+ 
+ # parsing a table
+ my $table_string = qq(A,1,2|B,1,2|C,2,2|D,2,1);
+ my $matrix = Bio::Phylo::IO->parse(
+    -string   => $table_string,
+    -format   => 'table',
+    -type     => 'STANDARD',  # Data type, see Bio::Phylo::Parsers::Table
+    -fieldsep => ',',         # field separator
+    -linesep  => '|'          # line separator
+ );
+
+ print ref $matrix, "\n"; # prints 'Bio::Phylo::Matrices::Matrix'
+
+
+=item Discussion
+
+Here the L<Bio::Phylo::Parsers::Table> module parses a string C<< A,1,2|B,1,2|C,2,2|D,2,1 >>, where the C<< | >> is considered a record / line separator, and the C<< , >> as a field separator.
+
+=back
+
+=head3 Parsing taxa
+
+=over
+
+=item Problem
+
+You want to create a L<Bio::Phylo::Taxa> object from a string.
+
+=item Solution
+
+ use Bio::Phylo::IO;
+ 
+ # parsing a list of taxa
+ my $taxa_string = 'A:B:C:D';
+ my $taxa = Bio::Phylo::IO->parse(
+    -string   => $taxa_string,
+    -format   => 'taxlist',
+    -fieldsep => ':'
+ );
+
+ print ref $taxa, "\n"; # prints 'Bio::Phylo::Taxa'
+
+
+=item Discussion
+
+Here the L<Bio::Phylo::Parsers::Taxlist> module parses a string C<< A:B:C:D >>, where the C<< : >> is considered a field separator. The parser returns a L<Bio::Phylo::Taxa> object.
+
+=back
+
+=head2 ITERATING
+
+The L<Bio::Phylo::Listable> module is the superclass of all container objects. Container objects are objects that contain a set of objects of the same type. For example, a L<Bio::Phylo::Forest::Tree> object is a container for L<Bio::Phylo::Forest::Node> objects. Hence, the L<Bio::Phylo::Forest::Tree> inherits from the L<Bio::Phylo::Listable> class. You can therefore iterate over the nodes in a tree using the methods defined by L<Bio::Phylo::Listable>.
+
+=head3 Iterating over trees and nodes.
+
+=over
+
+=item Problem
+
+You want to access trees and nodes contained in a L<Bio::Phylo::Forest>
+object.
+
+=item Solution
+
+  use Bio::Phylo::IO qw(parse);
+  
+  my $string = '((A,B),(C,D));(((A,B),C)D);';  
+  my $forest = parse( -format => 'newick', -string => $string );  
+  print ref $forest; # prints 'Bio::Phylo::Forest'
+  
+  # access trees in $forest
+  foreach my $tree ( @{ $forest->get_entities } ) {
+      print ref $tree; # prints 'Bio::Phylo::Forest::Tree';
+      
+      # access nodes in $tree
+      foreach my $node ( @{ $tree->get_entities } ) {
+          print ref $node; # prints 'Bio::Phylo::Forest::Node';
+
+      }
+  }
+
+
+=item Discussion
+
+L<Bio::Phylo::Forest> and L<Bio::Phylo::Forest::Tree> are
+nested subclasses of the iterator class L<Bio::Phylo::Listable>. Nested
+iterator calls (such as C<< ->get_entities >>) can be invoked on the 
+objects.
+
+=back 
+
+=head3 Iterating over taxa.
+
+=over
+
+=item Problem
+
+You want to access the individual taxa in a L<Bio::Phylo::Taxa> object.
+
+=item Solution
+
+ use Bio::Phylo::IO qw(parse);
+  
+ my $string = 'A|B|C|D|E|F|G|H';
+ my $taxa = parse( 
+     -string => $string, 
+     -format => 'taxlist', 
+     -fieldsep => '|'
+ );
+ print ref $taxa; # prints 'Bio::Phylo::Taxa';
+  
+ foreach my $taxon ( @{ $taxa->get_entities } ) {
+     print ref $taxon; # prints 'Bio::Phylo::Taxa::Taxon'
+ }
+
+=item Discussion
+
+A L<Bio::Phylo::Taxa> object is a subclass of the 
+L<Bio::Phylo::Listable> class. Hence, you can call C<< ->get_entities >>
+on the taxa object, which returns a reference to an array of taxon
+objects contained by the taxa object.
+
+=back 
+
+=head3 Iterating over datum objects.
+
+=over
+
+=item Problem
+
+You want to access the datum objects contained by
+a L<Bio::Phylo::Matrices::Matrix> object.
+
+=item Solution
+
+ use Bio::Phylo::IO;
+ 
+ # parsing a table
+ my $table_string = qq(A,1,2|B,1,2|C,2,2|D,2,1);
+ my $matrix = Bio::Phylo::IO->parse(
+    -string   => $table_string,
+    -format   => 'table',
+    -type     => 'STANDARD',  # Data type, see Bio::Phylo::Parsers::Table
+    -fieldsep => ',',         # field separator
+    -linesep  => '|'          # line separator
+ );
+
+ print ref $matrix, "\n"; # prints 'Bio::Phylo::Matrices::Matrix'
+
+ foreach my $datum ( @{ $matrix->get_entities } ) {
+     print ref $datum; # prints 'Bio::Phylo::Matrices::Datum'
+ }
+
+=item Discussion
+
+The L<Bio::Phylo::Matrices::Matrix> object subclasses the 
+L<Bio::Phylo::Listable> object. Hence, its iterator methods are applicable
+here as well.
+
+=back 
+
+=head2 SIMULATING TREES
+
+The L<Bio::Phylo::Generator> module simulates trees under various
+models of clade growth.
+
+=head3 Generating Yule trees.
+
+Here's how to generate of ten trees with ten tips:
+
+  use Bio::Phylo::Generator;
+  my $gen = Bio::Phylo::Generator->new;
+  my $trees = $gen->gen_rand_pure_birth( 
+      -trees => 10, 
+      -tips  => 10, 
+      -model => 'yule' 
+  );
+  print ref $trees; # prints 'Bio::Phylo::Forest'
+
+=head3 Expected versus randomly drawn waiting times.
+
+The generator object simulates trees under the Yule or the Hey model,
+returning. The C<< ->gen_rand_pure_birth >> method call returns branch lengths
+drawn from the appropriate distribution, while C<< ->gen_exp_pure_birth >>
+returns the expected waiting times (e.g. 1/n where n=number of lineages for
+the Yule model).
+
+=head2 FILTERING
+
+=head3 Filtering objects by numerical value.
+
+To retrieve, for example, the nodes from a tree that are close to the 
+root, call:
+
+ my @deep_nodes = @{ $tree->get_by_value(
+    -value => 'calc_nodes_to_root',
+    -le    => 2
+ ) };
+
+Which retrieves the nodes no more than 2 ancestors away from the root.
+Any method that returns a numerical value can be specified with the
+C<< -value >> flag. The C<< -le >> flag specifies that the returned
+value is I<l>ess-than-or-I<e>qual to 2.
+
+=head3 Filtering objects by regular expression.
+
+String values that are returned by objects can be filtered using a 
+compiled regular expression. For example:
+
+ my @lemurs = @{ $tree->get_by_regular_expression(
+      -value => 'get_name',
+      -match => qr/[Ll]emur_.+$/
+ ) };
+
+Retrieves all nodes whose genus name matches Eulemur, Lemur or 
+Hapalemur.
+
+=head2 DRAWING TREES
+
+You can create SVG drawings of tree objects using the 
+L<Bio::Phylo::Treedrawer> module:
+
+  use Bio::Phylo::Treedrawers;
+  use Bio::Phylo::IO;
+  
+  my $treedrawer = Bio::Phylo::Treedrawers->new(
+     -width  => 400,
+     -height => 600,
+     -shape  => 'CURVY',
+     -mode   => 'CLADO',
+     -format => 'SVG'
+  );
+  
+  my $tree = Bio::Phylo::IO->parse(
+     -format => 'newick',
+     -string => '((A,B),C);'
+  )->first;
+  
+  $treedrawer->set_tree($tree);
+  $treedrawer->set_padding(50);
+  
+  my $string = $treedrawer->draw;
+
+Read the L<Bio::Phylo::Treedrawer> perldoc for more info.
+
+=head2 TIPS AND TRICKS
+
+=head3 Printing out object internals
+
+You can stringify the internal data structure of any object by using
+L<Data::Dumper>, so that C<< print Dumper($tree); >> prints out a 
+representation of the data structure in valid perl syntax.
+
+=head3 Generic metadata
+
+You can append generic key/value pairs to any object, by calling 
+C<< $obj->set_generic( 'key' => 'value'); >>. Subsequently calling
+C<< $obj->get_generic('key'); >> returns 'value'.
+
+=head3 Deep cloning
+
+You can make a deep clone of any object by calling 
+C<< my $clone = $obj->clone; >>, which returns an object with the same
+values but at a different memory address, i.e. a true copy of the 
+object, not the reference.
+
+=head1 OBJECT AND DATA MODEL
+
+=head2 Perl objects
+
+Object-oriented perl is a massive subject. To learn about the 
+basic syntax of OO-perl, the following perldocs might be of interest:
+
+=over
+
+=item L<perlboot>
+
+Introduction to OO perl. Read at least this one if you have no
+experience with OO perl.
+
+=item L<perlobj>
+
+Details about perl objects.
+
+=item L<perltooc>
+
+Class data.
+
+=item L<perltoot>
+
+Advanced objects: "Tom's object-oriented tutorial for perl"
+
+=item L<perlbot>
+
+The "Bag'o Object Tricks" (the BOT).
+
+=back
+
+=head2 The Bio::Phylo object model
+
+The following sections discuss the nested objects that model
+phylogenetic information and entities.
+
+=head3 The Bio::Phylo::Forest namespace
+
+According to Bio::Phylo, there is a Forest (which is
+modelled by the Bio::Phylo::Forest object), which contains
+Bio::Phylo::Forest::Tree objects, which contain
+Bio::Phylo::Forest::Node objects.
+
+=over
+
+=item The Bio::Phylo::Forest::Node object
+
+A node 'knows' a couple
+of things: its name, its branch length (i.e. the length
+of the branch connecting it and its parent), who its
+parent is, its next sister (on its right), its previous
+sister (on the left), its first daughter and its last
+daughter. Also, a taxon can be specified that the node
+refers to (this makes most sense when the node is terminal).
+These properties can be retrieved and modified by methods 
+classified as ACCESSORS and MUTATORS.
+
+From this set of properties follows a number of
+things which must be either true or false. For example,
+if a node has no children it is a terminal node. By asking
+a node whether it "is_terminal", it replies either with
+true (i.e. 1) or false (undef). Methods such as this
+are classified as TESTS.
+
+Likewise, based on the properties of an individual
+node we can perform a query to retrieve nodes related
+to it. For example, by asking the node to
+"get_ancestors" it returns a list of its ancestors,
+being all the nodes and the path from its parent to,
+and including, the root. These methods are QUERIES.
+
+Lastly, some CALCULATIONS can be performed by the
+node. By asking the node to "calc_path_to_root" it
+calculates the sum of the lengths of the branches
+connecting it and the root. Of course, in order to make
+all this possible, a node has to exist, so it needs to
+be constructed. The CONSTRUCTOR is the Bio::Phylo::Node->new()
+method.
+
+Once a node has served its purpose it
+can be destroyed. For this purpose there is a
+DESTRUCTOR, which cleans up once we're done with the
+node. However, in most cases you don't have to worry
+about constructing and destroying nodes as this is done
+for you by a parser or a generator as needs arise.
+
+For a detailed description of all the node methods,
+their arguments and return values, consult the node
+documentation, which, after install, can be viewed by
+issuing the "perldoc Bio::Phylo::Forest::Node" command.
+
+=item The Bio::Phylo::Forest::Tree object
+
+A tree knows very
+little. All it really holds is a set of nodes, which
+are there because of TREE POPULATION, i.e. the process
+of inserting nodes in the tree. The tree can be queried
+in a number of ways, for example, we can ask the tree
+to "get_entities", to which the tree replies with a list
+of all the nodes it holds. Be advised that this doesn't
+mean that the nodes are connected in a meaningful way,
+if at all. The tree doesn't care, the nodes are
+supposed to know who their parents, sisters, and
+daughters are. But, we can still get, for example, all
+the terminal nodes (i.e. the tips) in the tree by
+retrieving all the nodes in the tree and asking each
+one of them whether it "is_terminal", discarding the
+ones that aren't.
+
+Based on the set of nodes the tree holds it can
+perform calculations, such as "calc_tree_length", which
+simply means that the tree iterates over all its nodes,
+summing their branch lengths, and returning the total.
+
+The tree object also has a constructor and a
+destructor, but normally you don't have to worry about
+that. All the tree methods can be viewed by issuing the
+"perldoc Bio::Phylo::Forest::Tree" command.
+
+=item The Bio::Phylo::Forest object
+
+The object containing all others is the Forest object. It
+serves merely as a container to hold multiple trees, which
+are inserted in the Forest object using the "insert()" method,
+and retrieved using the "get_entities" method. More information
+can be found in the Bio::Phylo::Forest perldoc page.
+
+=back
+
+=head3 The Bio::Phylo::Matrices namespace
+
+Objects in the Bio::Phylo::Matrices namespace are used to handle
+comparative data, as single observations, and in larger container
+objects.
+
+=over
+
+=item The Bio::Phylo::Matrices::Datum object
+
+The datum object holds a single observation of a predefined type,
+such as a molecular site, or a continuous character observation. The
+Datum object can be linked to a taxon object, to specify which OTU
+the observation refers to.
+
+=item The Bio::Phylo::Matrices::Sequence object
+
+The datum object holds a string of characters of a predefined type,
+such as a molecular sequence, or a series of continuous character 
+observation. The Sequence object can be linked to a taxon object, 
+to specify which OTU the characters refer to. The sequence object
+is often more suitable for larger data sets (e.g. DNA sequences), the
+datum object is more memory intensive, but provides for more per
+character metadata - hence it is perhaps more appropriate for 
+individual morphological observations.
+
+=item The Bio::Phylo::Matrices::Matrix object
+
+The matrix object is used to aggregate datum objects into a larger,
+iterator object, which can be accessed using the methods of the
+Bio::Phylo::Listable class.
+
+=item The Bio::Phylo::Matrices::Alignment object
+
+The alignment object is used to aggregate sequence objects into a 
+larger, iterator object, which can be accessed using the methods of 
+the Bio::Phylo::Listable class.
+
+=item The Bio::Phylo::Matrices object
+
+The top level opject in the Bio::Phylo::Matrices namespace is used
+to contain multiple matrix or alignment objects, implementing an 
+iterator interface.
+
+=back
+
+=head3 The Bio::Phylo::Taxa namespace
+
+Sets of taxa are modelled by the Bio::Phylo::Taxa object. It is
+a container that holds Bio::Phylo::Taxa::Taxon objects. The taxon
+objects at present provide no other functionality than to serve
+as a means of crossreferencing nodes in trees, and datum or sequence
+objects.
+
+=head2 Encapsulation
+
+The Bio::Phylo objects, as all perl objects, are implemented using 
+an underlying complex data structure. You can reach into the objects
+and manipulate their data directly - but don't do that! I could make it
+so that the data structures are not accessible from outside the class
+(i.e. are encapsulated), but that would decrease performance. Instead
+you will just have to restrain yourself and use the publicly 
+advertised accessors and mutators. The underlying data structures are 
+subject to change without notice, which would break your scripts if 
+you fiddle with the data directly.
+
+=head2 'Is-a' relationships: Inheritance
+
+The objects in Bio::Phylo are related in various ways. Some objects
+inherit from superclasses. Hence the object I<is a> special
+case of the superclass This type of relationship is shown
+below:
+
+ # base class
+ Bio::Phylo
+ 	
+ 	# facade parser, child classes
+ 	Bio::Phylo::IO
+ 		Bio::Phylo::Parsers::Newick
+ 		Bio::Phylo::Parsers::Nexus
+ 		Bio::Phylo::Parsers::Table
+ 		Bio::Phylo::Parsers::Taxlist
+ 		Bio::Phylo::Unparsers::Newick
+ 		Bio::Phylo::Unparsers::Pagel
+ 		
+ 	# listable interface, child classes
+ 	Bio::Phylo::Listable 		
+ 		Bio::Phylo::Forest
+ 		Bio::Phylo::Forest::Tree
+ 		Bio::Phylo::Matrices 		
+ 		Bio::Phylo::Matrices::Matrix 		
+ 		Bio::Phylo::Matrices::Alignment
+ 		Bio::Phylo::Taxon
+ 	 
+ 	 # direct children of Bio::Phylo
+ 	 Bio::Phylo::Forest::Node
+ 	 Bio::Phylo::Matrices::Datum
+ 	 Bio::Phylo::Matrices::Sequence
+ 	 Bio::Phylo::Taxa::Taxon
+ 	 Bio::Phylo::Generator
+ 	 Bio::Phylo::CONSTANT
+ 	 Bio::Phylo::Exceptions
+ 	 Bio::Phylo::Treedrawer
+ 	 Bio::Phylo::Treedrawer::SVG
+
+
+=head2 'Has-a' relationships
+
+Some objects contain other objects. For example, a 
+L<Bio::Phylo::Forest::Tree> contains L<Bio::Phylo::Forest::Node>
+objects. This type of relationship is shown below:
+
+    ______________     ________________
+   |FOREST        |   |MATRICES        |
+   |  __________  |   |  __________    |
+   | |TREE      | |   | |MATRIX    |   |
+   | |  ______  | |   | |  ______  |   |
+   | | |NODE  | | |   | | |DATUM | |   |
+   | | |______| | |   | | |______| |   |
+   | |__________| |   | |__________|   |
+   |______________|   |                |
+                      |  ____________  |
+    __________        | |ALIGNMENT   | |
+   |TAXA      |       | |  ________  | |
+   |  ______  |       | | |SEQUENCE| | |
+   | |TAXON | |       | | |________| | |
+   | |______| |       | |____________| |
+   |__________|       |________________|
+
+
+
+=head1 ARGUMENT FORMATS
+
+=head2 Named arguments when number of arguments >= 2.
+
+When the number of arguments to a method call exceeds 1, named 
+arguments are used. The order in which the arguments are specified 
+doesn't matter, but the arguments must be all lower case and preceded 
+by a dash:
+
+  use Bio::Phylo::Forest::Tree;
+  
+  my $node = Bio::Phylo::Forest::Tree->new( -name => 'PHYLIP_1' );
+
+
+=head2 Type checking
+
+Argument type is always checked. Numbers are checked for being
+numbers, names are checked for being sane strings, without '():;,'.
+Objects are checked for type. The only intentional exception is in 
+object constructors, i.e. if you instantiate a node, and use extra
+arguments in the constructor call:
+
+ use Bio::Phylo::Forest::Node;
+  
+ my $node = Bio::Phylo::Forest::Node->new(
+     -name          => 'Node name',
+     -branch_length => 0.439
+ );
+
+
+These arguments are not checked. You can abuse this to gain a 
+performance advantage, but be careful not to specify garbage.
+
+=head1 RETURN VALUES AND EXCEPTIONS
+
+=head2 Retun values
+
+Apart from scalar variables, all other return values are passed by
+reference, either as a reference to an object or to an array.
+
+=over
+
+=item Lists returned as array references
+
+Multiple return values are never returned as a list, always as an
+array reference:
+
+ my $nodes = $tree->get_entities;
+ print ref $nodes;
+ 
+prints ARRAY.
+
+To receive nodes in C<< @nodes >>, dereference the returned array
+reference:
+
+ my @nodes = @{ $tree->get_entities };
+
+
+=item Returns self on mutators
+
+Mutator method calls always return the modified object, and so they
+can be chained:
+
+ $node->set_name('Homo_sapiens')->set_branch_length(0.2343);
+
+
+=item False but defined return values
+
+When a value requested through an Accessor hasn't been set, the return
+value is C<< undef >>. Here you should take care how you test. For example:
+
+ if ( ! $node->get_parent ) {
+ 	$root = $node;
+ }
+
+This works as expected. C<< $node >> has no parent, hence it must be the root.
+However:
+
+ if ( ! $node->get_branch_length ) {
+ 	
+ 	# is there really no branch length?
+ 	if ( defined $node->get_branch_length ) {
+ 		
+ 		# perhaps there is, but of length 0.
+ 	}
+ }
+
+Warrants caution. Zero is evaluated as false-but-defined.
+
+=back
+
+=head2 Exceptions
+
+The Bio::Phylo modules throw exceptions that subclass L<Exception::Class>. Exceptions are thrown when something I<exceptional> has happened. Not when the value requested through an accessor method is undefined. If a node has no parent, C<< undef >> is returned. Usually, you will encounter exceptions in response to invalid input.
+
+=over
+
+=item Trying/Catching exceptions
+
+If some method call returns an exception, wrap the call inside an C<< eval >> block. The error now becomes non-fatal:
+ 
+ # try something:
+ eval { $node->set_branch_length('a bad value'); };
+ 
+ # handle exception, if any
+ if ($@) {
+    # do something
+ }
+
+=item Stack traces
+
+If an exception of a particular type is caught, you can print a stack trace and find out what might have gone wrong starting from your script drilling into the module code.
+
+ # exception caught.
+ if ( UNIVERSAL::isa( $@, 'Bio::Phylo::Exceptions::BadNumber' ) ) {
+    
+    # prints stack trace in addition to error
+    warn $@->error, "\n, $@->trace->as_string, "\n";
+    
+    # further metadata from exception object
+    warn join ' ',  $@->euid, $@->egid, $@->uid, $@->gid, $@->pid, $@->time;
+    exit;
+ }
+
+=item Exception types
+
+Several exception classes are defined. The type of the thrown exception should give you a hint as to what might be wrong. The types are specified in the L<Bio::Phylo::Exceptions> perldoc.
+
+=back
+
+=head1 TO DO
+
+Below is a list of things that I<might> be implemented in future versions of Bio::Phylo. Some are highly speculative, others will almost certainly be implemented.
+
+=over
+
+=item Singleton aggregate object
+
+The singleton aggregate object is an object of which only ever a single instance will exist. The object will hold references to all L<Bio::Phylo::Forest>, L<Bio::Phylo::Taxa> and L<Bio::Phylo::Matrices> objects in existence. Think of it as the notion of a "project" in Mesquite. It will make input and output more straightforward, because the parsers (especially the nexus parser) will always know where to put the objects they instantiate. This object will almost certainly be implemented.
+
+=item Visitor object
+
+What you'd normally do in many operations is carrying your data (data structure, object) over to an operation, and define it as an argument that the operation works on, i.e. C<< some_function($data); >>. You might then decide, if you use this operation often and it is tightly bound to any particular data structure or object interface it operates on, to include the operation as a method of the object, i.e. C<< $some_object->method >>. 
+This can lead to bloated classes with lots of methods (perhaps some of the classes in Bio::Phylo could be accused of this, such as L<Bio::Phylo::Forest::Tree>). To provide more flexibility you can instead implement the visitor object - which can be viewed as an object that operates on another object, i.e. C<< $some_object->iterate($visitor) >>, where the $visitor performs an operation on $some_object.
+On the other hand, since perl can pass code references and closures, perhaps only the C<< $some_object->iterate(sub { ... }) >> method is necessary, so that the visitor concept is simplified to an operation, rather than an object. 
+I have both ideas in consideration, but neither is very pressing.
+
+=item MRP unparser
+
+Could be handy: an unparser that takes a L<Bio::Phylo::Forest> object as an argument, and unparses it into an MRP pseudocharacter matrix.
+
+=item Bridge or Adaptor objects
+
+Interoperability with L<Bio::Tree::TreeI> and L<Bio::Tree::NodeI> objects would be greatly useful. Much better than string based, or tempfile based. Something like an intermediate class that translates the data structures, and transmits valid blessed objects in either direction will almost certainly be implemented. 
+
+=item InsideOut objects
+
+The current implementation of node and tree objects leaks memory. The objects have circular references to each other so the reference counting garbage collector does not clean them up. InsideOut objects consisting of blessed references to array indices would be recursive-by-convention, and so would only hold conceptually circular references, but not at the level of memory addresses, so would get cleaned up. On the other hand, I haven't noticed decreases in performance due to swapping, and perl6 will be mark & sweep. So maybe not.
+
+=item "Bio::Phylo::Util" namespace?
+
+Perhaps constants, exceptions and utility classes ought to go in a Bio::Phylo::Util namespace.
+
+=item Cache node values in C<< _CACHE >> field, flag for topology changes
+
+Calculation results can be reused as long as the topology doesn't change. Nodes and trees could hold these results internally, and transparently return those in subsequent requests for the calculation. Might be implemented.
+
+=item New newick parser
+
+I wrote a new newick parser that is 4 x faster. It doesn't introduce unique node labels. Whether that's a good or a bad thing, I don't know. Will probably be included, node labels should be optional.
+
+=item More node and tree methods
+
+Lots more methods are coming.
+
+=item More tree drawing options
+
+Instead of returning Svg markup as a string, it could be in the form of a subclass of L<Bio::Phylo::Forest::Tree> with additional C<< $node->set_color("red") >> and so on might work. Still considering.
+
+=item More DNA sequence methods
+
+Such as C<< $seq->complement; >>, C<< $seq->reverse; >>. This would imply larger constant translation tables, including various tables for mtDNA and so on. Will probably be implemented.
+
+=item Ports
+
+I have experimented with cross language functionality to L<Java> (to the TreeJuxtaposer java program), and to L<Inline::C>. Proof-of-concepts work. Perhaps some parts could be implemented in other languages? E.g. C for fast node structs, and Java for a GUI. This is very long term. 
+
+Eventually L<Perl6::Bible> will come into focus. I've checked out L<http://www.pugscode.org> and L<http://www.parrotcode.org>. It looks promising, but will take a while.
+
+=back
+
+=head1 FORUM
+
+CPAN hosts a discussion forum for Bio::Phylo. If you have trouble
+using this module the discussion forum is a good place to start
+posting questions (NOT bug reports, see below):
+L<http://www.cpanforum.com/dist/Bio-Phylo>
+
+=head1 BUGS
+
+Please report any bugs or feature requests to C<< bug-bio-phylo@rt.cpan.org >>,
+or through the web interface at
+L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Bio-Phylo>. I will be notified,
+and then you'll automatically be notified of progress on your bug as I make
+changes. Be sure to include the following in your request or comment, so that
+I know what version you're using:
+
+$Id: Manual.pod,v 1.1 2005/09/30 19:12:29 rvosa Exp $
+
+=head1 AUTHOR
+
+Rutger A. Vos,
+
+=over
+
+=item email: C<< rvosa@sfu.ca >>
+
+=item web page: L<http://www.sfu.ca/~rvosa/>
+
+=back
+
+=head1 ACKNOWLEDGEMENTS
+
+The author would like to thank Jason Stajich for many ideas borrowed
+from BioPerl L<http://www.bioperl.org>, and CIPRES
+L<http://www.phylo.org> and FAB* L<http://www.sfu.ca/~fabstar>
+for comments and requests.
+
+=head1 COPYRIGHT & LICENSE
+
+Copyright 2005 Rutger A. Vos, All Rights Reserved. This program is free
+software; you can redistribute it and/or modify it under the same terms as Perl
+itself.
+
+=cut

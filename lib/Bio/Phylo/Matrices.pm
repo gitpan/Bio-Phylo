@@ -1,39 +1,32 @@
-# $Id: Matrices.pm,v 1.7 2005/08/11 19:41:12 rvosa Exp $
-# Subversion: $Rev: 148 $
+# $Id: Matrices.pm,v 1.21 2005/09/29 20:31:17 rvosa Exp $
+# Subversion: $Rev: 186 $
 package Bio::Phylo::Matrices;
 use strict;
 use warnings;
 use base 'Bio::Phylo::Listable';
+use Bio::Phylo::CONSTANT qw(_NONE_ _MATRICES_);
 
 # One line so MakeMaker sees it.
-use Bio::Phylo;  our $VERSION = $Bio::Phylo::VERSION;
-
-# The bit of voodoo is for including Subversion keywords in the main source
-# file. $Rev is the subversion revision number. The way I set it up here allows
-# 'make dist' to build a *.tar.gz without the "_rev#" in the package name, while
-# it still shows up otherwise (e.g. during 'make test') as a developer release,
-# with the "_rev#".
-my $rev = '$Rev: 148 $';
-$rev =~ s/^[^\d]+(\d+)[^\d]+$/$1/;
-$VERSION .= '_' . $rev;
-use vars qw($VERSION);
-
-my $VERBOSE = 1;
+use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
 
 =head1 NAME
 
-Bio::Phylo::Matrices - An object-oriented module for matrices holding
-phylogenetic data
+Bio::Phylo::Matrices - Holds a set of matrix objects.
 
 =head1 SYNOPSIS
 
  use Bio::Phylo::Matrices;
- my $matrices = new Bio::Phylo::Matrices;
+ use Bio::Phylo::Matrices::Matrix;
+ 
+ my $matrices = Bio::Phylo::Matrices->new;
+ my $matrix   = Bio::Phylo::Matrices::Matrix->new;
+ 
+ $matrices->insert($matrix);
 
 =head1 DESCRIPTION
 
-The Bio::Phylo::Matrices object models a set of matrices. It inherits from
-the Bio::Phylo::Listable object, and so the filtering methods of that object
+The L<Bio::Phylo::Matrices> object models a set of matrices. It inherits from
+the L<Bio::Phylo::Listable> object, and so the filtering methods of that object
 are available to apply to a set of matrices.
 
 =head1 METHODS
@@ -46,70 +39,114 @@ are available to apply to a set of matrices.
 
  Type    : Constructor
  Title   : new
- Usage   : my $matrices = new Bio::Phylo::Matrices;
+ Usage   : my $matrices = Bio::Phylo::Matrices->new;
  Function: Initializes a Bio::Phylo::Matrices object.
  Returns : A Bio::Phylo::Matrices object.
- Args    : none.
+ Args    : None required.
 
 =cut
 
 sub new {
-    my $class = $_[0];
-    my $self  = [];
-    bless( $self, $class );
+    my $class = shift;
+    my $self = fields::new($class);
+    $self->SUPER::new(@_);
+    if (@_) {
+        my %opts;
+        eval { %opts = @_; };
+        if ($@) {
+            Bio::Phylo::Exceptions::OddHash->throw(
+                error => $@
+            );
+        }
+        while ( my ( $key, $value ) = each %opts ) {
+            my $localkey = uc substr $key, 1;
+            eval { $self->{$localkey} = $value; };
+            if ($@) {
+                Bio::Phylo::Exceptions::BadArgs->throw(
+                    error => "invalid field specified: $key ($localkey)"
+                );
+            }
+        }
+    }
     return $self;
 }
 
+=begin comment
+
+ Type    : Internal method
+ Title   : _container
+ Usage   : $matrices->_container;
+ Function:
+ Returns : CONSTANT
+ Args    :
+
+=end comment
+
+=cut
+
+sub _container { _NONE_ }
+
+=begin comment
+
+ Type    : Internal method
+ Title   : _type
+ Usage   : $matrices->_type;
+ Function:
+ Returns : CONSTANT
+ Args    :
+
+=end comment
+
+=cut
+
+sub _type { _MATRICES_ }
+
 =back
 
-=head2 CONTAINER
+=head1 SEE ALSO
 
 =over
 
-=item container
+=item L<Bio::Phylo::Listable>
 
- Type    : Internal method
- Title   : container
- Usage   : $matrices->container;
- Function:
- Returns : SCALAR
- Args    :
+The L<Bio::Phylo::Matrices> object inherits from the L<Bio::Phylo::Listable>
+object. Look there for more methods applicable to the matrices object.
 
-=cut
+=item L<Bio::Phylo::Manual>
 
-sub container {
-    return 'PHYLO';
-}
-
-=item container_type
-
- Type    : Internal method
- Title   : container_type
- Usage   : $matrices->container_type;
- Function:
- Returns : SCALAR
- Args    :
-
-=cut
-
-sub container_type {
-    return 'MATRICES';
-}
+Also see the manual: L<Bio::Phylo::Manual>.
 
 =back
 
-=head1 AUTHOR
+=head1 FORUM
 
-Rutger Vos, C<< <rvosa@sfu.ca> >>
-L<http://www.sfu.ca/~rvosa/>
+CPAN hosts a discussion forum for Bio::Phylo. If you have trouble
+using this module the discussion forum is a good place to start
+posting questions (NOT bug reports, see below):
+L<http://www.cpanforum.com/dist/Bio-Phylo>
 
 =head1 BUGS
 
-Please report any bugs or feature requests to
-C<bug-bio-phylo@rt.cpan.org>, or through the web interface at
-L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Bio-Phylo>.
-I will be notified, and then you'll automatically be notified
-of progress on your bug as I make changes.
+Please report any bugs or feature requests to C<< bug-bio-phylo@rt.cpan.org >>,
+or through the web interface at
+L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Bio-Phylo>. I will be notified,
+and then you'll automatically be notified of progress on your bug as I make
+changes. Be sure to include the following in your request or comment, so that
+I know what version you're using:
+
+$Id: Matrices.pm,v 1.21 2005/09/29 20:31:17 rvosa Exp $
+
+=head1 AUTHOR
+
+Rutger Vos,
+
+=over
+
+=item email: C<< rvosa@sfu.ca >>
+
+=item web page: L<http://www.sfu.ca/~rvosa/>
+
+=back
 
 =head1 ACKNOWLEDGEMENTS
 

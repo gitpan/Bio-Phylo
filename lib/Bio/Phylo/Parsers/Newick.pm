@@ -1,49 +1,30 @@
-# $Id: Newick.pm,v 1.7 2005/08/11 19:41:12 rvosa Exp $
-# Subversion: $Rev: 148 $
+# $Id: Newick.pm,v 1.22 2005/09/29 20:31:18 rvosa Exp $
+# Subversion: $Rev: 196 $
 package Bio::Phylo::Parsers::Newick;
 use strict;
 use warnings;
-use Bio::Phylo::Trees;
-use Bio::Phylo::Trees::Tree;
-use Bio::Phylo::Trees::Node;
-use base 'Bio::Phylo::Parsers';
+use Bio::Phylo::Forest;
+use Bio::Phylo::Forest::Tree;
+use Bio::Phylo::Forest::Node;
+use base 'Bio::Phylo::IO';
 
 # One line so MakeMaker sees it.
-use Bio::Phylo;  our $VERSION = $Bio::Phylo::VERSION;
+use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
 
-# The bit of voodoo is for including Subversion keywords in the main source
-# file. $Rev is the subversion revision number. The way I set it up here allows
-# 'make dist' to build a *.tar.gz without the "_rev#" in the package name, while
-# it still shows up otherwise (e.g. during 'make test') as a developer release,
-# with the "_rev#".
-my $rev = '$Rev: 148 $';
-$rev =~ s/^[^\d]+(\d+)[^\d]+$/$1/;
-$VERSION .= '_' . $rev;
-use vars qw($VERSION);
-
-my $VERBOSE = 1;
-*from_handle = \&from_both;
-*from_string = \&from_both;
+*_from_handle = \&_from_both;
+*_from_string = \&_from_both;
 
 =head1 NAME
 
-Bio::Phylo::Parsers::Newick - A library for parsing phylogenetic trees in Newick
-format.
-
-=head1 SYNOPSIS
-
- my $newick = new Bio::Phylo::Parsers::Newick;
- my $trees = $newick->parse(-file => 'tree.dnd', -format => 'newick');
+Bio::Phylo::Parsers::Newick - Parses newick trees. No serviceable parts
+inside.
 
 =head1 DESCRIPTION
 
-This module parses tree descriptions in parenthetical format.
+This module parses tree descriptions in parenthetical format. It is called by
+the L<Bio::Phylo::IO> facade, don't call it directly.
 
-=head2 CONSTRUCTOR
-
-=over
-
-=item new()
+=begin comment
 
  Type    : Constructor
  Title   : new
@@ -52,42 +33,45 @@ This module parses tree descriptions in parenthetical format.
  Returns : A Bio::Phylo::Parsers::Newick object.
  Args    : none.
 
+=end comment
+
 =cut
 
-sub new {
+sub _new {
     my $class = $_[0];
     my $self  = {};
     bless( $self, $class );
     return $self;
 }
 
-=back
-
-=head2 PARSER
-
-=over
-
-=item from_both(%options), from_handle, from_string
+=begin comment
 
  Type    : Wrapper
  Title   : from_both(%options)
  Usage   : $newick->from_both(%options);
  Function: Extracts trees from file, sends strings to _parse_string()
- Returns : Bio::Phylo::Trees
+ Returns : Bio::Phylo::Forest
  Args    : -handle => (\*FH) or -string => (scalar).
  Comments:
 
+=end comment
+
 =cut
 
-sub from_both {
+sub _from_both {
     my $self  = shift;
     my %args  = @_;
-    my $trees = new Bio::Phylo::Trees;
+    my $trees = Bio::Phylo::Forest->new;
     if ( $args{'-handle'} ) {
+        my $string;
         while ( readline( $args{-handle} ) ) {
             chomp;
             s/\s//g;
-            $trees->insert( $self->_parse_string($_) );
+            $string .= $_;
+            if ( $string =~ m/^(.+;)(.*)$/ ) {
+                $trees->insert( $self->_parse_string($1) );
+                $string = $2;
+            }
         }
     }
     if ( $args{'-string'} ) {
@@ -101,32 +85,34 @@ sub from_both {
     return $trees;
 }
 
-=item _parse_string($string)
+=begin comment
 
  Type    : Parser
  Title   : _parse_string($string)
  Usage   : my $tree = $newick->_parse_string($string);
- Function: Creates a populated Bio::Phylo::Trees::Tree object from a newick
+ Function: Creates a populated Bio::Phylo::Forest::Tree object from a newick
            string.
- Returns : A Bio::Phylo::Trees::Tree object.
+ Returns : A Bio::Phylo::Forest::Tree object.
  Args    : $string = a newick tree description
+
+=end comment
 
 =cut
 
 sub _parse_string {
     my ( $self, $string ) = @_;
-    my $tree = new Bio::Phylo::Trees::Tree;
+    my $tree = Bio::Phylo::Forest::Tree->new;
     $string = $self->_nodelabels($string);
     foreach ( grep ( /\w/, split( /[\(|,|\)|;]+/o, $string ) ) ) {
         my $node;
-        if (/^(.+):(-?\d+\.?\d*e?[-|+]?\d*)$/oi) {
-            $node = Bio::Phylo::Trees::Node->new(
+        if (/^(.+):\s*(-?\d+\.?\d*e?[-|+]?\d*)$/oi) {
+            $node = Bio::Phylo::Forest::Node->new(
                 -name          => $1,
                 -branch_length => $2
             );
         }
         else {
-            $node = Bio::Phylo::Trees::Node->new(
+            $node = Bio::Phylo::Forest::Node->new(
                 -name => $_,
             );
         }
@@ -161,7 +147,7 @@ sub _parse_string {
     return $tree;
 }
 
-=item _nodelabels($string)
+=begin comment
 
  Type    : Internal method.
  Title   : _nodelabels($string)
@@ -170,15 +156,18 @@ sub _parse_string {
  Returns : SCALAR
  Args    : $string = a newick tree description
 
+=end comment
+
 =cut
 
 sub _nodelabels {
-    my $self   = $_[0];
-    my $string = $_[1];
+    my ( $self, $string ) = @_;
     my ( $x, @x );
     while ( $string =~ /\)[:|,|;|\)]/o ) {
         foreach ( split( /[:|,|;|\)]/o, $string ) ) {
-            push( @x, $1 ) if /n([0-9]+)/;
+            if ( /n([0-9]+)/ ) {
+                push( @x, $1 );
+            }
         }
         @x = sort { $a <=> $b } @x;
         $x = $x[-1];
@@ -187,56 +176,50 @@ sub _nodelabels {
     return $string;
 }
 
-=back
-
-=head2 CONTAINER
+=head1 SEE ALSO
 
 =over
 
-=item container
+=item L<Bio::Phylo::IO>
 
- Type    : Internal method
- Title   : container
- Usage   : $newick->container;
- Function:
- Returns : SCALAR
- Args    :
+The newick parser is called by the L<Bio::Phylo::IO> object.
+Look there to learn how to parse newick strings.
 
-=cut
+=item L<Bio::Phylo::Manual>
 
-sub container {
-    return 'NONE';
-}
-
-=item container_type
-
- Type    : Internal method
- Title   : container_type
- Usage   : $newick->container_type;
- Function:
- Returns : SCALAR
- Args    :
-
-=cut
-
-sub container_type {
-    return 'NEWICK';
-}
+Also see the manual: L<Bio::Phylo::Manual>.
 
 =back
 
-=head1 AUTHOR
+=head1 FORUM
 
-Rutger Vos, C<< <rvosa@sfu.ca> >>
-L<http://www.sfu.ca/~rvosa/>
+CPAN hosts a discussion forum for Bio::Phylo. If you have trouble
+using this module the discussion forum is a good place to start
+posting questions (NOT bug reports, see below):
+L<http://www.cpanforum.com/dist/Bio-Phylo>
 
 =head1 BUGS
 
-Please report any bugs or feature requests to
-C<bug-bio-phylo@rt.cpan.org>, or through the web interface at
-L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Bio-Phylo>.
-I will be notified, and then you'll automatically be notified
-of progress on your bug as I make changes.
+Please report any bugs or feature requests to C<< bug-bio-phylo@rt.cpan.org >>,
+or through the web interface at
+L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Bio-Phylo>. I will be notified,
+and then you'll automatically be notified of progress on your bug as I make
+changes. Be sure to include the following in your request or comment, so that
+I know what version you're using:
+
+$Id: Newick.pm,v 1.22 2005/09/29 20:31:18 rvosa Exp $
+
+=head1 AUTHOR
+
+Rutger A. Vos,
+
+=over
+
+=item email: C<< rvosa@sfu.ca >>
+
+=item web page: L<http://www.sfu.ca/~rvosa/>
+
+=back
 
 =head1 ACKNOWLEDGEMENTS
 
@@ -247,9 +230,9 @@ for comments and requests.
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2005 Rutger Vos, All Rights Reserved.
-This program is free software; you can redistribute it and/or
-modify it under the same terms as Perl itself.
+Copyright 2005 Rutger A. Vos, All Rights Reserved. This program is free
+software; you can redistribute it and/or modify it under the same terms as Perl
+itself.
 
 =cut
 

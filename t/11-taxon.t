@@ -1,23 +1,36 @@
-# $Id: 11-taxon.t,v 1.4 2005/07/31 11:13:52 rvosa Exp $
+# $Id: 11-taxon.t,v 1.9 2005/09/25 21:27:31 rvosa Exp $
 use strict;
 use warnings;
 use Test::More tests => 14;
 use Bio::Phylo::Taxa::Taxon;
-use Bio::Phylo::Trees;
-use Bio::Phylo::Trees::Node;
+use Bio::Phylo::Forest;
+use Bio::Phylo::Forest::Node;
 use Bio::Phylo::Matrices::Datum;
 ok( my $taxon = new Bio::Phylo::Taxa::Taxon, '1 initialize object' );
 $taxon->VERBOSE( -level => 0 );
 ok( $taxon->set_desc('This is a taxon description'), '2 enter description' );
 ok( $taxon->get_desc,                                '3 fetch description' );
-ok( !$taxon->set_name(':'),                          '4 enter bad name' );
-ok( $taxon->container,                               '5 container' );
-ok( $taxon->container_type,                          '6 container type' );
+
+eval { $taxon->set_name(':') };
+ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Exceptions::BadString' ), '4 enter bad name' );
+
+ok( $taxon->_container,                              '5 container' );
+ok( $taxon->_type,                                   '6 container type' );
 ok( $taxon->set_data( new Bio::Phylo::Matrices::Datum ),  '7 insert good data' );
-ok( !$taxon->set_data('BAD!'),                       '8 insert bad data' );
+
+eval { $taxon->set_data('BAD!') };
+ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Exceptions::ObjectMismatch' ), '8 insert bad data' );
+
 ok( $taxon->get_data,                                '9 get data' );
-ok( $taxon->set_nodes( new Bio::Phylo::Trees::Node ),'10 insert good node' );
-ok( !$taxon->set_nodes('BAD!'),                      '11 insert bad node' );
+ok( $taxon->set_nodes( new Bio::Phylo::Forest::Node ),'10 insert good node' );
+
+eval { $taxon->set_nodes('BAD!') };
+ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Exceptions::ObjectMismatch' ), '11 insert bad node' );
+
 ok( $taxon->get_nodes,                               '12 get nodes' );
-ok( !$taxon->set_data( new Bio::Phylo::Trees ),      '13 insert bad data' );
-ok( !$taxon->set_nodes( new Bio::Phylo::Trees ),     '14 insert bad nodes' );
+
+eval { $taxon->set_data( new Bio::Phylo::Forest ) };
+ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Exceptions::ObjectMismatch' ), '13 insert bad data' );
+
+eval { $taxon->set_nodes( new Bio::Phylo::Forest ) };
+ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Exceptions::ObjectMismatch' ), '14 insert bad nodes' );

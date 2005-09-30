@@ -1,19 +1,17 @@
-# $Id: 05-trees.t,v 1.4 2005/07/31 11:13:51 rvosa Exp $
+# $Id: 05-trees.t,v 1.9 2005/09/27 12:00:33 rvosa Exp $
 use strict;
 use warnings;
 use Test::More tests => 13;
-use Bio::Phylo::Parsers;
+use Bio::Phylo::IO qw(parse);
 
 my $data;
 while (<DATA>) {
     $data .= $_;
 }
 
-ok( my $phylo = new Bio::Phylo::Parsers );
+ok( 1 );
 
-$phylo->VERBOSE( -level => 0 );
-
-ok( my $trees = $phylo->parse(
+ok( my $trees = parse(
     -string => $data,
     -format => 'newick' )
 );
@@ -58,9 +56,10 @@ ok( $trees->get_by_value(
     -eq => 14 )
 );
 
-ok( !$trees->insert('BAD!') );
-ok( $trees->container );
-ok( $trees->container_type );
+eval { $trees->insert('BAD!') };
+ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Exceptions::ObjectMismatch' ) );
+ok( ! $trees->_container );
+ok( $trees->_type );
 
 __DATA__
 ((H:1,I:1):1,(G:1,(F:0.01,(E:0.3,(D:2,(C:0.1,(A:1,B:1)cherry:1):1):1):1):1):1):0;

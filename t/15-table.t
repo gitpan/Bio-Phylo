@@ -1,20 +1,17 @@
-# $Id: 15-table.t,v 1.4 2005/07/31 11:13:53 rvosa Exp $
+# $Id: 15-table.t,v 1.7 2005/09/27 12:00:33 rvosa Exp $
 use strict;
 use warnings;
-use Test::More tests => 4;
-use Bio::Phylo::Parsers;
+use Test::More tests => 2;
 use Bio::Phylo::Parsers::Table;
+use Bio::Phylo::IO qw(parse unparse);
 Bio::Phylo->VERBOSE( -level => 0 );
-ok( my $table = new Bio::Phylo::Parsers::Table, '1 init' );
-ok( $table->container,      '2 get container' );
-ok( $table->container_type, '3 get container type' );
-my $parser = new Bio::Phylo::Parsers;
+ok( my $table = Bio::Phylo::Parsers::Table->_new, '1 init' );
 ok(
-    $parser->parse(
+    parse(
         -format    => 'table',
         -type      => 'STANDARD',
         -separator => '\t',
         -file      => 't/data.dat'
     ),
-    '4 parse table'
+    '2 parse table'
 );

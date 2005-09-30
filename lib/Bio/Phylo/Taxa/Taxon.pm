@@ -1,35 +1,52 @@
-# $Id: Taxon.pm,v 1.7 2005/08/11 19:41:13 rvosa Exp $
-# Subversion: $Rev: 148 $
+# $Id: Taxon.pm,v 1.20 2005/09/29 20:31:18 rvosa Exp $
+# Subversion: $Rev: 177 $
 package Bio::Phylo::Taxa::Taxon;
 use strict;
 use warnings;
 use base 'Bio::Phylo';
+use Bio::Phylo::CONSTANT qw(_DATUM_ _NODE_ _TAXON_ _TAXA_);
+use fields qw(NODES
+              DATA);
 
 # One line so MakeMaker sees it.
-use Bio::Phylo;  our $VERSION = $Bio::Phylo::VERSION;
-
-# The bit of voodoo is for including Subversion keywords in the main source
-# file. $Rev is the subversion revision number. The way I set it up here allows
-# 'make dist' to build a *.tar.gz without the "_rev#" in the package name, while
-# it still shows up otherwise (e.g. during 'make test') as a developer release,
-# with the "_rev#".
-my $rev = '$Rev: 148 $';
-$rev =~ s/^[^\d]+(\d+)[^\d]+$/$1/;
-$VERSION .= '_' . $rev;
-use vars qw($VERSION);
-
-my $VERBOSE = 1;
+use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
 
 =head1 NAME
 
-Bio::Phylo::Taxa::Taxon - An object-oriented module for managing a single taxon.
+Bio::Phylo::Taxa::Taxon - The operational taxonomic unit.
 
 =head1 SYNOPSIS
 
- my $taxon = Bio::Phylo::Taxa::Taxon->new(
-    -name=>'Homo_sapiens',
-    -desc=>'Canonical taxon'
- );
+ use Bio::Phylo::IO;
+ use Bio::Phylo::Taxa;
+ use Bio::Phylo::Taxa::Taxon;
+ 
+ my @taxa = qw(Homo_sapiens Pan_paniscus Pan_troglodytes Gorilla_gorilla);
+ my $str = '(((Pan_paniscus,Pan_troglodytes),Homo_sapiens),Gorilla_gorilla);';
+ 
+ # create tree object
+ my $tree = Bio::Phylo::IO->parse(
+    -format => 'newick',
+    -string => $str
+ )->first;
+
+ # instantiate taxa object
+ my $taxa = Bio::Phylo::Taxa->new;
+
+ # instantiate taxon objects, insert in taxa object
+ foreach( @taxa ) {
+    my $taxon = Bio::Phylo::Taxa::Taxon->new( -name => $_ );
+    $taxa->insert($taxon);
+ }
+ 
+ # crossreference tree and taxa
+ $tree->crossreference($taxa);
+ 
+ foreach my $node ( @{ $tree->get_entities } ) {
+    if ( $node->get_taxon ) {
+        print "match: ", $node->get_name, "\n";  #prints crossreferenced tips
+    }
+ }
 
 =head1 DESCRIPTION
 
@@ -46,7 +63,7 @@ cross-referencing datum objects and tree nodes.
 
  Type    : Constructor
  Title   : new
- Usage   : my $taxon = new Bio::Phylo::Taxa::Taxon;
+ Usage   : my $taxon = Bio::Phylo::Taxa::Taxon->new;
  Function: Initializes a Bio::Phylo::Taxa::Taxon object.
  Returns : A Bio::Phylo::Taxa::Taxon object.
  Args    : none.
@@ -55,13 +72,26 @@ cross-referencing datum objects and tree nodes.
 
 sub new {
     my $class = shift;
-    my %args  = @_ if @_;
-    my $self  = {};
-    $self->{'NAME'}  = $args{'-name'}       if $args{'-name'};
-    $self->{'DESC'}  = $args{'-desc'}       if $args{'-desc'};
-    $self->{'NODES'} = @{ $args{'-nodes'} } if $args{'-nodes'};
-    $self->{'DATA'}  = @{ $args{'-data'} }  if $args{'-data'};
-    bless( $self, $class );
+    my $self = fields::new($class);
+    $self->SUPER::new(@_);
+    if (@_) {
+        my %opts;
+        eval { %opts = @_; };
+        if ($@) {
+            Bio::Phylo::Exceptions::OddHash->throw(
+                error => $@
+            );
+        }
+        while ( my ( $key, $value ) = each %opts ) {
+            my $localkey = uc substr $key, 1;
+            eval { $self->{$localkey} = $value; };
+            if ($@) {
+                Bio::Phylo::Exceptions::BadArgs->throw(
+                    error => "invalid field specified: $key ($localkey)"
+                );
+            }
+        }
+    }
     return $self;
 }
 
@@ -71,53 +101,13 @@ sub new {
 
 =over
 
-=item set_name()
-
- Type    : Mutator
- Title   : set_name
- Usage   : $taxon->set_name($newname);
- Function: Assigns a taxon's name.
- Returns :
- Args    : $newname must not contain [;|,|:|(|)]
-
-=cut
-
-sub set_name {
-    my $self = $_[0];
-    my $name = $_[1];
-    my $ref  = ref $self;
-    if ( $name =~ m/([;|,|:|\(|\)])/ ) {
-        $self->COMPLAIN("\"$name\" is a bad name format for $ref names: $@");
-        return;
-    }
-    else {
-        $self->{'NAME'} = $name;
-    }
-}
-
-=item set_desc()
-
- Type    : Mutator
- Title   : set_desc
- Usage   : $taxon->set_desc($newdesc);
- Function: Assigns a description of the current taxon.
- Returns :
- Args    : A SCALAR string of arbitrary length
-
-=cut
-
-sub set_desc {
-    my $self = $_[0];
-    $self->{'DESC'} = $_[1];
-}
-
 =item set_data()
 
  Type    : Mutator
  Title   : set_data
  Usage   : $taxon->set_data($datum);
  Function: Associates data with the current taxon.
- Returns :
+ Returns : Modified object.
  Args    : Must be an object of type Bio::Phylo::Matrices::Datum
 
 =cut
@@ -125,14 +115,15 @@ sub set_desc {
 sub set_data {
     my $self  = $_[0];
     my $datum = $_[1];
-    if ( $datum->can('container_type') && $datum->container_type eq 'DATUM' ) {
-        push( @{ $self->{'DATA'} }, $datum );
+    if ( $datum->can('_type') && $datum->_type == _DATUM_ ) {
+        push @{ $self->{'DATA'} }, $datum;
     }
     else {
-        $self->COMPLAIN(
-            "Sorry, data must be of type Bio::Phylo::Matrices::Datum: $@");
-        return;
+        Bio::Phylo::Exceptions::ObjectMismatch->throw(
+            error => 'sorry, data must be of type Bio::Phylo::Matrices::Datum'
+        );
     }
+    return $self;
 }
 
 =item set_nodes()
@@ -141,7 +132,7 @@ sub set_data {
  Title   : set_nodes
  Usage   : $taxon->set_nodes($node);
  Function: Associates tree nodes with the current taxon.
- Returns :
+ Returns : Modified object.
  Args    : A Bio::Phylo::Trees::Node object
 
 =cut
@@ -150,13 +141,15 @@ sub set_nodes {
     my $self = $_[0];
     my $node = $_[1];
     my $ref  = ref $node;
-    if ( $node->can('container_type') && $node->container_type eq 'NODE' ) {
-        push( @{ $self->{'NODES'} }, $node );
+    if ( $node->can('_type') && $node->_type == _NODE_ ) {
+        push @{ $self->{'NODES'} }, $node;
     }
     else {
-        $self->COMPLAIN("$ref doesn't look like a node: $@");
-        return;
+        Bio::Phylo::Exceptions::ObjectMismatch->throw(
+            error => "$ref doesn't look like a node"
+        );
     }
+    return $self;
 }
 
 =back
@@ -165,43 +158,13 @@ sub set_nodes {
 
 =over
 
-=item get_name()
-
- Type    : Accessor
- Title   : get_name
- Usage   : $name = $taxon->get_name();
- Function: Retrieves a taxon's name.
- Returns : SCALAR
- Args    :
-
-=cut
-
-sub get_name {
-    return $_[0]->{'NAME'};
-}
-
-=item get_desc()
-
- Type    : Accessor
- Title   : get_desc
- Usage   : $desc = $taxon->get_desc();
- Function: Assigns a description of the current taxon.
- Returns : SCALAR
- Args    :
-
-=cut
-
-sub get_desc {
-    return $_[0]->{'DESC'};
-}
-
 =item get_data()
 
  Type    : Accessor
  Title   : get_data
- Usage   : @data = $taxon->get_data();
+ Usage   : @data = @{ $taxon->get_data };
  Function: Retrieves data associated with the current taxon.
- Returns : An ARRAY of Bio::Phylo::Matrices::Datum objects.
+ Returns : An ARRAY reference of Bio::Phylo::Matrices::Datum objects.
  Args    :
 
 =cut
@@ -214,9 +177,9 @@ sub get_data {
 
  Type    : Accessor
  Title   : get_nodes
- Usage   : @nodes = $taxon->get_nodes();
+ Usage   : @nodes = @{ $taxon->get_nodes };
  Function: Retrieves tree nodes associated with the current taxon.
- Returns : An ARRAY of Bio::Phylo::Trees::Node objects
+ Returns : An ARRAY reference of Bio::Phylo::Trees::Node objects
  Args    :
 
 =cut
@@ -225,56 +188,82 @@ sub get_nodes {
     return $_[0]->{'NODES'};
 }
 
+=begin comment
+
+ Type    : Internal method
+ Title   : _container
+ Usage   : $taxon->_container;
+ Function:
+ Returns : CONSTANT
+ Args    :
+
+=end comment
+
+=cut
+
+sub _container { _TAXA_ }
+
+=begin comment
+
+ Type    : Internal method
+ Title   : _type
+ Usage   : $taxon->_type;
+ Function:
+ Returns : CONSTANT
+ Args    :
+
+=end comment
+
+=cut
+
+sub _type { _TAXON_ }
+
 =back
 
-=head2 CONTAINER
+=head1 SEE ALSO
 
 =over
 
-=item container
+=item L<Bio::Phylo>
 
- Type    : Internal method
- Title   : container
- Usage   : $taxon->container;
- Function:
- Returns : SCALAR
- Args    :
+The taxon objects inherits from the L<Bio::Phylo|Bio::Phylo> object. The methods
+defined there are also applicable to the taxon object.
 
-=cut
+=item L<Bio::Phylo::Manual>
 
-sub container {
-    return 'TAXA';
-}
-
-=item container_type
-
- Type    : Internal method
- Title   : container_type
- Usage   : $taxon->container_type;
- Function:
- Returns : SCALAR
- Args    :
-
-=cut
-
-sub container_type {
-    return 'TAXON';
-}
+Also see the manual: L<Bio::Phylo::Manual|Bio::Phylo::Manual>.
 
 =back
 
-=head1 AUTHOR
+=head1 FORUM
 
-Rutger Vos, C<< <rvosa@sfu.ca> >>
-L<http://www.sfu.ca/~rvosa/>
+CPAN hosts a discussion forum for Bio::Phylo. If you have trouble
+using this module the discussion forum is a good place to start
+posting questions (NOT bug reports, see below):
+L<http://www.cpanforum.com/dist/Bio-Phylo>
 
 =head1 BUGS
 
-Please report any bugs or feature requests to
-C<bug-bio-phylo@rt.cpan.org>, or through the web interface at
-L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Bio-Phylo>.
-I will be notified, and then you'll automatically be notified
-of progress on your bug as I make changes.
+Please report any bugs or feature requests to C<< bug-bio-phylo@rt.cpan.org >>,
+or through the web interface at
+L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Bio-Phylo>. I will be notified,
+and then you'll automatically be notified of progress on your bug as I make
+changes. Be sure to include the following in your request or comment, so that
+I know what version you're using:
+
+$Id: Taxon.pm,v 1.20 2005/09/29 20:31:18 rvosa Exp $
+
+=head1 AUTHOR
+
+Rutger A. Vos,
+
+=over
+
+=item email: C<< rvosa@sfu.ca >>
+
+=item web page: L<http://www.sfu.ca/~rvosa/>
+
+=back
 
 =head1 ACKNOWLEDGEMENTS
 
@@ -285,9 +274,9 @@ for comments and requests.
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2005 Rutger Vos, All Rights Reserved.
-This program is free software; you can redistribute it and/or
-modify it under the same terms as Perl itself.
+Copyright 2005 Rutger A. Vos, All Rights Reserved. This program is free
+software; you can redistribute it and/or modify it under the same terms as Perl
+itself.
 
 =cut
 

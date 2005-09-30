@@ -1,35 +1,18 @@
-# $Id: Pagel.pm,v 1.7 2005/08/11 19:41:13 rvosa Exp $
-# Subversion: $Rev: 148 $
+# $Id: Pagel.pm,v 1.19 2005/09/29 20:31:18 rvosa Exp $
+# Subversion: $Rev: 191 $
 package Bio::Phylo::Unparsers::Pagel;
 use strict;
 use warnings;
-use Bio::Phylo::Trees::Tree;
-use base 'Bio::Phylo::Unparsers';
+use Bio::Phylo::Forest::Tree;
+use base 'Bio::Phylo::IO';
 
 # One line so MakeMaker sees it.
-use Bio::Phylo;  our $VERSION = $Bio::Phylo::VERSION;
-
-# The bit of voodoo is for including Subversion keywords in the main source
-# file. $Rev is the subversion revision number. The way I set it up here allows
-# 'make dist' to build a *.tar.gz without the "_rev#" in the package name, while
-# it still shows up otherwise (e.g. during 'make test') as a developer release,
-# with the "_rev#".
-my $rev = '$Rev: 148 $';
-$rev =~ s/^[^\d]+(\d+)[^\d]+$/$1/;
-$VERSION .= '_' . $rev;
-use vars qw($VERSION);
-
-my $VERBOSE = 1;
+use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
 
 =head1 NAME
 
-Bio::Phylo::Unparsers::Pagel - An object-oriented module for unparsing tree
-objects into Newick formatted strings.
-
-=head1 SYNOPSIS
-
- my $pagel = new Bio::Phylo::Unparsers::Pagel;
- my $string = $pagel->unparse($tree);
+Bio::Phylo::Unparsers::Pagel - Unparses pagel data files. No serviceable parts
+inside.
 
 =head1 DESCRIPTION
 
@@ -37,20 +20,25 @@ This module unparses a Bio::Phylo data structure into an input file for
 Discrete/Continuous/Multistate. The pagel file format (as it is interpreted
 here) consists of:
 
- * first line: the number of tips, the number of characters
- * subsequent lines: offspring name, parent name, branch length, character
- state(s).
+=over
+
+=item first line
+
+the number of tips, the number of characters
+
+=item subsequent lines
+
+offspring name, parent name, branch length, character state(s).
+
+=back
 
 During unparsing, the tree is randomly resolved, and branch lengths are
 formatted to %f floats (i.e. integers, decimal point, integers).
 
-=head1 METHODS
+The pagel module is called by the L<Bio::Phylo::IO|Bio::Phylo::IO> object, so
+look there to learn how to create Pagel formatted files.
 
-=head2 CONSTRUCTOR
-
-=over
-
-=item new()
+=begin comment
 
  Type    : Constructor
  Title   : new
@@ -60,35 +48,31 @@ formatted to %f floats (i.e. integers, decimal point, integers).
  Returns : A Bio::Phylo::Unparsers::Pagel object.
  Args    : none.
 
-=back
+=end comment
 
 =cut
 
-sub new {
+sub _new {
     my $class = shift;
     my $self  = {};
     if (@_) {
         my %opts = @_;
         foreach my $key ( keys %opts ) {
-            my $localkey = uc($key);
+            my $localkey = uc $key;
             $localkey =~ s/-//;
             unless ( ref $opts{$key} ) {
-                $self->{$localkey} = uc( $opts{$key} );
+                $self->{$localkey} = uc $opts{$key};
             }
             else {
                 $self->{$localkey} = $opts{$key};
             }
         }
     }
-    bless( $self, $class );
+    bless $self, $class;
     return $self;
 }
 
-=head2 UNPARSER
-
-=over
-
-=item to_string($tree)
+=begin comment
 
  Type    : Unparser
  Title   : to_string($tree)
@@ -97,9 +81,11 @@ sub new {
  Returns : SCALAR
  Args    : Bio::Phylo::Tree
 
+=end comment
+
 =cut
 
-sub to_string {
+sub _to_string {
     my $self = shift;
     my $tree = $self->{'PHYLO'};
     $tree->resolve;
@@ -116,8 +102,8 @@ sub to_string {
             }
             if ( $node->get_taxon ) {
                 my $taxon = $node->get_taxon;
-                foreach ( @{ $taxon->data } ) {
-                    $string .= ',' . $_->char;
+                foreach ( @{ $taxon->get_data } ) {
+                    $string .= ',' . $_->get_char;
                     $charcounter++;
                 }
             }
@@ -133,56 +119,50 @@ sub to_string {
     return $string;
 }
 
-=back
-
-=head2 CONTAINER
+=head1 SEE ALSO
 
 =over
 
-=item container
+=item L<Bio::Phylo::IO>
 
- Type    : Internal method
- Title   : container
- Usage   : $pagel->container;
- Function:
- Returns : SCALAR
- Args    :
+The pagel unparser is called by the L<Bio::Phylo::IO|Bio::Phylo::IO> object.
+Look there to learn how to create pagel formatted files.
 
-=cut
+=item L<Bio::Phylo::Manual>
 
-sub container {
-    return 'NONE';
-}
-
-=item container_type
-
- Type    : Internal method
- Title   : container_type
- Usage   : $pagel->container_type;
- Function:
- Returns : SCALAR
- Args    :
-
-=cut
-
-sub container_type {
-    return 'PAGEL';
-}
+Also see the manual: L<Bio::Phylo::Manual|Bio::Phylo::Manual>.
 
 =back
 
-=head1 AUTHOR
+=head1 FORUM
 
-Rutger Vos, C<< <rvosa@sfu.ca> >>
-L<http://www.sfu.ca/~rvosa/>
+CPAN hosts a discussion forum for Bio::Phylo. If you have trouble
+using this module the discussion forum is a good place to start
+posting questions (NOT bug reports, see below):
+L<http://www.cpanforum.com/dist/Bio-Phylo>
 
 =head1 BUGS
 
-Please report any bugs or feature requests to
-C<bug-bio-phylo@rt.cpan.org>, or through the web interface at
-L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Bio-Phylo>.
-I will be notified, and then you'll automatically be notified
-of progress on your bug as I make changes.
+Please report any bugs or feature requests to C<< bug-bio-phylo@rt.cpan.org >>,
+or through the web interface at
+L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Bio-Phylo>. I will be notified,
+and then you'll automatically be notified of progress on your bug as I make
+changes. Be sure to include the following in your request or comment, so that
+I know what version you're using:
+
+$Id: Pagel.pm,v 1.19 2005/09/29 20:31:18 rvosa Exp $
+
+=head1 AUTHOR
+
+Rutger A. Vos,
+
+=over
+
+=item email: C<< rvosa@sfu.ca >>
+
+=item web page: L<http://www.sfu.ca/~rvosa/>
+
+=back
 
 =head1 ACKNOWLEDGEMENTS
 
@@ -193,9 +173,9 @@ for comments and requests.
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2005 Rutger Vos, All Rights Reserved.
-This program is free software; you can redistribute it and/or
-modify it under the same terms as Perl itself.
+Copyright 2005 Rutger A. Vos, All Rights Reserved. This program is free
+software; you can redistribute it and/or modify it under the same terms as Perl
+itself.
 
 =cut
 

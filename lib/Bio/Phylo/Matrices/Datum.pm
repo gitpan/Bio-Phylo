@@ -1,49 +1,54 @@
-# $Id: Datum.pm,v 1.7 2005/08/11 19:41:12 rvosa Exp $
-# Subversion: $Rev: 148 $
+# $Id: Datum.pm,v 1.20 2005/09/29 20:31:18 rvosa Exp $
+# Subversion: $Rev: 177 $
 package Bio::Phylo::Matrices::Datum;
 use strict;
 use warnings;
-use Bio::Phylo::Trees::Node;
+use Bio::Phylo::Forest::Node;
+use Scalar::Util qw(looks_like_number);
+use Bio::Phylo::CONSTANT qw(_DATUM_ _MATRIX_ _TAXON_);
 use base 'Bio::Phylo';
+use fields qw(TAXON
+              WEIGHT
+              TYPE
+              CHAR
+              POS);
 
 # One line so MakeMaker sees it.
-use Bio::Phylo;  our $VERSION = $Bio::Phylo::VERSION;
+use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
 
-# The bit of voodoo is for including Subversion keywords in the main source
-# file. $Rev is the subversion revision number. The way I set it up here allows
-# 'make dist' to build a *.tar.gz without the "_rev#" in the package name, while
-# it still shows up otherwise (e.g. during 'make test') as a developer release,
-# with the "_rev#".
-my $rev = '$Rev: 148 $';
-$rev =~ s/^[^\d]+(\d+)[^\d]+$/$1/;
-$VERSION .= '_' . $rev;
-use vars qw($VERSION);
-
-my $VERBOSE = 1;
-my @IUPAC_NUC  = qw(A C G T U M R W S Y K V H D B X N . - ?);
+# List of allowed symbols. Move these to Bio::Phylo::CONSTANT, and turn
+# into a hash, with translation table, nucleotide complements
+my @IUPAC_NUC  = qw(A B C D G H K M N R S T U V W X Y . - ?);
 my @IUPAC_PROT = qw(A B C D E F G H I K L M N P Q R S T U V W X Y Z . - ?);
 
 =head1 NAME
 
-Bio::Phylo::Matrices::Datum - An object-oriented module for storing single
-observations.
+Bio::Phylo::Matrices::Datum - The single observations object.
 
 =head1 SYNOPSIS
 
  use Bio::Phylo::Matrices::Matrix;
+ use Bio::Phylo::Matrices::Datum;
+ use Bio::Phylo::Taxa::Taxon;
 
- #instantiating a datum object...
+ # instantiating a datum object...
  my $datum = Bio::Phylo::Matrices::Datum->new(
-    -name=>'Homo_sapiens,
-    -type=>DNA,
-    -desc=>'Cytochrome B, mtDNA',
-    -pos=>1,
-    -weight=>2,
-    -char=>'C'
+    -name   => 'Tooth comb size,
+    -type   => 'STANDARD',
+    -desc   => 'Records the number of teeth in lower jaw tooth comb',
+    -pos    => 1,
+    -weight => 2,
+    -char   => 6
  );
 
- #...and linking it to a taxon object
- $datum->set_taxon(Bio::Phylo::Taxa::Taxon->new(-name=>'Homo_sapiens'));
+ # ...and linking it to a taxon object
+ $datum->set_taxon( Bio::Phylo::Taxa::Taxon->new( -name => 'Lemur_catta' ) );
+ 
+ # instantiating a matrix...
+ my $matrix = Bio::Phylo::Matrices::Matrix->new;
+ 
+ # ...and insert datum in matrix
+ $matrix->insert($datum);
 
 =head1 DESCRIPTION
 
@@ -63,29 +68,38 @@ with a taxon object.
  Usage   : my $datum = new Bio::Phylo::Matrices::Datum;
  Function: Instantiates a Bio::Phylo::Matrices::Datum object.
  Returns : A Bio::Phylo::Matrices::Datum object.
- Args    : none.
+ Args    : None required. Optional:
+           -taxon  => $taxon (A Bio::Phylo::Taxa::Taxon object)
+           -weight => 0.234 (a perl number)
+           -type   => (one of DNA|RNA|STANDARD|PROTEIN|NUCLEOTIDE|CONTINUOUS)
+           -char   => 3 (a single character state)
+           -pos    => 2 (position in the matrix object)
+ 
 
 =cut
 
 sub new {
     my $class = shift;
-    my $self  = {};
-    $self->{'NAME'}   = undef;
-    $self->{'TAXON'}  = undef;
-    $self->{'DESC'}   = undef;
-    $self->{'WEIGHT'} = undef;
-    $self->{'TYPE'}   = undef;
-    $self->{'CHAR'}   = undef;
-    $self->{'POS'}    = undef;
+    my $self = fields::new($class);
+    $self->SUPER::new(@_);
     if (@_) {
-        my %opts = @_;
-        foreach my $key ( keys %opts ) {
-            my $localkey = uc($key);
-            $localkey =~ s/-//;
-            $self->{$localkey} = $opts{$key};
+        my %opts;
+        eval { %opts = @_; };
+        if ($@) {
+            Bio::Phylo::Exceptions::OddHash->throw(
+                error => $@
+            );
+        }
+        while ( my ( $key, $value ) = each %opts ) {
+            my $localkey = uc substr $key, 1;
+            eval { $self->{$localkey} = $value; };
+            if ($@) {
+                Bio::Phylo::Exceptions::BadArgs->throw(
+                    error => "invalid field specified: $key ($localkey)"
+                );
+            }
         }
     }
-    bless( $self, $class );
     return $self;
 }
 
@@ -95,37 +109,13 @@ sub new {
 
 =over
 
-=item set_name()
-
- Type    : Mutator
- Title   : set_name
- Usage   : $datum->set_name($name);
- Function: Assigns a datums's name (i.e. the name of the taxon it refers to).
- Returns :
- Args    : $name must not contain [;|,|:|(|)]
-
-=cut
-
-sub set_name {
-    my $self = $_[0];
-    my $name = $_[1];
-    my $ref  = ref $self;
-    if ( $name =~ m/([;|,|:|\(|\)])/ ) {
-        $self->COMPLAIN("\"$name\" is a bad name format for $ref names: $@");
-        return;
-    }
-    else {
-        $self->{'NAME'} = $name;
-    }
-}
-
 =item set_taxon()
 
  Type    : Mutator
  Title   : set_taxon
  Usage   : $datum->set_taxon($taxon);
  Function: Assigns the taxon a datum refers to.
- Returns :
+ Returns : Modified object.
  Args    : $taxon must be a Bio::Phylo::Taxa::Taxon object.
 
 =cut
@@ -134,30 +124,15 @@ sub set_taxon {
     my $self  = $_[0];
     my $taxon = $_[1];
     my $ref   = ref $taxon;
-    if ( !$taxon->can('container_type') || $taxon->container_type ne 'TAXON' ) {
-        $self->COMPLAIN("$ref doesn't look like a taxon: $@");
-        return;
+    if ( !$taxon->can('_type') || $taxon->_type != _TAXON_ ) {
+        Bio::Phylo::Exceptions::ObjectMismatch->throw(
+            error => "$ref doesn't look like a taxon"
+        );
     }
     else {
         $self->{'TAXON'} = $taxon;
     }
-    return $self->{'TAXON'};
-}
-
-=item set_desc()
-
- Type    : Mutator
- Title   : set_desc
- Usage   : $datum->set_desc($desc);
- Function: Assigns a description of the current datum.
- Returns :
- Args    : The $desc argument is a string of arbitrary length.
-
-=cut
-
-sub set_desc {
-    my $self = $_[0];
-    $self->{'DESC'} = $_[1];
+    return $self;
 }
 
 =item set_weight()
@@ -165,9 +140,9 @@ sub set_desc {
  Type    : Mutator
  Title   : set_weight
  Usage   : $datum->set_weight($weight);
- Function: Assigns a datums's weight.
- Returns :
- Args    : The $weight argument may be a number in any of Perl's number
+ Function: Assigns a datum's weight.
+ Returns : Modified object.
+ Args    : The $weight argument must be a number in any of Perl's number
            formats.
 
 =cut
@@ -175,13 +150,15 @@ sub set_desc {
 sub set_weight {
     my $self   = $_[0];
     my $weight = $_[1];
-    if ( $weight !~ m/(^[-|+]?\d+\.?\d*e?[-|+]?\d*$)/i ) {
-        $self->COMPLAIN("\"$weight\" is a bad number format: $@");
-        return;
+    if ( ! looks_like_number $weight ) {
+        Bio::Phylo::Exceptions::BadNumber->throw(
+            error => "\"$weight\" is a bad number format"
+        );
     }
     else {
         $self->{'WEIGHT'} = $weight;
     }
+    return $self;
 }
 
 =item set_type()
@@ -189,8 +166,8 @@ sub set_weight {
  Type    : Mutator
  Title   : set_type
  Usage   : $datum->set_type($type);
- Function: Assigns a datums's type.
- Returns :
+ Function: Assigns a datum's type.
+ Returns : Modified object.
  Args    : $type must be one of [DNA|RNA|STANDARD|PROTEIN|
            NUCLEOTIDE|CONTINUOUS]. If DNA, RNA or NUCLEOTIDE is defined, the
            subsequently set char is validated against the IUPAC nucleotide one
@@ -205,12 +182,14 @@ sub set_type {
     my $self = $_[0];
     my $type = $_[1];
     if ( $type !~ m/^(DNA|RNA|STANDARD|PROTEIN|NUCLEOTIDE|CONTINUOUS)$/i ) {
-        $self->COMPLAIN("\"$type\" is a bad data type: $@");
-        return;
+        Bio::Phylo::Exceptions::BadFormat->throw(
+            error => "\"$type\" is a bad data type"
+        );
     }
     else {
-        $self->{'TYPE'} = uc($type);
+        $self->{'TYPE'} = uc $type;
     }
+    return $self;
 }
 
 =item set_char()
@@ -218,12 +197,13 @@ sub set_type {
  Type    : Mutator
  Title   : set_char
  Usage   : $datum->set_char($char);
- Function: Assigns a datums's character value.
- Returns :
+ Function: Assigns a datum's character value.
+ Returns : Modified object.
  Args    : The $char argument is checked against the allowed ranges for the
-           various character types: IUPAC nucleotide (for types of DNA|RNA|NUCLEOTIDE),
-           IUPAC single letter amino acid codes (for type PROTEIN), integers
-           (STANDARD) or any of perl's decimal formats (CONTINUOUS).
+           various character types: IUPAC nucleotide (for types of
+           DNA|RNA|NUCLEOTIDE), IUPAC single letter amino acid codes
+           (for type PROTEIN), integers (STANDARD) or any of perl's
+           decimal formats (CONTINUOUS).
 
 =cut
 
@@ -233,34 +213,40 @@ sub set_char {
     if ( my $type = $self->{'TYPE'} ) {
         if ( $type =~ /(DNA|RNA|NUCLEOTIDE)/ ) {
             if ( !grep /$char/i, @IUPAC_NUC ) {
-                $self->COMPLAIN("$char is not a valid $type symbol: $@");
-                return;
+                Bio::Phylo::Exceptions::BadString->throw(
+                    error => "\"$char\" is not a valid \"$type\" symbol"
+                );
             }
         }
         if ( $type eq 'PROTEIN' ) {
             if ( !grep /$char/i, @IUPAC_PROT ) {
-                $self->COMPLAIN("$char is not a valid $type symbol: $@");
-                return;
+                Bio::Phylo::Exceptions::BadString->throw(
+                    error => "\"$char\" is not a valid \"$type\" symbol"
+                );
             }
         }
         if ( $type eq 'STANDARD' ) {
             if ( $char !~ m/^(\d|\?)$/ ) {
-                $self->COMPLAIN("$char is not a valid $type symbol: $@");
-                return;
+                Bio::Phylo::Exceptions::BadString->throw(
+                    error => "\"$char\" is not a valid \"$type\" symbol"
+                );
             }
         }
         if ( $type eq 'CONTINUOUS' ) {
             if ( $char !~ m/(^[-|+]?\d+\.?\d*e?[-|+]?\d*$)/i ) {
-                $self->COMPLAIN("$char is not a valid $type symbol: $@");
-                return;
+                Bio::Phylo::Exceptions::BadString->throw(
+                    error => "\"$char\" is not a valid \"$type\" symbol"
+                );
             }
         }
         $self->{'CHAR'} = $char;
     }
     else {
-        $self->COMPLAIN("Please define the data type first: $@");
-        return;
+        Bio::Phylo::Exceptions::BadFormat->throw(
+            error => 'please define the data type first'
+        );
     }
+    return $self;
 }
 
 =item set_position()
@@ -268,8 +254,8 @@ sub set_char {
  Type    : Mutator
  Title   : set_position
  Usage   : $datum->set_position($pos);
- Function: Assigns a datums's position.
- Returns :
+ Function: Assigns a datum's position.
+ Returns : Modified object.
  Args    : $pos must be an integer.
 
 =cut
@@ -278,12 +264,14 @@ sub set_position {
     my $self = $_[0];
     my $pos  = $_[1];
     if ( $pos !~ m/^\d+$/ ) {
-        $self->COMPLAIN("\"$pos\" is bad. Positions must be integers: $@");
-        return;
+        Bio::Phylo::Exceptions::BadNumber->throw(
+            error => "\"$pos\" is bad. Positions must be integers"
+        );
     }
     else {
         $self->{'POS'} = $pos;
     }
+    return $self;
 }
 
 =back
@@ -292,29 +280,14 @@ sub set_position {
 
 =over
 
-=item get_name()
-
- Type    : Accessor
- Title   : get_name
- Usage   : $name = $datum->get_name();
- Function: Retrieves a datums's name (i.e. the name of the taxon it refers to).
- Returns : SCALAR
- Args    :
-
-=cut
-
-sub get_name {
-    return $_[0]->{'NAME'};
-}
-
 =item get_taxon()
 
  Type    : Accessor
  Title   : get_taxon
- Usage   : $taxon = $datum->get_taxon();
+ Usage   : my $taxon = $datum->get_taxon;
  Function: Retrieves the taxon a datum refers to.
- Returns : Phylo::Taxa::Taxon object
- Args    :
+ Returns : Bio::Phylo::Taxa::Taxon
+ Args    : NONE
 
 =cut
 
@@ -322,29 +295,14 @@ sub get_taxon {
     return $_[0]->{'TAXON'};
 }
 
-=item get_desc()
-
- Type    : Accessor
- Title   : get_desc
- Usage   : $desc = $datum->get_desc();
- Function: Retrieves a description of the current datum.
- Returns : SCALAR
- Args    :
-
-=cut
-
-sub get_desc {
-    return $_[0]->{'DESC'};
-}
-
 =item get_weight()
 
  Type    : Accessor
  Title   : get_weight
- Usage   : $weight = $datum->get_weight();
- Function: Retrieves a datums's weight.
- Returns : SCALAR
- Args    :
+ Usage   : my $weight = $datum->get_weight;
+ Function: Retrieves a datum's weight.
+ Returns : FLOAT
+ Args    : NONE
 
 =cut
 
@@ -356,10 +314,10 @@ sub get_weight {
 
  Type    : Accessor
  Title   : get_type
- Usage   : $type = $datum->get_type();
- Function: Retrieves a datums's type.
+ Usage   : my $type = $datum->get_type;
+ Function: Retrieves a datum's type.
  Returns : One of [DNA|RNA|STANDARD|PROTEIN|NUCLEOTIDE|CONTINUOUS]
- Args    :
+ Args    : NONE
 
 =cut
 
@@ -371,10 +329,10 @@ sub get_type {
 
  Type    : Accessor
  Title   : get_char
- Usage   : $char = $datum->get_char();
- Function: Retrieves a datums's character value.
+ Usage   : my $char = $datum->get_char;
+ Function: Retrieves a datum's character value.
  Returns : A single character.
- Args    :
+ Args    : NONE
 
 =cut
 
@@ -386,10 +344,10 @@ sub get_char {
 
  Type    : Accessor
  Title   : get_position
- Usage   : $pos = $datum->get_position();
- Function: Retrieves a datums's position.
+ Usage   : my $pos = $datum->get_position;
+ Function: Retrieves a datum's position.
  Returns : a SCALAR integer.
- Args    :
+ Args    : NONE
 
 =cut
 
@@ -397,56 +355,82 @@ sub get_position {
     return $_[0]->{'POS'};
 }
 
+=begin comment
+
+ Type    : Internal method
+ Title   : _container
+ Usage   : $datum->_container;
+ Function:
+ Returns : CONSTANT
+ Args    :
+
+=end comment
+
+=cut
+
+sub _container { _MATRIX_ }
+
+=begin comment
+
+ Type    : Internal method
+ Title   : _type
+ Usage   : $datum->_type;
+ Function:
+ Returns : CONSTANT
+ Args    :
+
+=end comment
+
+=cut
+
+sub _type { _DATUM_ }
+
 =back
 
-=head2 CONTAINER
+=head1 SEE ALSO
 
 =over
 
-=item container()
+=item L<Bio::Phylo>
 
- Type    : Internal method
- Title   : container
- Usage   : $datum->container;
- Function:
- Returns : SCALAR
- Args    :
+This object inherits from L<Bio::Phylo>, so the methods defined
+therein are also applicable to L<Bio::Phylo::Matrices::Datum> objects.
 
-=cut
+=item L<Bio::Phylo::Manual>
 
-sub container {
-    return 'MATRIX';
-}
-
-=item container_type()
-
- Type    : Internal method
- Title   : container_type
- Usage   : $datum->container_type;
- Function:
- Returns : SCALAR
- Args    :
-
-=cut
-
-sub container_type {
-    return 'DATUM';
-}
+Also see the manual: L<Bio::Phylo::Manual>.
 
 =back
 
-=head1 AUTHOR
+=head1 FORUM
 
-Rutger Vos, C<< <rvosa@sfu.ca> >>
-L<http://www.sfu.ca/~rvosa/>
+CPAN hosts a discussion forum for Bio::Phylo. If you have trouble
+using this module the discussion forum is a good place to start
+posting questions (NOT bug reports, see below):
+L<http://www.cpanforum.com/dist/Bio-Phylo>
 
 =head1 BUGS
 
-Please report any bugs or feature requests to
-C<bug-bio-phylo@rt.cpan.org>, or through the web interface at
-L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Bio-Phylo>.
-I will be notified, and then you'll automatically be notified
-of progress on your bug as I make changes.
+Please report any bugs or feature requests to C<< bug-bio-phylo@rt.cpan.org >>,
+or through the web interface at
+L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Bio-Phylo>. I will be notified,
+and then you'll automatically be notified of progress on your bug as I make
+changes. Be sure to include the following in your request or comment, so that
+I know what version you're using:
+
+$Id: Datum.pm,v 1.20 2005/09/29 20:31:18 rvosa Exp $
+
+=head1 AUTHOR
+
+Rutger A. Vos,
+
+=over
+
+=item email: C<< rvosa@sfu.ca >>
+
+=item web page: L<http://www.sfu.ca/~rvosa/>
+
+=back
 
 =head1 ACKNOWLEDGEMENTS
 
@@ -457,9 +441,9 @@ for comments and requests.
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2005 Rutger Vos, All Rights Reserved.
-This program is free software; you can redistribute it and/or
-modify it under the same terms as Perl itself.
+Copyright 2005 Rutger A. Vos, All Rights Reserved. This program is free
+software; you can redistribute it and/or modify it under the same terms as Perl
+itself.
 
 =cut
 
