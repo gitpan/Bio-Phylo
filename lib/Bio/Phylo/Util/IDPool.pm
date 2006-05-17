@@ -1,36 +1,26 @@
-# $Id: CONSTANT.pm,v 1.8 2005/09/29 20:31:17 rvosa Exp $
-# Subversion: $Rev: 177 $
-package Bio::Phylo::CONSTANT;
+package Bio::Phylo::Util::IDPool;
 use strict;
-use warnings;
+{
+    my @reclaim;
+    my $obj_counter = 0;
 
-BEGIN {
-    use Exporter   ();
-    our (@ISA, @EXPORT_OK, %EXPORT_TAGS);
+    sub _initialize {
+        my $obj_ID = 0;
+        if ( @reclaim ) {
+            $obj_ID = shift(@reclaim);
+        }
+        else {
+            $obj_ID = $obj_counter;
+            $obj_counter++;
+        }
+        return \$obj_ID;
+    }
 
-    # set the version for version checking
-    use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
-
-    # classic subroutine exporting
-    @ISA         = qw(Exporter);
-    @EXPORT_OK   = qw(&_NONE_ &_NODE_ &_TREE_ &_FOREST_ &_TAXON_
-        &_TAXA_ &_DATUM_ &_MATRIX_ &_MATRICES_ &_SEQUENCE_ &_ALIGNMENT_ );
-
-    %EXPORT_TAGS = ( all => [ @EXPORT_OK ] );
-
+    sub _reclaim {
+        my ( $class, $obj_IDREF ) = @_;
+        push @reclaim, ${$obj_IDREF};
+    }
 }
-
-sub _NONE_      { 0  }
-sub _NODE_      { 1  }
-sub _TREE_      { 2  }
-sub _FOREST_    { 3  }
-sub _TAXON_     { 4  }
-sub _TAXA_      { 5  }
-sub _DATUM_     { 6  }
-sub _MATRIX_    { 7  }
-sub _MATRICES_  { 8  }
-sub _SEQUENCE_  { 9  }
-sub _ALIGNMENT_ { 10 }
 
 1;
 
@@ -38,13 +28,13 @@ __END__
 
 =head1 NAME
 
-Bio::Phylo::CONSTANT - Global constants for Bio::Phylo. No serviceable parts
-inside.
+Bio::Phylo::Util::IDPool - Utility class for generating object IDs
 
 =head1 DESCRIPTION
 
-This package defines globals used in the Bio::Phylo libraries. The constants
-are called internally by the other packages. There is no direct usage.
+This package defines utility functions for generating and reclaiming object
+IDs. These functions are called by object constructors and destructors,
+respectively. There is no direct usage.
 
 =head1 SEE ALSO
 
@@ -72,7 +62,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: CONSTANT.pm,v 1.8 2005/09/29 20:31:17 rvosa Exp $
+$Id: IDPool.pm,v 1.4 2006/03/14 12:01:57 rvosa Exp $
 
 =head1 AUTHOR
 
@@ -100,4 +90,3 @@ software; you can redistribute it and/or modify it under the same terms as Perl
 itself.
 
 =cut
-

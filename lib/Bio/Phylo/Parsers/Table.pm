@@ -1,15 +1,19 @@
-# $Id: Table.pm,v 1.18 2005/09/29 20:31:18 rvosa Exp $
+# $Id: Table.pm,v 1.21 2006/04/12 22:38:23 rvosa Exp $
 # Subversion: $Rev: 194 $
 package Bio::Phylo::Parsers::Table;
 use strict;
-use warnings;
 use Bio::Phylo;
 use Bio::Phylo::Matrices::Matrix;
 use Bio::Phylo::Matrices::Datum;
-use base 'Bio::Phylo::IO';
+use Bio::Phylo::Taxa;
+use Bio::Phylo::Taxa::Taxon;
 
 # One line so MakeMaker sees it.
 use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
+
+# classic @ISA manipulation, not using 'base'
+use vars qw($VERSION @ISA);
+@ISA = qw(Bio::Phylo::IO);
 
 =head1 NAME
 
@@ -23,7 +27,7 @@ The following additional argument must be used in the call
 to L<Bio::Phylo::IO|Bio::Phylo::IO>:
 
  -type => (one of [DNA|RNA|STANDARD|PROTEIN|NUCLEOTIDE|CONTINUOUS])
- 
+
 In addition, these arguments may be used to indicate line separators (default
 is "\n") and field separators (default is "\t"):
 
@@ -74,6 +78,10 @@ sub _from_both {
     my $self    = shift;
     my %opts    = @_;
     my $matrix  = Bio::Phylo::Matrices::Matrix->new;
+    my $taxa    = Bio::Phylo::Taxa->new;
+    $taxa->set_matrix( $matrix );
+    $matrix->set_taxa( $taxa );
+    $matrix->_is_flat( 1 );
     my ( $fieldre, $linere );
     if ( $opts{'-fieldsep'} ) {
         if ( $opts{'-fieldsep'} =~ /^\b$/ ) {
@@ -101,29 +109,37 @@ sub _from_both {
         while ( readline( $opts{'-handle'} ) ) {
             chomp;
             my @temp = split( $fieldre, $_ );
-            for my $i ( 1 .. $#temp ) {
-                my $datum = Bio::Phylo::Matrices::Datum->new(
-                    '-name' => $temp[0],
-                    '-type' => uc $opts{'-type'},
-                    '-char' => $temp[$i],
-                    '-pos'  => $i
-                );
-                $matrix->insert($datum);
-            }
+            my $taxon = Bio::Phylo::Taxa::Taxon->new(
+                '-name' => $temp[0],
+            );
+            $taxa->insert( $taxon );
+            my $datum = Bio::Phylo::Matrices::Datum->new(
+                '-name'  => $temp[0],
+                '-type'  => uc $opts{'-type'},
+                '-char'  => [ @temp[1,-1] ],
+                '-pos'   => 0,
+            );
+            $datum->set_taxon( $taxon );
+            $taxon->set_data( $datum );
+            $matrix->insert( $datum );
         }
     }
     elsif ( $opts{'-string'} ) {
         foreach my $line ( split( $linere, $opts{'-string'} ) ) {
             my @temp = split( $fieldre, $line );
-            for my $i ( 1 .. $#temp ) {
-                my $datum = Bio::Phylo::Matrices::Datum->new(
-                    '-name' => $temp[0],
-                    '-type' => uc $opts{'-type'},
-                    '-char' => $temp[$i],
-                    '-pos'  => $i
-                );
-                $matrix->insert($datum);
-            }
+            my $taxon = Bio::Phylo::Taxa::Taxon->new(
+                '-name' => $temp[0],
+            );
+            $taxa->insert( $taxon );
+            my $datum = Bio::Phylo::Matrices::Datum->new(
+                '-name' => $temp[0],
+                '-type' => uc $opts{'-type'},
+                '-char' => [ @temp[1 .. $#temp] ],
+                '-pos'  => 0,
+            );
+            $datum->set_taxon( $taxon );
+            $taxon->set_data( $datum );
+            $matrix->insert($datum);
         }
     }
     return $matrix;
@@ -160,7 +176,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Table.pm,v 1.18 2005/09/29 20:31:18 rvosa Exp $
+$Id: Table.pm,v 1.21 2006/04/12 22:38:23 rvosa Exp $
 
 =head1 AUTHOR
 

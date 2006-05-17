@@ -1,4 +1,4 @@
-# $Id: 06-tree.t,v 1.9 2005/09/27 12:00:33 rvosa Exp $
+# $Id: 06-tree.t,v 1.10 2006/02/21 00:23:00 rvosa Exp $
 use strict;
 use warnings;
 use Test::More tests => 48;
@@ -68,19 +68,19 @@ ok( !$unresolved->is_binary,             '18 is binary' );
 ok( !$unresolved->is_ultrametric,        '19 is ultrametric' );
 
 eval { $unresolved->calc_rohlf_stemminess };
-ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Exceptions::ObjectMismatch' ), '20 calc rohlf stemminess' );
+ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Util::Exceptions::ObjectMismatch' ), '20 calc rohlf stemminess' );
 
 eval { $unresolved->calc_imbalance };
-ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Exceptions::ObjectMismatch' ), '21 calc imbalance' );
+ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Util::Exceptions::ObjectMismatch' ), '21 calc imbalance' );
 
 eval { $unresolved->calc_branching_times };
-ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Exceptions::ObjectMismatch' ), '22 calc branching times' );
+ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Util::Exceptions::ObjectMismatch' ), '22 calc branching times' );
 
 eval { $unresolved->calc_ltt };
-ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Exceptions::ObjectMismatch' ), '23 calc ltt' );
+ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Util::Exceptions::ObjectMismatch' ), '23 calc ltt' );
 
 eval { $tree->insert('BAD!') };
-ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Exceptions::ObjectMismatch' ), '24 insert bad obj' );
+ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Util::Exceptions::ObjectMismatch' ), '24 insert bad obj' );
 
 # tests
 ok( !$tree->is_ultrametric(0.01), '25 is ultrametric' );
@@ -129,10 +129,10 @@ my $undef = $treeset->[3];
 $root = $undef->get_root;
 
 eval { $undef->calc_rohlf_stemminess };
-ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Exceptions::ObjectMismatch' ), '44 calc rohlf stemminess' );
+ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Util::Exceptions::ObjectMismatch' ), '44 calc rohlf stemminess' );
 
 eval { $undef->get('BAD!') };
-ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Exceptions::UnknownMethod' ), '45 bad arg get' );
+ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Util::Exceptions::UnknownMethod' ), '45 bad arg get' );
 ok( $undef->calc_imbalance,         '46 calc imbalance' );
 
 # creating a cyclical tree

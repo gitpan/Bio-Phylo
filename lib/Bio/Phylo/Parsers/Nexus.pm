@@ -1,9 +1,7 @@
-# $Id: Nexus.pm,v 1.19 2005/09/29 20:31:18 rvosa Exp $
+# $Id: Nexus.pm,v 1.22 2006/03/04 23:51:03 rvosa Exp $
 # Subversion: $Rev: 195 $
 package Bio::Phylo::Parsers::Nexus;
 use strict;
-use warnings;
-use Carp;
 use Bio::Phylo::Taxa::Taxon;
 use Bio::Phylo::Taxa;
 use Bio::Phylo::Matrices::Matrix;
@@ -198,7 +196,7 @@ sub _parse_taxa {
     my $taxa = new Bio::Phylo::Taxa;
     if ( $parsed->{ntax} != scalar @{$taxlist} ) {
         my ( $exp, $obs ) = ( $parsed->{ntax}, scalar @{$taxlist} );
-        Bio::Phylo::Exceptions::BadFormat->throw(
+        Bio::Phylo::Util::Exceptions::BadFormat->throw(
             error => "observed ($obs) and expected ($exp) ntax unequal"
         );
     }
@@ -239,18 +237,23 @@ sub _parse_char {
             if ($name) {
                 my ( $obs, $exp ) = ( length($charstring), $parsed->{nchar} );
                 if ( $obs != $exp ) {
-                    Bio::Phylo::Exceptions::BadFormat->throw(
+                    Bio::Phylo::Util::Exceptions::BadFormat->throw(
                         error => "observed ($obs) and expected ($exp) nchar unequal for $name"
                     );
                 }
-                for my $j ( 0 .. length($charstring) ) {
-                    my $datum = new Bio::Phylo::Matrices::Datum;
-                    $datum->set_name($name);
-                    $datum->set_position( $j + 1 );
-                    $datum->set_type($datatype);
-                    $datum->set_char( substr( $charstring, $j, 1 ) );
-                    $matrix->insert($datum);
-                }
+#                for my $j ( 0 .. length($charstring) ) {
+                my $datum = Bio::Phylo::Matrices::Datum->new(
+                    '-name' => $name,
+                    '-pos'  => 1,
+                    '-type' => $datatype,
+                    '-char' => $charstring,
+                );
+#                    $datum->set_name($name);
+#                    $datum->set_position( $j + 1 );
+#                    $datum->set_type($datatype);
+#                    $datum->set_char( substr( $charstring, $j, 1 ) );
+                $matrix->insert($datum);
+#                }
             }
             $charstring = undef;
             $name       = $charlist->[$i];
@@ -295,9 +298,9 @@ sub _parse_trees {
         s/^.*\=\s*(.*)$/$1/;
         $nstring .= $_ . ";";
     }
-    my $nparser = new Bio::Phylo::Parsers::Newick;
+    my $nparser = Bio::Phylo::Parsers::Newick->_new;
     my $trees   =
-      $nparser->from_string( -format => 'newick', -string => $nstring );
+      $nparser->_from_string( -format => 'newick', -string => $nstring );
     if (@translist) {
         foreach my $tree ( @{ $trees->get_entities } ) {
           NODE: foreach my $node ( @{ $tree->get_entities } ) {
@@ -362,7 +365,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Nexus.pm,v 1.19 2005/09/29 20:31:18 rvosa Exp $
+$Id: Nexus.pm,v 1.22 2006/03/04 23:51:03 rvosa Exp $
 
 =head1 AUTHOR
 

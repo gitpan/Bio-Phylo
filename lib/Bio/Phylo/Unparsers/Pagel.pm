@@ -2,7 +2,6 @@
 # Subversion: $Rev: 191 $
 package Bio::Phylo::Unparsers::Pagel;
 use strict;
-use warnings;
 use Bio::Phylo::Forest::Tree;
 use base 'Bio::Phylo::IO';
 

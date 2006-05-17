@@ -1,4 +1,4 @@
-# $Id: Newick.pm,v 1.19 2005/09/29 20:31:18 rvosa Exp $
+# $Id: Newick.pm,v 1.20 2006/03/07 20:54:16 rvosa Exp $
 # Subversion: $Rev: 190 $
 package Bio::Phylo::Unparsers::Newick;
 use strict;
@@ -93,14 +93,16 @@ sub _to_string {
 
 {
     my $string = q{};
-
+    no warnings 'uninitialized';
     sub __to_string {
         my ( $self, $tree, $n ) = @_;
         if ( ! $n->get_parent ) {
             if ( defined $n->get_branch_length ) {
                 $string = $n->get_name . ':' . $n->get_branch_length . ';';
             }
-            else { $string = $n->get_name . ';'; }
+            else { 
+                $n->get_name ? $string = $n->get_name . ';' : $string = ';';             
+            }
         }
         elsif ( ! $n->get_previous_sister ) {
             if ( defined $n->get_branch_length ) {
@@ -110,8 +112,7 @@ sub _to_string {
         }
         else {
             if ( defined $n->get_branch_length ) {
-                $string =
-                  $n->get_name . ':' . $n->get_branch_length . ',' . $string;
+                $string = $n->get_name . ':' . $n->get_branch_length . ',' . $string;
             }
             else { $string = $n->get_name . ',' . $string; }
         }
@@ -159,7 +160,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Newick.pm,v 1.19 2005/09/29 20:31:18 rvosa Exp $
+$Id: Newick.pm,v 1.20 2006/03/07 20:54:16 rvosa Exp $
 
 =head1 AUTHOR
 

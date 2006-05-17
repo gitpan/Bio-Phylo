@@ -1,21 +1,73 @@
-# $Id: Node.pm,v 1.10 2005/09/29 20:31:17 rvosa Exp $
-# Subversion: $Rev: 177 $
+# $Id: Node.pm,v 1.21 2006/04/12 22:38:22 rvosa Exp $
 package Bio::Phylo::Forest::Node;
 use strict;
-use warnings;
-use Scalar::Util qw(looks_like_number);
-use Bio::Phylo::CONSTANT qw(_TREE_ _NODE_ _TAXON_);
-use base 'Bio::Phylo';
-use fields qw(PARENT
-              TAXON
-              BRANCH_LENGTH
-              FIRST_DAUGHTER
-              LAST_DAUGHTER
-              NEXT_SISTER
-              PREVIOUS_SISTER);
+use Bio::Phylo::Util::IDPool;
+use Bio::Phylo::Util::CONSTANT qw(_NODE_ _TREE_ _TAXON_);
+use Scalar::Util qw(looks_like_number weaken);
+use XML::Simple;
 
 # One line so MakeMaker sees it.
 use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
+
+# classic @ISA manipulation, not using 'base'
+use vars qw($VERSION @ISA $HAS_BIOPERL_INTERFACE);
+@ISA = qw(Bio::Phylo);
+
+# test for interface
+my $interface = 'Bio::Tree::NodeI';
+eval "require $interface";
+$HAS_BIOPERL_INTERFACE = 1 unless $@;
+
+# aliasing for Bio::Tree::NodeI
+if ( $HAS_BIOPERL_INTERFACE ) {
+    push @ISA, 'Bio::Tree::NodeI';
+    *add_Descendent      = sub { $_[0]->set_child($_[1]); return scalar @{ $_[0]->get_children } };
+    *each_Descendent     = sub { $_[0]->get_children ? return @{ $_[0]->get_children } : return };
+    *get_all_Descendents = sub { return @{ $_[0]->get_descendants } };
+    *is_Leaf             = sub { return $_[0]->is_terminal };
+    *descendent_count    = sub { return scalar @{ $_[0]->get_descendants } };
+    *to_string           = sub { return $_[0]->to_xml };
+    *height              = sub { return $_[0]->calc_max_path_to_tips };
+    *branch_length       = sub { defined $_[1] ? $_[0]->set_branch_length($_[1])->get_branch_length : $_[0]->get_branch_length };
+    *id                  = sub { $_[1] ? $_[0]->set_name($_[1])->get_name : $_[0]->get_name };
+    *internal_id         = sub { return ${$_[0]} };
+    *description         = sub { $_[1] ? $_[0]->set_desc($_[1])->get_desc : $_[0]->get_desc };
+    *bootstrap           = sub { $_[1] ? $_[0]->set_generic( 'bootstrap' => $_[1] )->get_generic( 'bootstrap' ) : $_[0]->get_generic( 'bootstrap' ) };
+    *ancestor            = sub { $_[1] ? $_[0]->set_parent($_[1])->get_parent : $_[0]->get_parent };
+    *invalidate_height   = sub { $_[0]->_flush_cache };
+    *add_tag_value       = sub { $_[0]->set_generic( $_[1] => $_[2] ); return scalar @{ keys %{ $_[0]->get_generic } } };
+    *remove_tag          = sub { $_[0]->set_generic( $_[1] => undef ); return undef };
+    *remove_all_tags     = sub { $_[0]->set_generic( undef ) };
+    *get_all_tags        = sub { return keys %{ $_[0]->get_generic } };
+    *get_tag_values      = sub { return $_[0]->get_generic( $_[1] ) };
+    *has_tag             = sub { $_[0]->get_generic( $_[1] ) ? return 1 : return 0 };
+}
+
+{
+
+    # inside out class arrays
+    my @taxon;
+    my @parent;
+    my @first_daughter;
+    my @last_daughter;
+    my @next_sister;
+    my @previous_sister;
+    my @branch_length;
+    my @generic;
+    my @cache;
+
+    # $fields hashref necessary for object destruction
+    my $fields = {
+        '-taxon'           => \@taxon,
+        '-parent'          => \@parent,
+        '-first_daughter'  => \@first_daughter,
+        '-last_daughter'   => \@last_daughter,
+        '-next_sister'     => \@next_sister,
+        '-previous_sister' => \@previous_sister,
+        '-branch_length'   => \@branch_length,
+        '-generic'         => \@generic,
+        '-cache'           => \@cache,
+    };
 
 =head1 NAME
 
@@ -30,31 +82,35 @@ Bio::Phylo::Forest::Node - The tree node object.
     -format => 'newick',
     -string => $string
  );
- print ref $forest; # prints 'Bio::Phylo::Forest'
- 
+
+ # prints 'Bio::Phylo::Forest'
+ print ref $forest;
+
  foreach my $tree ( @{ $forest->get_entities } ) {
-    print ref $tree; # prints 'Bio::Phylo::Forest::Tree'
-    
+
+    # prints 'Bio::Phylo::Forest::Tree'
+    print ref $tree;
+
     foreach my $node ( @{ $tree->get_entities } ) {
-       print ref $node; # prints 'Bio::Phylo::Forest::Node'
-       
+
+       # prints 'Bio::Phylo::Forest::Node'
+       print ref $node;
+
        # node has a parent, i.e. is not root
        if ( $node->get_parent ) {
           $node->set_branch_length(1);
        }
-       
+
        # node is root
        else {
           $node->set_branch_length(0);
        }
     }
  }
- 
- 
 
 =head1 DESCRIPTION
 
-This module defines a node object and its methods. The node is fairly 
+This module defines a node object and its methods. The node is fairly
 syntactically rich in terms of navigation, and additional getters are provided to
 further ease navigation from node to node. Typical first daughter -> next sister
 traversal and recursion is possible, but there are also shrinkwrapped methods
@@ -78,47 +134,81 @@ orphans all nodes can be reached without recourse to the tree object.
  Function: Instantiates a Bio::Phylo::Forest::Node object
  Returns : Bio::Phylo::Forest::Node
  Args    : All optional:
-           -parent          => $parent (Bio::Phylo::Forest::Node object)
-           -taxon           => $taxon (Bio::Phylo::Taxa::Taxon object)
-           -branch_length   => 0.423e+2 (a valid perl number format)
-           -first_daughter  => $f_daughter (Bio::Phylo::Forest::Node object)
-           -last_daughter   => $l_daughter (Bio::Phylo::Forest::Node object)
-           -next_sister     => $n_sister (Bio::Phylo::Forest::Node object)
-           -previous_sister => $p_sister (Bio::Phylo::Forest::Node object)
-           -name            => 'node_name' (a string)
-           -desc            => 'this is a node' (a string)
-           -score           => 0.98 (a valid perl number format)
+           -parent          => $parent,
+           -taxon           => $taxon,
+           -branch_length   => 0.423e+2,
+           -first_daughter  => $f_daughter,
+           -last_daughter   => $l_daughter,
+           -next_sister     => $n_sister,
+           -previous_sister => $p_sister,
+           -name            => 'node_name',
+           -desc            => 'this is a node',
+           -score           => 0.98,
            -generic         => {
                 -posterior => 0.98,
                 -bootstrap => 0.80
-           } (a hash reference)
+           }
 
 =cut
 
-sub new {
-    my $class = shift;
-    my $self = fields::new($class);
-    $self->SUPER::new(@_);
-    if (@_) {
-        my %opts;
-        eval { %opts = @_; };
-        if ($@) {
-            Bio::Phylo::Exceptions::OddHash->throw(
-                error => $@
-            );
-        }
-        while ( my ( $key, $value ) = each %opts ) {
-            my $localkey = uc substr $key, 1;
-            eval { $self->{$localkey} = $value; };
-            if ($@) {
-                Bio::Phylo::Exceptions::BadArgs->throw(
-                    error => "invalid field specified: $key ($localkey)"
-                );
+    sub new {
+        my $class = shift;
+        my $self  = Bio::Phylo::Forest::Node->SUPER::new(@_);
+        bless $self, __PACKAGE__;
+        if ( @_ ) {
+            my %opt;
+            eval { %opt = @_; };
+            if ( $@ ) {
+                Bio::Phylo::Util::Exceptions::OddHash->throw( error => $@ );
+            }
+            else {
+                while ( my ( $key, $value ) = each %opt ) {
+                    if ( $fields->{$key} ) {
+                        $fields->{$key}->[$$self] = $value;
+                        if ( ref $value && $value->can('_type') ) {
+                            my $type = $value->_type;
+                            if ( $type == _NODE_ || $type == _TAXON_ ) {
+                                weaken($fields->{$key}->[$$self]);
+                            }
+                        }
+                        delete $opt{$key};
+                    }
+                }
+                @_ = %opt;
             }
         }
+        return $self;
     }
-    return $self;
-}
+
+=item new_from_bioperl()
+
+ Type    : Constructor
+ Title   : new_from_bioperl
+ Usage   : my $node =
+           Bio::Phylo::Forest::Node->new_from_bioperl(
+               $bpnode
+           );
+ Function: Instantiates a Bio::Phylo::Forest::Node object
+           from a bioperl node object.
+ Returns : Bio::Phylo::Forest::Node
+ Args    : An objects that implements Bio::Tree::NodeI
+
+=cut
+
+    sub new_from_bioperl {
+        my ( $class, $bpnode ) = @_;
+        my $node = __PACKAGE__->new;
+        $node->set_name( $bpnode->id );
+        $node->set_branch_length( $bpnode->branch_length );
+        $node->set_desc( $bpnode->description );
+        $node->set_generic( 'bootstrap' => $bpnode->bootstrap );
+        my @k = $bpnode->get_all_tags;
+        my @v = $bpnode->get_tag_values;
+        for my $i ( 0 .. $#k ) {
+            $node->set_generic( $k[$i] => $v[$i] );
+        }
+        return $node;
+    }
 
 =back
 
@@ -133,61 +223,42 @@ sub new {
  Usage   : $node->set_taxon($taxon);
  Function: Assigns taxon crossreferenced with node.
  Returns : Modified object.
- Args    : If no argument is given, the currently assigned taxon is set to
-           undefined. A valid argument is a Bio::Phylo::Taxa::Taxon object.
+ Args    : If no argument is given, the currently
+           assigned taxon is set to undefined. A
+           valid argument is a Bio::Phylo::Taxa::Taxon
+           object.
 
 =cut
 
-sub set_taxon {
-    my $node = $_[0];
-    if ( $_[1] ) {
-        my $taxon = $_[1];
-        my $ref   = ref $taxon;
-        if ( !$taxon->can('_type') || $taxon->_type != _TAXON_ ) {
-            Bio::Phylo::Exceptions::ObjectMismatch->throw(
-                error => "$ref doesn't look like a taxon"
-            );
+    sub set_taxon {
+        my ( $self, $taxon ) = @_;
+        if ( defined $taxon ) {
+            if ( $taxon->can('_type') && $taxon->_type == _TAXON_ ) {
+                if ( $self->_get_container && $self->_get_container->_get_container && $self->_get_container->_get_container->get_taxa ) {
+                    if ( $taxon->_get_container != $self->_get_container->_get_container->get_taxa ) {
+                        Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
+                            error => "Attempt to link to taxon from wrong block"
+                        );
+                    }
+                }
+                $taxon[$$self] = $taxon;
+                weaken($taxon[$$self]);
+                if ( $self->_get_container && $self->_get_container->_get_container ) {
+                    $self->_get_container->_get_container->set_taxa( $taxon->_get_container );
+                }
+            }
+            else {
+                Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
+                    error => "\"$taxon\" doesn't look like a taxon"
+                );
+            }
         }
         else {
-            $node->{'TAXON'} = $taxon;
+            $taxon[$$self] = undef;
         }
+        $self->_flush_cache;
+        return $self;
     }
-    else {
-        $node->{'TAXON'} = undef;
-    }
-    return $node;
-}
-
-=item set_branch_length()
-
- Type    : Mutator
- Title   : branch_length
- Usage   : $node->set_branch_length(0.423e+2);
- Function: Assigns or retrieves a node's branch length.
- Returns : Modified object.
- Args    : If no argument is given, the current branch length is set to
-           undefined. A valid argument is a number in any of Perl's formats.
-
-=cut
-
-sub set_branch_length {
-    my $node = $_[0];
-    if ( defined $_[1] ) {
-        my $branchlength = $_[1];
-        if ( looks_like_number $branchlength ) {
-            $node->{'BRANCH_LENGTH'} = $branchlength;
-        }
-        else {
-            Bio::Phylo::Exceptions::BadNumber->throw(
-                error => "Branch length \"$branchlength\" is a bad number"
-            );
-        }
-    }
-    else {
-        $node->{'BRANCH_LENGTH'} = undef;
-    }
-    return $node;
-}
 
 =item set_parent()
 
@@ -196,30 +267,34 @@ sub set_branch_length {
  Usage   : $node->set_parent($parent);
  Function: Assigns a node's parent.
  Returns : Modified object.
- Args    : If no argument is given, the current parent is set to undefined. A
-           valid argument is Bio::Phylo::Forest::Node object.
+ Args    : If no argument is given, the current
+           parent is set to undefined. A valid
+           argument is Bio::Phylo::Forest::Node
+           object.
 
 =cut
 
-sub set_parent {
-    my $node = $_[0];
-    if ( $_[1] ) {
-        my $parent = $_[1];
-        if ( ref $parent && $parent->can('set_parent') ) {
-            $node->{'PARENT'} = $parent;
+    sub set_parent {
+        my ( $self, $parent ) = @_;
+        if ( $parent ) {
+            my $type;
+            eval { $type = $parent->_type; };
+            if ( $@ || $type != _NODE_ ) {
+                Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
+                    error => "\"$parent\" is not a valid node object"
+                );
+            }
+            else {
+                $parent[$$self] = $parent;
+                weaken $parent[$$self];
+            }
         }
         else {
-            my $ref = ref $node;
-            Bio::Phylo::Exceptions::ObjectMismatch->throw(
-                error => "parents can only be $ref objects"
-            );
+            $parent[$$self] = undef;
         }
+        $self->_flush_cache;
+        return $self;
     }
-    else {
-        $node->{'PARENT'} = undef;
-    }
-    return $node;
-}
 
 =item set_first_daughter()
 
@@ -228,31 +303,33 @@ sub set_parent {
  Usage   : $node->set_first_daughter($f_daughter);
  Function: Assigns a node's leftmost daughter.
  Returns : Modified object.
- Args    : Undefines the first daughter if no argument given. A valid argument
-           is a Bio::Phylo::Forest::Node object.
+ Args    : Undefines the first daughter if no
+           argument given. A valid argument is
+           a Bio::Phylo::Forest::Node object.
 
 =cut
 
-sub set_first_daughter {
-    my $node = $_[0];
-    if ( $_[1] ) {
-        my $first_daughter = $_[1];
-        if ( ref $first_daughter && $first_daughter->can('set_first_daughter') )
-        {
-            $node->{'FIRST_DAUGHTER'} = $first_daughter;
+    sub set_first_daughter {
+        my ( $self, $first_daughter ) = @_;
+        if ( $first_daughter ) {
+            my $type;
+            eval { $type = $first_daughter->_type; };
+            if ( $@ || $type != _NODE_ ) {
+                Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
+                    error => "\"$first_daughter\" is not a valid node object"
+                );
+            }
+            else {
+                $first_daughter[$$self] = $first_daughter;
+                weaken $first_daughter[$$self];
+            }
         }
         else {
-            my $ref = ref $node;
-            Bio::Phylo::Exceptions::ObjectMismatch->throw(
-                error => "first_daughters can only be $ref objects"
-            );
+            $first_daughter[$$self] = undef;
         }
+        $self->_flush_cache;
+        return $self;
     }
-    else {
-        $node->{'FIRST_DAUGHTER'} = undef;
-    }
-    return $node;
-}
 
 =item set_last_daughter()
 
@@ -261,62 +338,34 @@ sub set_first_daughter {
  Usage   : $node->set_last_daughter($l_daughter);
  Function: Assigns a node's rightmost daughter.
  Returns : Modified object.
- Args    : A valid argument consists of a Bio::Phylo::Forest::Node object. If
-           no argument is given, the value is set to undefined.
+ Args    : A valid argument consists of a
+           Bio::Phylo::Forest::Node object. If
+           no argument is given, the value is
+           set to undefined.
 
 =cut
 
-sub set_last_daughter {
-    my $node = $_[0];
-    if ( $_[1] ) {
-        my $last_daughter = $_[1];
-        if ( ref $last_daughter && $last_daughter->can('set_last_daughter') ) {
-            $node->{'LAST_DAUGHTER'} = $last_daughter;
+    sub set_last_daughter {
+        my ( $self, $last_daughter ) = @_;
+        if ( $last_daughter ) {
+            my $type;
+            eval { $type = $last_daughter->_type; };
+            if ( $@ || $type != _NODE_ ) {
+                Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
+                    error => "\"$last_daughter\" is not a valid node object"
+                );
+            }
+            else {
+                $last_daughter[$$self] = $last_daughter;
+                weaken $last_daughter[$$self];
+            }
         }
         else {
-            my $ref = ref $node;
-            Bio::Phylo::Exceptions::ObjectMismatch->throw(
-                error => "last_daughters can only be $ref objects"
-            );
+            $last_daughter[$$self] = undef;
         }
+        $self->_flush_cache;
+        return $self;
     }
-    else {
-        $node->{'LAST_DAUGHTER'} = undef;
-    }
-    return $node;
-}
-
-=item set_next_sister()
-
- Type    : Mutator
- Title   : set_next_sister
- Usage   : $node->set_next_sister($n_sister);
- Function: Assigns or retrieves a node's next sister (to the right).
- Returns : Modified object.
- Args    : A valid argument consists of a Bio::Phylo::Forest::Node object. If
-           no argument is given, the value is set to undefined.
-
-=cut
-
-sub set_next_sister {
-    my $node = $_[0];
-    if ( $_[1] ) {
-        my $next_sister = $_[1];
-        if ( ref $next_sister && $next_sister->can('set_next_sister') ) {
-            $node->{'NEXT_SISTER'} = $next_sister;
-        }
-        else {
-            my $ref = ref $node;
-            Bio::Phylo::Exceptions::ObjectMismatch->throw(
-                error => "next_sisters can only be $ref objects"
-            );
-        }
-    }
-    else {
-        $node->{'NEXT_SISTER'} = undef;
-    }
-    return $node;
-}
 
 =item set_previous_sister()
 
@@ -325,53 +374,185 @@ sub set_next_sister {
  Usage   : $node->set_previous_sister($p_sister);
  Function: Assigns a node's previous sister (to the left).
  Returns : Modified object.
- Args    : A valid argument consists of a Bio::Phylo::Forest::Node object. If
-           no argument is given, the value is set to undefined.
+ Args    : A valid argument consists of
+           a Bio::Phylo::Forest::Node object.
+           If no argument is given, the value
+           is set to undefined.
 
 =cut
 
-sub set_previous_sister {
-    my $node = $_[0];
-    if ( $_[1] ) {
-        my $previous_sister = $_[1];
-        if ( ref $previous_sister
-            && $previous_sister->can('set_previous_sister') )
-        {
-            $node->{'PREVIOUS_SISTER'} = $previous_sister;
+    sub set_previous_sister {
+        my ( $self, $previous_sister ) = @_;
+        if ( $previous_sister ) {
+            my $type;
+            eval { $type = $previous_sister->_type; };
+            if ( $@ || $type != _NODE_ ) {
+                Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
+                    error => "\"$previous_sister\" is not a valid node object"
+                );
+            }
+            else {
+                $previous_sister[$$self] = $previous_sister;
+                weaken $previous_sister[$$self];
+            }
         }
         else {
-            my $ref = ref $node;
-            Bio::Phylo::Exceptions::ObjectMismatch->throw(
-                error => "previous_sisters can only be $ref objects"
+            $previous_sister[$$self] = undef;
+        }
+        $self->_flush_cache;
+        return $self;
+    }
+
+=item set_next_sister()
+
+ Type    : Mutator
+ Title   : set_next_sister
+ Usage   : $node->set_next_sister($n_sister);
+ Function: Assigns or retrieves a node's
+           next sister (to the right).
+ Returns : Modified object.
+ Args    : A valid argument consists of a
+           Bio::Phylo::Forest::Node object.
+           If no argument is given, the
+           value is set to undefined.
+
+=cut
+
+    sub set_next_sister {
+        my ( $self, $next_sister ) = @_;
+        if ( $next_sister ) {
+            my $type;
+            eval { $type = $next_sister->_type; };
+            if ( $@ || $type != _NODE_ ) {
+                Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
+                    error => "\"$next_sister\" is not a valid node object"
+                );
+            }
+            else {
+                $next_sister[$$self] = $next_sister;
+                weaken $next_sister[$$self];
+            }
+        }
+        else {
+            $next_sister[$$self] = undef;
+        }
+        $self->_flush_cache;
+        return $self;
+    }
+
+=item set_child()
+
+ Type    : Mutator
+ Title   : set_child
+ Usage   : $node->set_child($child);
+ Function: Assigns a new child to $node
+ Returns : Modified object.
+ Args    : A valid argument consists of a
+           Bio::Phylo::Forest::Node object.
+
+=cut
+
+    sub set_child {
+        my ( $self, $child ) = @_;
+        if ( $child ) {
+            my $type;
+            eval { $type = $child->_type; };
+            if ( $@ || $type != _NODE_ ) {
+                Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
+                    error => "\"$child\" is not a valid node object"
+                );
+            }
+            else {
+                if ( my $ld = $self->get_last_daughter ) {
+                    $ld->set_next_sister( $child );
+                    $child->set_previous_sister( $ld );
+                    $self->set_last_daughter( $child );
+                }
+                elsif ( my $fd = $self->get_first_daughter ) {
+                    $fd->set_next_sister( $child );
+                    $child->set_previous_sister( $fd );
+                    $self->set_last_daughter( $child );
+                }
+                else {
+                    $self->set_first_daughter( $child );
+                }
+                $child->set_parent( $self );
+            }
+        }
+        $self->_flush_cache;
+        return $self;
+    }
+
+=item set_branch_length()
+
+ Type    : Mutator
+ Title   : branch_length
+ Usage   : $node->set_branch_length(0.423e+2);
+ Function: Assigns a node's branch length.
+ Returns : Modified object.
+ Args    : If no argument is given, the
+           current branch length is set
+           to undefined. A valid argument
+           is a number in any of Perl's formats.
+
+=cut
+
+    sub set_branch_length {
+        my ( $self, $bl ) = @_;
+        if ( defined $bl && looks_like_number $bl && ! ref $bl ) {
+            $branch_length[$$self] = $bl;
+        }
+        elsif ( defined $bl && ( ! looks_like_number $bl || ref $bl ) ) {
+            Bio::Phylo::Util::Exceptions::BadNumber->throw(
+                error => "Branch length \"$bl\" is a bad number"
             );
         }
+        elsif ( ! defined $bl ) {
+            $branch_length[$$self] = undef;
+        }
+        $self->_flush_cache;
+        return $self;
     }
-    else {
-        $node->{'PREVIOUS_SISTER'} = undef;
+
+=item set_generic()
+
+ Type    : Mutator
+ Title   : set_generic
+ Usage   : $node->set_generic( $key => $value );
+ Function: Attaches a generic key => value pair to $node.
+ Returns : Modified object.
+ Args    : Comma separated key => value pairs.
+
+=cut
+
+    sub set_generic {
+        my $self = shift;
+        if ( @_ ) {
+            my %opt;
+            eval { %opt = @_; };
+            if ( $@ ) {
+                Bio::Phylo::Util::Exceptions::OddHash->throw(
+                    error => $@
+                );
+            }
+            else {
+                while ( my ( $key, $value ) = each %opt ) {
+                    $generic[$$self]->{$key} = $value;
+                }
+            }
+        }
+        else {
+            $generic[$$self] = undef;
+        }
+        $self->_flush_cache;
+        return $self;
     }
-    return $node;
-}
 
 =back
 
 =head2 ACCESSORS
 
 =over
-
-=item get_name()
-
- Type    : Accessor
- Title   : get_name
- Usage   : my $name = $node->get_name;
- Function: Retrieves a node's name.
- Returns : SCALAR
- Args    : NONE
-
-=cut
-
-sub get_name {
-    return $_[0]->{'NAME'};
-}
 
 =item get_taxon()
 
@@ -384,27 +565,7 @@ sub get_name {
 
 =cut
 
-sub get_taxon {
-    return $_[0]->{'TAXON'};
-}
-
-=item get_branch_length()
-
- Type    : Accessor
- Title   : get_branch_length
- Usage   : my $branch_length = $node->get_branch_length;
- Function: Retrieves a node's branch length.
- Returns : FLOAT
- Args    : NONE
- Comments: Test for "defined($node->get_branch_length)" for zero-length (but
-           defined) branches. Testing "if ( $node->get_branch_length ) { ... }"
-           yields false for zero-but-defined branches!
-
-=cut
-
-sub get_branch_length {
-    return $_[0]->{'BRANCH_LENGTH'};
-}
+    sub get_taxon { $taxon[${$_[0]}] }
 
 =item get_parent()
 
@@ -417,9 +578,7 @@ sub get_branch_length {
 
 =cut
 
-sub get_parent {
-    return $_[0]->{'PARENT'};
-}
+    sub get_parent { $parent[${$_[0]}] }
 
 =item get_first_daughter()
 
@@ -432,9 +591,7 @@ sub get_parent {
 
 =cut
 
-sub get_first_daughter {
-    return $_[0]->{'FIRST_DAUGHTER'};
-}
+    sub get_first_daughter { $first_daughter[${$_[0]}] }
 
 =item get_last_daughter()
 
@@ -447,24 +604,7 @@ sub get_first_daughter {
 
 =cut
 
-sub get_last_daughter {
-    return $_[0]->{'LAST_DAUGHTER'};
-}
-
-=item get_next_sister()
-
- Type    : Accessor
- Title   : get_next_sister
- Usage   : my $n_sister = $node->get_next_sister;
- Function: Retrieves a node's next sister (to the right).
- Returns : Bio::Phylo::Forest::Node
- Args    : NONE
-
-=cut
-
-sub get_next_sister {
-    return $_[0]->{'NEXT_SISTER'};
-}
+    sub get_last_daughter { $last_daughter[${$_[0]}] }
 
 =item get_previous_sister()
 
@@ -477,9 +617,37 @@ sub get_next_sister {
 
 =cut
 
-sub get_previous_sister {
-    return $_[0]->{'PREVIOUS_SISTER'};
-}
+    sub get_previous_sister { $previous_sister[${$_[0]}] }
+
+=item get_next_sister()
+
+ Type    : Accessor
+ Title   : get_next_sister
+ Usage   : my $n_sister = $node->get_next_sister;
+ Function: Retrieves a node's next sister (to the right).
+ Returns : Bio::Phylo::Forest::Node
+ Args    : NONE
+
+=cut
+
+    sub get_next_sister { $next_sister[${$_[0]}] }
+
+=item get_branch_length()
+
+ Type    : Accessor
+ Title   : get_branch_length
+ Usage   : my $branch_length = $node->get_branch_length;
+ Function: Retrieves a node's branch length.
+ Returns : FLOAT
+ Args    : NONE
+ Comments: Test for "defined($node->get_branch_length)"
+           for zero-length (but defined) branches. Testing
+           "if ( $node->get_branch_length ) { ... }"
+           yields false for zero-but-defined branches!
+
+=cut
+
+    sub get_branch_length { $branch_length[${$_[0]}] }
 
 =item get_ancestors()
 
@@ -488,94 +656,114 @@ sub get_previous_sister {
  Usage   : my @ancestors = @{ $node->get_ancestors };
  Function: Returns an array reference of ancestral nodes,
            ordered from young to old.
- Returns : Array reference of Bio::Phylo::Forest::Node objects.
+ Returns : Array reference of Bio::Phylo::Forest::Node
+           objects.
  Args    : NONE
 
 =cut
 
-sub get_ancestors {
-    my $node = $_[0];
-    my @ancestors;
-    if ( $node->get_parent ) {
-        $node = $node->get_parent;
-        while ($node) {
-            push @ancestors, $node;
-            $node = $node->get_parent;
+    sub get_ancestors {
+        my $self = shift;
+        my @tmp = $self->_check_cache;
+        return $tmp[1] if $tmp[0];
+        my @ancestors;
+        my $node = $self;
+        if ( $node = $node->get_parent ) {
+            while ($node) {
+                push @ancestors, $node;
+                $node = $node->get_parent;
+            }
+            $self->_store_cache(\@ancestors);
+            return \@ancestors;
         }
-        return \@ancestors;
+        else {
+            $self->_store_cache(undef);
+            return;
+        }
     }
-    else {
-        return;
-    }
-}
 
 =item get_sisters()
 
  Type    : Query
  Title   : get_sisters
  Usage   : my @sisters = @{ $node->get_sisters };
- Function: Returns an array reference of sisters, ordered from left to right.
- Returns : Array reference of Bio::Phylo::Forest::Node objects.
+ Function: Returns an array reference of sisters,
+           ordered from left to right.
+ Returns : Array reference of
+           Bio::Phylo::Forest::Node objects.
  Args    : NONE
 
 =cut
 
-sub get_sisters {
-    my $node    = $_[0];
-    my @sisters = $node->get_parent->get_children;
-    return \@sisters;
-}
+    sub get_sisters {
+        my $self = shift;
+        my @tmp = $self->_check_cache;
+        return $tmp[1] if $tmp[0];
+        my $sisters = $self->get_parent->get_children;
+        $self->_store_cache($sisters);
+        return $sisters;
+    }
 
 =item get_children()
 
  Type    : Query
  Title   : get_children
  Usage   : my @children = @{ $node->get_children };
- Function: Returns an array reference of immediate descendants,
-           ordered from left to right.
- Returns : Array reference of Bio::Phylo::Forest::Node objects.
+ Function: Returns an array reference of immediate
+           descendants, ordered from left to right.
+ Returns : Array reference of
+           Bio::Phylo::Forest::Node objects.
  Args    : NONE
 
 =cut
 
-sub get_children {
-    my $node = $_[0];
-    my @children;
-    my $fd = $node->get_first_daughter;
-    if ($fd) {
-        while ($fd) {
-            push @children, $fd;
-            $fd = $fd->get_next_sister;
+    sub get_children {
+        my $self = shift;
+        my @tmp = $self->_check_cache;
+        return $tmp[1] if $tmp[0];
+        my @children;
+        my $fd = $self->get_first_daughter;
+        if ($fd) {
+            while ($fd) {
+                push @children, $fd;
+                $fd = $fd->get_next_sister;
+            }
+            $self->_store_cache(\@children);
+            return \@children;
         }
-        return \@children;
+        else {
+            $self->_store_cache(undef);
+            return;
+        }
     }
-    else {
-        return;
-    }
-}
 
 =item get_descendants()
 
  Type    : Query
  Title   : get_descendants
  Usage   : my @descendants = @{ $node->get_descendants };
- Function: Returns an array reference of descendants,
-           recursively ordered breadth first.
- Returns : Array reference of Bio::Phylo::Forest::Node objects.
+ Function: Returns an array reference of
+           descendants, recursively ordered
+           breadth first.
+ Returns : Array reference of
+           Bio::Phylo::Forest::Node objects.
  Args    : none.
 
 =cut
 
-sub get_descendants {
-    my $root    = $_[0];
-    my @current = ($root);
-    my @desc;
-    while ( $root->_desc(@current) ) {
-        @current = $root->_desc(@current);
-        push @desc, @current;
+    sub get_descendants {
+        my $self = shift;
+        my @tmp = $self->_check_cache;
+        return $tmp[1] if $tmp[0];
+        my @current = ($self);
+        my @desc;
+        while ( $self->_desc(@current) ) {
+            @current = $self->_desc(@current);
+            push @desc, @current;
+        }
+        $self->_store_cache(\@desc);
+        return \@desc;
     }
-    return \@desc;
-}
 
 =begin comment
 
@@ -599,68 +787,78 @@ sub get_descendants {
 
 =cut
 
-sub _desc {
-    my $root    = shift;
-    my @current = @_;
-    my @return;
-    foreach (@current) {
-        my $children = $_->get_children;
-        if ( $children ) {
-            push @return, @{$children};
+    sub _desc {
+        my $self    = shift;
+        my @current = @_;
+        my @return;
+        foreach (@current) {
+            my $children = $_->get_children;
+            if ( $children ) {
+                push @return, @{ $children };
+            }
         }
+        return @return;
     }
-    return @return;
-}
 
 =item get_terminals()
 
  Type    : Query
  Title   : get_terminals
  Usage   : my @terminals = @{ $node->get_terminals };
- Function: Returns an array reference of terminal descendants.
- Returns : Array reference of Bio::Phylo::Forest::Node objects.
+ Function: Returns an array reference
+           of terminal descendants.
+ Returns : Array reference of
+           Bio::Phylo::Forest::Node objects.
  Args    : NONE
 
 =cut
 
-sub get_terminals {
-    my $node = $_[0];
-    my @terminals;
-    my $desc = $node->get_descendants;
-    if ( scalar @{$desc} ) {
-        foreach ( @{$desc} ) {
-            if ( $_->is_terminal ) {
-                push @terminals, $_;
+    sub get_terminals {
+        my $self = shift;
+        my @tmp = $self->_check_cache;
+        return $tmp[1] if $tmp[0];
+        my @terminals;
+        my $desc = $self->get_descendants;
+        if ( @{$desc} ) {
+            foreach ( @{$desc} ) {
+                if ( $_->is_terminal ) {
+                    push @terminals, $_;
+                }
             }
         }
+        $self->_store_cache(\@terminals);
+        return \@terminals;
     }
-    return \@terminals;
-}
 
 =item get_internals()
 
  Type    : Query
  Title   : get_internals
  Usage   : my @internals = @{ $node->get_internals };
- Function: Returns an array reference of internal descendants.
- Returns : Array reference of Bio::Phylo::Forest::Node objects.
+ Function: Returns an array reference
+           of internal descendants.
+ Returns : Array reference of
+           Bio::Phylo::Forest::Node objects.
  Args    : NONE
 
 =cut
 
-sub get_internals {
-    my $node = $_[0];
-    my @internals;
-    my $desc = $node->get_descendants;
-    if ( scalar @{$desc} ) {
-        foreach ( @{$desc} ) {
-            if ( $_->is_internal ) {
-                push @internals, $_;
+    sub get_internals {
+        my $self = shift;
+        my @tmp = $self->_check_cache;
+        return $tmp[1] if $tmp[0];
+        my @internals;
+        my $desc = $self->get_descendants;
+        if ( @{$desc} ) {
+            foreach ( @{$desc} ) {
+                if ( $_->is_internal ) {
+                    push @internals, $_;
+                }
             }
         }
+        $self->_store_cache(\@internals);
+        return \@internals;
     }
-    return \@internals;
-}
 
 =item get_mrca()
 
@@ -670,72 +868,84 @@ sub get_internals {
  Function: Returns the most recent common ancestor
            of $node and $other_node.
  Returns : Bio::Phylo::Forest::Node
- Args    : A Bio::Phylo::Forest::Node object in the same tree.
+ Args    : A Bio::Phylo::Forest::Node
+           object in the same tree.
 
 =cut
 
-sub get_mrca {
-    my $node              = $_[0];
-    my $other_node        = $_[1];
-    my $node_parent       = $node->get_ancestors;
-    my $other_node_parent = $other_node->get_ancestors;
-    for my $i ( 0 .. $#{$node_parent} ) {
-        for my $j ( 0 .. $#{$other_node_parent} ) {
-            if ( $node_parent->[$i] == $other_node_parent->[$j] ) {
-                return $node_parent->[$i];
+    sub get_mrca {
+        my ( $self, $other_node ) = @_;
+        my $self_anc  = $self->get_ancestors;
+        my $other_anc = $other_node->get_ancestors;
+        for my $i ( 0 .. $#{ $self_anc } ) {
+            for my $j ( 0 .. $#{ $other_anc } ) {
+                if ( ${ $self_anc->[$i] } == ${ $other_anc->[$j] } ) {
+                    return $self_anc->[$i];
+                }
             }
         }
+        return;
     }
-    return;
-}
 
 =item get_leftmost_terminal()
 
  Type    : Query
  Title   : get_leftmost_terminal
- Usage   : my $leftmost_terminal = $node->get_leftmost_terminal;
- Function: Returns the leftmost terminal descendant of $node.
+ Usage   : my $leftmost_terminal =
+           $node->get_leftmost_terminal;
+ Function: Returns the leftmost
+           terminal descendant of $node.
  Returns : Bio::Phylo::Forest::Node
  Args    : NONE
 
 =cut
 
-sub get_leftmost_terminal {
-    my $node = $_[0];
-    while ($node) {
-        if ( $node->get_first_daughter ) {
-            $node = $node->get_first_daughter;
+    sub get_leftmost_terminal {
+        my $self = shift;
+        my @tmp = $self->_check_cache;
+        return $tmp[1] if $tmp[0];
+        my $daughter = $self;
+        while ( $daughter ) {
+            if ( $daughter->get_first_daughter ) {
+                $daughter = $daughter->get_first_daughter;
+            }
+            else {
+                last;
+            }
         }
-        else {
-            last;
-        }
+        $self->_store_cache($daughter);
+        return $daughter;
     }
-    return $node;
-}
 
 =item get_rightmost_terminal()
 
  Type    : Query
  Title   : get_rightmost_terminal
- Usage   : my $rightmost_terminal = $node->get_rightmost_terminal;
- Function: Returns the rightmost terminal descendant of $node.
+ Usage   : my $rightmost_terminal =
+           $node->get_rightmost_terminal;
+ Function: Returns the rightmost
+           terminal descendant of $node.
  Returns : Bio::Phylo::Forest::Node
  Args    : NONE
 
 =cut
 
-sub get_rightmost_terminal {
-    my $node = $_[0];
-    while ($node) {
-        if ( $node->get_last_daughter ) {
-            $node = $node->get_last_daughter;
+    sub get_rightmost_terminal {
+        my $self = shift;
+        my @tmp = $self->_check_cache;
+        return $tmp[1] if $tmp[0];
+        my $daughter = $self;
+        while ($daughter) {
+            if ( $daughter->get_last_daughter ) {
+                $daughter = $daughter->get_last_daughter;
+            }
+            else {
+                last;
+            }
         }
-        else {
-            last;
-        }
+        $self->_store_cache($daughter);
+        return $daughter;
     }
-    return $node;
-}
 
 =item get_generic()
 
@@ -746,27 +956,33 @@ sub get_rightmost_terminal {
            my %generic_hash  = %{ $node->get_generic };
            # such that
            $generic_hash{$key} == $generic_value;
- Function: Retrieves value of a generic key/value pair attached to $node, given
-           $key. If no $key is given, a reference to the entire hash is
+ Function: Retrieves value of a generic
+           key/value pair attached to $node,
+           given $key. If no $key is given,
+           a reference to the entire hash is
            returned.
  Returns : A SCALAR string, or a HASH ref
- Args    : Key/value pairs are stored in a hashref. If
-           $node->set_generic(posterior => 0.3543) has been set, the value
-           can be retrieved using $node->get_generic('posterior'); if multiple
-           key/value pairs were set, e.g. $node->set_generic( x => 12, y => 80)
-           and $node->get_generic is called without arguments, a hash reference
-           { x => 12, y => 80 } is returned.
+ Args    : Key/value pairs are stored in a hashref.
+           If $node->set_generic(posterior => 0.3543)
+           has been set, the value can be retrieved
+           using $node->get_generic('posterior'); if
+           multiple key/value pairs were set, e.g.
+           $node->set_generic( x => 12, y => 80) and
+           $node->get_generic is called without arguments,
+           a hash reference { x => 12, y => 80 } is
+           returned.
 
 =cut
 
-sub get_generic {
-    if ( $_[1] ) {
-        return $_[0]->{'GENERIC'}->{ $_[1] };
+    sub get_generic {
+        my ( $self, $key ) = @_;
+        if ( $key ) {
+            return $generic[$$self]->{$key};
+        }
+        else {
+            return $generic[$$self];
+        }
     }
-    else {
-        return $_[0]->{'GENERIC'};
-    }
-}
 
 =back
 
@@ -781,21 +997,26 @@ sub get_generic {
  Usage   : if ( $node->is_terminal ) {
               # do something
            }
- Function: Returns true if node has no children (i.e. is terminal).
+ Function: Returns true if node has
+           no children (i.e. is terminal).
  Returns : BOOLEAN
  Args    : NONE
 
 =cut
 
-sub is_terminal {
-    my $node = $_[0];
-    if ( !$node->get_first_daughter ) {
-        return 1;
+    sub is_terminal {
+        my $self = shift;
+        my @tmp = $self->_check_cache;
+        return $tmp[1] if $tmp[0];
+        if ( !$self->get_first_daughter ) {
+            $self->_store_cache(1);
+            return 1;
+        }
+        else {
+            $self->_store_cache(undef);
+            return;
+        }
     }
-    else {
-        return;
-    }
-}
 
 =item is_internal()
 
@@ -804,21 +1025,26 @@ sub is_terminal {
  Usage   : if ( $node->is_internal ) {
               # do something
            }
- Function: Returns true if node has children (i.e. is internal).
+ Function: Returns true if node
+           has children (i.e. is internal).
  Returns : BOOLEAN
  Args    : NONE
 
 =cut
 
-sub is_internal {
-    my $node = $_[0];
-    if ( $node->get_first_daughter ) {
-        return 1;
+    sub is_internal {
+        my $self = shift;
+        my @tmp = $self->_check_cache;
+        return $tmp[1] if $tmp[0];
+        if ( $self->get_first_daughter ) {
+            $self->_store_cache(1);
+            return 1;
+        }
+        else {
+            $self->_store_cache(undef);
+            return;
+        }
     }
-    else {
-        return;
-    }
-}
 
 =item is_descendant_of()
 
@@ -827,26 +1053,28 @@ sub is_internal {
  Usage   : if ( $node->is_descendant_of($grandparent) ) {
               # do something
            }
- Function: Returns true if the node is a descendant of the argument.
+ Function: Returns true if the node is
+           a descendant of the argument.
  Returns : BOOLEAN
- Args    : putative ancestor - a Bio::Phylo::Forest::Node object.
+ Args    : putative ancestor - a
+           Bio::Phylo::Forest::Node object.
 
 =cut
 
-sub is_descendant_of {
-    my ( $node, $parent ) = @_;
-    while ($node) {
-        if ( $node->get_parent ) {
-            $node = $node->get_parent;
-        }
-        else {
-            return;
-        }
-        if ( $node == $parent ) {
-            return 1;
+    sub is_descendant_of {
+        my ( $self, $parent ) = @_;
+        while ($self) {
+            if ( $self->get_parent ) {
+                $self = $self->get_parent;
+            }
+            else {
+                return;
+            }
+            if ( $self == $parent ) {
+                return 1;
+            }
         }
     }
-}
 
 =item is_ancestor_of()
 
@@ -855,21 +1083,23 @@ sub is_descendant_of {
  Usage   : if ( $node->is_ancestor_of($grandchild) ) {
               # do something
            }
- Function: Returns true if the node is an ancestor of the argument.
+ Function: Returns true if the node
+           is an ancestor of the argument.
  Returns : BOOLEAN
- Args    : putative descendant - a Bio::Phylo::Forest::Node object.
+ Args    : putative descendant - a
+           Bio::Phylo::Forest::Node object.
 
 =cut
 
-sub is_ancestor_of {
-    my ( $node, $child ) = @_;
-    if ( $child->is_descendant_of($node) ) {
-        return 1;
+    sub is_ancestor_of {
+        my ( $self, $child ) = @_;
+        if ( $child->is_descendant_of($self) ) {
+            return 1;
+        }
+        else {
+            return;
+        }
     }
-    else {
-        return;
-    }
-}
 
 =item is_sister_of()
 
@@ -878,24 +1108,26 @@ sub is_ancestor_of {
  Usage   : if ( $node->is_sister_of($sister) ) {
               # do something
            }
- Function: Returns true if the node is a sister of the argument.
+ Function: Returns true if the node is
+           a sister of the argument.
  Returns : BOOLEAN
- Args    : putative sister - a Bio::Phylo::Forest::Node object.
+ Args    : putative sister - a
+           Bio::Phylo::Forest::Node object.
 
 =cut
 
-sub is_sister_of {
-    my ( $node, $sis ) = @_;
-    if (   $node->get_parent
-        && $sis->get_parent
-        && $node->get_parent == $sis->get_parent )
-    {
-        return 1;
+    sub is_sister_of {
+        my ( $self, $sis ) = @_;
+        if (   $self->get_parent
+            && $sis->get_parent
+            && $self->get_parent == $sis->get_parent )
+        {
+            return 1;
+        }
+        else {
+            return;
+        }
     }
-    else {
-        return;
-    }
-}
 
 =item is_outgroup_of()
 
@@ -904,25 +1136,27 @@ sub is_sister_of {
  Usage   : if ( $node->is_outgroup_of(\@ingroup) ) {
               # do something
            }
- Function: Tests whether the set of \@ingroup is monophyletic
+ Function: Tests whether the set of
+           \@ingroup is monophyletic
            with respect to the $node.
  Returns : BOOLEAN
- Args    : A reference to an array of Bio::Phylo::Forest::Node objects;
+ Args    : A reference to an array of
+           Bio::Phylo::Forest::Node objects;
  Comments: This method is essentially the same as
            &Bio::Phylo::Forest::Tree::is_monophyletic.
 
 =cut
 
-sub is_outgroup_of {
-    my ( $outgroup, $nodes ) = @_;
-    for my $i ( 0 .. $#{$nodes} ) {
-        for my $j ( ( $i + 1 ) .. $#{$nodes} ) {
-            my $mrca = $nodes->[$i]->get_mrca( $nodes->[$j] );
-            return if $mrca->is_ancestor_of($outgroup);
+    sub is_outgroup_of {
+        my ( $outgroup, $nodes ) = @_;
+        for my $i ( 0 .. $#{ $nodes } ) {
+            for my $j ( ( $i + 1 ) .. $#{ $nodes } ) {
+                my $mrca = $nodes->[$i]->get_mrca( $nodes->[$j] );
+                return if $mrca->is_ancestor_of($outgroup);
+            }
         }
+        return 1;
     }
-    return 1;
-}
 
 =back
 
@@ -934,171 +1168,211 @@ sub is_outgroup_of {
 
  Type    : Calculation
  Title   : calc_path_to_root
- Usage   : my $path_to_root = $node->calc_path_to_root;
- Function: Returns the sum of branch lengths from $node to the root.
+ Usage   : my $path_to_root =
+           $node->calc_path_to_root;
+ Function: Returns the sum of branch
+           lengths from $node to the root.
  Returns : FLOAT
  Args    : NONE
 
 =cut
 
-sub calc_path_to_root {
-    my $node = $_[0];
-    my $path = 0;
-    while ($node) {
-        if ( defined $node->get_branch_length ) {
-            $path += $node->get_branch_length;
+    sub calc_path_to_root {
+        my $self = shift;
+        my @tmp = $self->_check_cache;
+        return $tmp[1] if $tmp[0];
+        my $node = $self;
+        my $path = 0;
+        while ($node) {
+            if ( defined $node->get_branch_length ) {
+                $path += $node->get_branch_length;
+            }
+            if ( $node->get_parent ) {
+                $node = $node->get_parent;
+            }
+            else {
+                last;
+            }
         }
-        $node = $node->get_parent;
+        $self->_store_cache($path);
+        return $path;
     }
-    return $path;
-}
 
 =item calc_nodes_to_root()
 
  Type    : Calculation
  Title   : calc_nodes_to_root
- Usage   : my $nodes_to_root = $node->calc_nodes_to_root;
- Function: Returns the number of nodes from $node to the root.
+ Usage   : my $nodes_to_root =
+           $node->calc_nodes_to_root;
+ Function: Returns the number of nodes
+           from $node to the root.
  Returns : INT
  Args    : NONE
 
 =cut
 
-sub calc_nodes_to_root {
-    my $node  = $_[0];
-    my $nodes = 0;
-    while ($node) {
-        $nodes++;
-        $node = $node->get_parent;
+    sub calc_nodes_to_root {
+        my $self = shift;
+        my @tmp = $self->_check_cache;
+        return $tmp[1] if $tmp[0];
+        my ( $nodes, $parent ) = ( 0, $self );
+        while ($parent) {
+            $nodes++;
+            $parent = $parent->get_parent;
+            if ( $parent ) {
+                if ( my $cntr = $parent->calc_nodes_to_root ) {
+                    $nodes += $cntr;
+                    last;
+                }
+            }
+        }
+        $self->_store_cache($nodes);
+        return $nodes;
     }
-    return $nodes;
-}
 
 =item calc_max_nodes_to_tips()
 
  Type    : Calculation
  Title   : calc_max_nodes_to_tips
- Usage   : my $max_nodes_to_tips = $node->calc_max_nodes_to_tips;
- Function: Returns the maximum number of nodes from $node to tips.
+ Usage   : my $max_nodes_to_tips =
+           $node->calc_max_nodes_to_tips;
+ Function: Returns the maximum number
+           of nodes from $node to tips.
  Returns : INT
  Args    : NONE
 
 =cut
 
-sub calc_max_nodes_to_tips {
-    my $node = $_[0];
-    my ( $nodes, $maxnodes ) = ( 0, 0 );
-    foreach my $child ( @{ $node->get_terminals } ) {
-        $nodes = 0;
-        while ( $child != $node ) {
-            $nodes++;
-            $child = $child->get_parent;
+    sub calc_max_nodes_to_tips {
+        my $self = shift;
+        my @tmp = $self->_check_cache;
+        return $tmp[1] if $tmp[0];
+        my ( $nodes, $maxnodes ) = ( 0, 0 );
+        foreach my $child ( @{ $self->get_terminals } ) {
+            $nodes = 0;
+            while ( $child && $child != $self ) {
+                $nodes++;
+                $child = $child->get_parent;
+            }
+            if ( $nodes > $maxnodes ) {
+                $maxnodes = $nodes;
+            }
         }
-        if ( $nodes > $maxnodes ) {
-            $maxnodes = $nodes;
-        }
+        $self->_store_cache($maxnodes);
+        return $maxnodes;
     }
-    return $maxnodes;
-}
 
 =item calc_min_nodes_to_tips()
 
  Type    : Calculation
  Title   : calc_min_nodes_to_tips
- Usage   : my $min_nodes_to_tips = $node->calc_min_nodes_to_tips;
- Function: Returns the minimum number of nodes from $node to tips.
+ Usage   : my $min_nodes_to_tips =
+           $node->calc_min_nodes_to_tips;
+ Function: Returns the minimum number of
+           nodes from $node to tips.
  Returns : INT
  Args    : NONE
 
 =cut
 
-sub calc_min_nodes_to_tips {
-    my $node = $_[0];
-    my ( $nodes, $minnodes );
-    foreach my $child ( @{ $node->get_terminals } ) {
-        $nodes = 0;
-        while ( $child != $node ) {
-            $nodes++;
-            $child = $child->get_parent;
+    sub calc_min_nodes_to_tips {
+        my $self = shift;
+        my @tmp = $self->_check_cache;
+        return $tmp[1] if $tmp[0];
+        my ( $nodes, $minnodes );
+        foreach my $child ( @{ $self->get_terminals } ) {
+            $nodes = 0;
+            while ( $child && $child != $self ) {
+                $nodes++;
+                $child = $child->get_parent;
+            }
+            if ( ! $minnodes || $nodes < $minnodes ) {
+                $minnodes = $nodes;
+            }
         }
-        if ( !$minnodes ) {
-            $minnodes = $nodes;
-        }
-        if ( $nodes <= $minnodes ) {
-            $minnodes = $nodes;
-        }
+        $self->_store_cache($minnodes);
+        return $minnodes;
     }
-    return $minnodes;
-}
 
 =item calc_max_path_to_tips()
 
  Type    : Calculation
  Title   : calc_max_path_to_tips
- Usage   : my $max_path_to_tips = $node->calc_max_path_to_tips;
- Function: Returns the path length from $node to the tallest tip.
+ Usage   : my $max_path_to_tips =
+           $node->calc_max_path_to_tips;
+ Function: Returns the path length from
+           $node to the tallest tip.
  Returns : FLOAT
  Args    : NONE
 
 =cut
 
-sub calc_max_path_to_tips {
-    my $node = $_[0];
-    my ( $length, $maxlength ) = ( 0, 0 );
-    foreach my $child ( @{ $node->get_terminals } ) {
-        $length = 0;
-        while ( $child != $node ) {
-            my $branch_length = $child->get_branch_length;
-            if ( defined $branch_length ) {
-                $length += $branch_length;
+    sub calc_max_path_to_tips {
+        my $self = shift;
+        my @tmp = $self->_check_cache;
+        return $tmp[1] if $tmp[0];
+        my ( $length, $maxlength ) = ( 0, 0 );
+        foreach my $child ( @{ $self->get_terminals } ) {
+            $length = 0;
+            while ( $child && $child != $self ) {
+                my $branch_length = $child->get_branch_length;
+                if ( defined $branch_length ) {
+                    $length += $branch_length;
+                }
+                $child = $child->get_parent;
             }
-            $child = $child->get_parent;
+            if ( $length > $maxlength ) {
+                $maxlength = $length ;
+            }
         }
-        if ( $length > $maxlength ) {
-            $maxlength = $length ;
-        }
+        $self->_store_cache($maxlength);
+        return $maxlength;
     }
-    return $maxlength;
-}
 
 =item calc_min_path_to_tips()
 
  Type    : Calculation
  Title   : calc_min_path_to_tips
- Usage   : my $min_path_to_tips = $node->calc_min_path_to_tips;
- Function: Returns the path length from $node to the shortest tip.
+ Usage   : my $min_path_to_tips =
+           $node->calc_min_path_to_tips;
+ Function: Returns the path length from
+           $node to the shortest tip.
  Returns : FLOAT
  Args    : NONE
 
 =cut
 
-sub calc_min_path_to_tips {
-    my $node = $_[0];
-    my ( $length, $minlength );
-    foreach my $child ( @{ $node->get_terminals } ) {
-        $length = 0;
-        while ( $child != $node ) {
-            my $branch_length = $child->get_branch_length;
-            if ( defined $branch_length ) {
-                $length += $branch_length;
+    sub calc_min_path_to_tips {
+        my $self = shift;
+        my @tmp = $self->_check_cache;
+        return $tmp[1] if $tmp[0];
+        my ( $length, $minlength );
+        foreach my $child ( @{ $self->get_terminals } ) {
+            $length = 0;
+            while ( $child && $child != $self ) {
+                my $branch_length = $child->get_branch_length;
+                if ( defined $branch_length ) {
+                    $length += $branch_length;
+                }
+                $child = $child->get_parent;
             }
-            $child = $child->get_parent;
+            if ( !$minlength ) {
+                $minlength = $length;
+            }
+            if ( $length < $minlength ) {
+                $minlength = $length ;
+            }
         }
-        if ( !$minlength ) {
-            $minlength = $length;
-        }
-        if ( $length < $minlength ) {
-            $minlength = $length ;
-        }
+        $self->_store_cache($minlength);
+        return $minlength;
     }
-    return $minlength;
-}
 
 =item calc_patristic_distance()
 
  Type    : Calculation
  Title   : calc_patristic_distance
- Usage   : my $patristic_distance = $node->calc_patristic_distance($other_node);
+ Usage   : my $patristic_distance =
+           $node->calc_patristic_distance($other_node);
  Function: Returns the patristic distance
            between $node and $other_node.
  Returns : FLOAT
@@ -1106,41 +1380,85 @@ sub calc_min_path_to_tips {
 
 =cut
 
-sub calc_patristic_distance {
-    my ( $node, $other_node ) = @_;
-    my $patristic_distance;
-    my $mrca = $node->get_mrca($other_node);
-    while ( $node != $mrca ) {
-        my $branch_length = $node->get_branch_length;
-        if ( defined $branch_length ) {
-            $patristic_distance += $branch_length;
+    sub calc_patristic_distance {
+        my ( $self, $other_node ) = @_;
+        my $patristic_distance;
+        my $mrca = $self->get_mrca($other_node);
+        while ( $self != $mrca ) {
+            my $branch_length = $self->get_branch_length;
+            if ( defined $branch_length ) {
+                $patristic_distance += $branch_length;
+            }
+            $self = $self->get_parent;
         }
-        $node = $node->get_parent;
-    }
-    while ( $other_node != $mrca ) {
-        my $branch_length = $other_node->get_branch_length;
-        if ( defined $branch_length ) {
-            $patristic_distance += $branch_length;
+        while ( $other_node != $mrca ) {
+            my $branch_length = $other_node->get_branch_length;
+            if ( defined $branch_length ) {
+                $patristic_distance += $branch_length;
+            }
+            $other_node = $other_node->get_parent;
         }
-        $other_node = $other_node->get_parent;
+        return $patristic_distance;
     }
-    return $patristic_distance;
-}
 
-=begin comment
+=item to_xml()
 
- Type    : Internal method
- Title   : _container
- Usage   : $node->_container;
- Function:
- Returns : CONSTANT
- Args    :
-
-=end comment
+ Type    : Format converter
+ Title   : to_xml
+ Usage   : my $xml = $obj->to_xml;
+ Function: Turns the invocant object into an XML string.
+ Returns : SCALAR
+ Args    : NONE
 
 =cut
 
-sub _container { _TREE_ }
+    sub to_xml {
+        my $self = shift;
+        my $class = ref $self;
+        $class =~ s/^.*:([^:]+)$/$1/g;
+        $class = lc($class);
+        my $xml = '<' . $class . ' id="' . $class . $self->get_id . '">';
+        my $generic = $self->get_generic;
+        my ( $name, $score, $desc ) = ( $self->get_name, $self->get_score, $self->get_desc );
+        $xml .= '<name>' . $name . '</name>' if $name;
+        $xml .= '<score>' . $score . '</score>' if $score;
+        $xml .= '<desc>' . $desc . '</desc>' if $desc;
+        $xml .= XMLout( $generic ) if $generic && %{ $generic };
+        $xml .= '<branchlength>' . $self->get_branch_length . '</branchlength>' if defined $self->get_branch_length;
+        $xml .= '<parent idref="' . $class . $self->get_parent->get_id . '" />' if $self->get_parent;
+        $xml .= '</' . $class . '>';
+        return $xml;
+    }
+
+=back
+
+=head2 DESTRUCTOR
+
+=over
+
+=item DESTROY()
+
+ Type    : Destructor
+ Title   : DESTROY
+ Usage   : $phylo->DESTROY
+ Function: Destroys Phylo object
+ Alias   :
+ Returns : TRUE
+ Args    : none
+ Comments: You don't really need this,
+           it is called automatically when
+           the object goes out of scope.
+
+=cut
+
+    sub DESTROY {
+        my $self = shift;
+        foreach( keys %{ $fields } ) {
+            delete $fields->{$_}->[$$self];
+        }
+        $self->SUPER::DESTROY;
+        return 1;
+    }
 
 =begin comment
 
@@ -1155,7 +1473,70 @@ sub _container { _TREE_ }
 
 =cut
 
-sub _type { _NODE_ }
+    sub _type { _NODE_ }
+
+=begin comment
+
+ Type    : Internal method
+ Title   : _container
+ Usage   : $node->_container;
+ Function:
+ Returns : CONSTANT
+ Args    :
+
+=end comment
+
+=cut
+
+    sub _container { _TREE_ }
+
+=back
+
+=head1 Bio::Tree::NodeI methods
+
+If Bio::Tree::NodeI is found in @INC, the Bio::Phylo::Forest::Node object
+will implement the Bio::Tree::NodeI methods. Consult the L<Bio::Tree::NodeI>
+documentation for details about the following methods.
+
+=over
+
+=item add_Descendent()
+
+=item add_tag_value()
+
+=item ancestor()
+
+=item branch_length()
+
+=item descendent_count()
+
+=item description()
+
+=item each_Descendent()
+
+=item get_all_Descendents()
+
+=item get_all_tags()
+
+=item get_tag_values()
+
+=item has_tag()
+
+=item height()
+
+=item id()
+
+=item internal_id()
+
+=item invalidate_height()
+
+=item is_Leaf()
+
+=item remove_all_tags()
+
+=item remove_tag()
+
+=item to_string()
 
 =back
 
@@ -1166,7 +1547,12 @@ sub _type { _NODE_ }
 =item L<Bio::Phylo>
 
 This object inherits from L<Bio::Phylo>, so the methods defined
-therein are also applicable to L<Bio::Phylo::Node> objects.
+therein are also applicable to L<Bio::Phylo::Forest::Node> objects.
+
+=item L<Bio::Tree::NodeI>
+
+If you have BioPerl installed, the L<Bio::Phylo::Forest::Node> will
+implement the NodeI interface.
 
 =item L<Bio::Phylo::Manual>
 
@@ -1190,7 +1576,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Node.pm,v 1.10 2005/09/29 20:31:17 rvosa Exp $
+$Id: Node.pm,v 1.21 2006/04/12 22:38:22 rvosa Exp $
 
 =head1 AUTHOR
 
@@ -1218,5 +1604,7 @@ software; you can redistribute it and/or modify it under the same terms as Perl
 itself.
 
 =cut
+
+}
 
 1;

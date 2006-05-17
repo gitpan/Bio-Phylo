@@ -1,21 +1,36 @@
-# $Id: Sequence.pm,v 1.9 2005/09/29 20:31:18 rvosa Exp $
+# $Id: Sequence.pm,v 1.14 2006/03/14 12:01:57 rvosa Exp $
 # Subversion: $Rev: 177 $
 package Bio::Phylo::Matrices::Sequence;
 use strict;
-use warnings;
 use Bio::Phylo::Forest::Node;
-use base 'Bio::Phylo';
-use Bio::Phylo::CONSTANT qw(_ALIGNMENT_ _SEQUENCE_ _TAXON_);
-use Scalar::Util qw(looks_like_number);
-use fields qw(TAXON TYPE SEQ);
+use Bio::Phylo::Util::IDPool;
+use Scalar::Util qw(looks_like_number weaken);
+use Bio::Phylo::Util::CONSTANT qw(_ALIGNMENT_ _SEQUENCE_ _TAXON_);
 
 # One line so MakeMaker sees it.
 use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
+
+# classic @ISA manipulation, not using 'base'
+use vars qw($VERSION @ISA);
+@ISA = qw(Bio::Phylo);
 
 # List of allowed symbols. Move these to Bio::Phylo::CONSTANT, and turn
 # into a hash, with translation table, nucleotide complements
 my @IUPAC_NUC  = qw(A B C D G H K M N R S T U V W X Y . - ?);
 my @IUPAC_PROT = qw(A B C D E F G H I K L M N P Q R S T U V W X Y Z . - ?);
+
+{
+    # inside out class arrays
+    my @taxon;
+    my @type;
+    my @seq;
+    
+    # $fields hashref necessary for object destruction
+    my $fields = {
+        '-taxon'   => \@taxon,
+        '-type'    => \@type,
+        '-seq'     => \@seq,
+    };
 
 =head1 NAME
 
@@ -33,7 +48,11 @@ Bio::Phylo::Matrices::Sequence - The molecular sequence object.
  $sequence->set_seq('ACGCATCGACTCAGAC');
  
  #...and linking it to a taxon object
- $sequence->set_taxon(Bio::Phylo::Taxa::Taxon->new( -name => 'Homo_sapiens' ));
+ $sequence->set_taxon(
+     Bio::Phylo::Taxa::Taxon->new( 
+         -name => 'Homo_sapiens' 
+     )
+ );
  
  #instantiate an alignment object...
  my $alignment = Bio::Phylo::Matrices::Alignment->new;
@@ -56,37 +75,48 @@ with a taxon object, and inserted in an alignment object.
 
  Type    : Constructor
  Title   : new
- Usage   : my $sequence = Bio::Phylo::Matrices::Sequence->new;
- Function: Instantiates a Bio::Phylo::Matrices::Sequence object.
+ Usage   : my $sequence = 
+           Bio::Phylo::Matrices::Sequence->new;
+ Function: Instantiates a 
+           Bio::Phylo::Matrices::Sequence object.
  Returns : A Bio::Phylo::Matrices::Sequence object.
  Args    : Optional arguments:
            -type  => 'DNA', (a string)
            -seq   => 'ACGCATCGACTACGCAG', (a string)
-           -taxon => $taxon (a Bio::Phylo::Taxa::Taxon object)
+           -taxon => $taxon (a Bio::Phylo::Taxa::Taxon 
+                     object)
 
 =cut
 
-sub new {
-    my $class = shift;
-    my $self  = fields::new($class);
-    $self->SUPER::new(@_);
-    if (@_) {
-        my %opts;
-        eval { %opts = @_; };
-        if ($@) {
-            Bio::Phylo::Exceptions::OddHash->throw( error => $@ );
-        }
-        while ( my ( $key, $value ) = each %opts ) {
-            my $localkey = uc substr $key, 1;
-            eval { $self->{$localkey} = $value; };
-            if ($@) {
-                Bio::Phylo::Exceptions::BadArgs->throw(
-                    error => "invalid field specified: $key ($localkey)" );
+    sub new {
+        my $class = shift;
+        my $self  = Bio::Phylo::Matrices::Sequence->SUPER::new(@_);
+        bless $self, __PACKAGE__;
+        if ( @_ ) {
+            my %opt;
+            eval { %opt = @_; };
+            if ( $@ ) {
+                Bio::Phylo::Util::Exceptions::OddHash->throw( error => $@ );
+            }
+            else {
+                while ( my ( $key, $value ) = each %opt ) {
+                    if ( $fields->{$key} ) {
+                        $fields->{$key}->[$$self] = $value;
+                        if ( ref $value && $value->can('_type') ) {
+                            my $type = $value->_type;
+                            if ( $type == _TAXON_ ) {
+                                weaken($fields->{$key}->[$$self]);
+                            }
+                        }
+                        delete $opt{$key};
+                    }
+                }
+                @_ = %opt;
             }
         }
+        return $self;
     }
-    return $self;
-}
+
 
 =back
 
@@ -105,18 +135,19 @@ sub new {
 
 =cut
 
-sub set_taxon {
-    my ( $self, $taxon ) = ( $_[0], $_[1] );
-    my $ref = ref $taxon;
-    if ( !$taxon->can('_type') || $taxon->_type != _TAXON_ ) {
-        Bio::Phylo::Exceptions::ObjectMismatch->throw(
-            error => "\"$ref\" doesn't look like a taxon" );
+    sub set_taxon {
+        my ( $self, $taxon ) = ( $_[0], $_[1] );
+        my $ref = ref $taxon;
+        if ( !$taxon->can('_type') || $taxon->_type != _TAXON_ ) {
+            Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
+                error => "\"$ref\" doesn't look like a taxon" );
+        }
+        else {
+            $taxon[$$self] = $taxon;
+            weaken($taxon[$$self]);
+        }
+        return $self;
     }
-    else {
-        $self->{'TAXON'} = $taxon;
-    }
-    return $self;
-}
 
 =item set_type()
 
@@ -125,94 +156,102 @@ sub set_taxon {
  Usage   : $sequence->set_type($type);
  Function: Assigns a sequence's type.
  Returns : Modified object.
- Args    : $type must be one of [DNA|RNA|STANDARD|PROTEIN|
-           NUCLEOTIDE|CONTINUOUS]. If DNA, RNA or NUCLEOTIDE is defined, the
-           subsequently set seq is validated against the IUPAC nucleotide one
-           letter codes. If PROTEIN is defined, the seq is validated against
-           IUPAC one letter amino acid codes. Likewise, a STANDARD seq has to
-           be a single integer [0-9], while for CONTINUOUS all of Perl's number
-           formats are allowed.
+ Args    : $type must be one of [DNA|RNA|STANDARD
+           |PROTEIN|NUCLEOTIDE|CONTINUOUS]. If DNA, 
+           RNA or NUCLEOTIDE is defined, the 
+           subsequently set seq is validated against 
+           the IUPAC nucleotide one letter codes. If 
+           PROTEIN is defined, the seq is validated 
+           against IUPAC one letter amino acid codes. 
+           Likewise, a STANDARD seq has to be a single 
+           integer [0-9], while for CONTINUOUS all of 
+           Perl's number formats are allowed.
 
 =cut
 
-sub set_type {
-    my ( $self, $type ) = ( $_[0], $_[1] );
-    if ( $type !~ m/^(DNA|RNA|STANDARD|PROTEIN|NUCLEOTIDE|CONTINUOUS)$/i ) {
-        Bio::Phylo::Exceptions::BadFormat->throw(
-            error => "\"$type\" is not a recognized data type" );
+    sub set_type {
+        my ( $self, $type ) = ( $_[0], $_[1] );
+        if ( $type !~ m/^(DNA|RNA|STANDARD|PROTEIN|NUCLEOTIDE|CONTINUOUS)$/i ) {
+            Bio::Phylo::Util::Exceptions::BadFormat->throw(
+                error => "\"$type\" is not a recognized data type" );
+        }
+        else {
+            $type[$$self] = uc $type;
+        }
+        return $self;
     }
-    else {
-        $self->{'TYPE'} = uc $type;
-    }
-    return $self;
-}
 
 =item set_seq()
 
  Type    : Mutator
  Title   : set_seq
- Usage   : $sequence->set_seq('ACGTCGGATCGATCGACACA');
- Function: Assigns a character string to the sequence object.
- Returns : The modified Bio::Phylo::Matrices::Sequence object.
+ Usage   : $sequence->set_seq('GATTACA');
+ Function: Assigns a character string 
+           to the sequence object.
+ Returns : The modified invocant.
  Args    : A character string.
- Comments: The string argument is checked against the allowed ranges for the
-           various character types: IUPAC nucleotide (for types of DNA|RNA|
-           NUCLEOTIDE), IUPAC single letter amino acid codes (for type PROTEIN),
-           integers (STANDARD) or any of perl's decimal formats (CONTINUOUS).
-           The character type must be specified first using the
-           $sequence->set_type method.
+ Comments: The string argument is checked 
+           against the allowed ranges for 
+           the various character types: IUPAC 
+           nucleotide (for types of DNA|RNA|
+           NUCLEOTIDE), IUPAC single letter 
+           amino acid codes (for type PROTEIN),
+           integers (STANDARD) or any of perl's 
+           decimal formats (CONTINUOUS). The 
+           character type must be specified first 
+           using the $sequence->set_type method.
 
 =cut
 
-sub set_seq {
-    my ( $self, $seq ) = ( $_[0], $_[1] );
-    my @seq = split //, $seq;
-    my @sites = keys %{ { map { $_ => undef } @seq } };
-    if ( my $type = $self->{'TYPE'} ) {
-        if ( $type =~ /(DNA|RNA|NUCLEOTIDE)/ ) {
-            my %IUPAC_NUC;
-            undef @IUPAC_NUC{@IUPAC_NUC};
-            foreach (@sites) {
-                if ( !exists $IUPAC_NUC{$_} ) {
-                    Bio::Phylo::Exceptions::BadString->throw(
-                        error => "\"$_\" is not a valid $type symbol" );
+    sub set_seq {
+        my ( $self, $seq ) = @_;
+        my @tmpseq = split //, $seq;
+        my @sites  = keys %{ { map { $_ => undef } @tmpseq } };
+        if ( my $type = $type[$$self] ) {
+            if ( $type =~ /(DNA|RNA|NUCLEOTIDE)/ ) {
+                my %IUPAC_NUC;
+                undef @IUPAC_NUC{@IUPAC_NUC};
+                foreach (@sites) {
+                    if ( !exists $IUPAC_NUC{$_} ) {
+                        Bio::Phylo::Util::Exceptions::BadString->throw(
+                            error => "\"$_\" is not a valid $type symbol" );
+                    }
                 }
             }
-        }
-        elsif ( $type eq 'PROTEIN' ) {
-            my %IUPAC_PROT;
-            undef @IUPAC_PROT{@IUPAC_PROT};
-            foreach (@sites) {
-                if ( !exists $IUPAC_PROT{$_} ) {
-                    Bio::Phylo::Exceptions::BadString->throw(
-                        error => "\"$_\" is not a valid $type symbol" );
+            elsif ( $type eq 'PROTEIN' ) {
+                my %IUPAC_PROT;
+                undef @IUPAC_PROT{@IUPAC_PROT};
+                foreach (@sites) {
+                    if ( !exists $IUPAC_PROT{$_} ) {
+                        Bio::Phylo::Util::Exceptions::BadString->throw(
+                            error => "\"$_\" is not a valid $type symbol" );
+                    }
                 }
             }
-        }
-        elsif ( $type eq 'STANDARD' ) {
-            foreach (@sites) {
-                if ( $_ !~ m/^(\d|\?)$/ ) {
-                    Bio::Phylo::Exceptions::BadString->throw(
-                        error => "\"$_\" is not a valid $type symbol" );
+            elsif ( $type eq 'STANDARD' ) {
+                foreach (@sites) {
+                    if ( $_ !~ m/^(\d|\?)$/ ) {
+                        Bio::Phylo::Util::Exceptions::BadString->throw(
+                            error => "\"$_\" is not a valid $type symbol" );
+                    }
                 }
             }
-        }
-        elsif ( $type eq 'CONTINUOUS' ) {
-            foreach ( split /\s+/, $seq ) {
-                if ( /^[^?]$/ || !looks_like_number $_ ) {
-                    Bio::Phylo::Exceptions::BadString->throw(
-                        error => "\"$_\" is not a valid $type symbol" );
+            elsif ( $type eq 'CONTINUOUS' ) {
+                foreach ( split /\s+/, $seq ) {
+                    if ( /^[^?]$/ || ! looks_like_number $_ ) {
+                        Bio::Phylo::Util::Exceptions::BadString->throw(
+                            error => "\"$_\" is not a valid $type symbol" );
+                    }
                 }
             }
+            $seq[$$self] = $seq;
         }
-        $self->{'SEQ'} = $seq;
+        else {
+            Bio::Phylo::Util::Exceptions::BadFormat->throw(
+                error => 'please define the data type first' );
+        }
+        return $self;
     }
-    else {
-        Bio::Phylo::Exceptions::BadFormat->throw(
-            error => 'please define the data type first' );
-    }
-    return $self;
-}
 
 =back
 
@@ -231,9 +270,10 @@ sub set_seq {
 
 =cut
 
-sub get_taxon {
-    return $_[0]->{'TAXON'};
-}
+    sub get_taxon {
+        my $self = shift;
+        return $taxon[$$self];
+    }
 
 =item get_type()
 
@@ -241,29 +281,63 @@ sub get_taxon {
  Title   : get_type
  Usage   : my $type = $sequence->get_type;
  Function: Retrieves a sequence's type.
- Returns : One of [DNA|RNA|STANDARD|PROTEIN|NUCLEOTIDE|CONTINUOUS]
+ Returns : One of [DNA|RNA|STANDARD|PROTEIN|
+           NUCLEOTIDE|CONTINUOUS]
  Args    : NONE
 
 =cut
 
-sub get_type {
-    return $_[0]->{'TYPE'};
-}
+    sub get_type { 
+        my $self = shift;
+        return $type[$$self];
+    }
 
 =item get_seq()
 
  Type    : Accessor
  Title   : get_seq
  Usage   : my $string = $sequence->get_char;
- Function: Retrieves a sequence object's raw character string;
+ Function: Retrieves a sequence object's raw 
+           character string;
  Returns : A character string.
  Args    : NONE
 
 =cut
 
-sub get_seq {
-    return $_[0]->{'SEQ'};
-}
+    sub get_seq {
+        my $self = shift;
+        return $seq[$$self];
+    }
+
+=back
+
+=head2 DESTRUCTOR
+
+=over
+
+=item DESTROY()
+
+ Type    : Destructor
+ Title   : DESTROY
+ Usage   : $phylo->DESTROY
+ Function: Destroys Phylo object
+ Alias   :
+ Returns : TRUE
+ Args    : none
+ Comments: You don't really need this, 
+           it is called automatically when
+           the object goes out of scope.
+
+=cut
+
+    sub DESTROY {
+        my $self = shift;
+        foreach( keys %{ $fields } ) {
+            delete $fields->{$_}->[$$self];
+        }
+        $self->SUPER::DESTROY;        
+        return 1;
+    }
 
 =begin comment
 
@@ -278,7 +352,7 @@ sub get_seq {
 
 =cut
 
-sub _container { _ALIGNMENT_ }
+    sub _container { _ALIGNMENT_ }
 
 =begin comment
 
@@ -293,7 +367,7 @@ sub _container { _ALIGNMENT_ }
 
 =cut
 
-sub _type { _SEQUENCE_ }
+    sub _type { _SEQUENCE_ }
 
 =back
 
@@ -328,7 +402,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Sequence.pm,v 1.9 2005/09/29 20:31:18 rvosa Exp $
+$Id: Sequence.pm,v 1.14 2006/03/14 12:01:57 rvosa Exp $
 
 =head1 AUTHOR
 
@@ -356,5 +430,7 @@ software; you can redistribute it and/or modify it under the same terms as Perl
 itself.
 
 =cut
+
+}
 
 1;

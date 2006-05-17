@@ -1,4 +1,4 @@
-# $Id: 05-trees.t,v 1.9 2005/09/27 12:00:33 rvosa Exp $
+# $Id: 05-trees.t,v 1.11 2006/03/14 02:26:04 rvosa Exp $
 use strict;
 use warnings;
 use Test::More tests => 13;
@@ -57,8 +57,8 @@ ok( $trees->get_by_value(
 );
 
 eval { $trees->insert('BAD!') };
-ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Exceptions::ObjectMismatch' ) );
-ok( ! $trees->_container );
+ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Util::Exceptions::ObjectMismatch' ) );
+ok( $trees->_container );
 ok( $trees->_type );
 
 __DATA__

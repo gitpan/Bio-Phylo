@@ -1,16 +1,32 @@
-# $Id: Generator.pm,v 1.18 2005/09/29 20:31:17 rvosa Exp $
-# Subversion: $Rev: 184 $
+# $Id: Generator.pm,v 1.21 2006/03/14 12:01:56 rvosa Exp $
 package Bio::Phylo::Generator;
 use strict;
-use warnings;
+use Bio::Phylo;
+use Bio::Phylo::Util::IDPool;
 use Bio::Phylo::Forest;
 use Bio::Phylo::Forest::Tree;
 use Bio::Phylo::Forest::Node;
 use Math::Random qw(random_exponential);
-use base 'Bio::Phylo';
 
 # One line so MakeMaker sees it.
 use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
+
+# classic @ISA manipulation, not using 'base'
+use vars qw($VERSION @ISA);
+@ISA = qw(Bio::Phylo);
+
+{
+    # inside out class arrays
+    my @name;
+    my @generic;
+    my @cache;
+
+    # $fields hashref necessary for object destruction
+    my $fields = {
+        '-name'     => \@name,
+        '-generic'  => \@generic,
+        '-cache'    => \@cache,
+    };
 
 =head1 NAME
 
@@ -20,8 +36,13 @@ Bio::Phylo::Generator - Generates random trees.
 
  use Bio::Phylo::Generator;
  my $gen = Bio::Phylo::Generator->new;
- my $trees = $gen->gen_rand_pure_birth( -tips => 10, -model => 'yule' );
- print ref $trees; # prints 'Bio::Phylo::Forest'
+ my $trees = $gen->gen_rand_pure_birth( 
+     '-tips'  => 10, 
+     '-model' => 'yule',
+ );
+ 
+ # prints 'Bio::Phylo::Forest'
+ print ref $trees;
 
 =head1 DESCRIPTION
 
@@ -46,9 +67,25 @@ equiprobable model.
 =cut
 
 sub new {
-    my $class = $_[0];
-    my $self  = {};
-    bless $self, $class;
+    my ( $class, $self ) = shift;
+    $self = Bio::Phylo::Generator->SUPER::new(@_);
+    bless $self, __PACKAGE__;
+    if ( @_ ) {
+        my %opt;
+        eval { %opt = @_; };
+        if ( $@ ) {
+            Bio::Phylo::Util::Exceptions::OddHash->throw( error => $@ );
+        }
+        else {
+            while ( my ( $key, $value ) = each %opt ) {
+                if ( $fields->{$key} ) {
+                    $fields->{$key}->[$$self] = $value;
+                    delete $opt{$key};
+                }
+            }
+            @_ = %opt;
+        }
+    }
     return $self;
 }
 
@@ -60,13 +97,19 @@ sub new {
 
 =item gen_rand_pure_birth()
 
-This method generates a Bio::Phylo::Forest object populated with Yule/Hey trees.
+This method generates a Bio::Phylo::Forest 
+object populated with Yule/Hey trees.
 
  Type    : Generator
  Title   : gen_rand_pure_birth
- Usage   : my $trees = $gen->gen_rand_pure_birth(-tips => 10, -model => 'yule');
- Function: Generates markov tree shapes, with branch lengths sampled from
-           a user defined model of clade growth, for a user defined
+ Usage   : my $trees = $gen->gen_rand_pure_birth(
+               '-tips'  => 10, 
+               '-model' => 'yule',
+           );
+ Function: Generates markov tree shapes, 
+           with branch lengths sampled 
+           from a user defined model of 
+           clade growth, for a user defined
            number of tips.
  Returns : A Bio::Phylo::Forest object.
  Args    : -tips  => number of terminal nodes,
@@ -86,7 +129,7 @@ sub gen_rand_pure_birth {
         $hey = 1;
     }
     else {
-        Bio::Phylo::Exceptions::BadFormat->throw(
+        Bio::Phylo::Util::Exceptions::BadFormat->throw(
             error => "model \"$options{'-model'}\" not implemented"
         );
     }
@@ -207,16 +250,22 @@ sub gen_rand_pure_birth {
 
 =item gen_exp_pure_birth()
 
-This method generates a Bio::Phylo::Forest object populated with Yule/Hey trees
-whose branch lengths are proportional to the expected waiting times (i.e. not
-sampled from a distribution).
+This method generates a Bio::Phylo::Forest object 
+populated with Yule/Hey trees whose branch lengths 
+are proportional to the expected waiting times (i.e. 
+not sampled from a distribution).
 
  Type    : Generator
  Title   : gen_exp_pure_birth
- Usage   : my $trees = $gen->gen_exp_pure_birth(-tips => 10, -model => 'yule');
- Function: Generates markov tree shapes, with branch lengths following the
-           expectation under a user defined model of clade growth, for a
-           user defined number of tips.
+ Usage   : my $trees = $gen->gen_exp_pure_birth(
+               '-tips'  => 10, 
+               '-model' => 'yule',
+           );
+ Function: Generates markov tree shapes, 
+           with branch lengths following 
+           the expectation under a user 
+           defined model of clade growth, 
+           for a user defined number of tips.
  Returns : A Bio::Phylo::Forest object.
  Args    : -tips  => number of terminal nodes,
            -model => either 'yule' or 'hey'
@@ -235,7 +284,7 @@ sub gen_exp_pure_birth {
         $hey = 1;
     }
     else {
-        Bio::Phylo::Exceptions::BadFormat->throw(
+        Bio::Phylo::Util::Exceptions::BadFormat->throw(
             error => "model \"$options{'-model'}\" not implemented"
         );
     }
@@ -356,13 +405,17 @@ sub gen_exp_pure_birth {
 
 =item gen_equiprobable()
 
-This method draws tree shapes at random, such that all shapes are equally
-probable.
+This method draws tree shapes at random, 
+such that all shapes are equally probable.
 
  Type    : Generator
  Title   : gen_equiprobable
- Usage   : my $trees = $gen->gen_equiprobable( -tips => 10, -trees => 5 );
- Function: Generates an equiprobable tree shape, with branch lengths = 1;
+ Usage   : my $trees = $gen->gen_equiprobable( 
+               '-tips'  => 10, 
+               '-trees' => 5,
+           );
+ Function: Generates an equiprobable tree 
+           shape, with branch lengths = 1;
  Returns : A Bio::Phylo::Forest object.
  Args    : -tips  => number of terminal nodes,
            -trees => number of trees to generate
@@ -372,48 +425,64 @@ probable.
 sub gen_equiprobable {
     my $random  = shift;
     my %options = @_;
-    my $trees   = new Bio::Phylo::Forest;
+    my $forest  = Bio::Phylo::Forest->new( '-name' => 'Equiprobable' );
     for ( 0 .. $options{'-trees'} ) {
-        my $tree = new Bio::Phylo::Forest::Tree;
+        my $tree = Bio::Phylo::Forest::Tree->new( '-name' => 'Tree' . $_ );
         for my $i ( 1 .. ( $options{'-tips'} + ( $options{'-tips'} - 1 ) ) ) {
-            my $node = new Bio::Phylo::Forest::Node;
-            $node->set_name("Node$i");
-            $node->set_branch_length(1);
+            my $node = Bio::Phylo::Forest::Node->new(
+                '-name'          => 'Node' . $i,
+                '-branch_length' => 1,
+            );
             $tree->insert($node);
         }
-        my $nodes = $tree->get_entities;
-        for my $i ( 1 .. $#{$nodes} ) {
-            my $node   = $nodes->[$i];
-            my $orphan = 1;
-            while ($orphan) {
-                my $parent =
-                  $nodes->[ int rand ( $options{'-tips'} - 1 ) ];
-                unless ( $parent == $node ) {
-                    if (   !$parent->get_parent
-                        || !$node->is_ancestor_of($parent) )
-                    {
-                        my $children = 0;
-                        for my $j ( 1 .. ( $i - 1 ) ) {
-                            if ( $nodes->[$j]->get_parent == $parent ) {
-                                $children++;
-                            }
-                        }
-                        if ( $children < 2 ) {
-                            $node->set_parent($parent);
-                            $orphan = 0;
-                        }
+        my $nodes   = $tree->get_entities;                        
+        my $parents = $nodes;
+        for my $node ( @{ $nodes } ) {
+          CHOOSEPARENT: while (1) {
+                last CHOOSEPARENT if ! @{ $parents };
+                my $j = int( rand( $#{ $parents } + 1 ) );
+                my $parent = $parents->[$j];
+                if ( $parent != $node && ! $node->is_ancestor_of($parent) ) {
+                    if ( ! $parent->get_first_daughter ) {
+                        $parent->set_first_daughter($node->set_parent($parent));
+                        last CHOOSEPARENT;
                     }
-                    else {
-                        next;
+                    elsif ( ! $parent->get_last_daughter ) {
+                        $parent->set_last_daughter($node->set_parent($parent));
+                        my $fd = $parent->get_first_daughter;
+                        $fd->set_next_sister($node->set_previous_sister($fd));
+                        splice( @{ $parents }, $j, 1 );
+                        last CHOOSEPARENT;                        
                     }
                 }
             }
         }
-        $tree->_analyze;
-        $trees->insert($tree);
+        $forest->insert($tree);
     }
-    return $trees;
+    return $forest;
 }
+
+=begin comment
+
+ Type    : Internal method
+ Title   : DESTROY
+ Usage   : $node->DESTROY;
+ Function: Sends object ID back to pool
+ Returns : CONSTANT
+ Args    :
+
+=end comment
+
+=cut
+
+    sub DESTROY {
+        my $self = shift;
+        Bio::Phylo::Util::IDPool->_reclaim($self);
+        foreach( keys %{ $fields } ) {
+            delete $fields->{$_}->[$$self];
+        }
+        return 1;
+    }
 
 =back
 
@@ -443,7 +512,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Generator.pm,v 1.18 2005/09/29 20:31:17 rvosa Exp $
+$Id: Generator.pm,v 1.21 2006/03/14 12:01:56 rvosa Exp $
 
 =head1 AUTHOR
 
@@ -471,5 +540,7 @@ software; you can redistribute it and/or modify it under the same terms as Perl
 itself.
 
 =cut
+
+}
 
 1;

@@ -1,28 +1,13 @@
-# $Id: Treedrawer.pm,v 1.4 2005/09/29 20:31:17 rvosa Exp $
+# $Id: Treedrawer.pm,v 1.8 2006/04/12 22:38:22 rvosa Exp $
 # Subversion: $Rev: 192 $
 package Bio::Phylo::Treedrawer;
 use strict;
 use warnings;
 use Bio::Phylo::Forest::Tree;
 use Bio::Phylo::Forest::Node;
-use Bio::Phylo::CONSTANT qw(_TREE_);
+use Bio::Phylo::Util::CONSTANT qw(_TREE_);
 use Scalar::Util qw(looks_like_number);
-use fields qw(
-    WIDTH
-    HEIGHT
-    MODE
-    SHAPE
-    PADDING
-    NODE_RADIUS
-    TEXT_HORIZ_OFFSET
-    TEXT_VERT_OFFSET
-    TEXT_WIDTH
-    TREE
-    _SCALEX
-    _SCALEY
-    SCALE
-    FORMAT
-);
+use fields qw(WIDTH HEIGHT MODE SHAPE PADDING NODE_RADIUS TEXT_HORIZ_OFFSET TEXT_VERT_OFFSET TEXT_WIDTH TREE _SCALEX _SCALEY SCALE FORMAT);
 
 # hashref of available tree drawer modules
 my $drawers = { 'SVG' => 1 };
@@ -42,8 +27,8 @@ Bio::Phylo::Treedrawer - An object-oriented facade for drawing trees.
  my $treedrawer = Bio::Phylo::Treedrawer->new(
     -width  => 400,
     -height => 600,
-    -shape  => 'CURVY',
-    -mode   => 'CLADO',
+    -shape  => 'CURVY', # curvogram
+    -mode   => 'CLADO', # cladogram
     -format => 'SVG'
  );
  
@@ -72,7 +57,9 @@ nodes) and calls the appropriate format-specific drawer.
 
  Type    : Constructor
  Title   : new
- Usage   : my $treedrawer = Bio::Phylo::Treedrawer->new(%args);
+ Usage   : my $treedrawer = Bio::Phylo::Treedrawer->new(
+               %args 
+           );
  Function: Initializes a Bio::Phylo::Treedrawer object.
  Alias   :
  Returns : A Bio::Phylo::Treedrawer object.
@@ -128,7 +115,8 @@ sub new {
  Usage   : $treedrawer->set_format('svg');
  Function: Sets the drawer submodule.
  Returns :
- Args    : Name of an image format (currently only svg supported)
+ Args    : Name of an image format (currently 
+           only svg supported)
 
 =cut
 
@@ -138,7 +126,7 @@ sub set_format {
         $self->{'FORMAT'} = uc($_[0]);
     }
     else {
-        Bio::Phylo::Exceptions::BadFormat->throw(
+        Bio::Phylo::Util::Exceptions::BadFormat->throw(
             error => "\"$_[0]\" is not a valid image format"
         );
     }
@@ -162,7 +150,7 @@ sub set_width {
         $self->{'WIDTH'} = $_[0];
     }
     else {
-        Bio::Phylo::Exceptions::BadNumber->throw(
+        Bio::Phylo::Util::Exceptions::BadNumber->throw(
             error => "\"$_[0]\" is not a valid number value"
         );
     }
@@ -186,7 +174,7 @@ sub set_height {
         $self->{'HEIGHT'} = $_[0];
     }
     else {
-        Bio::Phylo::Exceptions::BadNumber->throw(
+        Bio::Phylo::Util::Exceptions::BadNumber->throw(
             error => "\"$_[0]\" is not a valid number value"
         );
     }
@@ -198,8 +186,9 @@ sub set_height {
  Type    : Mutator
  Title   : set_mode
  Usage   : $treedrawer->set_mode('clado');
- Function: Sets the tree mode, i.e. cladogram or phylogram.
- Returns :
+ Function: Sets the tree mode, i.e. cladogram 
+           or phylogram.
+ Returns : Invocant.
  Args    : String, [clado|phylo]
 
 =cut
@@ -210,7 +199,7 @@ sub set_mode {
         $self->{'MODE'} = uc $_[0];
     }
     else {
-        Bio::Phylo::Exceptions::BadFormat->throw(
+        Bio::Phylo::Util::Exceptions::BadFormat->throw(
             error => "\"$_[0]\" is not a valid drawing mode"
         );
     }
@@ -222,8 +211,9 @@ sub set_mode {
  Type    : Mutator
  Title   : set_shape
  Usage   : $treedrawer->set_shape('rect');
- Function: Sets the tree shape, i.e. rectangular, diagonal or curvy.
- Returns :
+ Function: Sets the tree shape, i.e. 
+           rectangular, diagonal or curvy.
+ Returns : Invocant.
  Args    : String, [rect|diag|curvy]
 
 =cut
@@ -234,7 +224,7 @@ sub set_shape {
         $self->{'SHAPE'} = uc $_[0];
     }
     else {
-        Bio::Phylo::Exceptions::BadFormat->throw(
+        Bio::Phylo::Util::Exceptions::BadFormat->throw(
             error => "\"$_[0]\" is not a valid drawing shape"
         );
     }
@@ -258,7 +248,7 @@ sub set_padding {
         $self->{'PADDING'} = $_[0];
     }
     else {
-        Bio::Phylo::Exceptions::BadNumber->throw(
+        Bio::Phylo::Util::Exceptions::BadNumber->throw(
             error => "\"$_[0]\" is not a valid number value"
         );
     }
@@ -282,7 +272,7 @@ sub set_node_radius {
         $self->{'NODE_RADIUS'} = $_[0];
     }
     else {
-        Bio::Phylo::Exceptions::BadNumber->throw(
+        Bio::Phylo::Util::Exceptions::BadNumber->throw(
             error => "\"$_[0]\" is not a valid number value"
         );
     }
@@ -294,7 +284,8 @@ sub set_node_radius {
  Type    : Mutator
  Title   : set_text_horiz_offset
  Usage   : $treedrawer->set_text_horiz_offset(5);
- Function: Sets the distance between tips and text, in pixels.
+ Function: Sets the distance between 
+           tips and text, in pixels.
  Returns :
  Args    : Integer value in pixels.
 
@@ -306,7 +297,7 @@ sub set_text_horiz_offset {
         $self->{'TEXT_HORIZ_OFFSET'} = $_[0];
     }
     else {
-        Bio::Phylo::Exceptions::BadNumber->throw(
+        Bio::Phylo::Util::Exceptions::BadNumber->throw(
             error => "\"$_[0]\" is not a valid number value"
         );
     }
@@ -318,7 +309,8 @@ sub set_text_horiz_offset {
  Type    : Mutator
  Title   : set_text_vert_offset
  Usage   : $treedrawer->set_text_vert_offset(3);
- Function: Sets the text baseline relative to the tips, in pixels.
+ Function: Sets the text baseline 
+           relative to the tips, in pixels.
  Returns :
  Args    : Integer value in pixels.
 
@@ -330,7 +322,7 @@ sub set_text_vert_offset {
         $self->{'TEXT_VERT_OFFSET'} = $_[0];
     }
     else {
-        Bio::Phylo::Exceptions::BadNumber->throw(
+        Bio::Phylo::Util::Exceptions::BadNumber->throw(
             error => "\"$_[0]\" is not a valid number value"
         );
     }
@@ -342,7 +334,8 @@ sub set_text_vert_offset {
  Type    : Mutator
  Title   : set_text_width
  Usage   : $treedrawer->set_text_width(150);
- Function: Sets the canvas width for terminal taxon names.
+ Function: Sets the canvas width for 
+           terminal taxon names.
  Returns :
  Args    : Integer value in pixels.
 
@@ -354,7 +347,7 @@ sub set_text_width {
         $self->{'TEXT_WIDTH'} = $_[0];
     }
     else {
-        Bio::Phylo::Exceptions::BadNumber->throw(
+        Bio::Phylo::Util::Exceptions::BadNumber->throw(
             error => "\"$_[0]\" is not a valid number value"
         );
     }
@@ -366,7 +359,8 @@ sub set_text_width {
  Type    : Mutator
  Title   : set_tree
  Usage   : $treedrawer->set_tree($tree);
- Function: Sets the Bio::Phylo::Forest::Tree object to unparse.
+ Function: Sets the Bio::Phylo::Forest::Tree 
+           object to unparse.
  Returns :
  Args    : A Bio::Phylo::Forest::Tree object.
 
@@ -378,7 +372,7 @@ sub set_tree {
         $self->{'TREE'} = $_[0]->clone->negative_to_zero;
     }
     else {
-        Bio::Phylo::Exceptions::ObjectMismatch->throw(
+        Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
             error => "\"$_[0]\" is not a valid tree"
         );
     }
@@ -390,15 +384,16 @@ sub set_tree {
  Type    : Mutator
  Title   : set_scale_options
  Usage   : $treedrawer->set_scale_options(
-                -width          => 400,
-                -major_interval => '10%',
-                -minor_interval => '2%',
-                -label          => 'MYA',
+                -width => 400,
+                -major => '10%', # major cross hatch interval
+                -minor => '2%',  # minor cross hatch interval
+                -label => 'MYA',
             );
  Function: Sets the options for time (distance) scale
  Returns :
- Args    : -width => (if a number, like 100, pixel width is assumed, if
-                      a percentage, scale width relative to longest root
+ Args    : -width => (if a number, like 100, pixel 
+                      width is assumed, if a percentage, 
+                      scale width relative to longest root
                       to tip path)
            -major => ( ditto, value for major tick marks )
            -minor => ( ditto, value for minor tick marks )
@@ -414,7 +409,7 @@ sub set_scale_options {
             $self->{'SCALE'}->{'-width'} = $o{'-width'};
         }
         else {
-            Bio::Phylo::Exceptions::BadArgs->throw(
+            Bio::Phylo::Util::Exceptions::BadArgs->throw(
                 error => "\"$o{'-width'}\" is invalid for '-width'"
             );
         }
@@ -422,7 +417,7 @@ sub set_scale_options {
             $self->{'SCALE'}->{'-major'} = $o{'-major'};
         }
         else {
-            Bio::Phylo::Exceptions::BadArgs->throw(
+            Bio::Phylo::Util::Exceptions::BadArgs->throw(
                 error => "\"$o{'-major'}\" is invalid for '-major'"
             );
         }
@@ -430,14 +425,14 @@ sub set_scale_options {
             $self->{'SCALE'}->{'-minor'} = $o{'-minor'};
         }
         else {
-            Bio::Phylo::Exceptions::BadArgs->throw(
+            Bio::Phylo::Util::Exceptions::BadArgs->throw(
                 error => "\"$o{'-minor'}\" is invalid for '-minor'"
             );
         }
         $self->{'SCALE'}->{'-label'} = $o{'-label'};
     }
     else {
-        Bio::Phylo::Exceptions::OddHash->throw(
+        Bio::Phylo::Util::Exceptions::OddHash->throw(
             error => 'Odd number of elements in hash assignment'
         );
     }
@@ -515,7 +510,8 @@ sub get_mode {
  Type    : Accessor
  Title   : get_shape
  Usage   : my $shape = $treedrawer->get_shape;
- Function: Gets the tree shape, i.e. rectangular, diagonal or curvy.
+ Function: Gets the tree shape, i.e. rectangular, 
+           diagonal or curvy.
  Returns :
  Args    : None.
 
@@ -546,7 +542,7 @@ sub get_padding {
  Title   : get_node_radius
  Usage   : my $node_radius = $treedrawer->get_node_radius;
  Function: Gets the node radius in pixels.
- Returns :
+ Returns : SCALAR
  Args    : None.
 
 =cut
@@ -559,9 +555,11 @@ sub get_node_radius {
 
  Type    : Accessor
  Title   : get_text_horiz_offset
- Usage   : my $text_horiz_offset = $treedrawer->get_text_horiz_offset;
- Function: Gets the distance between tips and text, in pixels.
- Returns :
+ Usage   : my $text_horiz_offset = 
+           $treedrawer->get_text_horiz_offset;
+ Function: Gets the distance between 
+           tips and text, in pixels.
+ Returns : SCALAR
  Args    : None.
 
 =cut
@@ -574,8 +572,10 @@ sub get_text_horiz_offset {
 
  Type    : Accessor
  Title   : get_text_vert_offset
- Usage   : my $text_vert_offset = $treedrawer->get_text_vert_offset;
- Function: Gets the text baseline relative to the tips, in pixels.
+ Usage   : my $text_vert_offset = 
+           $treedrawer->get_text_vert_offset;
+ Function: Gets the text baseline relative 
+           to the tips, in pixels.
  Returns :
  Args    : None.
 
@@ -589,8 +589,10 @@ sub get_text_vert_offset {
 
  Type    : Accessor
  Title   : get_text_width
- Usage   : my $textwidth = $treedrawer->get_text_width;
- Function: Returns the canvas width for terminal taxon names.
+ Usage   : my $textwidth = 
+           $treedrawer->get_text_width;
+ Function: Returns the canvas width 
+           for terminal taxon names.
  Returns :
  Args    : None.
 
@@ -605,7 +607,8 @@ sub get_text_width {
  Type    : Accessor
  Title   : get_tree
  Usage   : my $tree = $treedrawer->get_tree;
- Function: Returns the Bio::Phylo::Forest::Tree object to unparse.
+ Function: Returns the Bio::Phylo::Forest::Tree 
+           object to unparse.
  Returns : A Bio::Phylo::Forest::Tree object.
  Args    : None.
 
@@ -619,8 +622,11 @@ sub get_tree {
 
  Type    : Accessor
  Title   : get_scale_options
- Usage   : my %options = %{ $treedrawer->get_scale_options };
- Function: Returns the time/distance scale options.
+ Usage   : my %options = %{ 
+               $treedrawer->get_scale_options  
+           };
+ Function: Returns the time/distance 
+           scale options.
  Returns : A hash ref.
  Args    : None.
 
@@ -649,7 +655,7 @@ sub _set_scalex {
         $self->{'_SCALEX'} = $_[0];
     }
     else {
-        Bio::Phylo::Exceptions::BadNumber->throw(
+        Bio::Phylo::Util::Exceptions::BadNumber->throw(
             error => "\"$_[0]\" is not a valid number value"
         );
     }
@@ -679,7 +685,7 @@ sub _set_scaley {
         $self->{'_SCALEY'} = $_[0];
     }
     else {
-        Bio::Phylo::Exceptions::BadNumber->throw(
+        Bio::Phylo::Util::Exceptions::BadNumber->throw(
             error => "\"$_[0]\" is not a valid integer value"
         );
     }
@@ -701,7 +707,8 @@ sub _get_scaley {
  Type    : Unparsers
  Title   : draw
  Usage   : my $drawing = $treedrawer->draw;
- Function: Unparses a Bio::Phylo::Forest::Tree object into a drawing.
+ Function: Unparses a Bio::Phylo::Forest::Tree 
+           object into a drawing.
  Returns : SCALAR
  Args    :
 
@@ -710,7 +717,7 @@ sub _get_scaley {
 sub draw {
     my $self = shift;
     if ( ! $self->get_tree ) {
-        Bio::Phylo::Exceptions::BadArgs->throw(
+        Bio::Phylo::Util::Exceptions::BadArgs->throw(
             error => "Can't draw an undefined tree"
         );
     }
@@ -742,7 +749,7 @@ sub draw {
     my $library = __PACKAGE__ . '::' . $self->get_format;
     eval "require $library";
     if ( $@ ) {
-        Bio::Phylo::Exceptions::BadFormat->throw(
+        Bio::Phylo::Util::Exceptions::BadFormat->throw(
             error => "Can't load image drawer: $@"
         );
     }
@@ -918,7 +925,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Treedrawer.pm,v 1.4 2005/09/29 20:31:17 rvosa Exp $
+$Id: Treedrawer.pm,v 1.8 2006/04/12 22:38:22 rvosa Exp $
 
 =head1 AUTHOR
 

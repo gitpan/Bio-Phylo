@@ -1,15 +1,28 @@
-# $Id: Taxon.pm,v 1.20 2005/09/29 20:31:18 rvosa Exp $
+# $Id: Taxon.pm,v 1.27 2006/03/14 12:01:57 rvosa Exp $
 # Subversion: $Rev: 177 $
 package Bio::Phylo::Taxa::Taxon;
 use strict;
-use warnings;
-use base 'Bio::Phylo';
-use Bio::Phylo::CONSTANT qw(_DATUM_ _NODE_ _TAXON_ _TAXA_);
-use fields qw(NODES
-              DATA);
+use Bio::Phylo::Util::IDPool;
+use Scalar::Util qw(weaken blessed);
+use Bio::Phylo::Util::CONSTANT qw(_DATUM_ _NODE_ _TAXON_ _TAXA_);
 
 # One line so MakeMaker sees it.
 use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
+
+# classic @ISA manipulation, not using 'base'
+use vars qw($VERSION @ISA);
+@ISA = qw(Bio::Phylo);
+
+{
+    # inside out class arrays
+    my @nodes;
+    my @data;
+    
+    # $fields hashref necessary for object construction and destruction
+    my $fields = {
+        '-nodes'   => \@nodes,
+        '-data'    => \@data,
+    };
 
 =head1 NAME
 
@@ -17,15 +30,24 @@ Bio::Phylo::Taxa::Taxon - The operational taxonomic unit.
 
 =head1 SYNOPSIS
 
- use Bio::Phylo::IO;
+ use Bio::Phylo::IO qw(parse);
  use Bio::Phylo::Taxa;
  use Bio::Phylo::Taxa::Taxon;
  
- my @taxa = qw(Homo_sapiens Pan_paniscus Pan_troglodytes Gorilla_gorilla);
- my $str = '(((Pan_paniscus,Pan_troglodytes),Homo_sapiens),Gorilla_gorilla);';
+ # array of names
+ my @apes = qw(
+     Homo_sapiens 
+     Pan_paniscus 
+     Pan_troglodytes 
+     Gorilla_gorilla
+ );
+ 
+ # newick string
+ my $str = '(((Pan_paniscus,Pan_troglodytes),';
+ $str   .= 'Homo_sapiens),Gorilla_gorilla);';
  
  # create tree object
- my $tree = Bio::Phylo::IO->parse(
+ my $tree = parse(
     -format => 'newick',
     -string => $str
  )->first;
@@ -34,17 +56,24 @@ Bio::Phylo::Taxa::Taxon - The operational taxonomic unit.
  my $taxa = Bio::Phylo::Taxa->new;
 
  # instantiate taxon objects, insert in taxa object
- foreach( @taxa ) {
-    my $taxon = Bio::Phylo::Taxa::Taxon->new( -name => $_ );
+ foreach( @apes ) {
+    my $taxon = Bio::Phylo::Taxa::Taxon->new( 
+        -name => $_,    
+    );
     $taxa->insert($taxon);
  }
  
  # crossreference tree and taxa
  $tree->crossreference($taxa);
  
- foreach my $node ( @{ $tree->get_entities } ) {
+ # iterate over nodes
+ while ( my $node = $tree->next ) {
+    
+    # check references
     if ( $node->get_taxon ) {
-        print "match: ", $node->get_name, "\n";  #prints crossreferenced tips
+
+        # prints crossreferenced tips
+        print "match: ", $node->get_name, "\n";
     }
  }
 
@@ -64,36 +93,43 @@ cross-referencing datum objects and tree nodes.
  Type    : Constructor
  Title   : new
  Usage   : my $taxon = Bio::Phylo::Taxa::Taxon->new;
- Function: Initializes a Bio::Phylo::Taxa::Taxon object.
+ Function: Instantiates a Bio::Phylo::Taxa::Taxon 
+           object.
  Returns : A Bio::Phylo::Taxa::Taxon object.
  Args    : none.
 
 =cut
 
-sub new {
-    my $class = shift;
-    my $self = fields::new($class);
-    $self->SUPER::new(@_);
-    if (@_) {
-        my %opts;
-        eval { %opts = @_; };
-        if ($@) {
-            Bio::Phylo::Exceptions::OddHash->throw(
-                error => $@
-            );
-        }
-        while ( my ( $key, $value ) = each %opts ) {
-            my $localkey = uc substr $key, 1;
-            eval { $self->{$localkey} = $value; };
-            if ($@) {
-                Bio::Phylo::Exceptions::BadArgs->throw(
-                    error => "invalid field specified: $key ($localkey)"
-                );
+    sub new {
+        my $class = shift;
+        my $self = Bio::Phylo::Taxa::Taxon->SUPER::new(@_);
+        bless $self, __PACKAGE__;
+        if ( @_ ) {
+            my %opt;
+            eval { %opt = @_; };
+            if ( $@ ) {
+                Bio::Phylo::Util::Exceptions::OddHash->throw( error => $@ );
+            }
+            else {
+                while ( my ( $key, $value ) = each %opt ) {
+                    if ( $fields->{$key} ) {
+                        $fields->{$key}->[$$self] = $value;
+                        if ( ref $value && $value->can('_type') ) {
+                            my $type = $value->_type;
+                            if ( $type == _DATUM_ ||  $type == _NODE_ ) {
+                                weaken($fields->{$key}->[$$self]);
+                            }
+                        }
+                        delete $opt{$key};
+                    }
+                }
+                @_ = %opt;
             }
         }
+        $nodes[$$self] = {};
+        $data[$$self]  = {};
+        return $self;
     }
-    return $self;
-}
 
 =back
 
@@ -105,52 +141,114 @@ sub new {
 
  Type    : Mutator
  Title   : set_data
- Usage   : $taxon->set_data($datum);
- Function: Associates data with the current taxon.
+ Usage   : $taxon->set_data( $datum );
+ Function: Associates data with 
+           the current taxon.
  Returns : Modified object.
- Args    : Must be an object of type Bio::Phylo::Matrices::Datum
+ Args    : Must be an object of type 
+           Bio::Phylo::Matrices::Datum
 
 =cut
 
-sub set_data {
-    my $self  = $_[0];
-    my $datum = $_[1];
-    if ( $datum->can('_type') && $datum->_type == _DATUM_ ) {
-        push @{ $self->{'DATA'} }, $datum;
+    sub set_data {
+        my ( $self, $datum ) = @_;
+        if ( blessed $datum && $datum->can('_type') && $datum->_type == _DATUM_ ) {
+            if ( $datum->_get_container && $datum->_get_container->get_taxa ) {
+                if ( $datum->_get_container->get_taxa != $self->_get_container ) {
+                    Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
+                        error => "Attempt to link to taxon from wrong block"
+                    );
+                }
+                $datum->_get_container->set_taxa( $self->_get_container );
+            }
+            $data[$$self]->{$datum} = $datum;
+            weaken( $data[$$self]->{$datum} );
+        }
+        else {
+            Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
+                error => "\"$datum\" doesn't look like a datum object"
+            );
+        }
+        return $self;
     }
-    else {
-        Bio::Phylo::Exceptions::ObjectMismatch->throw(
-            error => 'sorry, data must be of type Bio::Phylo::Matrices::Datum'
-        );
-    }
-    return $self;
-}
 
 =item set_nodes()
 
  Type    : Mutator
  Title   : set_nodes
  Usage   : $taxon->set_nodes($node);
- Function: Associates tree nodes with the current taxon.
+ Function: Associates tree nodes 
+           with the current taxon.
  Returns : Modified object.
- Args    : A Bio::Phylo::Trees::Node object
+ Args    : A Bio::Phylo::Forest::Node object
 
 =cut
 
-sub set_nodes {
-    my $self = $_[0];
-    my $node = $_[1];
-    my $ref  = ref $node;
-    if ( $node->can('_type') && $node->_type == _NODE_ ) {
-        push @{ $self->{'NODES'} }, $node;
+    sub set_nodes {
+        my ( $self, $node ) = @_;
+        if ( blessed $node && $node->can('_type') && $node->_type == _NODE_ ) {
+            if ( $node->_get_container && $node->_get_container->_get_container && $node->_get_container->_get_container->get_taxa ) {
+                if ( $node->_get_container->_get_container->get_taxa != $self->_get_container ) {
+                    Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
+                        error => "Attempt to link to taxon from wrong block"
+                    );
+                }
+                $node->_get_container->_get_container->set_taxa( $self->_get_container );                
+            }
+            $nodes[$$self]->{$node} = $node;
+            weaken( $nodes[$$self]->{$node} );
+        }
+        else {
+            Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
+                error => "\"$node\" doesn't look like a node object"
+            );
+        }
+        return $self;
     }
-    else {
-        Bio::Phylo::Exceptions::ObjectMismatch->throw(
-            error => "$ref doesn't look like a node"
-        );
+    
+=item unset_datum()
+
+ Type    : Mutator
+ Title   : unset_datum
+ Usage   : $taxon->unset_datum($node);
+ Function: Disassociates datum from 
+           the invocant taxon (i.e. 
+           removes reference).
+ Returns : Modified object.
+ Args    : A Bio::Phylo::Matrix::Datum object
+
+=cut
+
+    sub unset_datum {
+        my ( $self, $datum ) = @_;
+        
+        # no need for type checking really. If it's there, it gets killed,
+        # otherwise skips silently        
+        delete $data[$$self]->{$datum};
+        return $self;
     }
-    return $self;
-}
+
+=item unset_node()
+
+ Type    : Mutator
+ Title   : unset_node
+ Usage   : $taxon->unset_node($node);
+ Function: Disassociates tree node from 
+           the invocant taxon (i.e. 
+           removes reference).
+ Returns : Modified object.
+ Args    : A Bio::Phylo::Forest::Node object
+
+=cut
+
+    sub unset_node {
+        my ( $self, $node ) = @_;
+        
+        # no need for type checking really. If it's there, it gets killed,
+        # otherwise skips silently        
+        delete $nodes[$$self]->{$node};
+        return $self;
+    }
 
 =back
 
@@ -163,30 +261,69 @@ sub set_nodes {
  Type    : Accessor
  Title   : get_data
  Usage   : @data = @{ $taxon->get_data };
- Function: Retrieves data associated with the current taxon.
- Returns : An ARRAY reference of Bio::Phylo::Matrices::Datum objects.
- Args    :
+ Function: Retrieves data associated 
+           with the current taxon.
+ Returns : An ARRAY reference of 
+           Bio::Phylo::Matrices::Datum 
+           objects.
+ Args    : None.
 
 =cut
 
-sub get_data {
-    return $_[0]->{'DATA'};
-}
+    sub get_data { 
+        my $self = shift;
+        my @tmp = values %{ $data[$$self] };
+        return \@tmp;
+    }
 
 =item get_nodes()
 
  Type    : Accessor
  Title   : get_nodes
  Usage   : @nodes = @{ $taxon->get_nodes };
- Function: Retrieves tree nodes associated with the current taxon.
- Returns : An ARRAY reference of Bio::Phylo::Trees::Node objects
- Args    :
+ Function: Retrieves tree nodes associated 
+           with the current taxon.
+ Returns : An ARRAY reference of 
+           Bio::Phylo::Trees::Node objects
+ Args    : None.
 
 =cut
 
-sub get_nodes {
-    return $_[0]->{'NODES'};
-}
+    sub get_nodes { 
+        my $self = shift;
+        my @tmp = values %{ $nodes[$$self] };
+        return \@tmp;
+    }
+
+=back
+
+=head2 DESTRUCTOR
+
+=over
+
+=item DESTROY()
+
+ Type    : Destructor
+ Title   : DESTROY
+ Usage   : $phylo->DESTROY
+ Function: Destroys Phylo object
+ Alias   :
+ Returns : TRUE
+ Args    : none
+ Comments: You don't really need this, 
+           it is called automatically when
+           the object goes out of scope.
+
+=cut
+
+    sub DESTROY {
+        my $self = shift;
+        foreach( keys %{ $fields } ) {
+            delete $fields->{$_}->[$$self];
+        }
+        $self->SUPER::DESTROY;        
+        return 1;
+    }
 
 =begin comment
 
@@ -201,7 +338,7 @@ sub get_nodes {
 
 =cut
 
-sub _container { _TAXA_ }
+    sub _container { _TAXA_ }
 
 =begin comment
 
@@ -216,7 +353,7 @@ sub _container { _TAXA_ }
 
 =cut
 
-sub _type { _TAXON_ }
+    sub _type { _TAXON_ }
 
 =back
 
@@ -226,12 +363,12 @@ sub _type { _TAXON_ }
 
 =item L<Bio::Phylo>
 
-The taxon objects inherits from the L<Bio::Phylo|Bio::Phylo> object. The methods
-defined there are also applicable to the taxon object.
+The taxon objects inherits from the L<Bio::Phylo> object. The methods defined 
+there are also applicable to the taxon object.
 
 =item L<Bio::Phylo::Manual>
 
-Also see the manual: L<Bio::Phylo::Manual|Bio::Phylo::Manual>.
+Also see the manual: L<Bio::Phylo::Manual>.
 
 =back
 
@@ -251,7 +388,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Taxon.pm,v 1.20 2005/09/29 20:31:18 rvosa Exp $
+$Id: Taxon.pm,v 1.27 2006/03/14 12:01:57 rvosa Exp $
 
 =head1 AUTHOR
 
@@ -279,5 +416,7 @@ software; you can redistribute it and/or modify it under the same terms as Perl
 itself.
 
 =cut
+
+}
 
 1;

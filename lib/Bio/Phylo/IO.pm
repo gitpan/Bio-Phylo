@@ -1,9 +1,9 @@
-# $Id: IO.pm,v 1.10 2005/09/29 20:31:17 rvosa Exp $
+# $Id: IO.pm,v 1.14 2006/04/12 22:38:22 rvosa Exp $
 # Subversion: $Rev: 170 $
 package Bio::Phylo::IO;
 use strict;
 use warnings;
-use base 'Bio::Phylo';
+use Bio::Phylo;
 my @parsers = qw(Newick Nexus Table Taxlist);
 my @unparsers = qw(Newick Pagel Svg);
 
@@ -15,7 +15,7 @@ BEGIN {
     use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
 
     # classic subroutine exporting
-    @ISA       = qw(Exporter);
+    @ISA       = qw(Exporter Bio::Phylo);
     @EXPORT_OK = qw(&parse &unparse);
 }
 
@@ -31,45 +31,77 @@ Bio::Phylo::IO - Input and output of phylogenetic data.
  # parsing a tree from a newick string
  my $tree_string = '(((A,B),C),D);';
  my $tree = Bio::Phylo::IO->parse(
-    -string => $tree_string,
-    -format => 'newick'
+    '-string' => $tree_string,
+    
+    # old parser, always adds node labels
+    '-format' => 'newick',
  )->first;
- # note: newick parser returns 'Bio::Phylo::Forest'! Call ->first to retrieve
- # the first tree of the forest.
+ 
+ # OR:
+ 
+ $tree = Bio::Phylo::IO->parse(
+     '-string' => $tree_string,
+     
+     # faster, new parser, node labels optional
+     '-format' => 'fastnewick', 
+     
+     # with node labels
+     '-label'  => 1,            
+  )->first; 
+ 
+ # note: newick parsers return 
+ # 'Bio::Phylo::Forest'! Call 
+ # ->first to retrieve the first 
+ # tree of the forest.
 
- print ref $tree, "\n"; # prints 'Bio::Phylo::Forest::Tree'
+ # prints 'Bio::Phylo::Forest::Tree'
+ print ref $tree, "\n";
 
  # parsing a table
  my $table_string = qq(A,1,2|B,1,2|C,2,2|D,2,1);
  my $matrix = Bio::Phylo::IO->parse(
-    -string   => $table_string,
-    -format   => 'table',
-    -type     => 'STANDARD',  # Data type, see Bio::Phylo::Parsers::Table
-    -fieldsep => ',',         # field separator
-    -linesep  => '|'          # line separator
+    '-string'   => $table_string,
+    '-format'   => 'table',
+    
+    # Data type, see Bio::Phylo::Parsers::Table
+    '-type'     => 'STANDARD',
+    
+    # field separator  
+    '-fieldsep' => ',',
+    
+    # line separator
+    '-linesep'  => '|'          
  );
 
- print ref $matrix, "\n"; # prints 'Bio::Phylo::Matrices::Matrix'
+ # prints 'Bio::Phylo::Matrices::Matrix'
+ print ref $matrix, "\n"; 
 
  # parsing a list of taxa
  my $taxa_string = 'A:B:C:D';
  my $taxa = Bio::Phylo::IO->parse(
-    -string   => $taxa_string,
-    -format   => 'taxlist',
-    -fieldsep => ':'
+    '-string'   => $taxa_string,
+    '-format'   => 'taxlist',
+    '-fieldsep' => ':'
  );
 
- print ref $taxa, "\n"; # prints 'Bio::Phylo::Taxa'
+ # prints 'Bio::Phylo::Taxa'
+ print ref $taxa, "\n";
 
- # unparsing to pagel format
- $tree->cross_reference($taxa);    # matches taxon names in tree to $taxa object
- $matrix->cross_reference($taxa);  # ditto for matrix
+ # matches taxon names in tree to $taxa object
+ $tree->cross_reference($taxa);  
+ 
+ # likewise for matrix  
+ $matrix->cross_reference($taxa);
 
  print Bio::Phylo::IO->unparse(
-    -phylo => $tree,     # pass the tree object, crossreferenced to taxa, which
-                         # are crossreferenced to the matrix
-    -format => 'pagel'
+    
+    # pass the tree object, 
+    # crossreferenced to taxa, which
+    # are crossreferenced to the matrix
+    '-phylo' => $tree,                         
+    '-format' => 'pagel'
  );
+
  # prints a pagel data file:
  #4 2
  #A,n1,0.000000,1,2
@@ -95,16 +127,20 @@ runtime, depending on the '-format' argument.
 
 =item parse()
 
-The parse method makes assumptions about the capabilities of
-Bio::Phylo::Parsers::* modules: i) their names match those of the
--format => (blah) arguments, insofar that ucfirst(blah) . '.pm' is
-an existing module; ii) the modules implement a _from_handle, or a _from_string
-method. Exceptions are thrown if either assumption is violated.
+The parse method makes assumptions about 
+the capabilities of Bio::Phylo::Parsers::* 
+modules: i) their names match those of the
+-format => (blah) arguments, insofar that 
+ucfirst(blah) . '.pm' is an existing module; 
+ii) the modules implement a _from_handle, 
+or a _from_string method. Exceptions are 
+thrown if either assumption is violated.
 
  Type    : Class method
  Title   : parse
  Usage   : my $obj = Bio::Phylo::IO->parse(%options);
- Function: Creates (file) handle, instantiates appropriate parser.
+ Function: Creates (file) handle, 
+           instantiates appropriate parser.
  Returns : A Bio::Phylo::* object
  Args    : -file    => (path),
             or
@@ -120,39 +156,39 @@ sub parse {
     }
     my %opts;
     if ( ! @_ || scalar @_ % 2 ) {
-        Bio::Phylo::Exceptions::OddHash->throw(
+        Bio::Phylo::Util::Exceptions::OddHash->throw(
             error => 'Odd number of elements in hash assignment'
         );
     }
     eval { %opts = @_; };
     if ( $@ ) {
-        Bio::Phylo::Exceptions::OddHash->throw( error => $@ );
+        Bio::Phylo::Util::Exceptions::OddHash->throw( error => $@ );
     }
     if ( ! $opts{'-format'} ) {
-        Bio::Phylo::Exceptions::BadArgs->throw(
+        Bio::Phylo::Util::Exceptions::BadArgs->throw(
             error => 'no format specified.'
         );
     }
     if ( ! grep ucfirst $opts{'-format'}, @parsers ) {
-        Bio::Phylo::Exceptions::BadFormat->throw(
+        Bio::Phylo::Util::Exceptions::BadFormat->throw(
             error => 'no parser available for specified format.'
         );
     }
     if ( ! $opts{'-file'} && ! $opts{'-string'} ) {
-        Bio::Phylo::Exceptions::BadArgs->throw(
+        Bio::Phylo::Util::Exceptions::BadArgs->throw(
             error => 'no parseable data source specified.'
         );
     }
     my $lib = 'Bio::Phylo::Parsers::' . ucfirst $opts{-format};
     eval "require $lib";
     if ( $@ ) {
-        Bio::Phylo::Exceptions::ExtensionError->throw( error => $@ );
+        Bio::Phylo::Util::Exceptions::ExtensionError->throw( error => $@ );
     }
     my $parser = $lib->_new;
     if ( $opts{-file} && $parser->can('_from_handle') ) {
         eval { open FH, '<', $opts{-file}; };
         if ( $! ) {
-            Bio::Phylo::Exceptions::FileError->throw( error => $! );
+            Bio::Phylo::Util::Exceptions::FileError->throw( error => $! );
         }
         $opts{-handle} = *FH;
         return $parser->_from_handle(%opts);
@@ -161,7 +197,7 @@ sub parse {
         return $parser->_from_string(%opts);
     }
     elsif ( $opts{-string} && ! $parser->can('_from_string') ) {
-        Bio::Phylo::Exceptions::BadArgs->throw(
+        Bio::Phylo::Util::Exceptions::BadArgs->throw(
             error => "$opts{-format} parser can't handle strings"
         );
     }
@@ -171,8 +207,11 @@ sub parse {
 
  Type    : Class method
  Title   : unparse
- Usage   : my $string = Bio::Phylo::IO->unparse(%options);
- Function: Turns Bio::Phylo object into a string according to specified format.
+ Usage   : my $string = Bio::Phylo::IO->unparse(
+               %options
+           );
+ Function: Turns Bio::Phylo object into a 
+           string according to specified format.
  Returns : SCALAR
  Args    : -phylo   => (Bio::Phylo object),
            -format  => (description format),
@@ -186,38 +225,43 @@ sub unparse {
     }
     my %opts;
     if ( ! @_ || scalar @_ % 2 ) {
-        Bio::Phylo::Exceptions::OddHash->throw(
+        Bio::Phylo::Util::Exceptions::OddHash->throw(
             error => 'Odd number of elements in hash assignment'
         );
     }
     eval { %opts = @_; };
     if ( $@ ) {
-        Bio::Phylo::Exceptions::OddHash->throw( error => $@ );
+        Bio::Phylo::Util::Exceptions::OddHash->throw( error => $@ );
     }
     if ( ! $opts{-format} ) {
-        Bio::Phylo::Exceptions::BadFormat->throw(
+        Bio::Phylo::Util::Exceptions::BadFormat->throw(
             error => 'no format specified.'
         );
     }
     if ( ! $opts{-phylo} ) {
-        Bio::Phylo::Exceptions::BadArgs->throw(
+        Bio::Phylo::Util::Exceptions::BadArgs->throw(
             error => 'no object to unparse specified.'
         );
     }
     my $lib = 'Bio::Phylo::Unparsers::' . ucfirst $opts{-format};
     eval "require $lib";
     if ( $@ ) {
-        Bio::Phylo::Exceptions::ExtensionError->throw( error => $@ );
+        Bio::Phylo::Util::Exceptions::ExtensionError->throw( error => $@ );
     }
     my $unparser = $lib->_new(%opts);
     if ( $unparser->can('_to_string') ) {
         return $unparser->_to_string;
     }
     else {
-        Bio::Phylo::Exceptions::ObjectMismatch->throw(
+        Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
             error => 'the unparser can\'t convert to strings.'
         );
     }
+}
+
+# this just to prevent from calling __PACKAGE__->SUPER::DESTROY
+sub DESTROY {
+    return 1;
 }
 
 =back
@@ -227,6 +271,8 @@ sub unparse {
 =over
 
 =item L<Bio::Phylo::Parsers::Newick>
+
+=item L<Bio::Phylo::Parsers::Fastnewick>
 
 =item L<Bio::Phylo::Parsers::Nexus>
 
@@ -260,7 +306,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: IO.pm,v 1.10 2005/09/29 20:31:17 rvosa Exp $
+$Id: IO.pm,v 1.14 2006/04/12 22:38:22 rvosa Exp $
 
 =head1 AUTHOR
 

@@ -1,4 +1,4 @@
-# $Id: 03-node.t,v 1.10 2005/09/27 12:00:33 rvosa Exp $
+# $Id: 03-node.t,v 1.12 2006/02/23 07:54:41 rvosa Exp $
 use strict;
 use warnings;
 use Test::More tests => 71;
@@ -23,16 +23,16 @@ ok( my $left_tip   = $root->get_leftmost_terminal, '8 get leftmost terminal' );
 ok( my $right_tip = $root->get_rightmost_terminal, '9 get rightmost terminal' );
 ok( my @sisters   = @{ $root->get_children },      '10 get children' );
 ok( my @tips      = @{ $right_tip->get_sisters },  '11 get sisters' );
-ok( !$left_tip->is_sister_of($right_tip),        '12 ! is sister of' );
+ok( !$left_tip->is_sister_of($right_tip),          '12 ! is sister of' );
 
 eval { $node->get('BAD!') };
-ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Exceptions::UnknownMethod' ),'13 ! get ' );
+ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Util::Exceptions::UnknownMethod' ),'13 ! get ' );
 
 eval { $node->set_name(':();,') };
-ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Exceptions::BadString' ),    '14 ! name ' );
+ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Util::Exceptions::BadString' ),    '14 ! name ' );
 
 eval { $node->set_branch_length('BAD!') };
-ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Exceptions::BadNumber' ),    '15 ! branch_length ' );
+ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Util::Exceptions::BadNumber' ),    '15 ! branch_length ' );
 
 ok( !$node->is_internal,                         '16 ! is internal' );
 ok( !$node->is_sister_of($root),                 '17 ! is sister of' );
@@ -51,44 +51,45 @@ ok( !$root->get_ancestors,                       '29 ! get ancestors' );
 ok( !$root->is_sister_of($node),                 '30 ! is sister of' );
 
 eval { $root->set_parent('BAD!') };
-ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Exceptions::ObjectMismatch' ), '31 ! parent' );
+ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Util::Exceptions::ObjectMismatch' ), '31 ! parent' );
 
 eval { $root->set_first_daughter('BAD!') };
-ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Exceptions::ObjectMismatch' ), '32 ! first daughter' );
+ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Util::Exceptions::ObjectMismatch' ), '32 ! first daughter' );
 
 eval { $root->set_last_daughter('BAD!') };
-ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Exceptions::ObjectMismatch' ), '33 ! last daughter' );
+ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Util::Exceptions::ObjectMismatch' ), '33 ! last daughter' );
 
 eval { $root->set_next_sister('BAD!') };
-ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Exceptions::ObjectMismatch' ), '34 ! next sister' );
+ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Util::Exceptions::ObjectMismatch' ), '34 ! next sister' );
 
 eval { $root->set_previous_sister('BAD!') };
-ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Exceptions::ObjectMismatch' ), '35 ! previous sister' );
+ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Util::Exceptions::ObjectMismatch' ), '35 ! previous sister' );
 
-ok( $root->set_parent(undef),                   '36 ! parent' );
+ok( $root->set_parent(undef),                    '36 ! parent' );
 ok( $root->get_children,                         '37 get children' );
 ok( $root->get_descendants,                      '38 get descendants' );
 ok( $root->get_terminals,                        '39 get terminals' );
 ok( $root->get_internals,                        '40 get internals' );
-ok( $root->calc_max_nodes_to_tips,               '41 calc max nodes to tips' );
-ok( $root->calc_min_nodes_to_tips,               '42 calc min nodes to tips' );
-ok( $root->calc_max_path_to_tips,                '43 calc max path to tips' );
-ok( $root->calc_min_path_to_tips,                '44 calc min path to tips' );
-ok( my $nobltree = $trees[2], '45 get tree without branch lengths' );
-ok( $root = $nobltree->get_root, '46 get new root' );
-ok( !$root->calc_max_path_to_tips, '47 calc max path to tips' );
-ok( my $lmt = $root->get_leftmost_terminal,  '48 get leftmost terminal' );
-ok( my $rmt = $root->get_rightmost_terminal, '49 get rightmost terminal' );
-ok( !$lmt->calc_patristic_distance($rmt), '50 calc patristic distance' );
-ok( $tree = $trees[2], '51 pick tree without branch lengths' );
-ok( $root = $tree->get_root, '52 get new root' );
-ok( !$root->calc_min_path_to_tips, '53 calc min path to tips' );
-ok( my $bigtree = $trees[4], '54 pick big tree' );
-ok( my $bigroot = $bigtree->get_root, '55 get root' );
-ok( $bigroot->calc_min_nodes_to_tips, '56 calc min nodes to tips' );
-ok( $lmt = $bigroot->get_leftmost_terminal,  '57 get leftmost terminal' );
-ok( $rmt = $bigroot->get_rightmost_terminal, '58 get rightmost terminal' );
-ok( !$lmt->is_descendant_of($rmt), '59 is descendant of' );
+ok( $tree->get_root->calc_max_nodes_to_tips,     '41 calc max nodes to tips' );
+ok( ! $tree->get_root->calc_min_nodes_to_tips,   '42 calc min nodes to tips' );
+ok( ! $tree->get_root->calc_max_path_to_tips,    '43 calc max path to tips' );
+ok( ! $tree->get_root->calc_min_path_to_tips,    '44 calc min path to tips' );
+ok( my $nobltree = $trees[2],                    '45 get tree without branch lengths' );
+ok( $root = $nobltree->get_root,                 '46 get new root' );
+ok( !$root->calc_max_path_to_tips,               '47 calc max path to tips' );
+ok( my $lmt = $root->get_leftmost_terminal,      '48 get leftmost terminal' );
+ok( my $rmt = $root->get_rightmost_terminal,     '49 get rightmost terminal' );
+ok( !$lmt->calc_patristic_distance($rmt),        '50 calc patristic distance' );
+ok( $tree = $trees[2],                           '51 pick tree without branch lengths' );
+ok( $root = $tree->get_root,                     '52 get new root' );
+ok( !$root->calc_min_path_to_tips,               '53 calc min path to tips' );
+ok( my $bigtree = $trees[4],                     '54 pick big tree' );
+ok( my $bigroot = $bigtree->get_root,            '55 get root' );
+ok( $bigroot->calc_min_nodes_to_tips,            '56 calc min nodes to tips' );
+ok( $lmt = $bigroot->get_leftmost_terminal,      '57 get leftmost terminal' );
+ok( $rmt = $bigroot->get_rightmost_terminal,     '58 get rightmost terminal' );
+ok( !$lmt->is_descendant_of($rmt),               '59 is descendant of' );
+
 my $node1 = new Bio::Phylo::Forest::Node;
 my $node2 = new Bio::Phylo::Forest::Node;
 my $node3 = new Bio::Phylo::Forest::Node;
@@ -97,12 +98,12 @@ ok( !$node1->get_mrca($node3),                    '60 is descendant of' );
 ok( !$node1->get_taxon,                           '61 get no taxon' );
 
 eval { $node1->set_taxon('BAD!') };
-ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Exceptions::ObjectMismatch' ), '62 set bad taxon' );
+ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Util::Exceptions::ObjectMismatch' ), '62 set bad taxon' );
 
 ok( $node1->set_taxon( new Bio::Phylo::Taxa::Taxon ),  '63 set good taxon' );
 
 eval { $node1->set_taxon( new Bio::Phylo::Forest::Node ) };
-ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Exceptions::ObjectMismatch' ), '64 set bad taxon' );
+ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Util::Exceptions::ObjectMismatch' ), '64 set bad taxon' );
 
 ok( $node->_container,                            '65 get container' );
 ok( $node->_type,                                 '66 get container type' );

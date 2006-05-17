@@ -6,7 +6,7 @@ use Test::More tests => 13;
 use Bio::Phylo::IO;
 use Bio::Phylo::Treedrawer;
 
-my $tree = Bio::Phylo::IO->parse( -format => 'newick', -string => '((A:1,B:1):1,C:1):0;' )->first;
+my $tree = Bio::Phylo::IO->parse( -format => 'newick', -string => '((A:1,B:1)n1:1,C:1)n2:0;' )->first;
 my $treedrawer = Bio::Phylo::Treedrawer->new;
 
 ok($treedrawer->set_width(400), 'test 1');

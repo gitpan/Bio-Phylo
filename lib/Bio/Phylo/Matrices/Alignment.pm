@@ -1,13 +1,18 @@
-# $Id: Alignment.pm,v 1.8 2005/09/29 20:31:17 rvosa Exp $
-# Subversion: $Rev: 177 $
+# $Id: Alignment.pm,v 1.11 2006/03/14 12:01:56 rvosa Exp $
 package Bio::Phylo::Matrices::Alignment;
 use strict;
-use warnings;
-use Bio::Phylo::CONSTANT qw(_ALIGNMENT_ _MATRICES_);
-use base 'Bio::Phylo::Listable';
+use Bio::Phylo::Listable;
+use Bio::Phylo::Util::IDPool;
+use Bio::Phylo::Util::CONSTANT qw(_ALIGNMENT_ _MATRICES_);
 
 # One line so MakeMaker sees it.
 use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
+
+# classic @ISA manipulation, not using 'base'
+use vars qw($VERSION @ISA);
+@ISA = qw(Bio::Phylo::Listable);
+
+{
 
 =head1 NAME
 
@@ -39,37 +44,48 @@ object, so look there for more methods applicable to alignment objects.
 
  Type    : Constructor
  Title   : new
- Usage   : my $alignment = Bio::Phylo::Matrices::Alignment->new;
- Function: Instantiates a Bio::Phylo::Matrices::Alignment object.
+ Usage   : my $alignment = 
+           Bio::Phylo::Matrices::Alignment->new;
+ Function: Instantiates a 
+           Bio::Phylo::Matrices::Alignment object.
  Returns : A Bio::Phylo::Matrices::Alignment object.
  Args    : NONE required.
 
 =cut
 
 sub new {
-    my $class = shift;
-    my $self = fields::new($class);
-    $self->SUPER::new(@_);
-    if (@_) {
-        my %opts;
-        eval { %opts = @_; };
-        if ($@) {
-            Bio::Phylo::Exceptions::OddHash->throw(
-                error => $@
-            );
-        }
-        while ( my ( $key, $value ) = each %opts ) {
-            my $localkey = uc substr $key, 1;
-            eval { $self->{$localkey} = $value; };
-            if ($@) {
-                Bio::Phylo::Exceptions::BadArgs->throw(
-                    error => "invalid field specified: $key ($localkey)"
-                );
-            }
-        }
-    }
+    my ( $class, $self ) = shift;
+    $self = Bio::Phylo::Matrices::Alignment->SUPER::new(@_);
+    bless $self, __PACKAGE__;
     return $self;
 }
+
+=back
+
+=head2 DESTRUCTOR
+
+=over
+
+=item DESTROY()
+
+ Type    : Destructor
+ Title   : DESTROY
+ Usage   : $phylo->DESTROY
+ Function: Destroys Phylo object
+ Alias   :
+ Returns : TRUE
+ Args    : none
+ Comments: You don't really need this, 
+           it is called automatically when
+           the object goes out of scope.
+
+=cut
+
+    sub DESTROY {
+        my $self = shift;
+        $self->SUPER::DESTROY;
+        return 1;
+    }
 
 =begin comment
 
@@ -135,7 +151,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Alignment.pm,v 1.8 2005/09/29 20:31:17 rvosa Exp $
+$Id: Alignment.pm,v 1.11 2006/03/14 12:01:56 rvosa Exp $
 
 =head1 AUTHOR
 
@@ -163,5 +179,7 @@ software; you can redistribute it and/or modify it under the same terms as Perl
 itself.
 
 =cut
+
+}
 
 1;

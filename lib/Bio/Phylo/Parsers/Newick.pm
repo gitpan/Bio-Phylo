@@ -1,8 +1,6 @@
-# $Id: Newick.pm,v 1.22 2005/09/29 20:31:18 rvosa Exp $
-# Subversion: $Rev: 196 $
+# $Id: Newick.pm,v 1.24 2006/03/07 20:54:16 rvosa Exp $
 package Bio::Phylo::Parsers::Newick;
 use strict;
-use warnings;
 use Bio::Phylo::Forest;
 use Bio::Phylo::Forest::Tree;
 use Bio::Phylo::Forest::Node;
@@ -207,7 +205,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Newick.pm,v 1.22 2005/09/29 20:31:18 rvosa Exp $
+$Id: Newick.pm,v 1.24 2006/03/07 20:54:16 rvosa Exp $
 
 =head1 AUTHOR
 

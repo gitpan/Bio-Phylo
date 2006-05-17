@@ -2,7 +2,6 @@
 # Subversion: $Rev: 193 $
 package Bio::Phylo::Parsers::Taxlist;
 use strict;
-use warnings;
 use Bio::Phylo;
 use Bio::Phylo::Taxa;
 use Bio::Phylo::Taxa::Taxon;
