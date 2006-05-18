@@ -1,6 +1,6 @@
 # $Id: Svg.pm,v 1.7 2006/04/12 22:38:23 rvosa Exp $
 # Subversion: $Rev: 192 $
-package Bio::Phylo::Treedrawer::SVG;
+package Bio::Phylo::Treedrawer::Svg;
 use strict;
 use warnings;
 use constant PI => '3.14159265358979323846';
@@ -44,7 +44,7 @@ learn how to create tree drawings.
 =cut
 
 sub _new {
-    my Bio::Phylo::Treedrawer::SVG $self = shift;
+    my Bio::Phylo::Treedrawer::Svg $self = shift;
     my %opt;
     eval { %opt = @_; };
     if ( $@ ) {

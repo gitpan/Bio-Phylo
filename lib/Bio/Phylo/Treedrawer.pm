@@ -10,7 +10,7 @@ use Scalar::Util qw(looks_like_number);
 use fields qw(WIDTH HEIGHT MODE SHAPE PADDING NODE_RADIUS TEXT_HORIZ_OFFSET TEXT_VERT_OFFSET TEXT_WIDTH TREE _SCALEX _SCALEY SCALE FORMAT);
 
 # hashref of available tree drawer modules
-my $drawers = { 'SVG' => 1 };
+my $drawers = { 'Svg' => 1 };
 
 # One line so MakeMaker sees it.
 use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
@@ -122,8 +122,8 @@ sub new {
 
 sub set_format {
     my $self = shift;
-    if ( $drawers->{uc($_[0])} ) {
-        $self->{'FORMAT'} = uc($_[0]);
+    if ( $drawers->{ucfirst($_[0])} ) {
+        $self->{'FORMAT'} = ucfirst($_[0]);
     }
     else {
         Bio::Phylo::Util::Exceptions::BadFormat->throw(
@@ -746,7 +746,7 @@ sub draw {
     }
     $self->_y_terminals($root);
     $self->_y_internals;
-    my $library = __PACKAGE__ . '::' . $self->get_format;
+    my $library = __PACKAGE__ . '::' . ucfirst( $self->get_format );
     eval "require $library";
     if ( $@ ) {
         Bio::Phylo::Util::Exceptions::BadFormat->throw(
