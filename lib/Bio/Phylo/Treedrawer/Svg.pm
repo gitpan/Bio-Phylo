@@ -18,7 +18,7 @@ my %colors;
 
 =head1 NAME
 
-Bio::Phylo::Treedrawer::SVG - Creates svg tree drawings. No serviceable parts
+Bio::Phylo::Treedrawer::Svg - Creates svg tree drawings. No serviceable parts
 inside. (For extra per-node formatting, attach a hash reference to the node,
 like so: $node->set_generic( 'svg' => { 'stroke' => 'red' } ), which outlines
 the node, and branch leading up to it, in red.)

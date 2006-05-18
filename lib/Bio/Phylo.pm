@@ -14,7 +14,7 @@ use Storable qw(dclone);
 # with the "_rev#".
 my $rev = '$Id: Phylo.pm,v 1.29 2006/04/12 22:38:22 rvosa Exp $';
 $rev =~ s/^[^\d]+(\d+\.\d+)\b.*$/$1/;
-our $VERSION = '0.09';
+our $VERSION = '0.10';
 $VERSION .= '_' . $rev;
 my $VERBOSE = 0;
 use vars qw($VERSION);
