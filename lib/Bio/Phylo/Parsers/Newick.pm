@@ -1,4 +1,4 @@
-# $Id: Newick.pm,v 1.24 2006/03/07 20:54:16 rvosa Exp $
+# $Id: Newick.pm,v 1.25 2006/05/18 06:41:41 rvosa Exp $
 package Bio::Phylo::Parsers::Newick;
 use strict;
 use Bio::Phylo::Forest;
@@ -8,7 +8,6 @@ use base 'Bio::Phylo::IO';
 
 # One line so MakeMaker sees it.
 use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
-
 *_from_handle = \&_from_both;
 *_from_string = \&_from_both;
 
@@ -110,9 +109,7 @@ sub _parse_string {
             );
         }
         else {
-            $node = Bio::Phylo::Forest::Node->new(
-                -name => $_,
-            );
+            $node = Bio::Phylo::Forest::Node->new( -name => $_, );
         }
         $tree->insert($node);
     }
@@ -163,7 +160,7 @@ sub _nodelabels {
     my ( $x, @x );
     while ( $string =~ /\)[:|,|;|\)]/o ) {
         foreach ( split( /[:|,|;|\)]/o, $string ) ) {
-            if ( /n([0-9]+)/ ) {
+            if (/n([0-9]+)/) {
                 push( @x, $1 );
             }
         }
@@ -205,7 +202,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Newick.pm,v 1.24 2006/03/07 20:54:16 rvosa Exp $
+$Id: Newick.pm,v 1.25 2006/05/18 06:41:41 rvosa Exp $
 
 =head1 AUTHOR
 

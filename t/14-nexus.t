@@ -1,4 +1,4 @@
-# $Id: 14-nexus.t,v 1.11 2006/04/06 02:14:24 rvosa Exp $
+# $Id: 14-nexus.t,v 1.12 2006/05/18 06:41:42 rvosa Exp $
 use strict;
 use warnings;
 use Test::More tests => 5;

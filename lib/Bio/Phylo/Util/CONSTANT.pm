@@ -1,87 +1,81 @@
 # $Id: CONSTANT.pm,v 1.7 2006/04/12 22:38:23 rvosa Exp $
 package Bio::Phylo::Util::CONSTANT;
 use strict;
-use Hash::Util qw(lock_hash);
 use Scalar::Util qw(looks_like_number);
 
 BEGIN {
     use Exporter ();
-    our (@ISA, @EXPORT_OK, %EXPORT_TAGS);
+    our ( @ISA, @EXPORT_OK, %EXPORT_TAGS );
 
     # set the version for version checking
     use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
 
     # classic subroutine exporting
-    @ISA         = qw(Exporter);
-    @EXPORT_OK   = qw(&_NONE_ &_NODE_ &_TREE_ &_FOREST_ &_TAXON_
-        &_TAXA_ &_DATUM_ &_MATRIX_ &_MATRICES_ &_SEQUENCE_ &_ALIGNMENT_
-        &INT_SCORE_TYPE &DOUBLE_SCORE_TYPE &NO_SCORE_TYPE &symbol_ok &type_ok
-        &cipres_type &infer_type
+    @ISA       = qw(Exporter);
+    @EXPORT_OK = qw(&_NONE_ &_NODE_ &_TREE_ &_FOREST_ &_TAXON_
+      &_TAXA_ &_DATUM_ &_MATRIX_ &_MATRICES_ &_SEQUENCE_ &_ALIGNMENT_
+      &INT_SCORE_TYPE &DOUBLE_SCORE_TYPE &NO_SCORE_TYPE &symbol_ok &type_ok
+      &cipres_type &infer_type
     );
-
-    %EXPORT_TAGS = ( all => [ @EXPORT_OK ] );
-
+    %EXPORT_TAGS = ( all => [@EXPORT_OK] );
 }
-
-my %IUPAC_NUC  = (
+my %IUPAC_NUC = (
     'A' => 1,
-    'B' => 1, 
-    'C' => 1, 
-    'D' => 1, 
-    'G' => 1, 
-    'H' => 1, 
-    'K' => 1, 
-    'M' => 1, 
-    'N' => 1, 
-    'R' => 1, 
-    'S' => 1, 
-    'T' => 1, 
-    'U' => 1, 
-    'V' => 1, 
-    'W' => 1, 
-    'X' => 1, 
-    'Y' => 1, 
-    '.' => 1, 
-    '-' => 1, 
+    'B' => 1,
+    'C' => 1,
+    'D' => 1,
+    'G' => 1,
+    'H' => 1,
+    'K' => 1,
+    'M' => 1,
+    'N' => 1,
+    'R' => 1,
+    'S' => 1,
+    'T' => 1,
+    'U' => 1,
+    'V' => 1,
+    'W' => 1,
+    'X' => 1,
+    'Y' => 1,
+    '.' => 1,
+    '-' => 1,
     '?' => 1,
 );
-lock_hash( %IUPAC_NUC );
 
 my %IUPAC_PROT = (
     'A' => 1,
     'B' => 1,
     'C' => 1,
-    'D' => 1, 
-    'E' => 1, 
-    'F' => 1, 
-    'G' => 1, 
-    'H' => 1, 
-    'I' => 1, 
-    'K' => 1, 
-    'L' => 1, 
-    'M' => 1, 
-    'N' => 1, 
-    'P' => 1, 
-    'Q' => 1, 
-    'R' => 1, 
-    'S' => 1, 
-    'T' => 1, 
-    'U' => 1, 
-    'V' => 1, 
-    'W' => 1, 
-    'X' => 1, 
-    'Y' => 1, 
-    'Z' => 1, 
-    '.' => 1, 
-    '-' => 1, 
+    'D' => 1,
+    'E' => 1,
+    'F' => 1,
+    'G' => 1,
+    'H' => 1,
+    'I' => 1,
+    'K' => 1,
+    'L' => 1,
+    'M' => 1,
+    'N' => 1,
+    'P' => 1,
+    'Q' => 1,
+    'R' => 1,
+    'S' => 1,
+    'T' => 1,
+    'U' => 1,
+    'V' => 1,
+    'W' => 1,
+    'X' => 1,
+    'Y' => 1,
+    'Z' => 1,
+    '.' => 1,
+    '-' => 1,
     '?' => 1,
 );
-lock_hash( %IUPAC_PROT );
 
 my %TYPES = (
-    'DNA' => { 
+    'DNA' => {
         'CHECK' => sub {
-            foreach my $char ( split(//, $_[0]) ) {
+            foreach my $char ( split( //, $_[0] ) ) {
                 if ( not exists $IUPAC_NUC{ uc($char) } ) {
                     return 0;
                 }
@@ -90,9 +84,10 @@ my %TYPES = (
         },
         'CIPRES' => sub {
             eval { require CipresIDL };
-            if ( $@ ) {
+            if ($@) {
                 Bio::Phylo::Util::Exceptions::Extension::Error->throw(
-                    'error' => 'This method requires CipresIDL, which you don\'t have',
+                    'error' =>
+                      'This method requires CipresIDL, which you don\'t have',
                 );
             }
             else {
@@ -100,9 +95,9 @@ my %TYPES = (
             }
         },
     },
-    'RNA' => { 
+    'RNA' => {
         'CHECK' => sub {
-            foreach my $char ( split(//, $_[0]) ) {
+            foreach my $char ( split( //, $_[0] ) ) {
                 if ( not exists $IUPAC_NUC{ uc($char) } ) {
                     return 0;
                 }
@@ -111,9 +106,10 @@ my %TYPES = (
         },
         'CIPRES' => sub {
             eval { require CipresIDL };
-            if ( $@ ) {
+            if ($@) {
                 Bio::Phylo::Util::Exceptions::Extension::Error->throw(
-                    'error' => 'This method requires CipresIDL, which you don\'t have',
+                    'error' =>
+                      'This method requires CipresIDL, which you don\'t have',
                 );
             }
             else {
@@ -121,10 +117,10 @@ my %TYPES = (
             }
         },
     },
-    'NUCLEOTIDE' => { 
+    'NUCLEOTIDE' => {
         'CHECK' => sub {
-            foreach my $char ( split(//, $_[0]) ) {
-                if ( not exists $IUPAC_NUC{  uc($char) } ) {
+            foreach my $char ( split( //, $_[0] ) ) {
+                if ( not exists $IUPAC_NUC{ uc($char) } ) {
                     return 0;
                 }
             }
@@ -132,9 +128,10 @@ my %TYPES = (
         },
         'CIPRES' => sub {
             eval { require CipresIDL };
-            if ( $@ ) {
+            if ($@) {
                 Bio::Phylo::Util::Exceptions::Extension::Error->throw(
-                    'error' => 'This method requires CipresIDL, which you don\'t have',
+                    'error' =>
+                      'This method requires CipresIDL, which you don\'t have',
                 );
             }
             else {
@@ -142,10 +139,10 @@ my %TYPES = (
             }
         },
     },
-    'PROTEIN' => { 
+    'PROTEIN' => {
         'CHECK' => sub {
-            foreach my $char ( split(//, $_[0]) ) {
-                if ( not exists $IUPAC_PROT{  uc($char) } ) {
+            foreach my $char ( split( //, $_[0] ) ) {
+                if ( not exists $IUPAC_PROT{ uc($char) } ) {
                     return 0;
                 }
             }
@@ -153,9 +150,10 @@ my %TYPES = (
         },
         'CIPRES' => sub {
             eval { require CipresIDL };
-            if ( $@ ) {
+            if ($@) {
                 Bio::Phylo::Util::Exceptions::Extension::Error->throw(
-                    'error' => 'This method requires CipresIDL, which you don\'t have',
+                    'error' =>
+                      'This method requires CipresIDL, which you don\'t have',
                 );
             }
             else {
@@ -163,9 +161,9 @@ my %TYPES = (
             }
         },
     },
-    'STANDARD' => { 
+    'STANDARD' => {
         'CHECK' => sub {
-            foreach my $char ( split(/\s+/, $_[0]) ) {
+            foreach my $char ( split( /\s+/, $_[0] ) ) {
                 if ( $char !~ /^\d$/ ) {
                     return 0;
                 }
@@ -174,9 +172,10 @@ my %TYPES = (
         },
         'CIPRES' => sub {
             eval { require CipresIDL };
-            if ( $@ ) {
+            if ($@) {
                 Bio::Phylo::Util::Exceptions::Extension::Error->throw(
-                    'error' => 'This method requires CipresIDL, which you don\'t have',
+                    'error' =>
+                      'This method requires CipresIDL, which you don\'t have',
                 );
             }
             else {
@@ -184,10 +183,10 @@ my %TYPES = (
             }
         },
     },
-    'CONTINUOUS' => { 
+    'CONTINUOUS' => {
         'CHECK' => sub {
-            foreach my $char ( split(/\s+/, $_[0]) ) {
-                if ( ! looks_like_number $char ) {
+            foreach my $char ( split( /\s+/, $_[0] ) ) {
+                if ( !looks_like_number $char ) {
                     return 0;
                 }
             }
@@ -200,101 +199,96 @@ my %TYPES = (
         },
     },
 );
-lock_hash( %TYPES );
 
-sub _NONE_      { 1  }
-sub _NODE_      { 2  }
-sub _TREE_      { 3  }
-sub _FOREST_    { 4  }
-sub _TAXON_     { 5  }
-sub _TAXA_      { 6  }
-sub _DATUM_     { 7  }
-sub _MATRIX_    { 8  }
-sub _MATRICES_  { 9  }
+sub _NONE_      { 1 }
+sub _NODE_      { 2 }
+sub _TREE_      { 3 }
+sub _FOREST_    { 4 }
+sub _TAXON_     { 5 }
+sub _TAXA_      { 6 }
+sub _DATUM_     { 7 }
+sub _MATRIX_    { 8 }
+sub _MATRICES_  { 9 }
 sub _SEQUENCE_  { 10 }
 sub _ALIGNMENT_ { 11 }
 
 sub INT_SCORE_TYPE {
     eval { require CipresIDL };
-    if ( $@ ) {
+    if ($@) {
         Bio::Phylo::Util::Exceptions::Extension::Error->throw(
             'error' => 'This method requires CipresIDL, which you don\'t have',
         );
     }
     else {
-        return $CipresIDL::INT_SCORE_TYPE;    
+        return $CipresIDL::INT_SCORE_TYPE;
     }
 }
 
 sub DOUBLE_SCORE_TYPE {
     eval { require CipresIDL };
-    if ( $@ ) {
+    if ($@) {
         Bio::Phylo::Util::Exceptions::Extension::Error->throw(
             'error' => 'This method requires CipresIDL, which you don\'t have',
         );
     }
     else {
-        return $CipresIDL::DOUBLE_SCORE_TYPE;    
+        return $CipresIDL::DOUBLE_SCORE_TYPE;
     }
 }
 
 sub NO_SCORE_TYPE {
     eval { require CipresIDL };
-    if ( $@ ) {
+    if ($@) {
         Bio::Phylo::Util::Exceptions::Extension::Error->throw(
             'error' => 'This method requires CipresIDL, which you don\'t have',
         );
     }
     else {
-        return $CipresIDL::NO_SCORE_TYPE;        
+        return $CipresIDL::NO_SCORE_TYPE;
     }
 }
 
-sub symbol_ok {    
+sub symbol_ok {
     my %opt;
     eval { %opt = @_; };
-    if ( $@ ) {
-        Bio::Phylo::Util::Exceptions::OddHash->throw(
-            'error' => $@,
-        );
+    if ($@) {
+        Bio::Phylo::Util::Exceptions::OddHash->throw( 'error' => $@, );
     }
     elsif ( defined $opt{'-type'} && defined $opt{'-char'} ) {
         if ( exists $TYPES{ uc( $opt{'-type'} ) } ) {
             if ( ref $opt{'-char'} eq 'ARRAY' ) {
                 foreach my $char ( @{ $opt{'-char'} } ) {
-                    return if not $TYPES{ $opt{'-type'} }->{'CHECK'}->( $char );
+                    return if not $TYPES{ $opt{'-type'} }->{'CHECK'}->($char);
                 }
                 return 1;
             }
             elsif ( $opt{'-type'} !~ m/^CONTINUOUS$/i ) {
-                foreach my $char ( split(//, $opt{'-char'}) ) {
-                    return if not $TYPES{ $opt{'-type'} }->{'CHECK'}->( $char );
+                foreach my $char ( split( //, $opt{'-char'} ) ) {
+                    return if not $TYPES{ $opt{'-type'} }->{'CHECK'}->($char);
                 }
                 return 1;
             }
             elsif ( $opt{'-type'} =~ m/^CONTINUOUS$/i ) {
-                foreach my $char ( split(/\s+/, $opt{'-char'}) ) {
-                    return if not $TYPES{ $opt{'-type'} }->{'CHECK'}->( $char );
+                foreach my $char ( split( /\s+/, $opt{'-char'} ) ) {
+                    return if not $TYPES{ $opt{'-type'} }->{'CHECK'}->($char);
                 }
                 return 1;
-            }            
+            }
         }
         else {
             Bio::Phylo::Util::Exceptions::BadFormat->throw(
-                error => "\"$opt{'-type'}\" is a bad data type"
-            );        
+                error => "\"$opt{'-type'}\" is a bad data type" );
         }
     }
-    elsif ( ! defined $opt{'-type'} || ! defined $opt{'-char'} ) {
+    elsif ( !defined $opt{'-type'} || !defined $opt{'-char'} ) {
         Bio::Phylo::Util::Exceptions::BadArgs->throw(
-            'error' => 'Need \'-type\' and \'-char\' arguments',
-        );
+            'error' => 'Need \'-type\' and \'-char\' arguments', );
     }
 }
 
 sub type_ok {
     my $type = shift;
-    if ( exists $TYPES{uc( $type )} ) {
+    if ( exists $TYPES{ uc($type) } ) {
         return 1;
     }
     else {
@@ -304,20 +298,18 @@ sub type_ok {
 
 sub cipres_type {
     my $type = shift;
-    if ( $type ) {
-        if ( exists $TYPES{uc( $type )} ) {
-            return $TYPES{uc($type)}->{'CIPRES'}->();
+    if ($type) {
+        if ( exists $TYPES{ uc($type) } ) {
+            return $TYPES{ uc($type) }->{'CIPRES'}->();
         }
         else {
             Bio::Phylo::Util::Exceptions::BadArgs->throw(
-                'error' => "\"$type\" is not a valid data type",
-            );
+                'error' => "\"$type\" is not a valid data type", );
         }
     }
     else {
         Bio::Phylo::Util::Exceptions::BadArgs->throw(
-            'error' => 'Need a data type to convert',
-        );    
+            'error' => 'Need a data type to convert', );
     }
 }
 
@@ -330,12 +322,9 @@ sub infer_type {
         }
     }
     Bio::Phylo::Util::Exceptions::BadArgs->throw(
-        'error' => 'No valid type found',
-    );    
+        'error' => 'No valid type found', );
 }
-
 1;
-
 __END__
 
 =head1 NAME

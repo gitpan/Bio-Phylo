@@ -1,4 +1,4 @@
-# $Id: Taxon.pm,v 1.27 2006/03/14 12:01:57 rvosa Exp $
+# $Id: Taxon.pm,v 1.28 2006/05/18 06:41:41 rvosa Exp $
 # Subversion: $Rev: 177 $
 package Bio::Phylo::Taxa::Taxon;
 use strict;
@@ -12,16 +12,16 @@ use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
 # classic @ISA manipulation, not using 'base'
 use vars qw($VERSION @ISA);
 @ISA = qw(Bio::Phylo);
-
 {
+
     # inside out class arrays
     my @nodes;
     my @data;
-    
+
     # $fields hashref necessary for object construction and destruction
     my $fields = {
-        '-nodes'   => \@nodes,
-        '-data'    => \@data,
+        '-nodes' => \@nodes,
+        '-data'  => \@data,
     };
 
 =head1 NAME
@@ -102,12 +102,12 @@ cross-referencing datum objects and tree nodes.
 
     sub new {
         my $class = shift;
-        my $self = Bio::Phylo::Taxa::Taxon->SUPER::new(@_);
+        my $self  = Bio::Phylo::Taxa::Taxon->SUPER::new(@_);
         bless $self, __PACKAGE__;
-        if ( @_ ) {
+        if (@_) {
             my %opt;
             eval { %opt = @_; };
-            if ( $@ ) {
+            if ($@) {
                 Bio::Phylo::Util::Exceptions::OddHash->throw( error => $@ );
             }
             else {
@@ -116,8 +116,8 @@ cross-referencing datum objects and tree nodes.
                         $fields->{$key}->[$$self] = $value;
                         if ( ref $value && $value->can('_type') ) {
                             my $type = $value->_type;
-                            if ( $type == _DATUM_ ||  $type == _NODE_ ) {
-                                weaken($fields->{$key}->[$$self]);
+                            if ( $type == _DATUM_ || $type == _NODE_ ) {
+                                weaken( $fields->{$key}->[$$self] );
                             }
                         }
                         delete $opt{$key};
@@ -152,12 +152,15 @@ cross-referencing datum objects and tree nodes.
 
     sub set_data {
         my ( $self, $datum ) = @_;
-        if ( blessed $datum && $datum->can('_type') && $datum->_type == _DATUM_ ) {
+        if (   blessed $datum
+            && $datum->can('_type')
+            && $datum->_type == _DATUM_ )
+        {
             if ( $datum->_get_container && $datum->_get_container->get_taxa ) {
-                if ( $datum->_get_container->get_taxa != $self->_get_container ) {
+                if ( $datum->_get_container->get_taxa != $self->_get_container )
+                {
                     Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-                        error => "Attempt to link to taxon from wrong block"
-                    );
+                        error => "Attempt to link to taxon from wrong block" );
                 }
                 $datum->_get_container->set_taxa( $self->_get_container );
             }
@@ -166,8 +169,7 @@ cross-referencing datum objects and tree nodes.
         }
         else {
             Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-                error => "\"$datum\" doesn't look like a datum object"
-            );
+                error => "\"$datum\" doesn't look like a datum object" );
         }
         return $self;
     }
@@ -187,25 +189,29 @@ cross-referencing datum objects and tree nodes.
     sub set_nodes {
         my ( $self, $node ) = @_;
         if ( blessed $node && $node->can('_type') && $node->_type == _NODE_ ) {
-            if ( $node->_get_container && $node->_get_container->_get_container && $node->_get_container->_get_container->get_taxa ) {
-                if ( $node->_get_container->_get_container->get_taxa != $self->_get_container ) {
+            if (   $node->_get_container
+                && $node->_get_container->_get_container
+                && $node->_get_container->_get_container->get_taxa )
+            {
+                if ( $node->_get_container->_get_container->get_taxa !=
+                    $self->_get_container )
+                {
                     Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-                        error => "Attempt to link to taxon from wrong block"
-                    );
+                        error => "Attempt to link to taxon from wrong block" );
                 }
-                $node->_get_container->_get_container->set_taxa( $self->_get_container );                
+                $node->_get_container->_get_container->set_taxa(
+                    $self->_get_container );
             }
             $nodes[$$self]->{$node} = $node;
             weaken( $nodes[$$self]->{$node} );
         }
         else {
             Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-                error => "\"$node\" doesn't look like a node object"
-            );
+                error => "\"$node\" doesn't look like a node object" );
         }
         return $self;
     }
-    
+
 =item unset_datum()
 
  Type    : Mutator
@@ -221,9 +227,9 @@ cross-referencing datum objects and tree nodes.
 
     sub unset_datum {
         my ( $self, $datum ) = @_;
-        
+
         # no need for type checking really. If it's there, it gets killed,
-        # otherwise skips silently        
+        # otherwise skips silently
         delete $data[$$self]->{$datum};
         return $self;
     }
@@ -243,9 +249,9 @@ cross-referencing datum objects and tree nodes.
 
     sub unset_node {
         my ( $self, $node ) = @_;
-        
+
         # no need for type checking really. If it's there, it gets killed,
-        # otherwise skips silently        
+        # otherwise skips silently
         delete $nodes[$$self]->{$node};
         return $self;
     }
@@ -270,9 +276,9 @@ cross-referencing datum objects and tree nodes.
 
 =cut
 
-    sub get_data { 
+    sub get_data {
         my $self = shift;
-        my @tmp = values %{ $data[$$self] };
+        my @tmp  = values %{ $data[$$self] };
         return \@tmp;
     }
 
@@ -289,9 +295,9 @@ cross-referencing datum objects and tree nodes.
 
 =cut
 
-    sub get_nodes { 
+    sub get_nodes {
         my $self = shift;
-        my @tmp = values %{ $nodes[$$self] };
+        my @tmp  = values %{ $nodes[$$self] };
         return \@tmp;
     }
 
@@ -318,10 +324,10 @@ cross-referencing datum objects and tree nodes.
 
     sub DESTROY {
         my $self = shift;
-        foreach( keys %{ $fields } ) {
+        foreach ( keys %{$fields} ) {
             delete $fields->{$_}->[$$self];
         }
-        $self->SUPER::DESTROY;        
+        $self->SUPER::DESTROY;
         return 1;
     }
 
@@ -388,7 +394,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Taxon.pm,v 1.27 2006/03/14 12:01:57 rvosa Exp $
+$Id: Taxon.pm,v 1.28 2006/05/18 06:41:41 rvosa Exp $
 
 =head1 AUTHOR
 
@@ -418,5 +424,4 @@ itself.
 =cut
 
 }
-
 1;

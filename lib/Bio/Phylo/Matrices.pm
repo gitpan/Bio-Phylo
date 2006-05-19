@@ -12,7 +12,6 @@ use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
 # classic @ISA manipulation, not using 'base'
 use vars qw($VERSION @ISA);
 @ISA = qw(Bio::Phylo::Listable);
-
 {
 
 =head1 NAME
@@ -58,7 +57,7 @@ are available to apply to a set of matrices.
         bless $self, __PACKAGE__;
         return $self;
     }
-    
+
 =back
 
 =head2 DESTRUCTOR
@@ -84,7 +83,7 @@ are available to apply to a set of matrices.
         my $self = shift;
         $self->SUPER::DESTROY;
         return 1;
-    }    
+    }
 
 =begin comment
 
@@ -179,5 +178,4 @@ modify it under the same terms as Perl itself.
 =cut
 
 }
-
 1;

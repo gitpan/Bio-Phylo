@@ -1,4 +1,4 @@
-# $Id: 17-parse.t,v 1.9 2006/02/21 00:23:01 rvosa Exp $
+# $Id: 17-parse.t,v 1.10 2006/05/18 06:41:42 rvosa Exp $
 use strict;
 use warnings;
 use Test::More tests => 6;

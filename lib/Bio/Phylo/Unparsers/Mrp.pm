@@ -1,4 +1,4 @@
-# $Id: Mrp.pm,v 1.1 2006/03/07 01:23:40 rvosa Exp $
+# $Id: Mrp.pm,v 1.2 2006/05/18 06:41:42 rvosa Exp $
 # Subversion: $Rev: 190 $
 package Bio::Phylo::Unparsers::Mrp;
 use strict;
@@ -70,21 +70,23 @@ sub _to_string {
     my $self   = shift;
     my $forest = $self->{'PHYLO'};
     my $string = "BEGIN DATA;\n[! Data block written by " . ref $self;
-    $string   .= " " . $self->VERSION . " on " . localtime() . " ]\n";
+    $string .= " " . $self->VERSION . " on " . localtime() . " ]\n";
     my $taxa = $forest->make_taxa;
-    my $ntax = scalar @{ $taxa->get_entities } + 1; # + 1 for mrp_outgroup
-    $string   .= "    DIMENSIONS NTAX=$ntax ";
+    my $ntax = scalar @{ $taxa->get_entities } + 1;    # + 1 for mrp_outgroup
+    $string .= "    DIMENSIONS NTAX=$ntax ";
     my $nchar = 0;
+
     foreach my $tree ( @{ $forest->get_entities } ) {
         foreach my $node ( @{ $tree->get_internals } ) {
             $nchar++;
         }
     }
-    $string   .= "NCHAR=$nchar;\n";
-    $string   .= "    FORMAT DATATYPE=STANDARD MISSING=?;\n    MATRIX\n";
+    $string .= "NCHAR=$nchar;\n";
+    $string .= "    FORMAT DATATYPE=STANDARD MISSING=?;\n    MATRIX\n";
     my $length = length('mrp_outgroup');
     foreach my $taxon ( @{ $taxa->get_entities } ) {
-        $length = length( $taxon->get_name ) if length( $taxon->get_name ) > $length;
+        $length = length( $taxon->get_name )
+          if length( $taxon->get_name ) > $length;
     }
     $length += 4;
     my $sp = ' ';
@@ -93,10 +95,12 @@ sub _to_string {
         my %in_tree = map { $_->get_taxon => 1 } @{ $tree->get_terminals };
         my $n = scalar @{ $tree->get_internals };
         foreach my $t ( @{ $taxa->get_entities } ) {
-            $mrp{$t} = ( $sp x ( $length - length( $t->get_name ) ) ) if ! defined $mrp{$t};
+            $mrp{$t} = ( $sp x ( $length - length( $t->get_name ) ) )
+              if !defined $mrp{$t};
             if ( exists $in_tree{$t} ) {
                 foreach my $node ( @{ $tree->get_internals } ) {
-                    my %in_clade = map { $_->get_taxon => 1 } @{ $node->get_terminals };
+                    my %in_clade =
+                      map { $_->get_taxon => 1 } @{ $node->get_terminals };
                     if ( exists $in_clade{$t} ) {
                         $mrp{$t} .= '1';
                     }
@@ -110,7 +114,8 @@ sub _to_string {
             }
         }
     }
-    $string .= '        mrp_outgroup' . ( $sp x ( $length - length('mrp_outgroup') ) );
+    $string .=
+      '        mrp_outgroup' . ( $sp x ( $length - length('mrp_outgroup') ) );
     $string .= ( '0' x $nchar ) . "\n";
     foreach my $taxon ( @{ $taxa->get_entities } ) {
         $string .= '        ' . $taxon->get_name;
@@ -151,7 +156,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Mrp.pm,v 1.1 2006/03/07 01:23:40 rvosa Exp $
+$Id: Mrp.pm,v 1.2 2006/05/18 06:41:42 rvosa Exp $
 
 =head1 AUTHOR
 

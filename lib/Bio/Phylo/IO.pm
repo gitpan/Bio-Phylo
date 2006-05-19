@@ -169,7 +169,7 @@ sub parse {
             error => 'no format specified.'
         );
     }
-    if ( ! grep ucfirst $opts{'-format'}, @parsers ) {
+    if ( ! grep ucfirst( $opts{'-format'} ), @parsers ) {
         Bio::Phylo::Util::Exceptions::BadFormat->throw(
             error => 'no parser available for specified format.'
         );
@@ -179,7 +179,7 @@ sub parse {
             error => 'no parseable data source specified.'
         );
     }
-    my $lib = 'Bio::Phylo::Parsers::' . ucfirst $opts{-format};
+    my $lib = 'Bio::Phylo::Parsers::' . ucfirst( $opts{-format} );
     eval "require $lib";
     if ( $@ ) {
         Bio::Phylo::Util::Exceptions::ExtensionError->throw( error => $@ );

@@ -18,18 +18,18 @@ use vars qw($VERSION @ISA);
 # into a hash, with translation table, nucleotide complements
 my @IUPAC_NUC  = qw(A B C D G H K M N R S T U V W X Y . - ?);
 my @IUPAC_PROT = qw(A B C D E F G H I K L M N P Q R S T U V W X Y Z . - ?);
-
 {
+
     # inside out class arrays
     my @taxon;
     my @type;
     my @seq;
-    
+
     # $fields hashref necessary for object destruction
     my $fields = {
-        '-taxon'   => \@taxon,
-        '-type'    => \@type,
-        '-seq'     => \@seq,
+        '-taxon' => \@taxon,
+        '-type'  => \@type,
+        '-seq'   => \@seq,
     };
 
 =head1 NAME
@@ -92,10 +92,10 @@ with a taxon object, and inserted in an alignment object.
         my $class = shift;
         my $self  = Bio::Phylo::Matrices::Sequence->SUPER::new(@_);
         bless $self, __PACKAGE__;
-        if ( @_ ) {
+        if (@_) {
             my %opt;
             eval { %opt = @_; };
-            if ( $@ ) {
+            if ($@) {
                 Bio::Phylo::Util::Exceptions::OddHash->throw( error => $@ );
             }
             else {
@@ -105,7 +105,7 @@ with a taxon object, and inserted in an alignment object.
                         if ( ref $value && $value->can('_type') ) {
                             my $type = $value->_type;
                             if ( $type == _TAXON_ ) {
-                                weaken($fields->{$key}->[$$self]);
+                                weaken( $fields->{$key}->[$$self] );
                             }
                         }
                         delete $opt{$key};
@@ -116,7 +116,6 @@ with a taxon object, and inserted in an alignment object.
         }
         return $self;
     }
-
 
 =back
 
@@ -144,7 +143,7 @@ with a taxon object, and inserted in an alignment object.
         }
         else {
             $taxon[$$self] = $taxon;
-            weaken($taxon[$$self]);
+            weaken( $taxon[$$self] );
         }
         return $self;
     }
@@ -206,7 +205,7 @@ with a taxon object, and inserted in an alignment object.
     sub set_seq {
         my ( $self, $seq ) = @_;
         my @tmpseq = split //, $seq;
-        my @sites  = keys %{ { map { $_ => undef } @tmpseq } };
+        my @sites = keys %{ { map { $_ => undef } @tmpseq } };
         if ( my $type = $type[$$self] ) {
             if ( $type =~ /(DNA|RNA|NUCLEOTIDE)/ ) {
                 my %IUPAC_NUC;
@@ -238,7 +237,7 @@ with a taxon object, and inserted in an alignment object.
             }
             elsif ( $type eq 'CONTINUOUS' ) {
                 foreach ( split /\s+/, $seq ) {
-                    if ( /^[^?]$/ || ! looks_like_number $_ ) {
+                    if ( /^[^?]$/ || !looks_like_number $_ ) {
                         Bio::Phylo::Util::Exceptions::BadString->throw(
                             error => "\"$_\" is not a valid $type symbol" );
                     }
@@ -287,7 +286,7 @@ with a taxon object, and inserted in an alignment object.
 
 =cut
 
-    sub get_type { 
+    sub get_type {
         my $self = shift;
         return $type[$$self];
     }
@@ -332,10 +331,10 @@ with a taxon object, and inserted in an alignment object.
 
     sub DESTROY {
         my $self = shift;
-        foreach( keys %{ $fields } ) {
+        foreach ( keys %{$fields} ) {
             delete $fields->{$_}->[$$self];
         }
-        $self->SUPER::DESTROY;        
+        $self->SUPER::DESTROY;
         return 1;
     }
 
@@ -432,5 +431,4 @@ itself.
 =cut
 
 }
-
 1;

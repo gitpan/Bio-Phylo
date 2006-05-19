@@ -1,4 +1,4 @@
-# $Id: Treedrawer.pm,v 1.8 2006/04/12 22:38:22 rvosa Exp $
+# $Id: Treedrawer.pm,v 1.9 2006/05/19 00:05:16 rvosa Exp $
 # Subversion: $Rev: 192 $
 package Bio::Phylo::Treedrawer;
 use strict;
@@ -7,7 +7,8 @@ use Bio::Phylo::Forest::Tree;
 use Bio::Phylo::Forest::Node;
 use Bio::Phylo::Util::CONSTANT qw(_TREE_);
 use Scalar::Util qw(looks_like_number);
-use fields qw(WIDTH HEIGHT MODE SHAPE PADDING NODE_RADIUS TEXT_HORIZ_OFFSET TEXT_VERT_OFFSET TEXT_WIDTH TREE _SCALEX _SCALEY SCALE FORMAT);
+use fields
+  qw(WIDTH HEIGHT MODE SHAPE PADDING NODE_RADIUS TEXT_HORIZ_OFFSET TEXT_VERT_OFFSET TEXT_WIDTH TREE _SCALEX _SCALEY SCALE FORMAT);
 
 # hashref of available tree drawer modules
 my $drawers = { 'Svg' => 1 };
@@ -69,7 +70,7 @@ nodes) and calls the appropriate format-specific drawer.
 
 sub new {
     my Bio::Phylo::Treedrawer $self = shift;
-    unless (ref $self) {
+    unless ( ref $self ) {
         $self = fields::new($self);
     }
     $self->{'WIDTH'}             = 500;
@@ -122,13 +123,12 @@ sub new {
 
 sub set_format {
     my $self = shift;
-    if ( $drawers->{ucfirst($_[0])} ) {
-        $self->{'FORMAT'} = ucfirst($_[0]);
+    if ( $drawers->{ ucfirst( $_[0] ) } ) {
+        $self->{'FORMAT'} = ucfirst( $_[0] );
     }
     else {
         Bio::Phylo::Util::Exceptions::BadFormat->throw(
-            error => "\"$_[0]\" is not a valid image format"
-        );
+            error => "\"$_[0]\" is not a valid image format" );
     }
     return $self;
 }
@@ -151,8 +151,7 @@ sub set_width {
     }
     else {
         Bio::Phylo::Util::Exceptions::BadNumber->throw(
-            error => "\"$_[0]\" is not a valid number value"
-        );
+            error => "\"$_[0]\" is not a valid number value" );
     }
     return $self;
 }
@@ -175,8 +174,7 @@ sub set_height {
     }
     else {
         Bio::Phylo::Util::Exceptions::BadNumber->throw(
-            error => "\"$_[0]\" is not a valid number value"
-        );
+            error => "\"$_[0]\" is not a valid number value" );
     }
     return $self;
 }
@@ -200,8 +198,7 @@ sub set_mode {
     }
     else {
         Bio::Phylo::Util::Exceptions::BadFormat->throw(
-            error => "\"$_[0]\" is not a valid drawing mode"
-        );
+            error => "\"$_[0]\" is not a valid drawing mode" );
     }
     return $self;
 }
@@ -225,8 +222,7 @@ sub set_shape {
     }
     else {
         Bio::Phylo::Util::Exceptions::BadFormat->throw(
-            error => "\"$_[0]\" is not a valid drawing shape"
-        );
+            error => "\"$_[0]\" is not a valid drawing shape" );
     }
     return $self;
 }
@@ -249,8 +245,7 @@ sub set_padding {
     }
     else {
         Bio::Phylo::Util::Exceptions::BadNumber->throw(
-            error => "\"$_[0]\" is not a valid number value"
-        );
+            error => "\"$_[0]\" is not a valid number value" );
     }
     return $self;
 }
@@ -273,8 +268,7 @@ sub set_node_radius {
     }
     else {
         Bio::Phylo::Util::Exceptions::BadNumber->throw(
-            error => "\"$_[0]\" is not a valid number value"
-        );
+            error => "\"$_[0]\" is not a valid number value" );
     }
     return $self;
 }
@@ -298,8 +292,7 @@ sub set_text_horiz_offset {
     }
     else {
         Bio::Phylo::Util::Exceptions::BadNumber->throw(
-            error => "\"$_[0]\" is not a valid number value"
-        );
+            error => "\"$_[0]\" is not a valid number value" );
     }
     return $self;
 }
@@ -323,8 +316,7 @@ sub set_text_vert_offset {
     }
     else {
         Bio::Phylo::Util::Exceptions::BadNumber->throw(
-            error => "\"$_[0]\" is not a valid number value"
-        );
+            error => "\"$_[0]\" is not a valid number value" );
     }
     return $self;
 }
@@ -348,8 +340,7 @@ sub set_text_width {
     }
     else {
         Bio::Phylo::Util::Exceptions::BadNumber->throw(
-            error => "\"$_[0]\" is not a valid number value"
-        );
+            error => "\"$_[0]\" is not a valid number value" );
     }
     return $self;
 }
@@ -373,8 +364,7 @@ sub set_tree {
     }
     else {
         Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-            error => "\"$_[0]\" is not a valid tree"
-        );
+            error => "\"$_[0]\" is not a valid tree" );
     }
     return $self;
 }
@@ -403,38 +393,34 @@ sub set_tree {
 
 sub set_scale_options {
     my $self = shift;
-    if ( @_ && ! scalar @_ % 2 ) {
-        my %o = @_; # %options
+    if ( @_ && !scalar @_ % 2 ) {
+        my %o = @_;    # %options
         if ( looks_like_number $o{'-width'} or $o{'-width'} =~ m/^\d+%$/ ) {
             $self->{'SCALE'}->{'-width'} = $o{'-width'};
         }
         else {
             Bio::Phylo::Util::Exceptions::BadArgs->throw(
-                error => "\"$o{'-width'}\" is invalid for '-width'"
-            );
+                error => "\"$o{'-width'}\" is invalid for '-width'" );
         }
         if ( looks_like_number $o{'-major'} or $o{'-major'} =~ m/^\d+%$/ ) {
             $self->{'SCALE'}->{'-major'} = $o{'-major'};
         }
         else {
             Bio::Phylo::Util::Exceptions::BadArgs->throw(
-                error => "\"$o{'-major'}\" is invalid for '-major'"
-            );
+                error => "\"$o{'-major'}\" is invalid for '-major'" );
         }
         if ( looks_like_number $o{'-minor'} or $o{'-minor'} =~ m/^\d+%$/ ) {
             $self->{'SCALE'}->{'-minor'} = $o{'-minor'};
         }
         else {
             Bio::Phylo::Util::Exceptions::BadArgs->throw(
-                error => "\"$o{'-minor'}\" is invalid for '-minor'"
-            );
+                error => "\"$o{'-minor'}\" is invalid for '-minor'" );
         }
         $self->{'SCALE'}->{'-label'} = $o{'-label'};
     }
     else {
         Bio::Phylo::Util::Exceptions::OddHash->throw(
-            error => 'Odd number of elements in hash assignment'
-        );
+            error => 'Odd number of elements in hash assignment' );
     }
     return $self;
 }
@@ -656,8 +642,7 @@ sub _set_scalex {
     }
     else {
         Bio::Phylo::Util::Exceptions::BadNumber->throw(
-            error => "\"$_[0]\" is not a valid number value"
-        );
+            error => "\"$_[0]\" is not a valid number value" );
     }
     return $self;
 }
@@ -686,8 +671,7 @@ sub _set_scaley {
     }
     else {
         Bio::Phylo::Util::Exceptions::BadNumber->throw(
-            error => "\"$_[0]\" is not a valid integer value"
-        );
+            error => "\"$_[0]\" is not a valid integer value" );
     }
     return $self;
 }
@@ -716,14 +700,13 @@ sub _get_scaley {
 
 sub draw {
     my $self = shift;
-    if ( ! $self->get_tree ) {
+    if ( !$self->get_tree ) {
         Bio::Phylo::Util::Exceptions::BadArgs->throw(
-            error => "Can't draw an undefined tree"
-        );
+            error => "Can't draw an undefined tree" );
     }
     my $root = $self->get_tree->get_root;
     my $tips = $self->get_tree->calc_number_of_terminals;
-    my ( $width, $height ) = ( $self->get_width, $self->get_height );
+    my ( $width,   $height )    = ( $self->get_width,   $self->get_height );
     my ( $padding, $textwidth ) = ( $self->get_padding, $self->get_text_width );
     my $maxpath;
     if ( $self->get_mode eq 'CLADO' ) {
@@ -733,11 +716,8 @@ sub draw {
         $maxpath = $root->calc_max_path_to_tips;
     }
     $self->_set_scalex(
-        ( ( $width - ( ( 2 * $padding ) + $textwidth ) ) / $maxpath )
-    );
-    $self->_set_scaley(
-        ( ( $height - ( 2 * $padding ) ) / ( $tips + 1 ) )
-    );
+        ( ( $width - ( ( 2 * $padding ) + $textwidth ) ) / $maxpath ) );
+    $self->_set_scaley( ( ( $height - ( 2 * $padding ) ) / ( $tips + 1 ) ) );
     if ( $self->get_mode eq 'CLADO' ) {
         $self->_x_positions_clado;
     }
@@ -748,10 +728,9 @@ sub draw {
     $self->_y_internals;
     my $library = __PACKAGE__ . '::' . ucfirst( $self->get_format );
     eval "require $library";
-    if ( $@ ) {
+    if ($@) {
         Bio::Phylo::Util::Exceptions::BadFormat->throw(
-            error => "Can't load image drawer: $@"
-        );
+            error => "Can't load image drawer: $@" );
     }
     my $drawer = $library->_new(
         -tree   => $self->get_tree,
@@ -925,7 +904,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Treedrawer.pm,v 1.8 2006/04/12 22:38:22 rvosa Exp $
+$Id: Treedrawer.pm,v 1.9 2006/05/19 00:05:16 rvosa Exp $
 
 =head1 AUTHOR
 

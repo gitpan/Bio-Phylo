@@ -1,4 +1,4 @@
-# $Id: Taxlist.pm,v 1.18 2005/09/29 20:31:18 rvosa Exp $
+# $Id: Taxlist.pm,v 1.19 2006/05/18 06:41:41 rvosa Exp $
 # Subversion: $Rev: 193 $
 package Bio::Phylo::Parsers::Taxlist;
 use strict;
@@ -63,12 +63,12 @@ sub _new {
 *_from_string = \&_from_both;
 
 sub _from_both {
-    my $self    = shift;
-    my %opts    = @_;
-    if ( ! $opts{'-fieldsep'} ) {
+    my $self = shift;
+    my %opts = @_;
+    if ( !$opts{'-fieldsep'} ) {
         $opts{'-fieldsep'} = "\n";
     }
-    my $taxa    = Bio::Phylo::Taxa->new;
+    my $taxa = Bio::Phylo::Taxa->new;
     if ( $opts{'-handle'} ) {
         while ( readline $opts{'-handle'} ) {
             chomp;
@@ -78,7 +78,7 @@ sub _from_both {
         }
     }
     elsif ( $opts{'-string'} ) {
-        foreach( split /$opts{'-fieldsep'}/, $opts{'-string'} ) {
+        foreach ( split /$opts{'-fieldsep'}/, $opts{'-string'} ) {
             chomp;
             if ($_) {
                 $taxa->insert( Bio::Phylo::Taxa::Taxon->new( -name => $_ ) );
@@ -119,7 +119,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Taxlist.pm,v 1.18 2005/09/29 20:31:18 rvosa Exp $
+$Id: Taxlist.pm,v 1.19 2006/05/18 06:41:41 rvosa Exp $
 
 =head1 AUTHOR
 

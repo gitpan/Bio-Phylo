@@ -1,4 +1,4 @@
-# $Id: Svg.pm,v 1.7 2006/04/12 22:38:23 rvosa Exp $
+# $Id: Svg.pm,v 1.9 2006/05/19 00:05:16 rvosa Exp $
 # Subversion: $Rev: 192 $
 package Bio::Phylo::Treedrawer::Svg;
 use strict;
@@ -13,7 +13,6 @@ use fields qw(TREE SVG DRAWER);
 
 # One line so MakeMaker sees it.
 use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
-
 my %colors;
 
 =head1 NAME
@@ -47,12 +46,10 @@ sub _new {
     my Bio::Phylo::Treedrawer::Svg $self = shift;
     my %opt;
     eval { %opt = @_; };
-    if ( $@ ) {
-        Bio::Phylo::Util::Exceptions::OddHash->throw(
-            error => $@
-        );
+    if ($@) {
+        Bio::Phylo::Util::Exceptions::OddHash->throw( error => $@ );
     }
-    unless (ref $self) {
+    unless ( ref $self ) {
         $self = fields::new($self);
     }
     $self->{'TREE'}   = $opt{'-tree'};
@@ -79,36 +76,39 @@ sub _draw {
         'width'  => $self->{'DRAWER'}->get_width,
         'height' => $self->{'DRAWER'}->get_height
     );
-    $self->{'SVG'}->tag( 'style', type => 'text/css' )->CDATA(
-        "\n\tpolyline { fill: none; stroke: black; stroke-width: 2 }\n" .
-        "\tpath { fill: none; stroke: black; stroke-width: 2 }\n" .
-        "\tline { fill: none; stroke: black; stroke-width: 2 }\n" .
-        "\tcircle.node_circle  {}\n" .
-        "\tcircle.taxon_circle {}\n" .
-        "\ttext.node_text      {}\n" .
-        "\ttext.taxon_text     {}\n" .
-        "\tline.scale_bar      {}\n" .
-        "\ttext.scale_label    {}\n" .
-        "\tline.scale_major    {}\n" .
-        "\tline.scale_minor    {}\n"
-    );
+    $self->{'SVG'}->tag( 'style', type => 'text/css' )
+      ->CDATA( "\n\tpolyline { fill: none; stroke: black; stroke-width: 2 }\n"
+          . "\tpath { fill: none; stroke: black; stroke-width: 2 }\n"
+          . "\tline { fill: none; stroke: black; stroke-width: 2 }\n"
+          . "\tcircle.node_circle  {}\n"
+          . "\tcircle.taxon_circle {}\n"
+          . "\ttext.node_text      {}\n"
+          . "\ttext.taxon_text     {}\n"
+          . "\tline.scale_bar      {}\n"
+          . "\ttext.scale_label    {}\n"
+          . "\tline.scale_major    {}\n"
+          . "\tline.scale_minor    {}\n" );
     foreach my $node ( @{ $self->{'TREE'}->get_entities } ) {
-        my $cx  = int $node->get_generic('x');
-        my $cy  = int $node->get_generic('y');
-        my $r   = int $self->{'DRAWER'}->get_node_radius;
-        my $x   = int ( $node->get_generic('x')
-                  + $self->{'DRAWER'}->get_text_horiz_offset );
-        my $y   = int ( $node->get_generic('y')
-                  + $self->{'DRAWER'}->get_text_vert_offset );
+        my $cx = int $node->get_generic('x');
+        my $cy = int $node->get_generic('y');
+        my $r  = int $self->{'DRAWER'}->get_node_radius;
+        my $x  =
+          int( $node->get_generic('x') +
+              $self->{'DRAWER'}->get_text_horiz_offset );
+        my $y =
+          int(
+            $node->get_generic('y') + $self->{'DRAWER'}->get_text_vert_offset );
         if ( my $style = $node->get_generic('svg') ) {
-            $self->{'SVG'}->tag('circle',
+            $self->{'SVG'}->tag(
+                'circle',
                 'cx'    => $cx,
                 'cy'    => $cy,
                 'r'     => $r,
                 'style' => $style,
                 'class' => $node->is_terminal ? 'taxon_circle' : 'node_circle',
             );
-            $self->{'SVG'}->tag('text',
+            $self->{'SVG'}->tag(
+                'text',
                 'x'     => $x,
                 'y'     => $y,
                 'style' => $style,
@@ -116,13 +116,15 @@ sub _draw {
             )->cdata( $node->get_name ? $node->get_name : ' ' );
         }
         else {
-            $self->{'SVG'}->tag('circle',
+            $self->{'SVG'}->tag(
+                'circle',
                 'cx'    => $cx,
                 'cy'    => $cy,
                 'r'     => $r,
                 'class' => $node->is_terminal ? 'taxon_circle' : 'node_circle',
             );
-            $self->{'SVG'}->tag('text',
+            $self->{'SVG'}->tag(
+                'text',
                 'x'     => $x,
                 'y'     => $y,
                 'class' => $node->is_terminal ? 'taxon_text' : 'node_text',
@@ -156,43 +158,47 @@ sub _draw {
 sub _draw_pies {
     my $self = shift;
     foreach my $node ( @{ $self->{'TREE'}->get_entities } ) {
-        my $cx  = int $node->get_generic('x');
-        my $cy  = int $node->get_generic('y');
-        my $r   = int $self->{'DRAWER'}->get_node_radius;
-        my $x   = int ( $node->get_generic('x')
-                  + $self->{'DRAWER'}->get_text_horiz_offset );
-        my $y   = int ( $node->get_generic('y')
-                  + $self->{'DRAWER'}->get_text_vert_offset );
+        my $cx = int $node->get_generic('x');
+        my $cy = int $node->get_generic('y');
+        my $r  = int $self->{'DRAWER'}->get_node_radius;
+        my $x  =
+          int( $node->get_generic('x') +
+              $self->{'DRAWER'}->get_text_horiz_offset );
+        my $y =
+          int(
+            $node->get_generic('y') + $self->{'DRAWER'}->get_text_vert_offset );
         if ( my $pievalues = $node->get_generic('pie') ) {
-            my @keys  = keys %{ $pievalues };
+            my @keys  = keys %{$pievalues};
             my $start = -90;
             my $total;
-            foreach my $key ( @keys ) {
+            foreach my $key (@keys) {
                 $total += $pievalues->{$key};
             }
-            my $pie = $self->{'SVG'}->tag('g',
+            my $pie = $self->{'SVG'}->tag(
+                'g',
                 'id'        => 'pie_' . $node->get_id,
                 'transform' => "translate($cx,$cy)",
             );
-            for ( my $i = 0; $i <= $#keys; $i++ ) {
-                next if not $pievalues->{$keys[$i]};
-                my $slice = $pievalues->{$keys[$i]} / $total * 360;
-                my $color = $colors{$keys[$i]};
+            for ( my $i = 0 ; $i <= $#keys ; $i++ ) {
+                next if not $pievalues->{ $keys[$i] };
+                my $slice = $pievalues->{ $keys[$i] } / $total * 360;
+                my $color = $colors{ $keys[$i] };
                 if ( not $color ) {
                     my $gray = int( ( ( $i + 1 ) / scalar @keys ) * 256 );
                     $color = sprintf 'rgb(%d,%d,%d)', $gray, $gray, $gray;
-                    $colors{$keys[$i]} = $color;
+                    $colors{ $keys[$i] } = $color;
                 }
-                my $do_arc = 0;
+                my $do_arc  = 0;
                 my $radians = $slice * PI / 180;
-                $do_arc++  if $slice > 180;
+                $do_arc++ if $slice > 180;
                 my $radius = $r - 2;
-                my $ry = ( $radius * sin( $radians ) );
-                my $rx = $radius * cos( $radians );
-                my $g = $pie->tag('g', 'transform' => "rotate($start)");
+                my $ry     = ( $radius * sin($radians) );
+                my $rx     = $radius * cos($radians);
+                my $g      = $pie->tag( 'g', 'transform' => "rotate($start)" );
                 $g->path(
                     'style' => { 'fill' => "$color", 'stroke' => 'none' },
-                    'd'     => "M $radius,0 A $radius,$radius 0 $do_arc,1 $rx,$ry L 0,0 z"
+                    'd'     =>
+"M $radius,0 A $radius,$radius 0 $do_arc,1 $rx,$ry L 0,0 z"
                 );
                 $start += $slice;
             }
@@ -219,13 +225,13 @@ sub _draw_scale {
     my $svg     = $self->{'SVG'};
     my $tree    = $self->{'TREE'};
     my $options = $drawer->get_scale_options;
-    if ( $options ) {
+    if ($options) {
         my ( $major, $minor ) = ( $options->{'-major'}, $options->{'-minor'} );
         my $width = $options->{'-width'};
         if ( $width =~ m/^(\d+)%$/ ) {
-            $width = ( $1 / 100 )
-                     * ( $tree->get_tallest_tip->get_generic('x')
-                       - $tree->get_root->get_generic('x') );
+            $width =
+              ( $1 / 100 ) * ( $tree->get_tallest_tip->get_generic('x') -
+                  $tree->get_root->get_generic('x') );
         }
         if ( $major =~ m/^(\d+)%$/ ) {
             $major = ( $1 / 100 ) * $width;
@@ -233,44 +239,59 @@ sub _draw_scale {
         if ( $minor =~ m/^(\d+)%$/ ) {
             $minor = ( $1 / 100 ) * $width;
         }
-        my $major_text = 0;
-        my $major_scale = ( $major / $width )
-                          * $tree->get_root->calc_max_path_to_tips;
+        my $major_text  = 0;
+        my $major_scale =
+          ( $major / $width ) * $tree->get_root->calc_max_path_to_tips;
         $svg->line(
             'class' => 'scale_bar',
             'x1'    => $tree->get_root->get_generic('x'),
-            'y1'    => ( $drawer->get_height - 5  ),
+            'y1'    => ( $drawer->get_height - 5 ),
             'x2'    => $tree->get_root->get_generic('x') + $width,
-            'y2'    => ( $drawer->get_height - 5  ),
+            'y2'    => ( $drawer->get_height - 5 ),
         );
-        $svg->tag('text',
-            'x'     => ( $tree->get_root->get_generic('x') + $width + $drawer->get_text_horiz_offset ),
+        $svg->tag(
+            'text',
+            'x' => (
+                $tree->get_root->get_generic('x') + $width +
+                  $drawer->get_text_horiz_offset
+            ),
             'y'     => ( $drawer->get_height - 5 ),
             'class' => 'scale_label',
         )->cdata( $options->{'-label'} ? $options->{'-label'} : ' ' );
-        for ( my $i = $tree->get_root->get_generic('x'); $i <= ( $tree->get_root->get_generic('x') + $width ); $i += $major ) {
+        for (
+            my $i = $tree->get_root->get_generic('x') ;
+            $i <= ( $tree->get_root->get_generic('x') + $width ) ;
+            $i += $major
+          )
+        {
             $svg->line(
                 'class' => 'scale_major',
                 'x1'    => $i,
-                'y1'    => ( $drawer->get_height - 5  ),
+                'y1'    => ( $drawer->get_height - 5 ),
                 'x2'    => $i,
-                'y2'    => ( $drawer->get_height - 25  ),
+                'y2'    => ( $drawer->get_height - 25 ),
             );
-            $svg->tag('text',
+            $svg->tag(
+                'text',
                 'x'     => $i,
-                'y'     => ( $drawer->get_height - 35  ),
+                'y'     => ( $drawer->get_height - 35 ),
                 'class' => 'major_label',
             )->cdata( $major_text ? $major_text : ' ' );
             $major_text += $major_scale;
         }
-        for ( my $i = $tree->get_root->get_generic('x'); $i <= ( $tree->get_root->get_generic('x') + $width ); $i += $minor ) {
+        for (
+            my $i = $tree->get_root->get_generic('x') ;
+            $i <= ( $tree->get_root->get_generic('x') + $width ) ;
+            $i += $minor
+          )
+        {
             next if not $i % $major;
             $svg->line(
                 'class' => 'scale_minor',
                 'x1'    => $i,
-                'y1'    => ( $drawer->get_height - 5  ),
+                'y1'    => ( $drawer->get_height - 5 ),
                 'x2'    => $i,
-                'y2'    => ( $drawer->get_height - 15  ),
+                'y2'    => ( $drawer->get_height - 15 ),
             );
         }
     }
@@ -291,14 +312,16 @@ sub _draw_scale {
 
 sub _draw_legend {
     my $self = shift;
-    if ( %colors ) {
-        my $svg  = $self->{'SVG'};
-        my $tree = $self->{'TREE'};
-        my $draw = $self->{'DRAWER'};
-        my @keys = keys %colors;
-        my $increment = ( $tree->get_tallest_tip->get_generic('x') - $tree->get_root->get_generic('x') ) / scalar @keys;
+    if (%colors) {
+        my $svg       = $self->{'SVG'};
+        my $tree      = $self->{'TREE'};
+        my $draw      = $self->{'DRAWER'};
+        my @keys      = keys %colors;
+        my $increment =
+          ( $tree->get_tallest_tip->get_generic('x') -
+              $tree->get_root->get_generic('x') ) / scalar @keys;
         my $x = $tree->get_root->get_generic('x') + 5;
-        foreach my $key ( @keys ) {
+        foreach my $key (@keys) {
             $svg->rectangle(
                 'x'      => $x,
                 'y'      => ( $draw->get_height - 90 ),
@@ -311,18 +334,23 @@ sub _draw_legend {
                     'stroke-width' => '2',
                 },
             );
-            $svg->tag('text',
-                'x'      => $x,
-                'y'      => ( $draw->get_height - 60 ),
-                'class'  => 'legend_label',
+            $svg->tag(
+                'text',
+                'x'     => $x,
+                'y'     => ( $draw->get_height - 60 ),
+                'class' => 'legend_label',
             )->cdata( $key ? $key : ' ' );
             $x += $increment;
         }
-        $svg->tag('text',
-            'x'     => ( $tree->get_tallest_tip->get_generic('x') + $draw->get_text_horiz_offset ),
+        $svg->tag(
+            'text',
+            'x' => (
+                $tree->get_tallest_tip->get_generic('x') +
+                  $draw->get_text_horiz_offset
+            ),
             'y'     => ( $draw->get_height - 80 ),
             'class' => 'legend_text',
-        )->cdata( 'Node value legend' );
+        )->cdata('Node value legend');
     }
 }
 
@@ -341,40 +369,37 @@ sub _draw_legend {
 
 sub _draw_line {
     my ( $self, $node ) = @_;
-    my $node_hash = $node->get_generic;
+    my $node_hash  = $node->get_generic;
     my $pnode_hash = $node->get_parent->get_generic;
-    my ( $x1, $x2, $style ) = ( int $pnode_hash->{'x'}, int $node_hash->{'x'}, $node_hash->{'svg'} );
+    my ( $x1, $x2, $style ) =
+      ( int $pnode_hash->{'x'}, int $node_hash->{'x'}, $node_hash->{'svg'} );
     my ( $y1, $y2 ) = ( int $pnode_hash->{'y'}, int $node_hash->{'y'} );
     if ( $self->{'DRAWER'}->get_shape eq 'CURVY' ) {
         my $points = qq{M$x1,$y1 C$x1,$y2 $x2,$y2 $x2,$y2};
-        if ( $style ) {
+        if ($style) {
             $self->{'SVG'}->path(
                 'd'     => $points,
                 'style' => $style,
             );
         }
         else {
-            $self->{'SVG'}->path(
-                'd' => $points,
-            );
+            $self->{'SVG'}->path( 'd' => $points, );
         }
     }
     elsif ( $self->{'DRAWER'}->get_shape eq 'RECT' ) {
         my $points = qq{$x1,$y1 $x1,$y2 $x2,$y2};
-        if ( $style ) {
+        if ($style) {
             $self->{'SVG'}->polyline(
                 'points' => $points,
                 'style'  => $style,
             );
         }
         else {
-            $self->{'SVG'}->polyline(
-                'points' => $points,
-            );
+            $self->{'SVG'}->polyline( 'points' => $points, );
         }
     }
     elsif ( $self->{'DRAWER'}->get_shape eq 'DIAG' ) {
-        if ( $style ) {
+        if ($style) {
             $self->{'SVG'}->line(
                 'x1'    => $x1,
                 'y1'    => $y1,
@@ -425,7 +450,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Svg.pm,v 1.7 2006/04/12 22:38:23 rvosa Exp $
+$Id: Svg.pm,v 1.9 2006/05/19 00:05:16 rvosa Exp $
 
 =head1 AUTHOR
 

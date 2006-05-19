@@ -1,4 +1,4 @@
-# $Id: Nexus.pm,v 1.22 2006/03/04 23:51:03 rvosa Exp $
+# $Id: Nexus.pm,v 1.23 2006/05/18 06:41:41 rvosa Exp $
 # Subversion: $Rev: 195 $
 package Bio::Phylo::Parsers::Nexus;
 use strict;
@@ -197,8 +197,7 @@ sub _parse_taxa {
     if ( $parsed->{ntax} != scalar @{$taxlist} ) {
         my ( $exp, $obs ) = ( $parsed->{ntax}, scalar @{$taxlist} );
         Bio::Phylo::Util::Exceptions::BadFormat->throw(
-            error => "observed ($obs) and expected ($exp) ntax unequal"
-        );
+            error => "observed ($obs) and expected ($exp) ntax unequal" );
     }
     foreach ( @{$taxlist} ) {
         my $taxon = new Bio::Phylo::Taxa::Taxon;
@@ -237,23 +236,26 @@ sub _parse_char {
             if ($name) {
                 my ( $obs, $exp ) = ( length($charstring), $parsed->{nchar} );
                 if ( $obs != $exp ) {
-                    Bio::Phylo::Util::Exceptions::BadFormat->throw(
-                        error => "observed ($obs) and expected ($exp) nchar unequal for $name"
+                    Bio::Phylo::Util::Exceptions::BadFormat->throw( error =>
+"observed ($obs) and expected ($exp) nchar unequal for $name"
                     );
                 }
-#                for my $j ( 0 .. length($charstring) ) {
+
+                #                for my $j ( 0 .. length($charstring) ) {
                 my $datum = Bio::Phylo::Matrices::Datum->new(
                     '-name' => $name,
                     '-pos'  => 1,
                     '-type' => $datatype,
                     '-char' => $charstring,
                 );
-#                    $datum->set_name($name);
-#                    $datum->set_position( $j + 1 );
-#                    $datum->set_type($datatype);
-#                    $datum->set_char( substr( $charstring, $j, 1 ) );
+
+          #                    $datum->set_name($name);
+          #                    $datum->set_position( $j + 1 );
+          #                    $datum->set_type($datatype);
+          #                    $datum->set_char( substr( $charstring, $j, 1 ) );
                 $matrix->insert($datum);
-#                }
+
+                #                }
             }
             $charstring = undef;
             $name       = $charlist->[$i];
@@ -365,7 +367,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Nexus.pm,v 1.22 2006/03/04 23:51:03 rvosa Exp $
+$Id: Nexus.pm,v 1.23 2006/05/18 06:41:41 rvosa Exp $
 
 =head1 AUTHOR
 

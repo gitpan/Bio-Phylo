@@ -1,4 +1,4 @@
-# $Id: Node.pm,v 1.21 2006/04/12 22:38:22 rvosa Exp $
+# $Id: Node.pm,v 1.22 2006/05/18 06:41:40 rvosa Exp $
 package Bio::Phylo::Forest::Node;
 use strict;
 use Bio::Phylo::Util::IDPool;
@@ -19,30 +19,44 @@ eval "require $interface";
 $HAS_BIOPERL_INTERFACE = 1 unless $@;
 
 # aliasing for Bio::Tree::NodeI
-if ( $HAS_BIOPERL_INTERFACE ) {
+if ($HAS_BIOPERL_INTERFACE) {
     push @ISA, 'Bio::Tree::NodeI';
-    *add_Descendent      = sub { $_[0]->set_child($_[1]); return scalar @{ $_[0]->get_children } };
-    *each_Descendent     = sub { $_[0]->get_children ? return @{ $_[0]->get_children } : return };
+    *add_Descendent =
+      sub { $_[0]->set_child( $_[1] ); return scalar @{ $_[0]->get_children } };
+    *each_Descendent =
+      sub { $_[0]->get_children ? return @{ $_[0]->get_children } : return };
     *get_all_Descendents = sub { return @{ $_[0]->get_descendants } };
     *is_Leaf             = sub { return $_[0]->is_terminal };
     *descendent_count    = sub { return scalar @{ $_[0]->get_descendants } };
     *to_string           = sub { return $_[0]->to_xml };
     *height              = sub { return $_[0]->calc_max_path_to_tips };
-    *branch_length       = sub { defined $_[1] ? $_[0]->set_branch_length($_[1])->get_branch_length : $_[0]->get_branch_length };
-    *id                  = sub { $_[1] ? $_[0]->set_name($_[1])->get_name : $_[0]->get_name };
-    *internal_id         = sub { return ${$_[0]} };
-    *description         = sub { $_[1] ? $_[0]->set_desc($_[1])->get_desc : $_[0]->get_desc };
-    *bootstrap           = sub { $_[1] ? $_[0]->set_generic( 'bootstrap' => $_[1] )->get_generic( 'bootstrap' ) : $_[0]->get_generic( 'bootstrap' ) };
-    *ancestor            = sub { $_[1] ? $_[0]->set_parent($_[1])->get_parent : $_[0]->get_parent };
-    *invalidate_height   = sub { $_[0]->_flush_cache };
-    *add_tag_value       = sub { $_[0]->set_generic( $_[1] => $_[2] ); return scalar @{ keys %{ $_[0]->get_generic } } };
-    *remove_tag          = sub { $_[0]->set_generic( $_[1] => undef ); return undef };
-    *remove_all_tags     = sub { $_[0]->set_generic( undef ) };
-    *get_all_tags        = sub { return keys %{ $_[0]->get_generic } };
-    *get_tag_values      = sub { return $_[0]->get_generic( $_[1] ) };
-    *has_tag             = sub { $_[0]->get_generic( $_[1] ) ? return 1 : return 0 };
+    *branch_length       = sub {
+        defined $_[1]
+          ? $_[0]->set_branch_length( $_[1] )->get_branch_length
+          : $_[0]->get_branch_length;
+    };
+    *id = sub { $_[1] ? $_[0]->set_name( $_[1] )->get_name : $_[0]->get_name };
+    *internal_id = sub { return ${ $_[0] } };
+    *description =
+      sub { $_[1] ? $_[0]->set_desc( $_[1] )->get_desc : $_[0]->get_desc };
+    *bootstrap = sub {
+        $_[1]
+          ? $_[0]->set_generic( 'bootstrap' => $_[1] )->get_generic('bootstrap')
+          : $_[0]->get_generic('bootstrap');
+    };
+    *ancestor =
+      sub { $_[1] ? $_[0]->set_parent( $_[1] )->get_parent : $_[0]->get_parent };
+    *invalidate_height = sub { $_[0]->_flush_cache };
+    *add_tag_value     = sub {
+        $_[0]->set_generic( $_[1] => $_[2] );
+        return scalar @{ keys %{ $_[0]->get_generic } };
+    };
+    *remove_tag = sub { $_[0]->set_generic( $_[1] => undef ); return undef };
+    *remove_all_tags = sub { $_[0]->set_generic(undef) };
+    *get_all_tags    = sub { return keys %{ $_[0]->get_generic } };
+    *get_tag_values  = sub { return $_[0]->get_generic( $_[1] ) };
+    *has_tag = sub { $_[0]->get_generic( $_[1] ) ? return 1 : return 0 };
 }
-
 {
 
     # inside out class arrays
@@ -155,10 +169,10 @@ orphans all nodes can be reached without recourse to the tree object.
         my $class = shift;
         my $self  = Bio::Phylo::Forest::Node->SUPER::new(@_);
         bless $self, __PACKAGE__;
-        if ( @_ ) {
+        if (@_) {
             my %opt;
             eval { %opt = @_; };
-            if ( $@ ) {
+            if ($@) {
                 Bio::Phylo::Util::Exceptions::OddHash->throw( error => $@ );
             }
             else {
@@ -168,7 +182,7 @@ orphans all nodes can be reached without recourse to the tree object.
                         if ( ref $value && $value->can('_type') ) {
                             my $type = $value->_type;
                             if ( $type == _NODE_ || $type == _TAXON_ ) {
-                                weaken($fields->{$key}->[$$self]);
+                                weaken( $fields->{$key}->[$$self] );
                             }
                         }
                         delete $opt{$key};
@@ -234,23 +248,30 @@ orphans all nodes can be reached without recourse to the tree object.
         my ( $self, $taxon ) = @_;
         if ( defined $taxon ) {
             if ( $taxon->can('_type') && $taxon->_type == _TAXON_ ) {
-                if ( $self->_get_container && $self->_get_container->_get_container && $self->_get_container->_get_container->get_taxa ) {
-                    if ( $taxon->_get_container != $self->_get_container->_get_container->get_taxa ) {
+                if (   $self->_get_container
+                    && $self->_get_container->_get_container
+                    && $self->_get_container->_get_container->get_taxa )
+                {
+                    if ( $taxon->_get_container !=
+                        $self->_get_container->_get_container->get_taxa )
+                    {
                         Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-                            error => "Attempt to link to taxon from wrong block"
-                        );
+                            error =>
+                              "Attempt to link to taxon from wrong block" );
                     }
                 }
                 $taxon[$$self] = $taxon;
-                weaken($taxon[$$self]);
-                if ( $self->_get_container && $self->_get_container->_get_container ) {
-                    $self->_get_container->_get_container->set_taxa( $taxon->_get_container );
+                weaken( $taxon[$$self] );
+                if (   $self->_get_container
+                    && $self->_get_container->_get_container )
+                {
+                    $self->_get_container->_get_container->set_taxa(
+                        $taxon->_get_container );
                 }
             }
             else {
                 Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-                    error => "\"$taxon\" doesn't look like a taxon"
-                );
+                    error => "\"$taxon\" doesn't look like a taxon" );
             }
         }
         else {
@@ -276,13 +297,12 @@ orphans all nodes can be reached without recourse to the tree object.
 
     sub set_parent {
         my ( $self, $parent ) = @_;
-        if ( $parent ) {
+        if ($parent) {
             my $type;
             eval { $type = $parent->_type; };
             if ( $@ || $type != _NODE_ ) {
                 Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-                    error => "\"$parent\" is not a valid node object"
-                );
+                    error => "\"$parent\" is not a valid node object" );
             }
             else {
                 $parent[$$self] = $parent;
@@ -311,13 +331,12 @@ orphans all nodes can be reached without recourse to the tree object.
 
     sub set_first_daughter {
         my ( $self, $first_daughter ) = @_;
-        if ( $first_daughter ) {
+        if ($first_daughter) {
             my $type;
             eval { $type = $first_daughter->_type; };
             if ( $@ || $type != _NODE_ ) {
                 Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-                    error => "\"$first_daughter\" is not a valid node object"
-                );
+                    error => "\"$first_daughter\" is not a valid node object" );
             }
             else {
                 $first_daughter[$$self] = $first_daughter;
@@ -347,13 +366,12 @@ orphans all nodes can be reached without recourse to the tree object.
 
     sub set_last_daughter {
         my ( $self, $last_daughter ) = @_;
-        if ( $last_daughter ) {
+        if ($last_daughter) {
             my $type;
             eval { $type = $last_daughter->_type; };
             if ( $@ || $type != _NODE_ ) {
                 Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-                    error => "\"$last_daughter\" is not a valid node object"
-                );
+                    error => "\"$last_daughter\" is not a valid node object" );
             }
             else {
                 $last_daughter[$$self] = $last_daughter;
@@ -383,13 +401,12 @@ orphans all nodes can be reached without recourse to the tree object.
 
     sub set_previous_sister {
         my ( $self, $previous_sister ) = @_;
-        if ( $previous_sister ) {
+        if ($previous_sister) {
             my $type;
             eval { $type = $previous_sister->_type; };
             if ( $@ || $type != _NODE_ ) {
-                Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-                    error => "\"$previous_sister\" is not a valid node object"
-                );
+                Bio::Phylo::Util::Exceptions::ObjectMismatch->throw( error =>
+                      "\"$previous_sister\" is not a valid node object" );
             }
             else {
                 $previous_sister[$$self] = $previous_sister;
@@ -420,13 +437,12 @@ orphans all nodes can be reached without recourse to the tree object.
 
     sub set_next_sister {
         my ( $self, $next_sister ) = @_;
-        if ( $next_sister ) {
+        if ($next_sister) {
             my $type;
             eval { $type = $next_sister->_type; };
             if ( $@ || $type != _NODE_ ) {
                 Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-                    error => "\"$next_sister\" is not a valid node object"
-                );
+                    error => "\"$next_sister\" is not a valid node object" );
             }
             else {
                 $next_sister[$$self] = $next_sister;
@@ -454,29 +470,28 @@ orphans all nodes can be reached without recourse to the tree object.
 
     sub set_child {
         my ( $self, $child ) = @_;
-        if ( $child ) {
+        if ($child) {
             my $type;
             eval { $type = $child->_type; };
             if ( $@ || $type != _NODE_ ) {
                 Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-                    error => "\"$child\" is not a valid node object"
-                );
+                    error => "\"$child\" is not a valid node object" );
             }
             else {
                 if ( my $ld = $self->get_last_daughter ) {
-                    $ld->set_next_sister( $child );
-                    $child->set_previous_sister( $ld );
-                    $self->set_last_daughter( $child );
+                    $ld->set_next_sister($child);
+                    $child->set_previous_sister($ld);
+                    $self->set_last_daughter($child);
                 }
                 elsif ( my $fd = $self->get_first_daughter ) {
-                    $fd->set_next_sister( $child );
-                    $child->set_previous_sister( $fd );
-                    $self->set_last_daughter( $child );
+                    $fd->set_next_sister($child);
+                    $child->set_previous_sister($fd);
+                    $self->set_last_daughter($child);
                 }
                 else {
-                    $self->set_first_daughter( $child );
+                    $self->set_first_daughter($child);
                 }
-                $child->set_parent( $self );
+                $child->set_parent($self);
             }
         }
         $self->_flush_cache;
@@ -499,15 +514,14 @@ orphans all nodes can be reached without recourse to the tree object.
 
     sub set_branch_length {
         my ( $self, $bl ) = @_;
-        if ( defined $bl && looks_like_number $bl && ! ref $bl ) {
+        if ( defined $bl && looks_like_number $bl && !ref $bl ) {
             $branch_length[$$self] = $bl;
         }
-        elsif ( defined $bl && ( ! looks_like_number $bl || ref $bl ) ) {
+        elsif ( defined $bl && ( !looks_like_number $bl || ref $bl ) ) {
             Bio::Phylo::Util::Exceptions::BadNumber->throw(
-                error => "Branch length \"$bl\" is a bad number"
-            );
+                error => "Branch length \"$bl\" is a bad number" );
         }
-        elsif ( ! defined $bl ) {
+        elsif ( !defined $bl ) {
             $branch_length[$$self] = undef;
         }
         $self->_flush_cache;
@@ -527,13 +541,11 @@ orphans all nodes can be reached without recourse to the tree object.
 
     sub set_generic {
         my $self = shift;
-        if ( @_ ) {
+        if (@_) {
             my %opt;
             eval { %opt = @_; };
-            if ( $@ ) {
-                Bio::Phylo::Util::Exceptions::OddHash->throw(
-                    error => $@
-                );
+            if ($@) {
+                Bio::Phylo::Util::Exceptions::OddHash->throw( error => $@ );
             }
             else {
                 while ( my ( $key, $value ) = each %opt ) {
@@ -565,7 +577,7 @@ orphans all nodes can be reached without recourse to the tree object.
 
 =cut
 
-    sub get_taxon { $taxon[${$_[0]}] }
+    sub get_taxon { $taxon[ ${ $_[0] } ] }
 
 =item get_parent()
 
@@ -578,7 +590,7 @@ orphans all nodes can be reached without recourse to the tree object.
 
 =cut
 
-    sub get_parent { $parent[${$_[0]}] }
+    sub get_parent { $parent[ ${ $_[0] } ] }
 
 =item get_first_daughter()
 
@@ -591,7 +603,7 @@ orphans all nodes can be reached without recourse to the tree object.
 
 =cut
 
-    sub get_first_daughter { $first_daughter[${$_[0]}] }
+    sub get_first_daughter { $first_daughter[ ${ $_[0] } ] }
 
 =item get_last_daughter()
 
@@ -604,7 +616,7 @@ orphans all nodes can be reached without recourse to the tree object.
 
 =cut
 
-    sub get_last_daughter { $last_daughter[${$_[0]}] }
+    sub get_last_daughter { $last_daughter[ ${ $_[0] } ] }
 
 =item get_previous_sister()
 
@@ -617,7 +629,7 @@ orphans all nodes can be reached without recourse to the tree object.
 
 =cut
 
-    sub get_previous_sister { $previous_sister[${$_[0]}] }
+    sub get_previous_sister { $previous_sister[ ${ $_[0] } ] }
 
 =item get_next_sister()
 
@@ -630,7 +642,7 @@ orphans all nodes can be reached without recourse to the tree object.
 
 =cut
 
-    sub get_next_sister { $next_sister[${$_[0]}] }
+    sub get_next_sister { $next_sister[ ${ $_[0] } ] }
 
 =item get_branch_length()
 
@@ -647,7 +659,7 @@ orphans all nodes can be reached without recourse to the tree object.
 
 =cut
 
-    sub get_branch_length { $branch_length[${$_[0]}] }
+    sub get_branch_length { $branch_length[ ${ $_[0] } ] }
 
 =item get_ancestors()
 
@@ -664,7 +676,7 @@ orphans all nodes can be reached without recourse to the tree object.
 
     sub get_ancestors {
         my $self = shift;
-        my @tmp = $self->_check_cache;
+        my @tmp  = $self->_check_cache;
         return $tmp[1] if $tmp[0];
         my @ancestors;
         my $node = $self;
@@ -673,7 +685,7 @@ orphans all nodes can be reached without recourse to the tree object.
                 push @ancestors, $node;
                 $node = $node->get_parent;
             }
-            $self->_store_cache(\@ancestors);
+            $self->_store_cache( \@ancestors );
             return \@ancestors;
         }
         else {
@@ -697,7 +709,7 @@ orphans all nodes can be reached without recourse to the tree object.
 
     sub get_sisters {
         my $self = shift;
-        my @tmp = $self->_check_cache;
+        my @tmp  = $self->_check_cache;
         return $tmp[1] if $tmp[0];
         my $sisters = $self->get_parent->get_children;
         $self->_store_cache($sisters);
@@ -719,7 +731,7 @@ orphans all nodes can be reached without recourse to the tree object.
 
     sub get_children {
         my $self = shift;
-        my @tmp = $self->_check_cache;
+        my @tmp  = $self->_check_cache;
         return $tmp[1] if $tmp[0];
         my @children;
         my $fd = $self->get_first_daughter;
@@ -728,7 +740,7 @@ orphans all nodes can be reached without recourse to the tree object.
                 push @children, $fd;
                 $fd = $fd->get_next_sister;
             }
-            $self->_store_cache(\@children);
+            $self->_store_cache( \@children );
             return \@children;
         }
         else {
@@ -753,7 +765,7 @@ orphans all nodes can be reached without recourse to the tree object.
 
     sub get_descendants {
         my $self = shift;
-        my @tmp = $self->_check_cache;
+        my @tmp  = $self->_check_cache;
         return $tmp[1] if $tmp[0];
         my @current = ($self);
         my @desc;
@@ -761,7 +773,7 @@ orphans all nodes can be reached without recourse to the tree object.
             @current = $self->_desc(@current);
             push @desc, @current;
         }
-        $self->_store_cache(\@desc);
+        $self->_store_cache( \@desc );
         return \@desc;
     }
 
@@ -793,8 +805,8 @@ orphans all nodes can be reached without recourse to the tree object.
         my @return;
         foreach (@current) {
             my $children = $_->get_children;
-            if ( $children ) {
-                push @return, @{ $children };
+            if ($children) {
+                push @return, @{$children};
             }
         }
         return @return;
@@ -815,7 +827,7 @@ orphans all nodes can be reached without recourse to the tree object.
 
     sub get_terminals {
         my $self = shift;
-        my @tmp = $self->_check_cache;
+        my @tmp  = $self->_check_cache;
         return $tmp[1] if $tmp[0];
         my @terminals;
         my $desc = $self->get_descendants;
@@ -826,7 +838,7 @@ orphans all nodes can be reached without recourse to the tree object.
                 }
             }
         }
-        $self->_store_cache(\@terminals);
+        $self->_store_cache( \@terminals );
         return \@terminals;
     }
 
@@ -845,7 +857,7 @@ orphans all nodes can be reached without recourse to the tree object.
 
     sub get_internals {
         my $self = shift;
-        my @tmp = $self->_check_cache;
+        my @tmp  = $self->_check_cache;
         return $tmp[1] if $tmp[0];
         my @internals;
         my $desc = $self->get_descendants;
@@ -856,7 +868,7 @@ orphans all nodes can be reached without recourse to the tree object.
                 }
             }
         }
-        $self->_store_cache(\@internals);
+        $self->_store_cache( \@internals );
         return \@internals;
     }
 
@@ -877,8 +889,8 @@ orphans all nodes can be reached without recourse to the tree object.
         my ( $self, $other_node ) = @_;
         my $self_anc  = $self->get_ancestors;
         my $other_anc = $other_node->get_ancestors;
-        for my $i ( 0 .. $#{ $self_anc } ) {
-            for my $j ( 0 .. $#{ $other_anc } ) {
+        for my $i ( 0 .. $#{$self_anc} ) {
+            for my $j ( 0 .. $#{$other_anc} ) {
                 if ( ${ $self_anc->[$i] } == ${ $other_anc->[$j] } ) {
                     return $self_anc->[$i];
                 }
@@ -902,10 +914,10 @@ orphans all nodes can be reached without recourse to the tree object.
 
     sub get_leftmost_terminal {
         my $self = shift;
-        my @tmp = $self->_check_cache;
+        my @tmp  = $self->_check_cache;
         return $tmp[1] if $tmp[0];
         my $daughter = $self;
-        while ( $daughter ) {
+        while ($daughter) {
             if ( $daughter->get_first_daughter ) {
                 $daughter = $daughter->get_first_daughter;
             }
@@ -932,7 +944,7 @@ orphans all nodes can be reached without recourse to the tree object.
 
     sub get_rightmost_terminal {
         my $self = shift;
-        my @tmp = $self->_check_cache;
+        my @tmp  = $self->_check_cache;
         return $tmp[1] if $tmp[0];
         my $daughter = $self;
         while ($daughter) {
@@ -976,7 +988,7 @@ orphans all nodes can be reached without recourse to the tree object.
 
     sub get_generic {
         my ( $self, $key ) = @_;
-        if ( $key ) {
+        if ($key) {
             return $generic[$$self]->{$key};
         }
         else {
@@ -1006,7 +1018,7 @@ orphans all nodes can be reached without recourse to the tree object.
 
     sub is_terminal {
         my $self = shift;
-        my @tmp = $self->_check_cache;
+        my @tmp  = $self->_check_cache;
         return $tmp[1] if $tmp[0];
         if ( !$self->get_first_daughter ) {
             $self->_store_cache(1);
@@ -1034,7 +1046,7 @@ orphans all nodes can be reached without recourse to the tree object.
 
     sub is_internal {
         my $self = shift;
-        my @tmp = $self->_check_cache;
+        my @tmp  = $self->_check_cache;
         return $tmp[1] if $tmp[0];
         if ( $self->get_first_daughter ) {
             $self->_store_cache(1);
@@ -1149,8 +1161,8 @@ orphans all nodes can be reached without recourse to the tree object.
 
     sub is_outgroup_of {
         my ( $outgroup, $nodes ) = @_;
-        for my $i ( 0 .. $#{ $nodes } ) {
-            for my $j ( ( $i + 1 ) .. $#{ $nodes } ) {
+        for my $i ( 0 .. $#{$nodes} ) {
+            for my $j ( ( $i + 1 ) .. $#{$nodes} ) {
                 my $mrca = $nodes->[$i]->get_mrca( $nodes->[$j] );
                 return if $mrca->is_ancestor_of($outgroup);
             }
@@ -1179,7 +1191,7 @@ orphans all nodes can be reached without recourse to the tree object.
 
     sub calc_path_to_root {
         my $self = shift;
-        my @tmp = $self->_check_cache;
+        my @tmp  = $self->_check_cache;
         return $tmp[1] if $tmp[0];
         my $node = $self;
         my $path = 0;
@@ -1213,13 +1225,13 @@ orphans all nodes can be reached without recourse to the tree object.
 
     sub calc_nodes_to_root {
         my $self = shift;
-        my @tmp = $self->_check_cache;
+        my @tmp  = $self->_check_cache;
         return $tmp[1] if $tmp[0];
         my ( $nodes, $parent ) = ( 0, $self );
         while ($parent) {
             $nodes++;
             $parent = $parent->get_parent;
-            if ( $parent ) {
+            if ($parent) {
                 if ( my $cntr = $parent->calc_nodes_to_root ) {
                     $nodes += $cntr;
                     last;
@@ -1245,7 +1257,7 @@ orphans all nodes can be reached without recourse to the tree object.
 
     sub calc_max_nodes_to_tips {
         my $self = shift;
-        my @tmp = $self->_check_cache;
+        my @tmp  = $self->_check_cache;
         return $tmp[1] if $tmp[0];
         my ( $nodes, $maxnodes ) = ( 0, 0 );
         foreach my $child ( @{ $self->get_terminals } ) {
@@ -1277,7 +1289,7 @@ orphans all nodes can be reached without recourse to the tree object.
 
     sub calc_min_nodes_to_tips {
         my $self = shift;
-        my @tmp = $self->_check_cache;
+        my @tmp  = $self->_check_cache;
         return $tmp[1] if $tmp[0];
         my ( $nodes, $minnodes );
         foreach my $child ( @{ $self->get_terminals } ) {
@@ -1286,7 +1298,7 @@ orphans all nodes can be reached without recourse to the tree object.
                 $nodes++;
                 $child = $child->get_parent;
             }
-            if ( ! $minnodes || $nodes < $minnodes ) {
+            if ( !$minnodes || $nodes < $minnodes ) {
                 $minnodes = $nodes;
             }
         }
@@ -1309,7 +1321,7 @@ orphans all nodes can be reached without recourse to the tree object.
 
     sub calc_max_path_to_tips {
         my $self = shift;
-        my @tmp = $self->_check_cache;
+        my @tmp  = $self->_check_cache;
         return $tmp[1] if $tmp[0];
         my ( $length, $maxlength ) = ( 0, 0 );
         foreach my $child ( @{ $self->get_terminals } ) {
@@ -1322,7 +1334,7 @@ orphans all nodes can be reached without recourse to the tree object.
                 $child = $child->get_parent;
             }
             if ( $length > $maxlength ) {
-                $maxlength = $length ;
+                $maxlength = $length;
             }
         }
         $self->_store_cache($maxlength);
@@ -1344,7 +1356,7 @@ orphans all nodes can be reached without recourse to the tree object.
 
     sub calc_min_path_to_tips {
         my $self = shift;
-        my @tmp = $self->_check_cache;
+        my @tmp  = $self->_check_cache;
         return $tmp[1] if $tmp[0];
         my ( $length, $minlength );
         foreach my $child ( @{ $self->get_terminals } ) {
@@ -1360,7 +1372,7 @@ orphans all nodes can be reached without recourse to the tree object.
                 $minlength = $length;
             }
             if ( $length < $minlength ) {
-                $minlength = $length ;
+                $minlength = $length;
             }
         }
         $self->_store_cache($minlength);
@@ -1413,19 +1425,22 @@ orphans all nodes can be reached without recourse to the tree object.
 =cut
 
     sub to_xml {
-        my $self = shift;
+        my $self  = shift;
         my $class = ref $self;
         $class =~ s/^.*:([^:]+)$/$1/g;
         $class = lc($class);
-        my $xml = '<' . $class . ' id="' . $class . $self->get_id . '">';
+        my $xml     = '<' . $class . ' id="' . $class . $self->get_id . '">';
         my $generic = $self->get_generic;
-        my ( $name, $score, $desc ) = ( $self->get_name, $self->get_score, $self->get_desc );
-        $xml .= '<name>' . $name . '</name>' if $name;
+        my ( $name, $score, $desc ) =
+          ( $self->get_name, $self->get_score, $self->get_desc );
+        $xml .= '<name>' . $name . '</name>'    if $name;
         $xml .= '<score>' . $score . '</score>' if $score;
-        $xml .= '<desc>' . $desc . '</desc>' if $desc;
-        $xml .= XMLout( $generic ) if $generic && %{ $generic };
-        $xml .= '<branchlength>' . $self->get_branch_length . '</branchlength>' if defined $self->get_branch_length;
-        $xml .= '<parent idref="' . $class . $self->get_parent->get_id . '" />' if $self->get_parent;
+        $xml .= '<desc>' . $desc . '</desc>'    if $desc;
+        $xml .= XMLout($generic) if $generic && %{$generic};
+        $xml .= '<branchlength>' . $self->get_branch_length . '</branchlength>'
+          if defined $self->get_branch_length;
+        $xml .= '<parent idref="' . $class . $self->get_parent->get_id . '" />'
+          if $self->get_parent;
         $xml .= '</' . $class . '>';
         return $xml;
     }
@@ -1453,7 +1468,7 @@ orphans all nodes can be reached without recourse to the tree object.
 
     sub DESTROY {
         my $self = shift;
-        foreach( keys %{ $fields } ) {
+        foreach ( keys %{$fields} ) {
             delete $fields->{$_}->[$$self];
         }
         $self->SUPER::DESTROY;
@@ -1576,7 +1591,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Node.pm,v 1.21 2006/04/12 22:38:22 rvosa Exp $
+$Id: Node.pm,v 1.22 2006/05/18 06:41:40 rvosa Exp $
 
 =head1 AUTHOR
 
@@ -1606,5 +1621,4 @@ itself.
 =cut
 
 }
-
 1;

@@ -6,7 +6,7 @@ use strict;
 
     sub _initialize {
         my $obj_ID = 0;
-        if ( @reclaim ) {
+        if (@reclaim) {
             $obj_ID = shift(@reclaim);
         }
         else {
@@ -21,9 +21,7 @@ use strict;
         push @reclaim, ${$obj_IDREF};
     }
 }
-
 1;
-
 __END__
 
 =head1 NAME
@@ -62,7 +60,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: IDPool.pm,v 1.4 2006/03/14 12:01:57 rvosa Exp $
+$Id: IDPool.pm,v 1.5 2006/05/18 06:41:42 rvosa Exp $
 
 =head1 AUTHOR
 

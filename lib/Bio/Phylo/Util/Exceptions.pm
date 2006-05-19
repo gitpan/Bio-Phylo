@@ -6,46 +6,32 @@ use warnings;
 
 # One line so MakeMaker sees it.
 use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
-
 use Exception::Class (
     'Bio::Phylo::Util::Exceptions',
-
     'Bio::Phylo::Util::Exceptions::BadNumber' =>
-    { isa => 'Bio::Phylo::Util::Exceptions' },
-
+      { isa => 'Bio::Phylo::Util::Exceptions' },
     'Bio::Phylo::Util::Exceptions::BadString' =>
-    { isa => 'Bio::Phylo::Util::Exceptions' },
-
+      { isa => 'Bio::Phylo::Util::Exceptions' },
     'Bio::Phylo::Util::Exceptions::BadFormat' =>
-    { isa => 'Bio::Phylo::Util::Exceptions' },
-
+      { isa => 'Bio::Phylo::Util::Exceptions' },
     'Bio::Phylo::Util::Exceptions::OddHash' =>
-    { isa => 'Bio::Phylo::Util::Exceptions' },
-
+      { isa => 'Bio::Phylo::Util::Exceptions' },
     'Bio::Phylo::Util::Exceptions::ObjectMismatch' =>
-    { isa => 'Bio::Phylo::Util::Exceptions' },
-
+      { isa => 'Bio::Phylo::Util::Exceptions' },
     'Bio::Phylo::Util::Exceptions::UnknownMethod' =>
-    { isa => 'Bio::Phylo::Util::Exceptions' },
-
+      { isa => 'Bio::Phylo::Util::Exceptions' },
     'Bio::Phylo::Util::Exceptions::BadArgs' =>
-    { isa => 'Bio::Phylo::Util::Exceptions' },
-
+      { isa => 'Bio::Phylo::Util::Exceptions' },
     'Bio::Phylo::Util::Exceptions::FileError' =>
-    { isa => 'Bio::Phylo::Util::Exceptions' },
-
+      { isa => 'Bio::Phylo::Util::Exceptions' },
     'Bio::Phylo::Util::Exceptions::ExtensionError' =>
-    { isa => 'Bio::Phylo::Util::Exceptions' },
-
+      { isa => 'Bio::Phylo::Util::Exceptions' },
     'Bio::Phylo::Util::Exceptions::OutOfBounds' =>
-    { isa => 'Bio::Phylo::Util::Exceptions' },
-
+      { isa => 'Bio::Phylo::Util::Exceptions' },
     'Bio::Phylo::Util::Exceptions::NotImplemented' =>
-    { isa => 'Bio::Phylo::Util::Exceptions' },
+      { isa => 'Bio::Phylo::Util::Exceptions' },
 );
-
 1;
-
 __END__
 
 =head1 NAME

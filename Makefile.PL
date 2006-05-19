@@ -1,4 +1,4 @@
-# $Id: Makefile.PL,v 1.9 2006/03/06 10:55:11 rvosa Exp $
+# $Id: Makefile.PL,v 1.10 2006/05/18 06:41:39 rvosa Exp $
 # Subversion: $Rev: 177 $
 use strict;
 use warnings;
@@ -25,7 +25,6 @@ WriteMakefile(
         'Math::Random'     => 0,
         'IO::String'       => 0,
         'XML::Simple'      => 0,
-        'Hash::Util'       => 0,
         'SVG'              => 1.07,
         'Storable'         => 0,
         'fields'           => 0,

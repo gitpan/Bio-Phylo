@@ -29,12 +29,18 @@ $taxa->insert($taxon1)->insert($taxon2);
 
 my $datum1 = Bio::Phylo::Matrices::Datum->new( '-taxon' => $taxon1 );
 my $datum3 = Bio::Phylo::Matrices::Datum->new( '-taxon' => $taxon2 );
+
 $datum1->set_type( 'DNA' );
 $datum3->set_type( 'DNA' );
+
 my $matrix = Bio::Phylo::Matrices::Matrix->new( '-type' => 'DNA' );
 $matrix->set_type( 'DNA' );
 
-$matrix->insert($datum1)->insert($datum3);
+eval { $matrix->insert($datum1)->insert($datum3); };
+if ( $@ ) {
+print $@->trace->as_string;
+}
+print "inserted data\n";
 
 ok( $matrix->cross_reference($taxa), '8 cross ref m -> t' );
 

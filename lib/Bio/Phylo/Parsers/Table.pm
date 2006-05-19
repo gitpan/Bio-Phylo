@@ -1,4 +1,4 @@
-# $Id: Table.pm,v 1.21 2006/04/12 22:38:23 rvosa Exp $
+# $Id: Table.pm,v 1.22 2006/05/18 06:41:41 rvosa Exp $
 # Subversion: $Rev: 194 $
 package Bio::Phylo::Parsers::Table;
 use strict;
@@ -75,14 +75,15 @@ sub _new {
 *_from_string = \&_from_both;
 
 sub _from_both {
-    my $self    = shift;
-    my %opts    = @_;
-    my $matrix  = Bio::Phylo::Matrices::Matrix->new;
-    my $taxa    = Bio::Phylo::Taxa->new;
-    $taxa->set_matrix( $matrix );
-    $matrix->set_taxa( $taxa );
-    $matrix->_is_flat( 1 );
+    my $self   = shift;
+    my %opts   = @_;
+    my $matrix = Bio::Phylo::Matrices::Matrix->new;
+    my $taxa   = Bio::Phylo::Taxa->new;
+    $taxa->set_matrix($matrix);
+    $matrix->set_taxa($taxa);
+    $matrix->_is_flat(1);
     my ( $fieldre, $linere );
+
     if ( $opts{'-fieldsep'} ) {
         if ( $opts{'-fieldsep'} =~ /^\b$/ ) {
             $fieldre = qr/$opts{'-fieldsep'}/;
@@ -109,36 +110,32 @@ sub _from_both {
         while ( readline( $opts{'-handle'} ) ) {
             chomp;
             my @temp = split( $fieldre, $_ );
-            my $taxon = Bio::Phylo::Taxa::Taxon->new(
-                '-name' => $temp[0],
-            );
-            $taxa->insert( $taxon );
+            my $taxon = Bio::Phylo::Taxa::Taxon->new( '-name' => $temp[0], );
+            $taxa->insert($taxon);
             my $datum = Bio::Phylo::Matrices::Datum->new(
-                '-name'  => $temp[0],
-                '-type'  => uc $opts{'-type'},
-                '-char'  => [ @temp[1,-1] ],
-                '-pos'   => 0,
+                '-name' => $temp[0],
+                '-type' => uc $opts{'-type'},
+                '-char' => [ @temp[ 1, -1 ] ],
+                '-pos'  => 0,
             );
-            $datum->set_taxon( $taxon );
-            $taxon->set_data( $datum );
-            $matrix->insert( $datum );
+            $datum->set_taxon($taxon);
+            $taxon->set_data($datum);
+            $matrix->insert($datum);
         }
     }
     elsif ( $opts{'-string'} ) {
         foreach my $line ( split( $linere, $opts{'-string'} ) ) {
             my @temp = split( $fieldre, $line );
-            my $taxon = Bio::Phylo::Taxa::Taxon->new(
-                '-name' => $temp[0],
-            );
-            $taxa->insert( $taxon );
+            my $taxon = Bio::Phylo::Taxa::Taxon->new( '-name' => $temp[0], );
+            $taxa->insert($taxon);
             my $datum = Bio::Phylo::Matrices::Datum->new(
                 '-name' => $temp[0],
                 '-type' => uc $opts{'-type'},
-                '-char' => [ @temp[1 .. $#temp] ],
+                '-char' => [ @temp[ 1 .. $#temp ] ],
                 '-pos'  => 0,
             );
-            $datum->set_taxon( $taxon );
-            $taxon->set_data( $datum );
+            $datum->set_taxon($taxon);
+            $taxon->set_data($datum);
             $matrix->insert($datum);
         }
     }
@@ -176,7 +173,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Table.pm,v 1.21 2006/04/12 22:38:23 rvosa Exp $
+$Id: Table.pm,v 1.22 2006/05/18 06:41:41 rvosa Exp $
 
 =head1 AUTHOR
 

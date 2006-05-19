@@ -11,7 +11,6 @@ use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
 # classic @ISA manipulation, not using 'base'
 use vars qw($VERSION @ISA);
 @ISA = qw(Bio::Phylo::Listable);
-
 {
 
 =head1 NAME
@@ -53,12 +52,12 @@ object, so look there for more methods applicable to alignment objects.
 
 =cut
 
-sub new {
-    my ( $class, $self ) = shift;
-    $self = Bio::Phylo::Matrices::Alignment->SUPER::new(@_);
-    bless $self, __PACKAGE__;
-    return $self;
-}
+    sub new {
+        my ( $class, $self ) = shift;
+        $self = Bio::Phylo::Matrices::Alignment->SUPER::new(@_);
+        bless $self, __PACKAGE__;
+        return $self;
+    }
 
 =back
 
@@ -100,7 +99,7 @@ sub new {
 
 =cut
 
-sub _container { _MATRICES_ }
+    sub _container { _MATRICES_ }
 
 =begin comment
 
@@ -115,7 +114,7 @@ sub _container { _MATRICES_ }
 
 =cut
 
-sub _type { _ALIGNMENT_ }
+    sub _type { _ALIGNMENT_ }
 
 =back
 
@@ -181,5 +180,4 @@ itself.
 =cut
 
 }
-
 1;

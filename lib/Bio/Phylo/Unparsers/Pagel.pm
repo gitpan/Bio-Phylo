@@ -1,4 +1,4 @@
-# $Id: Pagel.pm,v 1.19 2005/09/29 20:31:18 rvosa Exp $
+# $Id: Pagel.pm,v 1.20 2006/05/18 06:41:42 rvosa Exp $
 # Subversion: $Rev: 191 $
 package Bio::Phylo::Unparsers::Pagel;
 use strict;
@@ -149,7 +149,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Pagel.pm,v 1.19 2005/09/29 20:31:18 rvosa Exp $
+$Id: Pagel.pm,v 1.20 2006/05/18 06:41:42 rvosa Exp $
 
 =head1 AUTHOR
 

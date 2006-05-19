@@ -14,8 +14,8 @@ use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
 # classic @ISA manipulation, not using 'base'
 use vars qw($VERSION @ISA);
 @ISA = qw(Bio::Phylo);
-
 {
+
     # inside out class arrays
     my @name;
     my @generic;
@@ -23,9 +23,9 @@ use vars qw($VERSION @ISA);
 
     # $fields hashref necessary for object destruction
     my $fields = {
-        '-name'     => \@name,
-        '-generic'  => \@generic,
-        '-cache'    => \@cache,
+        '-name'    => \@name,
+        '-generic' => \@generic,
+        '-cache'   => \@cache,
     };
 
 =head1 NAME
@@ -66,28 +66,28 @@ equiprobable model.
 
 =cut
 
-sub new {
-    my ( $class, $self ) = shift;
-    $self = Bio::Phylo::Generator->SUPER::new(@_);
-    bless $self, __PACKAGE__;
-    if ( @_ ) {
-        my %opt;
-        eval { %opt = @_; };
-        if ( $@ ) {
-            Bio::Phylo::Util::Exceptions::OddHash->throw( error => $@ );
-        }
-        else {
-            while ( my ( $key, $value ) = each %opt ) {
-                if ( $fields->{$key} ) {
-                    $fields->{$key}->[$$self] = $value;
-                    delete $opt{$key};
-                }
+    sub new {
+        my ( $class, $self ) = shift;
+        $self = Bio::Phylo::Generator->SUPER::new(@_);
+        bless $self, __PACKAGE__;
+        if (@_) {
+            my %opt;
+            eval { %opt = @_; };
+            if ($@) {
+                Bio::Phylo::Util::Exceptions::OddHash->throw( error => $@ );
             }
-            @_ = %opt;
+            else {
+                while ( my ( $key, $value ) = each %opt ) {
+                    if ( $fields->{$key} ) {
+                        $fields->{$key}->[$$self] = $value;
+                        delete $opt{$key};
+                    }
+                }
+                @_ = %opt;
+            }
         }
+        return $self;
     }
-    return $self;
-}
 
 =back
 
@@ -118,135 +118,134 @@ object populated with Yule/Hey trees.
 
 =cut
 
-sub gen_rand_pure_birth {
-    my $random  = shift;
-    my %options = @_;
-    my ( $yule, $hey );
-    if ( $options{'-model'} =~ m/yule/i ) {
-        $yule = 1;
-    }
-    elsif ( $options{'-model'} =~ m/hey/i ) {
-        $hey = 1;
-    }
-    else {
-        Bio::Phylo::Util::Exceptions::BadFormat->throw(
-            error => "model \"$options{'-model'}\" not implemented"
-        );
-    }
-    my $forest  = Bio::Phylo::Forest->new;
-    for ( 0 .. $options{'-trees'} ) {
-
-        # instantiate new tree object
-        my $tree = Bio::Phylo::Forest::Tree->new;
-
-        # $i = a counter, $bl = branch length
-        my ( $i, $bl ) = 1;
-
-        # generate branch length
-        if ( $yule ) {
-            $bl = random_exponential( 1, 1 / ( $i + 1 ) );
+    sub gen_rand_pure_birth {
+        my $random  = shift;
+        my %options = @_;
+        my ( $yule, $hey );
+        if ( $options{'-model'} =~ m/yule/i ) {
+            $yule = 1;
         }
-        elsif ( $hey ) {
-            $bl = random_exponential( 1, ( 1 / ( $i * ( $i + 1 ) ) ) );
+        elsif ( $options{'-model'} =~ m/hey/i ) {
+            $hey = 1;
         }
+        else {
+            Bio::Phylo::Util::Exceptions::BadFormat->throw(
+                error => "model \"$options{'-model'}\" not implemented" );
+        }
+        my $forest = Bio::Phylo::Forest->new;
+        for ( 0 .. $options{'-trees'} ) {
 
-        # instantiate root node
-        my $root = Bio::Phylo::Forest::Node->new(
-            -name => 'r',
-            -branch_length => 0
-        );
+            # instantiate new tree object
+            my $tree = Bio::Phylo::Forest::Tree->new;
 
-        # instantiate left daughter
-        my $node1 = Bio::Phylo::Forest::Node->new(
-            -name => 'L' . $i,
-            -branch_length => $bl,
-            -parent => $root
-        );
-
-        # instantiate right daughter
-        my $node2 = Bio::Phylo::Forest::Node->new(
-            -name => 'R' . $i,
-            -branch_length => $bl,
-            -parent => $root,
-            -previous_sister => $node1
-        );
-
-        # make connections
-        $node1->set_next_sister($node2);
-        $root->set_first_daughter($node1);
-        $root->set_last_daughter($node2);
-
-        # we now have a basal split, which we insert in
-        # the tree object
-        $tree->insert($root);
-        $tree->insert($node1);
-        $tree->insert($node2);
-
-        # there are now two tips from which the tree
-        # can grow, we store these in the tip array,
-        # from which we well randomly draw a tip
-        # for the next split.
-        my @tips;
-        push @tips, $node1, $node2;
-
-        # start growing the tree
-        for my $i ( 2 .. ( $options{'-tips'} - 1 ) ) {
+            # $i = a counter, $bl = branch length
+            my ( $i, $bl ) = 1;
 
             # generate branch length
-            if ( $yule ) {
+            if ($yule) {
                 $bl = random_exponential( 1, 1 / ( $i + 1 ) );
             }
-            elsif ( $hey ) {
+            elsif ($hey) {
                 $bl = random_exponential( 1, ( 1 / ( $i * ( $i + 1 ) ) ) );
             }
 
-            # draw a random integer between 0 and
-            # the tip array length
-            my $j = int rand scalar @tips;
-
-            # dereference to obtain parent of current split
-            my $parent = $tips[$j];
+            # instantiate root node
+            my $root = Bio::Phylo::Forest::Node->new(
+                -name          => 'r',
+                -branch_length => 0
+            );
 
             # instantiate left daughter
-            $node1 = Bio::Phylo::Forest::Node->new(
-                -name => 'L' . $i,
+            my $node1 = Bio::Phylo::Forest::Node->new(
+                -name          => 'L' . $i,
                 -branch_length => $bl,
-                -parent => $parent
+                -parent        => $root
             );
 
             # instantiate right daughter
-            $node2 = Bio::Phylo::Forest::Node->new(
-                -name  => 'R' . $i,
-                -branch_length => $bl,
-                -parent => $parent,
+            my $node2 = Bio::Phylo::Forest::Node->new(
+                -name            => 'R' . $i,
+                -branch_length   => $bl,
+                -parent          => $root,
                 -previous_sister => $node1
             );
 
-            # make required connections
+            # make connections
             $node1->set_next_sister($node2);
-            $parent->set_first_daughter($node1);
-            $parent->set_last_daughter($node2);
+            $root->set_first_daughter($node1);
+            $root->set_last_daughter($node2);
 
-            # insert new nodes in the tree
+            # we now have a basal split, which we insert in
+            # the tree object
+            $tree->insert($root);
             $tree->insert($node1);
             $tree->insert($node2);
 
-            # remove parent from tips array
-            splice @tips, $j, 1;
-
-            # stretch all tips to the present
-            foreach (@tips){
-                my $oldbl = $_->get_branch_length;
-                $_->set_branch_length($oldbl + $bl);
-            }
-
-            # add new nodes to tips array
+            # there are now two tips from which the tree
+            # can grow, we store these in the tip array,
+            # from which we well randomly draw a tip
+            # for the next split.
+            my @tips;
             push @tips, $node1, $node2;
+
+            # start growing the tree
+            for my $i ( 2 .. ( $options{'-tips'} - 1 ) ) {
+
+                # generate branch length
+                if ($yule) {
+                    $bl = random_exponential( 1, 1 / ( $i + 1 ) );
+                }
+                elsif ($hey) {
+                    $bl = random_exponential( 1, ( 1 / ( $i * ( $i + 1 ) ) ) );
+                }
+
+                # draw a random integer between 0 and
+                # the tip array length
+                my $j = int rand scalar @tips;
+
+                # dereference to obtain parent of current split
+                my $parent = $tips[$j];
+
+                # instantiate left daughter
+                $node1 = Bio::Phylo::Forest::Node->new(
+                    -name          => 'L' . $i,
+                    -branch_length => $bl,
+                    -parent        => $parent
+                );
+
+                # instantiate right daughter
+                $node2 = Bio::Phylo::Forest::Node->new(
+                    -name            => 'R' . $i,
+                    -branch_length   => $bl,
+                    -parent          => $parent,
+                    -previous_sister => $node1
+                );
+
+                # make required connections
+                $node1->set_next_sister($node2);
+                $parent->set_first_daughter($node1);
+                $parent->set_last_daughter($node2);
+
+                # insert new nodes in the tree
+                $tree->insert($node1);
+                $tree->insert($node2);
+
+                # remove parent from tips array
+                splice @tips, $j, 1;
+
+                # stretch all tips to the present
+                foreach (@tips) {
+                    my $oldbl = $_->get_branch_length;
+                    $_->set_branch_length( $oldbl + $bl );
+                }
+
+                # add new nodes to tips array
+                push @tips, $node1, $node2;
+            }
+            $forest->insert($tree);
         }
-        $forest->insert($tree);
+        return $forest;
     }
-    return $forest;
-}
 
 =item gen_exp_pure_birth()
 
@@ -273,135 +272,134 @@ not sampled from a distribution).
 
 =cut
 
-sub gen_exp_pure_birth {
-    my $random  = shift;
-    my %options = @_;
-    my ( $yule, $hey );
-    if ( $options{'-model'} =~ m/yule/i ) {
-        $yule = 1;
-    }
-    elsif ( $options{'-model'} =~ m/hey/i ) {
-        $hey = 1;
-    }
-    else {
-        Bio::Phylo::Util::Exceptions::BadFormat->throw(
-            error => "model \"$options{'-model'}\" not implemented"
-        );
-    }
-    my $forest  = Bio::Phylo::Forest->new;
-    for ( 0 .. $options{'-trees'} ) {
-
-        # instantiate new tree object
-        my $tree = Bio::Phylo::Forest::Tree->new;
-
-        # $i = a counter, $bl = branch length
-        my ( $i, $bl ) = 1;
-
-        # generate branch length
-        if ( $yule ) {
-            $bl = 1 / ( $i + 1 );
+    sub gen_exp_pure_birth {
+        my $random  = shift;
+        my %options = @_;
+        my ( $yule, $hey );
+        if ( $options{'-model'} =~ m/yule/i ) {
+            $yule = 1;
         }
-        elsif ( $hey ) {
-            $bl = 1 / ( $i * ( $i + 1 ) );
+        elsif ( $options{'-model'} =~ m/hey/i ) {
+            $hey = 1;
         }
+        else {
+            Bio::Phylo::Util::Exceptions::BadFormat->throw(
+                error => "model \"$options{'-model'}\" not implemented" );
+        }
+        my $forest = Bio::Phylo::Forest->new;
+        for ( 0 .. $options{'-trees'} ) {
 
-        # instantiate root node
-        my $root = Bio::Phylo::Forest::Node->new(
-            -name => 'r',
-            -branch_length => 0
-        );
+            # instantiate new tree object
+            my $tree = Bio::Phylo::Forest::Tree->new;
 
-        # instantiate left daughter
-        my $node1 = Bio::Phylo::Forest::Node->new(
-            -name => 'L' . $i,
-            -branch_length => $bl,
-            -parent => $root
-        );
-
-        # instantiate right daughter
-        my $node2 = Bio::Phylo::Forest::Node->new(
-            -name => 'R' . $i,
-            -branch_length => $bl,
-            -parent => $root,
-            -previous_sister => $node1
-        );
-
-        # make connections
-        $node1->set_next_sister($node2);
-        $root->set_first_daughter($node1);
-        $root->set_last_daughter($node2);
-
-        # we now have a basal split, which we insert in
-        # the tree object
-        $tree->insert($root);
-        $tree->insert($node1);
-        $tree->insert($node2);
-
-        # there are now two tips from which the tree
-        # can grow, we store these in the tip array,
-        # from which we well randomly draw a tip
-        # for the next split.
-        my @tips;
-        push @tips, $node1, $node2;
-
-        # start growing the tree
-        for my $i ( 2 .. ( $options{'-tips'} - 1 ) ) {
+            # $i = a counter, $bl = branch length
+            my ( $i, $bl ) = 1;
 
             # generate branch length
-            if ( $yule ) {
+            if ($yule) {
                 $bl = 1 / ( $i + 1 );
             }
-            elsif ( $hey ) {
+            elsif ($hey) {
                 $bl = 1 / ( $i * ( $i + 1 ) );
             }
 
-            # draw a random integer between 0 and
-            # the tip array length
-            my $j = int rand scalar @tips;
-
-            # dereference to obtain parent of current split
-            my $parent = $tips[$j];
+            # instantiate root node
+            my $root = Bio::Phylo::Forest::Node->new(
+                -name          => 'r',
+                -branch_length => 0
+            );
 
             # instantiate left daughter
-            $node1 = Bio::Phylo::Forest::Node->new(
-                -name => 'L' . $i,
+            my $node1 = Bio::Phylo::Forest::Node->new(
+                -name          => 'L' . $i,
                 -branch_length => $bl,
-                -parent => $parent
+                -parent        => $root
             );
 
             # instantiate right daughter
-            $node2 = Bio::Phylo::Forest::Node->new(
-                -name  => 'R' . $i,
-                -branch_length => $bl,
-                -parent => $parent,
+            my $node2 = Bio::Phylo::Forest::Node->new(
+                -name            => 'R' . $i,
+                -branch_length   => $bl,
+                -parent          => $root,
                 -previous_sister => $node1
             );
 
-            # make required connections
+            # make connections
             $node1->set_next_sister($node2);
-            $parent->set_first_daughter($node1);
-            $parent->set_last_daughter($node2);
+            $root->set_first_daughter($node1);
+            $root->set_last_daughter($node2);
 
-            # insert new nodes in the tree
+            # we now have a basal split, which we insert in
+            # the tree object
+            $tree->insert($root);
             $tree->insert($node1);
             $tree->insert($node2);
 
-            # remove parent from tips array
-            splice @tips, $j, 1;
-
-            # stretch all tips to the present
-            foreach (@tips){
-                my $oldbl = $_->get_branch_length;
-                $_->set_branch_length($oldbl + $bl);
-            }
-
-            # add new nodes to tips array
+            # there are now two tips from which the tree
+            # can grow, we store these in the tip array,
+            # from which we well randomly draw a tip
+            # for the next split.
+            my @tips;
             push @tips, $node1, $node2;
+
+            # start growing the tree
+            for my $i ( 2 .. ( $options{'-tips'} - 1 ) ) {
+
+                # generate branch length
+                if ($yule) {
+                    $bl = 1 / ( $i + 1 );
+                }
+                elsif ($hey) {
+                    $bl = 1 / ( $i * ( $i + 1 ) );
+                }
+
+                # draw a random integer between 0 and
+                # the tip array length
+                my $j = int rand scalar @tips;
+
+                # dereference to obtain parent of current split
+                my $parent = $tips[$j];
+
+                # instantiate left daughter
+                $node1 = Bio::Phylo::Forest::Node->new(
+                    -name          => 'L' . $i,
+                    -branch_length => $bl,
+                    -parent        => $parent
+                );
+
+                # instantiate right daughter
+                $node2 = Bio::Phylo::Forest::Node->new(
+                    -name            => 'R' . $i,
+                    -branch_length   => $bl,
+                    -parent          => $parent,
+                    -previous_sister => $node1
+                );
+
+                # make required connections
+                $node1->set_next_sister($node2);
+                $parent->set_first_daughter($node1);
+                $parent->set_last_daughter($node2);
+
+                # insert new nodes in the tree
+                $tree->insert($node1);
+                $tree->insert($node2);
+
+                # remove parent from tips array
+                splice @tips, $j, 1;
+
+                # stretch all tips to the present
+                foreach (@tips) {
+                    my $oldbl = $_->get_branch_length;
+                    $_->set_branch_length( $oldbl + $bl );
+                }
+
+                # add new nodes to tips array
+                push @tips, $node1, $node2;
+            }
+            $forest->insert($tree);
         }
-        $forest->insert($tree);
+        return $forest;
     }
-    return $forest;
-}
 
 =item gen_equiprobable()
 
@@ -422,45 +420,49 @@ such that all shapes are equally probable.
 
 =cut
 
-sub gen_equiprobable {
-    my $random  = shift;
-    my %options = @_;
-    my $forest  = Bio::Phylo::Forest->new( '-name' => 'Equiprobable' );
-    for ( 0 .. $options{'-trees'} ) {
-        my $tree = Bio::Phylo::Forest::Tree->new( '-name' => 'Tree' . $_ );
-        for my $i ( 1 .. ( $options{'-tips'} + ( $options{'-tips'} - 1 ) ) ) {
-            my $node = Bio::Phylo::Forest::Node->new(
-                '-name'          => 'Node' . $i,
-                '-branch_length' => 1,
-            );
-            $tree->insert($node);
-        }
-        my $nodes   = $tree->get_entities;                        
-        my $parents = $nodes;
-        for my $node ( @{ $nodes } ) {
-          CHOOSEPARENT: while (1) {
-                last CHOOSEPARENT if ! @{ $parents };
-                my $j = int( rand( $#{ $parents } + 1 ) );
-                my $parent = $parents->[$j];
-                if ( $parent != $node && ! $node->is_ancestor_of($parent) ) {
-                    if ( ! $parent->get_first_daughter ) {
-                        $parent->set_first_daughter($node->set_parent($parent));
-                        last CHOOSEPARENT;
-                    }
-                    elsif ( ! $parent->get_last_daughter ) {
-                        $parent->set_last_daughter($node->set_parent($parent));
-                        my $fd = $parent->get_first_daughter;
-                        $fd->set_next_sister($node->set_previous_sister($fd));
-                        splice( @{ $parents }, $j, 1 );
-                        last CHOOSEPARENT;                        
+    sub gen_equiprobable {
+        my $random  = shift;
+        my %options = @_;
+        my $forest  = Bio::Phylo::Forest->new( '-name' => 'Equiprobable' );
+        for ( 0 .. $options{'-trees'} ) {
+            my $tree = Bio::Phylo::Forest::Tree->new( '-name' => 'Tree' . $_ );
+            for my $i ( 1 .. ( $options{'-tips'} + ( $options{'-tips'} - 1 ) ) )
+            {
+                my $node = Bio::Phylo::Forest::Node->new(
+                    '-name'          => 'Node' . $i,
+                    '-branch_length' => 1,
+                );
+                $tree->insert($node);
+            }
+            my $nodes   = $tree->get_entities;
+            my $parents = $nodes;
+            for my $node ( @{$nodes} ) {
+              CHOOSEPARENT: while (1) {
+                    last CHOOSEPARENT if !@{$parents};
+                    my $j      = int( rand( $#{$parents} + 1 ) );
+                    my $parent = $parents->[$j];
+                    if ( $parent != $node && !$node->is_ancestor_of($parent) ) {
+                        if ( !$parent->get_first_daughter ) {
+                            $parent->set_first_daughter(
+                                $node->set_parent($parent) );
+                            last CHOOSEPARENT;
+                        }
+                        elsif ( !$parent->get_last_daughter ) {
+                            $parent->set_last_daughter(
+                                $node->set_parent($parent) );
+                            my $fd = $parent->get_first_daughter;
+                            $fd->set_next_sister(
+                                $node->set_previous_sister($fd) );
+                            splice( @{$parents}, $j, 1 );
+                            last CHOOSEPARENT;
+                        }
                     }
                 }
             }
+            $forest->insert($tree);
         }
-        $forest->insert($tree);
+        return $forest;
     }
-    return $forest;
-}
 
 =begin comment
 
@@ -478,7 +480,7 @@ sub gen_equiprobable {
     sub DESTROY {
         my $self = shift;
         Bio::Phylo::Util::IDPool->_reclaim($self);
-        foreach( keys %{ $fields } ) {
+        foreach ( keys %{$fields} ) {
             delete $fields->{$_}->[$$self];
         }
         return 1;
@@ -542,5 +544,4 @@ itself.
 =cut
 
 }
-
 1;

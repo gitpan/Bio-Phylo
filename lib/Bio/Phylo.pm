@@ -1,4 +1,4 @@
-# $Id: Phylo.pm,v 1.29 2006/04/12 22:38:22 rvosa Exp $
+# $Id: Phylo.pm,v 1.30 2006/05/19 00:05:16 rvosa Exp $
 package Bio::Phylo;
 use strict;
 use Scalar::Util qw(looks_like_number weaken blessed);
@@ -12,14 +12,14 @@ use Storable qw(dclone);
 # 'make dist' to build a *.tar.gz without the "_rev#" in the package name, while
 # it still shows up otherwise (e.g. during 'make test') as a developer release,
 # with the "_rev#".
-my $rev = '$Id: Phylo.pm,v 1.29 2006/04/12 22:38:22 rvosa Exp $';
+my $rev = '$Id: Phylo.pm,v 1.30 2006/05/19 00:05:16 rvosa Exp $';
 $rev =~ s/^[^\d]+(\d+\.\d+)\b.*$/$1/;
-our $VERSION = '0.10';
+our $VERSION = '0.11';
 $VERSION .= '_' . $rev;
 my $VERBOSE = 0;
 use vars qw($VERSION);
-
 {
+
     # inside out class arrays
     my @name;
     my @desc;
@@ -37,8 +37,8 @@ use vars qw($VERSION);
         '-cache'     => \@cache,
         '-container' => \@container,
     };
-    
-    # global container for Forest, Matrix and Taxa objects (a la Mesquite 
+
+    # global container for Forest, Matrix and Taxa objects (a la Mesquite
     # project)
     my $super = {};
 
@@ -80,10 +80,10 @@ its constructor internally.
         my $class = shift;
         my $self  = Bio::Phylo::Util::IDPool->_initialize();
         bless $self, __PACKAGE__;
-        if ( @_ ) {
+        if (@_) {
             my %opt;
             eval { %opt = @_; };
-            if ( $@ ) {
+            if ($@) {
                 Bio::Phylo::Util::Exceptions::OddHash->throw( error => $@ );
             }
             else {
@@ -98,7 +98,6 @@ its constructor internally.
         }
         return $self;
     }
-
 
 =back
 
@@ -124,8 +123,7 @@ its constructor internally.
         my $ref = ref $self;
         if ( $name && $name !~ m/^'.*'$/ && $name =~ m/(?:;|,|:|\(|\))/ ) {
             Bio::Phylo::Util::Exceptions::BadString->throw(
-                error => "\"$name\" is a bad name format for $ref names"
-            );
+                error => "\"$name\" is a bad name format for $ref names" );
         }
         else {
             $name[$$self] = $name;
@@ -171,8 +169,7 @@ its constructor internally.
             }
             else {
                 Bio::Phylo::Util::Exceptions::BadNumber->throw(
-                    error => "Score \"$score\" is a bad number"
-                );
+                    error => "Score \"$score\" is a bad number" );
             }
         }
         else {
@@ -198,13 +195,11 @@ its constructor internally.
 
     sub set_generic {
         my $self = shift;
-        if ( @_ ) {
+        if (@_) {
             my %args;
             eval { %args = @_ };
-            if ( $@ ) {
-                Bio::Phylo::Util::Exceptions::OddHash->throw(
-                    error => $@
-                );
+            if ($@) {
+                Bio::Phylo::Util::Exceptions::OddHash->throw( error => $@ );
             }
             else {
                 foreach my $key ( keys %args ) {
@@ -298,7 +293,7 @@ its constructor internally.
             return $generic[$$self];
         }
     }
-    
+
 =item get_id()
 
  Type    : Accessor
@@ -313,7 +308,7 @@ its constructor internally.
     sub get_id {
         my $self = shift;
         return $$self;
-    }    
+    }
 
 =back
 
@@ -349,8 +344,7 @@ get_by_regular_expression) uses this C<$obj-E<gt>get method>.
         else {
             my $ref = ref $self;
             Bio::Phylo::Util::Exceptions::UnknownMethod->throw(
-                error => "sorry, a \"$ref\" can't \"$var\""
-            );
+                error => "sorry, a \"$ref\" can't \"$var\"" );
         }
     }
 
@@ -366,7 +360,7 @@ get_by_regular_expression) uses this C<$obj-E<gt>get method>.
 =cut
 
     sub clone {
-        my $self = shift;
+        my $self  = shift;
         my $clone = dclone($self);
         return $clone;
     }
@@ -393,9 +387,7 @@ and so on?
             my %opt;
             eval { %opt = @_; };
             if ($@) {
-                Bio::Phylo::Util::Exceptions::OddHash->throw(
-                    error => $@
-                );
+                Bio::Phylo::Util::Exceptions::OddHash->throw( error => $@ );
             }
             $VERBOSE = $opt{'-level'};
         }
@@ -419,7 +411,7 @@ and so on?
         my $name    = __PACKAGE__;
         my $version = __PACKAGE__->VERSION;
         my $string  = qq{Rutger A. Vos, 2006. $name: };
-           $string .= qq{Phylogenetic analysis using Perl, version $version};
+        $string .= qq{Phylogenetic analysis using Perl, version $version};
         return $string;
     }
 
@@ -438,7 +430,7 @@ and so on?
 =cut
 
     sub VERSION { $VERSION; }
-    
+
 =item to_xml()
 
  Type    : Format converter
@@ -450,26 +442,28 @@ and so on?
 
 =cut
 
-sub to_xml {
-    my $self = shift;
-    my $class = ref $self;
-    $class =~ s/^.*:([^:]+)$/$1/g;
-    $class = lc($class);
-    my $xml = '<' . $class . ' id="' . $class . $self->get_id . '">';
-    my $generic = $self->get_generic;
-    my ( $name, $score, $desc ) = ( $self->get_name, $self->get_score, $self->get_desc );
-    $xml .= '<name>' . $name . '</name>' if $name;
-    $xml .= '<score>' . $score . '</score>' if $score;
-    $xml .= '<desc>' . $desc . '</desc>' if $desc;
-    $xml .= XMLout( $generic ) if $generic && %{ $generic };
-    if ( $self->isa('Bio::Phylo::Listable') ) {
-        foreach my $ent ( @{ $self->get_entities } ) {
-            $xml .= $ent->to_xml;
+    sub to_xml {
+        my $self  = shift;
+        my $class = ref $self;
+        $class =~ s/^.*:([^:]+)$/$1/g;
+        $class = lc($class);
+        my $xml     = '<' . $class . ' id="' . $class . $self->get_id . '">';
+        my $generic = $self->get_generic;
+        my ( $name, $score, $desc ) =
+          ( $self->get_name, $self->get_score, $self->get_desc );
+        $xml .= '<name>' . $name . '</name>'    if $name;
+        $xml .= '<score>' . $score . '</score>' if $score;
+        $xml .= '<desc>' . $desc . '</desc>'    if $desc;
+        $xml .= XMLout($generic) if $generic && %{$generic};
+
+        if ( $self->isa('Bio::Phylo::Listable') ) {
+            foreach my $ent ( @{ $self->get_entities } ) {
+                $xml .= $ent->to_xml;
+            }
         }
+        $xml .= '</' . $class . '>';
+        return $xml;
     }
-    $xml .= '</' . $class . '>';
-    return $xml;
-}    
 
 =back
 
@@ -494,7 +488,7 @@ sub to_xml {
 
     sub DESTROY {
         my $self = shift;
-        foreach( keys %{ $fields } ) {
+        foreach ( keys %{$fields} ) {
             delete $fields->{$_}->[$$self];
         }
         Bio::Phylo::Util::IDPool->_reclaim($self);
@@ -515,10 +509,10 @@ sub to_xml {
 =cut
 
     sub _check_cache {
-        my $self = shift;
+        my $self   = shift;
         my @caller = caller(1);
-        if ( exists $cache[$$self]->{$caller[3]} ) {
-            return 1, $cache[$$self]->{$caller[3]};
+        if ( exists $cache[$$self]->{ $caller[3] } ) {
+            return 1, $cache[$$self]->{ $caller[3] };
         }
     }
 
@@ -538,7 +532,7 @@ sub to_xml {
     sub _store_cache {
         my ( $self, $result ) = @_;
         my @caller = caller(1);
-        $cache[$$self]->{$caller[3]} = $result;
+        $cache[$$self]->{ $caller[3] } = $result;
     }
 
 =begin comment
@@ -577,7 +571,7 @@ sub to_xml {
         my $self = shift;
         return $container[$$self];
     }
-    
+
 =begin comment
 
  Type    : Internal method
@@ -604,29 +598,25 @@ sub to_xml {
                     }
                     else {
                         Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-                            error => "\"$self\" not in \"$container\"",
-                        );
+                            error => "\"$self\" not in \"$container\"", );
                     }
                 }
                 else {
                     Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-                        error => "\"$container\" cannot contain \"$self\"",
-                    );
+                        error => "\"$container\" cannot contain \"$self\"", );
                 }
             }
             else {
                 Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-                    error => "Invalid objects",
-                );            
+                    error => "Invalid objects", );
             }
         }
         else {
             Bio::Phylo::Util::Exceptions::BadArgs->throw(
-                error => "Argument not an object",
-            );
+                error => "Argument not an object", );
         }
     }
-    
+
 =begin comment
 
  Type    : Internal method
@@ -661,7 +651,7 @@ sub to_xml {
 =cut
 
     sub _get_super {
-        my @tmp = values %{ $super };
+        my @tmp = values %{$super};
         return \@tmp;
     }
 
@@ -705,7 +695,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Phylo.pm,v 1.29 2006/04/12 22:38:22 rvosa Exp $
+$Id: Phylo.pm,v 1.30 2006/05/19 00:05:16 rvosa Exp $
 
 =head1 AUTHOR
 
@@ -734,5 +724,4 @@ modify it under the same terms as Perl itself.
 =cut
 
 }
-
 1;

@@ -94,17 +94,18 @@ sub _to_string {
 {
     my $string = q{};
     no warnings 'uninitialized';
+
     sub __to_string {
         my ( $self, $tree, $n ) = @_;
-        if ( ! $n->get_parent ) {
+        if ( !$n->get_parent ) {
             if ( defined $n->get_branch_length ) {
                 $string = $n->get_name . ':' . $n->get_branch_length . ';';
             }
-            else { 
-                $n->get_name ? $string = $n->get_name . ';' : $string = ';';             
+            else {
+                $n->get_name ? $string = $n->get_name . ';' : $string = ';';
             }
         }
-        elsif ( ! $n->get_previous_sister ) {
+        elsif ( !$n->get_previous_sister ) {
             if ( defined $n->get_branch_length ) {
                 $string = $n->get_name . ':' . $n->get_branch_length . $string;
             }
@@ -112,7 +113,8 @@ sub _to_string {
         }
         else {
             if ( defined $n->get_branch_length ) {
-                $string = $n->get_name . ':' . $n->get_branch_length . ',' . $string;
+                $string =
+                  $n->get_name . ':' . $n->get_branch_length . ',' . $string;
             }
             else { $string = $n->get_name . ',' . $string; }
         }

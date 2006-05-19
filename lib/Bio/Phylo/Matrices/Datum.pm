@@ -1,4 +1,4 @@
-# $Id: Datum.pm,v 1.28 2006/04/12 22:38:22 rvosa Exp $
+# $Id: Datum.pm,v 1.29 2006/05/18 06:41:40 rvosa Exp $
 package Bio::Phylo::Matrices::Datum;
 use strict;
 use Bio::Phylo::Forest::Node;
@@ -13,8 +13,8 @@ use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
 # classic @ISA manipulation, not using 'base'
 use vars qw($VERSION @ISA);
 @ISA = qw(Bio::Phylo);
-
 {
+
     # inside out class arrays
     my @taxon;
     my @weight;
@@ -22,15 +22,15 @@ use vars qw($VERSION @ISA);
     my @char;
     my @pos;
     my @annotations;
-    
+
     # $fields hashref necessary for object destruction
     my $fields = {
-        '-taxon'   => \@taxon,
-        '-weight'  => \@weight,
-        '-type'    => \@type,
-        '-char'    => \@char,
-        '-pos'     => \@pos,
-        '-note'    => \@annotations,
+        '-taxon'  => \@taxon,
+        '-weight' => \@weight,
+        '-type'   => \@type,
+        '-char'   => \@char,
+        '-pos'    => \@pos,
+        '-note'   => \@annotations,
     };
 
 =head1 NAME
@@ -96,23 +96,23 @@ which can be linked to a taxon object.
 
     sub new {
         my $class = shift;
-        my $self = __PACKAGE__->SUPER::new(@_);
-        
-        # the basic design is like this: every datum holds an array
-        # reference with characters, i.e. $char[$$self] = [ 'A', 'C', 'G' ];
-        # these characters can then be annotated, individually, using the
-        # @annotations array, e.g.:        
-        # $annotations[$$self] = [ { -codonpos => 1 }, { -codonpos => 2 }, { -codonpos => 3 } ];
-        # this way, individual characters inside the @char array can be richly
-        # annotated without having to spawn individual objects for every character
-        # in a sequence.
-        $char[$$self] = [];
+        my $self  = __PACKAGE__->SUPER::new(@_);
+
+# the basic design is like this: every datum holds an array
+# reference with characters, i.e. $char[$$self] = [ 'A', 'C', 'G' ];
+# these characters can then be annotated, individually, using the
+# @annotations array, e.g.:
+# $annotations[$$self] = [ { -codonpos => 1 }, { -codonpos => 2 }, { -codonpos => 3 } ];
+# this way, individual characters inside the @char array can be richly
+# annotated without having to spawn individual objects for every character
+# in a sequence.
+        $char[$$self]        = [];
         $annotations[$$self] = [];
         bless $self, $class;
-        if ( @_ ) {
+        if (@_) {
             my %opt;
             eval { %opt = @_; };
-            if ( $@ ) {
+            if ($@) {
                 Bio::Phylo::Util::Exceptions::OddHash->throw( error => $@ );
             }
             else {
@@ -122,7 +122,7 @@ which can be linked to a taxon object.
                         if ( blessed $value && $value->can('_type') ) {
                             my $type = $value->_type;
                             if ( $type == _TAXON_ ) {
-                                weaken($fields->{$key}->[$$self]);
+                                weaken( $fields->{$key}->[$$self] );
                             }
                         }
                         delete $opt{$key};
@@ -156,23 +156,26 @@ which can be linked to a taxon object.
         my ( $self, $taxon ) = @_;
         if ( defined $taxon ) {
             if ( $taxon->can('_type') && $taxon->_type == _TAXON_ ) {
-                if ( $self->_get_container && $self->_get_container->get_taxa ) {
-                    if ( $taxon->_get_container != $self->_get_container->get_taxa ) {
+                if ( $self->_get_container && $self->_get_container->get_taxa )
+                {
+                    if ( $taxon->_get_container !=
+                        $self->_get_container->get_taxa )
+                    {
                         Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-                            error => "Attempt to link datum to taxon from wrong block"
-                        );        
+                            error =>
+                              "Attempt to link datum to taxon from wrong block"
+                        );
                     }
                 }
                 $taxon[$$self] = $taxon;
-                weaken($taxon[$$self]);
+                weaken( $taxon[$$self] );
                 if ( $self->_get_container ) {
                     $self->_get_container->set_taxa( $taxon->_get_container );
                 }
             }
             else {
                 Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-                    error => "\"$taxon\" doesn't look like a taxon"
-                );            
+                    error => "\"$taxon\" doesn't look like a taxon" );
             }
         }
         else {
@@ -197,13 +200,17 @@ which can be linked to a taxon object.
 
     sub set_weight {
         my ( $self, $weight ) = @_;
-        if ( ! looks_like_number $weight ) {
-            Bio::Phylo::Util::Exceptions::BadNumber->throw(
-                error => "\"$weight\" is a bad number format"
-            );
+        if ( defined $weight ) {
+            if ( !looks_like_number $weight ) {
+                Bio::Phylo::Util::Exceptions::BadNumber->throw(
+                    error => "\"$weight\" is a bad number format" );
+            }
+            else {
+                $weight[$$self] = $weight;
+            }
         }
         else {
-            $weight[$$self] = $weight;
+            $weight[$$self] = undef;
         }
         return $self;
     }
@@ -230,19 +237,18 @@ which can be linked to a taxon object.
 
     sub set_type {
         my ( $self, $type ) = @_;
-        if ( $type && ! type_ok($type) ) {
+        if ( $type && !type_ok($type) ) {
             Bio::Phylo::Util::Exceptions::BadFormat->throw(
-                error => "\"$type\" is a bad data type"
-            );
+                error => "\"$type\" is a bad data type" );
         }
-        elsif ( ! $type ) {
+        elsif ( !$type ) {
             $type[$$self] = undef;
         }
         else {
             $type[$$self] = uc $type;
         }
         return $self;
-    } 
+    }
 
 =item set_char()
 
@@ -269,14 +275,14 @@ which can be linked to a taxon object.
     sub set_char {
         my ( $self, $char ) = @_;
         if ( my $type = $self->get_type ) {
-            if ( $char ) {
+            if ($char) {
                 if ( symbol_ok( '-type' => $type, '-char' => $char ) ) {
                     if ( $type !~ m/^CONTINUOUS$/i ) {
                         if ( not ref $char and length($char) > 1 ) {
-                            $char[$$self] = [ split(//, $char) ];
+                            $char[$$self] = [ split( //, $char ) ];
                         }
                         elsif ( not ref $char and length($char) == 1 ) {
-                            $char[$$self] = [ $char ];
+                            $char[$$self] = [$char];
                         }
                         elsif ( ref $char eq 'ARRAY' ) {
                             $char[$$self] = $char;
@@ -284,20 +290,19 @@ which can be linked to a taxon object.
                     }
                     else {
                         if ( not ref $char and not looks_like_number $char ) {
-                            $char[$$self] = [ split(/\s+/, $char) ];
+                            $char[$$self] = [ split( /\s+/, $char ) ];
                         }
                         elsif ( not ref $char and looks_like_number $char ) {
-                            $char[$$self] = [ $char ];
-                        }                    
+                            $char[$$self] = [$char];
+                        }
                         elsif ( ref $char eq 'ARRAY' ) {
                             $char[$$self] = $char;
-                        }                        
+                        }
                     }
                 }
                 else {
                     Bio::Phylo::Util::Exceptions::BadString->throw(
-                        error => "\"$char\" is not a valid \"$type\" symbol"
-                    );
+                        error => "\"$char\" is not a valid \"$type\" symbol" );
                 }
             }
             else {
@@ -306,8 +311,7 @@ which can be linked to a taxon object.
         }
         else {
             Bio::Phylo::Util::Exceptions::BadFormat->throw(
-                error => 'please define the data type first'
-            );
+                error => 'please define the data type first' );
         }
         $annotations[$$self] = [];
         return $self;
@@ -328,8 +332,7 @@ which can be linked to a taxon object.
         my ( $self, $pos ) = @_;
         if ( defined $pos and $pos !~ m/^\d+$/ ) {
             Bio::Phylo::Util::Exceptions::BadNumber->throw(
-                error => "\"$pos\" is bad. Positions must be integers"
-            );
+                error => "\"$pos\" is bad. Positions must be integers" );
         }
         else {
             $pos[$$self] = $pos;
@@ -359,40 +362,35 @@ which can be linked to a taxon object.
 
     sub set_annotation {
         my $self = shift;
-        if ( @_ ) {
+        if (@_) {
             my %opt;
             eval { %opt = @_ };
-            if ( $@ ) {
-                Bio::Phylo::Util::Exceptions::OddHash->throw(
-                    error => $@
-                );
+            if ($@) {
+                Bio::Phylo::Util::Exceptions::OddHash->throw( error => $@ );
             }
             if ( not exists $opt{'-char'} ) {
                 Bio::Phylo::Util::Exceptions::BadArgs->throw(
-                    error => "No character to annotate specified!"
-                );
+                    error => "No character to annotate specified!" );
             }
             my $i = $opt{'-char'};
             if ( not exists $char[$$self]->[$i] ) {
                 Bio::Phylo::Util::Exceptions::OutOfBounds->throw(
-                    error => "Specified char ($i) does not exist!"
-                );        
+                    error => "Specified char ($i) does not exist!" );
             }
             if ( exists $opt{'-annotation'} ) {
                 my $note = $opt{'-annotation'};
-                $annotations[$$self]->[$i] = {} if ! $annotations[$$self]->[$i];
-                while ( my ( $k, $v ) = each %{ $note } ) {                
+                $annotations[$$self]->[$i] = {} if !$annotations[$$self]->[$i];
+                while ( my ( $k, $v ) = each %{$note} ) {
                     $annotations[$$self]->[$i]->{$k} = $v;
                 }
             }
             else {
-                $annotations[$$self]->[$i] = undef;        
-            }    
+                $annotations[$$self]->[$i] = undef;
+            }
         }
         else {
             Bio::Phylo::Util::Exceptions::BadArgs->throw(
-                error => "No character to annotate specified!"
-            );
+                error => "No character to annotate specified!" );
         }
         return $self;
     }
@@ -424,16 +422,16 @@ which can be linked to a taxon object.
 
     sub set_annotations {
         my $self = shift;
-        if ( @_ ) {
+        if (@_) {
             for my $i ( 0 .. $#_ ) {
                 if ( not exists $char[$$self]->[$i] ) {
                     Bio::Phylo::Util::Exceptions::OutOfBounds->throw(
-                        error => "Specified char ($i) does not exist!"
-                    );        
+                        error => "Specified char ($i) does not exist!" );
                 }
                 else {
                     if ( ref $_[$i] eq 'HASH' ) {
-                        $annotations[$$self]->[$i] = {} if ! $annotations[$$self]->[$i];
+                        $annotations[$$self]->[$i] = {}
+                          if !$annotations[$$self]->[$i];
                         while ( my ( $k, $v ) = each %{ $_[$i] } ) {
                             $annotations[$$self]->[$i]->{$k} = $v;
                         }
@@ -496,7 +494,7 @@ which can be linked to a taxon object.
 
 =cut
 
-    sub get_type { 
+    sub get_type {
         my $self = shift;
         return $type[$$self];
     }
@@ -523,7 +521,8 @@ which can be linked to a taxon object.
             return wantarray ? @{ $char[$$self] } : join '', @{ $char[$$self] };
         }
         else {
-            return wantarray ? @{ $char[$$self] } : join ' ', @{ $char[$$self] };        
+            return wantarray ? @{ $char[$$self] } : join ' ',
+              @{ $char[$$self] };
         }
     }
 
@@ -561,13 +560,11 @@ which can be linked to a taxon object.
 
     sub get_annotation {
         my $self = shift;
-        if ( @_ ) {
+        if (@_) {
             my %opt;
             eval { %opt = @_ };
-            if ( $@ ) {
-                Bio::Phylo::Util::Exceptions::OddHash->throw(
-                    error => $@,
-                );
+            if ($@) {
+                Bio::Phylo::Util::Exceptions::OddHash->throw( error => $@, );
             }
             if ( not exists $opt{'-char'} ) {
                 Bio::Phylo::Util::Exceptions::BadArgs->throw(
@@ -577,8 +574,7 @@ which can be linked to a taxon object.
             my $i = $opt{'-char'};
             if ( not exists $char[$$self]->[$i] ) {
                 Bio::Phylo::Util::Exceptions::OutOfBounds->throw(
-                    error => "Specified char ($i) does not exist!",
-                );
+                    error => "Specified char ($i) does not exist!", );
             }
             if ( exists $opt{'-key'} ) {
                 return $annotations[$$self]->[$i]->{ $opt{'-key'} };
@@ -590,8 +586,8 @@ which can be linked to a taxon object.
         else {
             return $annotations[$$self];
         }
-    }    
-    
+    }
+
 =back
 
 =head2 METHODS
@@ -615,19 +611,18 @@ which can be linked to a taxon object.
     sub copy_atts {
         my $self = shift;
         my $copy = __PACKAGE__->new;
-        
+
         # Bio::Phylo::Matrices::Datum atts
         $copy->set_taxon( $self->get_taxon );
         $copy->set_weight( $self->get_weight );
         $copy->set_type( $self->get_type );
         $copy->set_position( $self->get_position );
-        
+
         # Bio::Phylo atts
         $copy->set_name( $self->get_name );
-        $copy->set_desc( $self->get_desc);
+        $copy->set_desc( $self->get_desc );
         $copy->set_score( $self->get_score );
         $copy->set_generic( %{ $self->get_generic } ) if $self->get_generic;
-        
     }
 
 =item reverse()
@@ -642,7 +637,7 @@ which can be linked to a taxon object.
 =cut
 
     sub reverse {
-        my $self = shift;
+        my $self  = shift;
         my @chars = reverse @{ $char[$$self] };
         $char[$$self] = \@chars;
         return $self;
@@ -659,21 +654,20 @@ which can be linked to a taxon object.
 
 =cut
 
-    
     sub to_xml {
-        my $self = shift;  
-        my $xml;      
-        foreach my $k ( keys %{ $fields } ) {
+        my $self = shift;
+        my $xml;
+        foreach my $k ( keys %{$fields} ) {
             my $tag = $k;
             $tag =~ s/^-(.*)$/$1/;
             $xml .= '<' . $tag . '>';
             $xml .= XMLout( $fields->{$k}->[$$self] );
             $xml .= '</' . $tag . '>';
-        }        
+        }
         return $xml;
     }
 
-# TODO: trim, splice, complement, concat, translate - implement PrimarySeqI?
+    # TODO: trim, splice, complement, concat, translate - implement PrimarySeqI?
 
 =back
 
@@ -698,10 +692,10 @@ which can be linked to a taxon object.
 
     sub DESTROY {
         my $self = shift;
-        foreach( keys %{ $fields } ) {
+        foreach ( keys %{$fields} ) {
             delete $fields->{$_}->[$$self];
         }
-        $self->SUPER::DESTROY;        
+        $self->SUPER::DESTROY;
         return 1;
     }
 
@@ -768,7 +762,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Datum.pm,v 1.28 2006/04/12 22:38:22 rvosa Exp $
+$Id: Datum.pm,v 1.29 2006/05/18 06:41:40 rvosa Exp $
 
 =head1 AUTHOR
 
@@ -798,5 +792,4 @@ itself.
 =cut
 
 }
-
 1;

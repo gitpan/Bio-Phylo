@@ -6,7 +6,8 @@ use Bio::Phylo::Listable;
 use Bio::Phylo::Forest::Node;
 use Bio::Phylo::IO qw(unparse);
 use Bio::Phylo::Util::IDPool;
-use Bio::Phylo::Util::CONSTANT qw(_TREE_ _FOREST_ INT_SCORE_TYPE DOUBLE_SCORE_TYPE NO_SCORE_TYPE);
+use Bio::Phylo::Util::CONSTANT
+  qw(_TREE_ _FOREST_ INT_SCORE_TYPE DOUBLE_SCORE_TYPE NO_SCORE_TYPE);
 use Scalar::Util qw(looks_like_number blessed);
 
 # One line so MakeMaker sees it.
@@ -22,7 +23,7 @@ eval "require $interface";
 $HAS_BIOPERL_INTERFACE = 1 unless $@;
 
 # aliasing for Bio::Tree::TreeI
-if ( $HAS_BIOPERL_INTERFACE ) {
+if ($HAS_BIOPERL_INTERFACE) {
     push @ISA, 'Bio::Tree::TreeI';
     *get_nodes           = sub { return @{ $_[0]->get_entities } };
     *get_root_node       = sub { return $_[0]->get_root };
@@ -30,10 +31,10 @@ if ( $HAS_BIOPERL_INTERFACE ) {
     *total_branch_length = sub { return $_[0]->calc_tree_length };
     *height              = sub { return $_[0]->calc_tree_height };
     *id                  = sub { return $_[0]->get_name };
-    *score               = sub { $_[1] ? $_[0]->set_score($_[1])->get_score : $_[0]->get_score };
-    *get_leaf_nodes      = sub { return @{ $_[0]->get_terminals } };
+    *score               =
+      sub { $_[1] ? $_[0]->set_score( $_[1] )->get_score : $_[0]->get_score };
+    *get_leaf_nodes = sub { return @{ $_[0]->get_terminals } };
 }
-
 {
 
 =head1 NAME
@@ -86,7 +87,7 @@ for more methods.
         bless $self, __PACKAGE__;
         return $self;
     }
-    
+
 =item new_from_bioperl()
 
  Type    : Constructor
@@ -108,16 +109,15 @@ for more methods.
         if ( blessed $bptree && $bptree->isa('Bio::Tree::TreeI') ) {
             $self = Bio::Phylo::Forest::Tree->SUPER::new(@_);
             bless $self, $class;
-            $self = $self->_recurse( $bptree->get_root_node );        
+            $self = $self->_recurse( $bptree->get_root_node );
         }
         else {
             Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-                error => 'Not a bioperl tree!',
-            );
+                error => 'Not a bioperl tree!', );
         }
         return $self;
-    }    
-    
+    }
+
 =begin comment
 
  Type    : Internal method
@@ -132,18 +132,18 @@ for more methods.
 =end comment
 
 =cut    
-    
+
     sub _recurse {
         my ( $self, $bpnode, $parent ) = @_;
-        my $node = Bio::Phylo::Forest::Node->new_from_bioperl( $bpnode );
-        if ( $parent ) {
-            $parent->set_child( $node );
+        my $node = Bio::Phylo::Forest::Node->new_from_bioperl($bpnode);
+        if ($parent) {
+            $parent->set_child($node);
         }
-        $self->insert( $node );
+        $self->insert($node);
         foreach my $bpchild ( $bpnode->each_Descendent ) {
             $self->_recurse( $bpchild, $node );
         }
-        return $self;    
+        return $self;
     }
 
 =begin comment
@@ -175,13 +175,14 @@ for more methods.
             $_->set_last_daughter();
         }
         my ( $i, $j, $first, $next );
-    
+
         # mmmm... O(N^2)
       NODE: for $i ( 0 .. $#{$nodes} ) {
             $first = $nodes->[$i];
             for $j ( ( $i + 1 ) .. $#{$nodes} ) {
                 $next = $nodes->[$j];
-                my ( $firstp, $nextp ) = ( $first->get_parent, $next->get_parent );
+                my ( $firstp, $nextp ) =
+                  ( $first->get_parent, $next->get_parent );
                 if ( $firstp && $nextp && $firstp == $nextp ) {
                     if ( !$first->get_next_sister ) {
                         $first->set_next_sister($next);
@@ -193,7 +194,7 @@ for more methods.
                 }
             }
         }
-    
+
         # O(N)
         foreach ( @{$nodes} ) {
             my $p = $_->get_parent;
@@ -237,7 +238,7 @@ for more methods.
 
     sub get_terminals {
         my $self = shift;
-        my @tmp = $self->_check_cache;
+        my @tmp  = $self->_check_cache;
         return $tmp[1] if $tmp[0];
         my @terminals;
         foreach ( @{ $self->get_entities } ) {
@@ -245,7 +246,7 @@ for more methods.
                 push @terminals, $_;
             }
         }
-        $self->_store_cache(\@terminals);
+        $self->_store_cache( \@terminals );
         return \@terminals;
     }
 
@@ -270,7 +271,7 @@ for more methods.
 
     sub get_internals {
         my $self = shift;
-        my @tmp = $self->_check_cache;
+        my @tmp  = $self->_check_cache;
         return $tmp[1] if $tmp[0];
         my @internals;
         foreach ( @{ $self->get_entities } ) {
@@ -278,7 +279,7 @@ for more methods.
                 push @internals, $_;
             }
         }
-        $self->_store_cache(\@internals);
+        $self->_store_cache( \@internals );
         return \@internals;
     }
 
@@ -297,7 +298,7 @@ for more methods.
 
     sub get_root {
         my $self = shift;
-        my @tmp = $self->_check_cache;
+        my @tmp  = $self->_check_cache;
         return $tmp[1] if $tmp[0];
         foreach ( @{ $self->get_entities } ) {
             if ( !$_->get_parent ) {
@@ -326,18 +327,18 @@ for more methods.
 
     sub get_tallest_tip {
         my $self = shift;
-        my @tmp = $self->_check_cache;
-        return $tmp[1] if $tmp[0];        
+        my @tmp  = $self->_check_cache;
+        return $tmp[1] if $tmp[0];
         my $height = 0;
         my $tip;
         foreach my $node ( @{ $self->get_terminals } ) {
             if ( $node->calc_path_to_root > $height ) {
                 $height = $node->calc_path_to_root;
-                $tip = $node;
+                $tip    = $node;
             }
-        }   
+        }
         $self->_store_cache($tip);
-        return $tip;         
+        return $tip;
     }
 
 =item get_mrca()
@@ -386,10 +387,11 @@ for more methods.
 
     sub is_binary {
         my $self = shift;
-        my @tmp = $self->_check_cache;
+        my @tmp  = $self->_check_cache;
         return $tmp[1] if $tmp[0];
         foreach ( @{ $self->get_internals } ) {
-            if ( $_->get_first_daughter->get_next_sister != $_->get_last_daughter )
+            if ( $_->get_first_daughter->get_next_sister !=
+                $_->get_last_daughter )
             {
                 $self->_store_cache(undef);
                 return;
@@ -528,7 +530,7 @@ for more methods.
 
     sub calc_tree_length {
         my $self = shift;
-        my @tmp = $self->_check_cache;
+        my @tmp  = $self->_check_cache;
         return $tmp[1] if $tmp[0];
         my $tl = 0;
         foreach ( @{ $self->get_entities } ) {
@@ -562,7 +564,7 @@ for more methods.
 
     sub calc_tree_height {
         my $self = shift;
-        my @tmp = $self->_check_cache;
+        my @tmp  = $self->_check_cache;
         return $tmp[1] if $tmp[0];
         my $th = $self->calc_total_paths / $self->calc_number_of_terminals;
         $self->_store_cache($th);
@@ -584,7 +586,7 @@ for more methods.
 
     sub calc_number_of_nodes {
         my $self = shift;
-        my @tmp = $self->_check_cache;
+        my @tmp  = $self->_check_cache;
         return $tmp[1] if $tmp[0];
         my $numnodes = scalar @{ $self->get_entities };
         $self->_store_cache($numnodes);
@@ -606,7 +608,7 @@ for more methods.
 
     sub calc_number_of_terminals {
         my $self = shift;
-        my @tmp = $self->_check_cache;
+        my @tmp  = $self->_check_cache;
         return $tmp[1] if $tmp[0];
         my $numterm = scalar @{ $self->get_terminals };
         $self->_store_cache($numterm);
@@ -628,7 +630,7 @@ for more methods.
 
     sub calc_number_of_internals {
         my $self = shift;
-        my @tmp = $self->_check_cache;
+        my @tmp  = $self->_check_cache;
         return $tmp[1] if $tmp[0];
         my $numint = scalar @{ $self->get_internals };
         $self->_store_cache($numint);
@@ -650,7 +652,7 @@ for more methods.
 
     sub calc_total_paths {
         my $self = shift;
-        my @tmp = $self->_check_cache;
+        my @tmp  = $self->_check_cache;
         return $tmp[1] if $tmp[0];
         my $tp = 0;
         foreach ( @{ $self->get_terminals } ) {
@@ -677,7 +679,7 @@ for more methods.
 
     sub calc_redundancy {
         my $self = shift;
-        my @tmp = $self->_check_cache;
+        my @tmp  = $self->_check_cache;
         return $tmp[1] if $tmp[0];
         my $tl   = $self->calc_tree_length;
         my $th   = $self->calc_tree_height;
@@ -704,13 +706,12 @@ for more methods.
 
     sub calc_imbalance {
         my $self = shift;
-        my @tmp = $self->_check_cache;
+        my @tmp  = $self->_check_cache;
         return $tmp[1] if $tmp[0];
         my ( $maxic, $sum, $Ic ) = ( 0, 0 );
         if ( !$self->is_binary ) {
             Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-                error => 'Colless\' imbalance only possible for binary trees'
-            );
+                error => 'Colless\' imbalance only possible for binary trees' );
         }
         my $numtips = $self->calc_number_of_terminals;
         $numtips -= 2;
@@ -756,17 +757,16 @@ for more methods.
 
     sub calc_i2 {
         my $self = shift;
-        my @tmp = $self->_check_cache;
+        my @tmp  = $self->_check_cache;
         return $tmp[1] if $tmp[0];
         my ( $maxic, $sum, $I2 ) = ( 0, 0 );
         if ( !$self->is_binary ) {
             Bio::Phylo::Exceptions::ObjectMismatch->throw(
-                error => 'I2 imbalance only possible for binary trees'
-            );
+                error => 'I2 imbalance only possible for binary trees' );
         }
         my $numtips = $self->calc_number_of_terminals;
         $numtips -= 2;
-        while ( $numtips ) {
+        while ($numtips) {
             $maxic += $numtips;
             $numtips--;
         }
@@ -826,64 +826,63 @@ for more methods.
     # code due to Aki Mimoto
     sub calc_gamma {
         my $self = shift;
-        my @tmp = $self->_check_cache;
+        my @tmp  = $self->_check_cache;
         return $tmp[1] if $tmp[0];
         my $tl        = $self->calc_tree_length;
         my $terminals = $self->get_terminals;
-        my $n         = scalar @{ $terminals };
+        my $n         = scalar @{$terminals};
         my $height    = $self->calc_tree_height;
-    
+
         # Calculate the distance of each node to the root
         my %soft_refs;
-        my $root      = $self->get_root;
+        my $root = $self->get_root;
         $soft_refs{$root} = 0;
-        my @nodes     = $root;
-        while ( @nodes ) {
-            my $node = shift @nodes;
-            my $path_len  = $soft_refs{$node} += $node->get_branch_length;
-            my $children  = $node->get_children or next;
-            for my $child ( @$children ) {
+        my @nodes = $root;
+        while (@nodes) {
+            my $node     = shift @nodes;
+            my $path_len = $soft_refs{$node} += $node->get_branch_length;
+            my $children = $node->get_children or next;
+            for my $child (@$children) {
                 $soft_refs{$child} = $path_len;
             }
-            push @nodes, @{ $children };
+            push @nodes, @{$children};
         }
-    
+
         # Then, we know how far each node is from the root. At this point, we
         # can sort through and create the @g array
-        my %node_spread  = map {($_=>1)} values %soft_refs; # remove duplicates
-        my @sorted_nodes = sort {$a<=>$b} keys %node_spread;
-        my $prev         = 0;
+        my %node_spread =
+          map { ( $_ => 1 ) } values %soft_refs;    # remove duplicates
+        my @sorted_nodes = sort { $a <=> $b } keys %node_spread;
+        my $prev = 0;
         my @g;
-        for my $length ( @sorted_nodes ) {
+        for my $length (@sorted_nodes) {
             push @g, $length - $prev;
             $prev = $length;
         }
-    
         my $sum = 0;
         eval "require Math::BigFloat";
-        if ( $@ ) { # BigFloat is not available.
-            for ( my $i = 2; $i < $n; $i++ ) {
-                for ( my $k = 2; $k <= $i; $k++ ) {
-                    $sum += $k * $g[$k-1];
+        if ($@) {                                   # BigFloat is not available.
+            for ( my $i = 2 ; $i < $n ; $i++ ) {
+                for ( my $k = 2 ; $k <= $i ; $k++ ) {
+                    $sum += $k * $g[ $k - 1 ];
                 }
             }
-            my $numerator   = ($sum/($n-2))- ($tl/2);
-            my $denominator = $tl*sqrt(1/(12*($n-2)));
-
-            $self->_store_cache($numerator/$denominator);
-            return $numerator/$denominator;
+            my $numerator = ( $sum / ( $n - 2 ) ) - ( $tl / 2 );
+            my $denominator = $tl * sqrt( 1 / ( 12 * ( $n - 2 ) ) );
+            $self->_store_cache( $numerator / $denominator );
+            return $numerator / $denominator;
         }
-    
+
         # Big Float is available. We'll use it then
         $sum = Math::BigFloat->new(0);
-        for ( my $i = 2; $i < $n; $i++ ) {
-            for ( my $k = 2; $k <= $i; $k++ ) {
-                $sum->badd($k * $g[$k-1]);
+        for ( my $i = 2 ; $i < $n ; $i++ ) {
+            for ( my $k = 2 ; $k <= $i ; $k++ ) {
+                $sum->badd( $k * $g[ $k - 1 ] );
             }
         }
         $sum->bdiv( $n - 2 );
         $sum->bsub( $tl / 2 );
-        my $denominator = Math::BigFloat->new( 1 );
+        my $denominator = Math::BigFloat->new(1);
         $denominator->bdiv( 12 * ( $n - 2 ) );
         $denominator->bsqrt();
         $sum->bdiv( $denominator * $tl );
@@ -912,7 +911,7 @@ for more methods.
 
     sub calc_fiala_stemminess {
         my $self = shift;
-        my @tmp = $self->_check_cache;
+        my @tmp  = $self->_check_cache;
         return $tmp[1] if $tmp[0];
         my @internals = @{ $self->get_internals };
         my $total     = 0;
@@ -953,11 +952,11 @@ for more methods.
 
     sub calc_rohlf_stemminess {
         my $self = shift;
-        my @tmp = $self->_check_cache;
+        my @tmp  = $self->_check_cache;
         return $tmp[1] if $tmp[0];
         if ( !$self->is_ultrametric(0.01) ) {
-            Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-                error => 'Rohlf stemminess only possible for ultrametric trees' );
+            Bio::Phylo::Util::Exceptions::ObjectMismatch->throw( error =>
+                  'Rohlf stemminess only possible for ultrametric trees' );
         }
         my @internals            = @{ $self->get_internals };
         my $total                = 0;
@@ -1000,7 +999,7 @@ for more methods.
 
     sub calc_resolution {
         my $self = shift;
-        my @tmp = $self->_check_cache;
+        my @tmp  = $self->_check_cache;
         return $tmp[1] if $tmp[0];
         my $res = $self->calc_number_of_internals /
           ( $self->calc_number_of_terminals - 1 );
@@ -1030,12 +1029,12 @@ for more methods.
 
     sub calc_branching_times {
         my $self = shift;
-        my @tmp = $self->_check_cache;
+        my @tmp  = $self->_check_cache;
         return $tmp[1] if $tmp[0];
         my @branching_times;
         if ( !$self->is_ultrametric(0.01) ) {
-            Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-                error => 'tree isn\'t ultrametric, results would be meaningless' );
+            Bio::Phylo::Util::Exceptions::ObjectMismatch->throw( error =>
+                  'tree isn\'t ultrametric, results would be meaningless' );
         }
         else {
             my ( $i, @temp ) = 0;
@@ -1045,7 +1044,7 @@ for more methods.
             }
             @branching_times = sort { $a->[1] <=> $b->[1] } @temp;
         }
-        $self->_store_cache(\@branching_times);
+        $self->_store_cache( \@branching_times );
         return \@branching_times;
     }
 
@@ -1071,7 +1070,7 @@ for more methods.
 
     sub calc_ltt {
         my $self = shift;
-        my @tmp = $self->_check_cache;
+        my @tmp  = $self->_check_cache;
         return $tmp[1] if $tmp[0];
         if ( !$self->is_ultrametric(0.01) ) {
             Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
@@ -1147,26 +1146,25 @@ for more methods.
     # code due to Aki Mimoto
     sub calc_fp {
         my $self = shift;
-        my @tmp = $self->_check_cache;
+        my @tmp  = $self->_check_cache;
         return $tmp[1] if $tmp[0];
-        
+
         # First establish how many children sit on each of the nodes
-        my %weak_ref; 
+        my %weak_ref;
         my $terminals = $self->get_terminals;
-        for my $terminal ( @$terminals ) {
+        for my $terminal (@$terminals) {
             my $index = $terminal;
-            do { $weak_ref{$index}++ }
-            while ( $index = $index->get_parent );
+            do { $weak_ref{$index}++ } while ( $index = $index->get_parent );
         }
-    
+
         # Then, assign each terminal a value
         my $fp = {};
-    
-        for my $terminal ( @$terminals ) {
-            my $name  = $terminal->get_name;
-            my $fpi   = 0;
+        for my $terminal (@$terminals) {
+            my $name = $terminal->get_name;
+            my $fpi  = 0;
             do {
-                $fpi += ( $terminal->get_branch_length || 0 ) / $weak_ref{$terminal};
+                $fpi +=
+                  ( $terminal->get_branch_length || 0 ) / $weak_ref{$terminal};
             } while ( $terminal = $terminal->get_parent );
             $fp->{$name} = $fpi;
         }
@@ -1188,26 +1186,24 @@ for more methods.
     # code due to Aki Mimoto
     sub calc_es {
         my $self = shift;
-        my @tmp = $self->_check_cache;
+        my @tmp  = $self->_check_cache;
         return $tmp[1] if $tmp[0];
-    
+
         # First establish how many children sit on each of the nodes
         my $terminals = $self->get_terminals;
-    
-        my $es = {};
-        for my $terminal ( @{ $terminals } ) {
+        my $es        = {};
+        for my $terminal ( @{$terminals} ) {
             my $name    = $terminal->get_name;
             my $esi     = 0;
             my $divisor = 1;
             do {
                 my $length   = $terminal->get_branch_length || 0;
-                my $children = $terminal->get_children || [];
-                $divisor     *= @$children || 1;
-                $esi         += $length / $divisor;
+                my $children = $terminal->get_children      || [];
+                $divisor *= @$children || 1;
+                $esi += $length / $divisor;
             } while ( $terminal = $terminal->get_parent );
             $es->{$name} = $esi;
         }
-
         $self->_store_cache($es);
         return $es;
     }
@@ -1226,10 +1222,11 @@ for more methods.
     # code due to Aki Mimoto
     sub calc_pe {
         my $self = shift;
-        my @tmp = $self->_check_cache;
+        my @tmp  = $self->_check_cache;
         return $tmp[1] if $tmp[0];
         my $terminals = $self->get_terminals or return {};
-        my $pe = { map { $_->get_name => $_->get_branch_length } @{ $terminals } };
+        my $pe =
+          { map { $_->get_name => $_->get_branch_length } @{$terminals} };
         $self->_store_cache($pe);
         return $pe;
     }
@@ -1248,26 +1245,29 @@ for more methods.
     # code due to Aki Mimoto
     sub calc_shapley {
         my $self = shift;
-        my @tmp = $self->_check_cache;
+        my @tmp  = $self->_check_cache;
         return $tmp[1] if $tmp[0];
-    
+
         # First find out how many tips are at the ends of each edge.
-        my $terminals   = $self->get_terminals or return;  # nothing to see!
+        my $terminals   = $self->get_terminals or return;    # nothing to see!
         my $edge_lookup = {};
         my $index       = $terminals->[0];
-    
+
         # Iterate through the edges and find out which side each terminal reside
         _calc_shapley_traverse( $index, undef, $edge_lookup, 'root' );
-    
+
         # At this point, it's possible to create the calculation matrix
         my $n = @$terminals;
         my @m;
-        my $edges = [keys %$edge_lookup];
-        for my $e ( 0..$#$edges ) {
+        my $edges = [ keys %$edge_lookup ];
+        for my $e ( 0 .. $#$edges ) {
             my $edge = $edges->[$e];
-            my $el = $edge_lookup->{$edge}; # Lookup for terminals on one edge side
-            my $v  = keys %{$el->{terminals}}; # Number of elements on one side of the edge
-            for my $l ( 0..$#$terminals ) {
+            my $el   =
+              $edge_lookup->{$edge};    # Lookup for terminals on one edge side
+            my $v =
+              keys %{ $el
+                  ->{terminals} };  # Number of elements on one side of the edge
+            for my $l ( 0 .. $#$terminals ) {
                 my $terminal = $terminals->[$l];
                 my $name     = $terminal->get_name;
                 if ( $el->{terminals}{$name} ) {
@@ -1278,32 +1278,32 @@ for more methods.
                 }
             }
         }
-    
+
         # Now we can calculate through the matrix
         my $shapley = {};
-        for my $l ( 0..$#$terminals) {
+        for my $l ( 0 .. $#$terminals ) {
             my $terminal = $terminals->[$l];
-            my $name = $terminal->get_name;
-            for my $e ( 0..$#$edges ) {
-                my $edge = $edge_lookup->{$edges->[$e]};
+            my $name     = $terminal->get_name;
+            for my $e ( 0 .. $#$edges ) {
+                my $edge = $edge_lookup->{ $edges->[$e] };
                 $shapley->{$name} += $edge->{branch_length} * $m[$l][$e];
             }
         }
-        
         $self->_store_cache($shapley);
         return $shapley;
     }
 
     sub _calc_shapley_traverse {
+
         # This does a depth first traversal to assign the terminals
-        # to the outgoing side of each branch. 
+        # to the outgoing side of each branch.
         my ( $index, $previous, $edge_lookup, $direction ) = @_;
         return unless $index;
         $previous ||= '';
-    
-        # Is this element a root?  
+
+        # Is this element a root?
         my $is_root = !$index->get_parent;
-    
+
         # Now assemble all the terminal datapoints and use the soft reference
         # to keep track of which end the terminals are attached
         my @core_terminals;
@@ -1313,27 +1313,27 @@ for more methods.
         my $parent = $index->get_parent || '';
         my @child_terminals;
         my $child_nodes = $index->get_children || [];
-        for my $child ( @$child_nodes ) {
+        for my $child (@$child_nodes) {
             next unless $child ne $previous;
-            push @child_terminals, _calc_shapley_traverse( $child, $index, $edge_lookup, 'tip' );
+            push @child_terminals,
+              _calc_shapley_traverse( $child, $index, $edge_lookup, 'tip' );
         }
         my @parent_terminals;
         if ( $parent ne $previous ) {
-            push @parent_terminals, _calc_shapley_traverse( $parent, $index, $edge_lookup, 'root' );
+            push @parent_terminals,
+              _calc_shapley_traverse( $parent, $index, $edge_lookup, 'root' );
         }
-    
-        # We're going to toss the root node and we need to merge the root's child branches
-        unless ( $is_root ) {
+
+# We're going to toss the root node and we need to merge the root's child branches
+        unless ($is_root) {
             $edge_lookup->{$index} = {
                 branch_length => $index->get_branch_length,
                 terminals     => {
-                    map {$_=>1} 
-                        @core_terminals,
-                        $direction eq 'root' ? @parent_terminals : @child_terminals
+                    map { $_ => 1 } @core_terminals,
+                    $direction eq 'root' ? @parent_terminals : @child_terminals
                 }
             };
         }
-    
         return ( @core_terminals, @child_terminals, @parent_terminals );
     }
 
@@ -1430,7 +1430,7 @@ for more methods.
 
     sub resolve {
         my $tree = $_[0];
-        $tree->_flush_cache;        
+        $tree->_flush_cache;
         foreach my $node ( @{ $tree->get_entities } ) {
             if (   $node->is_internal
                 && $node->get_first_daughter->get_next_sister !=
@@ -1443,27 +1443,27 @@ for more methods.
                     my $newnode = new Bio::Phylo::Forest::Node;
                     $newnode->set_branch_length(0.00);
                     $newnode->set_name( $node->get_name . 'r' . $i++ );
-    
+
                     # parent relationships
                     $newnode->set_parent($node);
                     $node->get_first_daughter->set_parent($newnode);
                     $node->get_first_daughter->get_next_sister->set_parent(
                         $newnode);
-    
+
                     # daughter relationships
                     $newnode->set_first_daughter( $node->get_first_daughter );
                     $newnode->set_last_daughter(
                         $node->get_first_daughter->get_next_sister );
                     $node->set_first_daughter($newnode);
-    
+
                     # sister relationships
                     $newnode->set_next_sister(
                         $newnode->get_first_daughter->get_next_sister
                           ->get_next_sister );
-                    $newnode->get_first_daughter->get_next_sister->get_next_sister
-                      ->set_previous_sister($newnode);
-                    $newnode->get_first_daughter->get_next_sister->set_next_sister(
-                    );
+                    $newnode->get_first_daughter->get_next_sister
+                      ->get_next_sister->set_previous_sister($newnode);
+                    $newnode->get_first_daughter->get_next_sister
+                      ->set_next_sister();
                     $tree->insert($newnode);
                 }
             }
@@ -1485,7 +1485,7 @@ for more methods.
 
     sub prune_tips {
         my ( $self, $tips ) = @_;
-        $self->_flush_cache;        
+        $self->_flush_cache;
         my $tree = $self->get_entities;
       OUTER: for ( my $i = 0 ; $i <= $#{$tree} ; $i++ ) {
             if ( !defined $tree->[$i] ) {
@@ -1495,13 +1495,14 @@ for more methods.
                 if ( !defined $tree->[$i] ) {
                     last INNER;
                 }
-                if ( $tree->[$i]->get_name eq $tip && $tree->[$i]->is_terminal ) {
-    
+                if ( $tree->[$i]->get_name eq $tip && $tree->[$i]->is_terminal )
+                {
+
                     # scope out nodes that reference current
                     my $ps = $tree->[$i]->get_previous_sister;
                     my $ns = $tree->[$i]->get_next_sister;
                     my $p  = $tree->[$i]->get_parent;
-    
+
                     # parent is polytomy
                     if ( $p && scalar @{ $p->get_children } > 2 ) {
                         if ( $p->get_first_daughter == $tree->[$i] ) {
@@ -1519,7 +1520,7 @@ for more methods.
                         $tree->[$i] = undef;
                         next OUTER;
                     }
-    
+
                     # parent bifurcates, has parent
                     my $gp = $p->get_parent;
                     if ( $p && scalar @{ $p->get_children } <= 2 && $gp ) {
@@ -1573,7 +1574,7 @@ for more methods.
                         $tree->[$i] = undef;
                         next OUTER;
                     }
-    
+
                     # parent bifurcates, is root
                     elsif ( $p && !$gp && scalar @{ $p->get_children } <= 2 ) {
                         if ( $p->get_first_daughter == $tree->[$i] ) {
@@ -1601,14 +1602,16 @@ for more methods.
                         next OUTER;
                     }
                 }
-                elsif ( $tree->[$i]->get_name eq $tip && $tree->[$i]->is_internal )
+                elsif ($tree->[$i]->get_name eq $tip
+                    && $tree->[$i]->is_internal )
                 {
                     Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-                        error => "$tip is an internal node. Tips only please!" );
+                        error =>
+                          "$tip is an internal node. Tips only please!" );
                 }
             }
         }
-    
+
         # splice undef nodes here
         for ( my $j = $#{$tree} ; $j >= 0 ; $j-- ) {
             if ( !defined $tree->[$j] ) {
@@ -1632,13 +1635,13 @@ for more methods.
 
     sub keep_tips {
         my ( $tree, $tips ) = @_;
-        $tree->_flush_cache;        
+        $tree->_flush_cache;
         my ( @allnames, @taxatoprune );
         foreach my $tip ( @{ $tree->get_terminals } ) {
             push @allnames, $tip->get_name;
         }
         foreach my $name (@allnames) {
-            if ( $name && ! grep /^$name$/, @{$tips} ) {
+            if ( $name && !grep /^$name$/, @{$tips} ) {
                 push @taxatoprune, $name;
             }
         }
@@ -1661,7 +1664,7 @@ for more methods.
 
     sub negative_to_zero {
         my $tree = shift;
-        $tree->_flush_cache;        
+        $tree->_flush_cache;
         foreach my $node ( @{ $tree->get_entities } ) {
             my $bl = $node->get_branch_length;
             if ( $bl && $bl < 0 ) {
@@ -1684,8 +1687,8 @@ for more methods.
 
     sub exponentiate {
         my ( $tree, $power ) = @_;
-        $tree->_flush_cache;        
-        if ( ! looks_like_number $power ) {
+        $tree->_flush_cache;
+        if ( !looks_like_number $power ) {
             Bio::Phylo::Util::Exceptions::BadNumber->throw(
                 error => "Power \"$power\" is a bad number" );
         }
@@ -1711,8 +1714,8 @@ for more methods.
 
     sub log_transform {
         my ( $tree, $base ) = @_;
-        $tree->_flush_cache;        
-        if ( ! looks_like_number $base ) {
+        $tree->_flush_cache;
+        if ( !looks_like_number $base ) {
             Bio::Phylo::Util::Exceptions::BadNumber->throw(
                 error => "Base \"$base\" is a bad number" );
         }
@@ -1756,12 +1759,13 @@ for more methods.
                     && $tree->[$i]->is_internal
                     && scalar $tree->[$i]->get_children == 1 )
                 {
-                    $tree->[$i]
-                      ->get_first_daughter->set_parent( $tree->[$i]->get_parent );
+                    $tree->[$i]->get_first_daughter->set_parent(
+                        $tree->[$i]->get_parent );
                     my $childbl =
                       $tree->[$i]->get_first_daughter->get_branch_length;
                     $childbl += $tree->[$i]->get_branch_length;
-                    $tree->[$i]->get_first_daughter->set_branch_length($childbl);
+                    $tree->[$i]
+                      ->get_first_daughter->set_branch_length($childbl);
                     splice @{$tree}, $i, 1;
                     $tree->_analyze;
                 }
@@ -1794,7 +1798,7 @@ for more methods.
 
     sub to_newick {
         my $self = shift;
-        my @tmp = $self->_check_cache;
+        my @tmp  = $self->_check_cache;
         return $tmp[1] if $tmp[0];
         my $newick = unparse( -format => 'newick', -phylo => $self );
         $self->_store_cache($newick);
@@ -1816,27 +1820,23 @@ for more methods.
 
     sub to_cipres {
         eval { require CipresIDL; };
-        if ( $@ ) {
-            Bio::Phylo::Util::Exceptions::Extension::Error->throw(
-                'error' => 'This method requires CipresIDL, which you don\'t have',
-            );
+        if ($@) {
+            Bio::Phylo::Util::Exceptions::Extension::Error->throw( 'error' =>
+                  'This method requires CipresIDL, which you don\'t have', );
         }
-        
         my $self = shift;
-        my @tmp = $self->_check_cache;
+        my @tmp  = $self->_check_cache;
         return $tmp[1] if $tmp[0];
-
         my $m_newick  = $self->to_newick;
         my $m_name    = $self->get_name;
         my $_score    = $self->get_score;
         my $scoretype = $self->get_generic('score_type');
-        my $m_score   = CipresIDL::TreeScore->new;        
+        my $m_score   = CipresIDL::TreeScore->new;
         my $m_leafSet = [];
-                
+
         for my $i ( 0 .. $#{ $self->get_entities } ) {
-            push @{ $m_leafSet }, $i if $self->get_by_index($i)->is_terminal;
+            push @{$m_leafSet}, $i if $self->get_by_index($i)->is_terminal;
         }
-        
         if ( defined $scoretype && $scoretype == INT_SCORE_TYPE ) {
             $m_score->intScore( 'CipresIDL::INT_SCORE_TYPE', $_score );
         }
@@ -1846,18 +1846,16 @@ for more methods.
         else {
             $m_score->noScore( 'CipresIDL::NO_SCORE_TYPE', $_score );
         }
-                 
         my $cipres_tree = CipresIDL::Tree->new(
             'm_newick'  => $m_newick,
             'm_score'   => $m_score,
             'm_leafSet' => $m_leafSet,
             'm_name'    => $m_name,
-        );        
-        
+        );
         $self->_store_cache($cipres_tree);
         return $cipres_tree;
     }
-    
+
 =begin comment
 
  Type    : Internal method
@@ -1873,7 +1871,7 @@ for more methods.
 
     sub DESTROY {
         my $self = shift;
-        $self->SUPER::DESTROY;        
+        $self->SUPER::DESTROY;
         return 1;
     }
 
@@ -2002,5 +2000,4 @@ itself.
 =cut
 
 }
-
 1;

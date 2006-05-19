@@ -1,4 +1,4 @@
-# $Id: Forest.pm,v 1.18 2006/04/12 22:38:22 rvosa Exp $
+# $Id: Forest.pm,v 1.19 2006/05/18 06:41:40 rvosa Exp $
 package Bio::Phylo::Forest;
 use strict;
 use Bio::Phylo::Listable;
@@ -14,16 +14,13 @@ use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
 # classic @ISA manipulation, not using 'base'
 use vars qw($VERSION @ISA);
 @ISA = qw(Bio::Phylo::Listable);
-
 {
 
     # inside-out class arrays
     my @taxa;
 
     # $fields hashref necessary for object destruction
-    my $fields = {
-        '-taxa'    => \@taxa,
-    };
+    my $fields = { '-taxa' => \@taxa, };
 
 =head1 NAME
 
@@ -63,10 +60,10 @@ forest objects.
         my ( $class, $self ) = shift;
         $self = Bio::Phylo::Forest->SUPER::new(@_);
         bless $self, __PACKAGE__;
-        if ( @_ ) {
+        if (@_) {
             my %opt;
             eval { %opt = @_; };
-            if ( $@ ) {
+            if ($@) {
                 Bio::Phylo::Util::Exceptions::OddHash->throw( error => $@ );
             }
             else {
@@ -121,7 +118,8 @@ forest objects.
         if ( defined $taxa ) {
             if ( blessed $taxa ) {
                 if ( $taxa->can('_type') && $taxa->_type == _TAXA_ ) {
-                    my %taxa = map { $_ => $_->get_name } @{ $taxa->get_entities };
+                    my %taxa =
+                      map { $_ => $_->get_name } @{ $taxa->get_entities };
                     my %name;
                     while ( my ( $k, $v ) = each %taxa ) {
                         next if not $k or not $v;
@@ -132,34 +130,36 @@ forest objects.
                         foreach my $node ( @{ $tree->get_entities } ) {
                             if ( $node->get_taxon() ) {
                                 my $taxon = $node->get_taxon();
-                                if ( ! exists $taxa{$taxon} ) {
+                                if ( !exists $taxa{$taxon} ) {
                                     $node->set_taxon();
                                     $replaced++;
                                 }
                             }
-                            elsif ( $node->is_terminal and $node->get_name and exists $name{$node->get_name} ) {
-                                $node->set_taxon( $name{$node->get_name} );
+                            elsif ( $node->is_terminal
+                                and $node->get_name
+                                and exists $name{ $node->get_name } )
+                            {
+                                $node->set_taxon( $name{ $node->get_name } );
                             }
                         }
                     }
-                    if ( $replaced ) {
-                        warn "Reset $replaced references from nodes to taxa outside taxa block";
+                    if ($replaced) {
+                        warn
+"Reset $replaced references from nodes to taxa outside taxa block";
                     }
                     $taxa[$$self] = $taxa;
                     weaken( $taxa[$$self] );
                     my %tmp = map { $_ => 1 } @{ $taxa->get_forests };
-                    $taxa->set_forest( $self ) if ! exists $tmp{$self};
+                    $taxa->set_forest($self) if !exists $tmp{$self};
                 }
                 else {
                     Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-                        error => "\"$taxa\" doesn't look like a taxa object"
-                    );
+                        error => "\"$taxa\" doesn't look like a taxa object" );
                 }
             }
             else {
                 Bio::Phylo::Util::Exceptions::BadArgs->throw(
-                    error => "\"$taxa\" is not a blessed object!"
-                );
+                    error => "\"$taxa\" is not a blessed object!" );
             }
         }
         else {
@@ -235,39 +235,39 @@ forest objects.
 
 =cut
 
-sub make_taxa {
-    my $self = shift;
-    my $taxa = Bio::Phylo::Taxa->new;
-    $taxa->set_name('Untitled_taxa_block');
-    $taxa->set_desc('Generated from ' . $self . ' on ' . localtime());
-    my %tips;
-    foreach my $tree ( @{ $self->get_entities } ) {
-        foreach my $tip ( @{ $tree->get_terminals } ) {
-            my $name = $tip->get_name;
-            if ( ! exists $tips{$name} ) {
-                my $taxon = Bio::Phylo::Taxa::Taxon->new;
-                $taxon->set_name( $name );
-                $tips{$name} = {
-                    'tip'   => [ $tip ],
-                    'taxon' => $taxon,
-                };
-            }
-            else {
-                push @{ $tips{$name}->{'tip'} }, $tip;
+    sub make_taxa {
+        my $self = shift;
+        my $taxa = Bio::Phylo::Taxa->new;
+        $taxa->set_name('Untitled_taxa_block');
+        $taxa->set_desc( 'Generated from ' . $self . ' on ' . localtime() );
+        my %tips;
+        foreach my $tree ( @{ $self->get_entities } ) {
+            foreach my $tip ( @{ $tree->get_terminals } ) {
+                my $name = $tip->get_name;
+                if ( !exists $tips{$name} ) {
+                    my $taxon = Bio::Phylo::Taxa::Taxon->new;
+                    $taxon->set_name($name);
+                    $tips{$name} = {
+                        'tip'   => [$tip],
+                        'taxon' => $taxon,
+                    };
+                }
+                else {
+                    push @{ $tips{$name}->{'tip'} }, $tip;
+                }
             }
         }
-    }
-    foreach my $name ( keys %tips ) {
-        my $taxon = $tips{$name}->{'taxon'};
-        foreach my $tip ( @{ $tips{$name}->{'tip'} } ) {
-            $tip->set_taxon($taxon);
-            $taxon->set_nodes($tip);
+        foreach my $name ( keys %tips ) {
+            my $taxon = $tips{$name}->{'taxon'};
+            foreach my $tip ( @{ $tips{$name}->{'tip'} } ) {
+                $tip->set_taxon($taxon);
+                $taxon->set_nodes($tip);
+            }
+            $taxa->insert($taxon);
         }
-        $taxa->insert($taxon);
+        $self->set_taxa($taxa);
+        return $taxa;
     }
-    $self->set_taxa($taxa);
-    return $taxa;
-}
 
 =back
 
@@ -292,7 +292,7 @@ sub make_taxa {
 
     sub DESTROY {
         my $self = shift;
-        foreach( keys %{ $fields } ) {
+        foreach ( keys %{$fields} ) {
             delete $fields->{$_}->[$$self];
         }
         $self->_del_from_super;
@@ -363,7 +363,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Forest.pm,v 1.18 2006/04/12 22:38:22 rvosa Exp $
+$Id: Forest.pm,v 1.19 2006/05/18 06:41:40 rvosa Exp $
 
 =head1 AUTHOR
 
@@ -393,5 +393,4 @@ itself.
 =cut
 
 }
-
 1;

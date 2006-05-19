@@ -1,4 +1,4 @@
-# $Id: Fastnewick.pm,v 1.2 2006/03/14 12:01:57 rvosa Exp $
+# $Id: Fastnewick.pm,v 1.3 2006/05/18 06:41:40 rvosa Exp $
 package Bio::Phylo::Parsers::Fastnewick;
 use strict;
 use Bio::Phylo::Forest;
@@ -8,7 +8,6 @@ use base 'Bio::Phylo::IO';
 
 # One line so MakeMaker sees it.
 use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
-
 *_from_handle = \&_from_both;
 *_from_string = \&_from_both;
 
@@ -119,9 +118,7 @@ sub _parse_string {
         );
     }
     else {
-        $root = Bio::Phylo::Forest::Node->new(
-            '-name' => $name,
-        );
+        $root = Bio::Phylo::Forest::Node->new( '-name' => $name, );
     }
     $tree->insert($root);
     &_parse( $string, $tree, $root );
@@ -147,7 +144,7 @@ sub _nodelabels {
     my ( $x, @x );
     while ( $string =~ /\)[:|,|;|\)]/o ) {
         foreach ( split( /[:|,|;|\)]/o, $string ) ) {
-            if ( /n([0-9]+)/ ) {
+            if (/n([0-9]+)/) {
                 push( @x, $1 );
             }
         }
@@ -239,9 +236,7 @@ sub _token_handler {
         );
     }
     else {
-        $node = Bio::Phylo::Forest::Node->new(
-            '-name'          => $name,
-        );
+        $node = Bio::Phylo::Forest::Node->new( '-name' => $name, );
     }
     return $node, $clade;
 }
@@ -277,7 +272,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Fastnewick.pm,v 1.2 2006/03/14 12:01:57 rvosa Exp $
+$Id: Fastnewick.pm,v 1.3 2006/05/18 06:41:40 rvosa Exp $
 
 =head1 AUTHOR
 

@@ -4,7 +4,8 @@ use strict;
 use Bio::Phylo::Listable;
 use Bio::Phylo::Util::IDPool;
 use Bio::Phylo::IO qw(unparse);
-use Bio::Phylo::Util::CONSTANT qw(_MATRICES_ _MATRIX_ _TAXON_ _TAXA_ symbol_ok type_ok cipres_type infer_type);
+use Bio::Phylo::Util::CONSTANT
+  qw(_MATRICES_ _MATRIX_ _TAXON_ _TAXA_ symbol_ok type_ok cipres_type infer_type);
 use Scalar::Util qw(looks_like_number weaken);
 use Bio::Phylo::Matrices::Datum;
 use Bio::Phylo::Taxa;
@@ -16,8 +17,8 @@ use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
 # classic @ISA manipulation, not using 'base'
 use vars qw($VERSION @ISA);
 @ISA = qw(Bio::Phylo::Listable);
-
 {
+
     # inside out class arrays
     my @type;
     my @symbols;
@@ -27,7 +28,7 @@ use vars qw($VERSION @ISA);
     my @nchar;
     my @missing;
     my @gap;
-    
+
     # $fields hashref necessary for object destruction
     my $fields = {
         '-type'    => \@type,
@@ -38,7 +39,7 @@ use vars qw($VERSION @ISA);
         '-nchar'   => \@nchar,
         '-missing' => \@missing,
         '-gap'     => \@gap,
-    };    
+    };
 
 =head1 NAME
 
@@ -109,10 +110,10 @@ methods defined there apply here.
         $gap[$$self]     = '-';
         $ntax[$$self]    = undef;
         $nchar[$$self]   = undef;
-        if ( @_ ) {
+        if (@_) {
             my %opt;
             eval { %opt = @_; };
-            if ( $@ ) {
+            if ($@) {
                 Bio::Phylo::Util::Exceptions::OddHash->throw( error => $@ );
             }
             else {
@@ -125,7 +126,7 @@ methods defined there apply here.
                 @_ = %opt;
             }
         }
-        $self->_set_super;        
+        $self->_set_super;
         return $self;
     }
 
@@ -172,32 +173,33 @@ methods defined there apply here.
                     my $replaced = 0;
                     while ( my $datum = $self->next ) {
                         if ( my $taxon = $datum->get_taxon ) {
-                            if ( ! exists $taxa{$taxon} ) {
-                                $datum->set_taxon( undef );
+                            if ( !exists $taxa{$taxon} ) {
+                                $datum->set_taxon(undef);
                                 $replaced++;
                             }
                         }
-                        elsif ( $datum->get_name and exists $name{$datum->get_name} ) {
-                            $datum->set_taxon( $name{$datum->get_name} );
-                        }                        
-                    } 
-                    if ( $replaced ) {
-                        warn "Reset $replaced references from datum objects to taxa outside taxa block";
+                        elsif ( $datum->get_name
+                            and exists $name{ $datum->get_name } )
+                        {
+                            $datum->set_taxon( $name{ $datum->get_name } );
+                        }
+                    }
+                    if ($replaced) {
+                        warn
+"Reset $replaced references from datum objects to taxa outside taxa block";
                     }
                     $taxa[$$self] = $taxa;
                     weaken( $taxa[$$self] );
-                    $taxa->set_matrix( $self );
+                    $taxa->set_matrix($self);
                 }
                 else {
                     Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-                        error => "\"$taxa\" doesn't look like a taxa object"
-                    );
+                        error => "\"$taxa\" doesn't look like a taxa object" );
                 }
             }
             else {
                 Bio::Phylo::Util::Exceptions::BadArgs->throw(
-                    error => "\"$taxa\" is not a blessed object!"
-                );  
+                    error => "\"$taxa\" is not a blessed object!" );
             }
         }
         else {
@@ -205,7 +207,7 @@ methods defined there apply here.
         }
         return $self;
     }
-    
+
 =item set_type()
 
  Type    : Mutator
@@ -222,20 +224,19 @@ methods defined there apply here.
 
     sub set_type {
         my ( $self, $type ) = @_;
-        if ( $type && type_ok( $type ) ) {
-            $type[$$self] = uc $type;        
+        if ( $type && type_ok($type) ) {
+            $type[$$self] = uc $type;
         }
-        elsif ( $type && ! type_ok( $type ) ) {
+        elsif ( $type && !type_ok($type) ) {
             Bio::Phylo::Util::Exceptions::BadFormat->throw(
-                error => "\"$type\" is a bad data type"
-            );
+                error => "\"$type\" is a bad data type" );
         }
-        elsif ( ! $type ) {
+        elsif ( !$type ) {
             $type[$$self] = undef;
         }
         return $self;
-    }   
-    
+    }
+
 =item set_symbols()
 
  Type    : Mutator
@@ -255,15 +256,15 @@ methods defined there apply here.
         if ( my $type = $self->get_type ) {
             if ( defined $symbols && ref $symbols eq 'ARRAY' ) {
                 my %tmp;
-                %tmp = map { $_ => 1 } @{ $self->get_symbols } if defined $self->get_symbols;
-                foreach ( keys %{ { map { uc( $_ ) => 1 } @{ $symbols } } } ) {
+                %tmp = map { $_ => 1 } @{ $self->get_symbols }
+                  if defined $self->get_symbols;
+                foreach ( keys %{ { map { uc($_) => 1 } @{$symbols} } } ) {
                     if ( symbol_ok( '-type' => $type, '-char' => $_ ) ) {
                         $tmp{$_} = 1;
                     }
                     else {
                         Bio::Phylo::Util::Exceptions::BadString->throw(
-                            error => "\"$_\" is not a valid \"$type\" symbol"
-                        );                        
+                            error => "\"$_\" is not a valid \"$type\" symbol" );
                     }
                 }
                 my @sym = keys %tmp;
@@ -271,21 +272,19 @@ methods defined there apply here.
             }
             elsif ( defined $symbols && ref $symbols ne 'ARRAY' ) {
                 Bio::Phylo::Util::Exceptions::BadArgs->throw(
-                    'error' => "\"$symbols\" is not an array reference",
-                );
+                    'error' => "\"$symbols\" is not an array reference", );
             }
-            elsif ( ! defined $symbols ) {
+            elsif ( !defined $symbols ) {
                 $symbols[$$self] = undef;
             }
             return $self;
         }
         else {
             Bio::Phylo::Util::Exceptions::BadFormat->throw(
-                error => 'please define the data type first'
-            );
+                error => 'please define the data type first' );
         }
     }
-    
+
 =item set_missing()
 
  Type    : Mutator
@@ -298,23 +297,21 @@ methods defined there apply here.
 
 =cut
 
-sub set_missing {
-    my ( $self, $missing ) = @_;
-    if ( defined $missing and $missing !~ m/^.$/ ) {
-        Bio::Phylo::Util::Exceptions::BadFormat->throw(
-            error => 'not a valid missing data symbol',
-        );        
+    sub set_missing {
+        my ( $self, $missing ) = @_;
+        if ( defined $missing and $missing !~ m/^.$/ ) {
+            Bio::Phylo::Util::Exceptions::BadFormat->throw(
+                error => 'not a valid missing data symbol', );
+        }
+        elsif ( defined $missing ) {
+            $missing[$$self] = $missing;
+        }
+        else {
+            Bio::Phylo::Util::Exceptions::BadFormat->throw(
+                error => 'please define a missing data symbol', );
+        }
+        return $self;
     }
-    elsif ( defined $missing ) {
-        $missing[$$self] = $missing;
-    }    
-    else {
-        Bio::Phylo::Util::Exceptions::BadFormat->throw(
-            error => 'please define a missing data symbol',
-        );    
-    }
-    return $self;
-}
 
 =item set_gap()
 
@@ -328,23 +325,21 @@ sub set_missing {
 
 =cut
 
-sub set_gap {
-    my ( $self, $gap ) = @_;
-    if ( defined $gap and $gap !~ m/^.$/ ) {
-        Bio::Phylo::Util::Exceptions::BadFormat->throw(
-            error => 'not a valid gap symbol',
-        );        
+    sub set_gap {
+        my ( $self, $gap ) = @_;
+        if ( defined $gap and $gap !~ m/^.$/ ) {
+            Bio::Phylo::Util::Exceptions::BadFormat->throw(
+                error => 'not a valid gap symbol', );
+        }
+        elsif ( defined $gap ) {
+            $gap[$$self] = $gap;
+        }
+        else {
+            Bio::Phylo::Util::Exceptions::BadFormat->throw(
+                error => 'please define a gap symbol', );
+        }
+        return $self;
     }
-    elsif ( defined $gap ) {
-        $gap[$$self] = $gap;
-    }    
-    else {
-        Bio::Phylo::Util::Exceptions::BadFormat->throw(
-            error => 'please define a gap symbol',
-        );    
-    }
-    return $self;
-}
 
 =item set_ntax()
 
@@ -365,21 +360,20 @@ sub set_gap {
 
 =cut
 
-sub set_ntax {
-    my ( $self, $ntax ) = @_;
-    if ( defined $ntax and $ntax !~ m/^\d+$/ ) {
-        Bio::Phylo::Util::Exceptions::BadFormat->throw(
-            error => "not a valid ntax value ($ntax)",
-        );        
+    sub set_ntax {
+        my ( $self, $ntax ) = @_;
+        if ( defined $ntax and $ntax !~ m/^\d+$/ ) {
+            Bio::Phylo::Util::Exceptions::BadFormat->throw(
+                error => "not a valid ntax value ($ntax)", );
+        }
+        elsif ( defined $ntax ) {
+            $ntax[$$self] = $ntax;
+        }
+        else {
+            $ntax[$$self] = undef;
+        }
+        return $self;
     }
-    elsif ( defined $ntax ) {
-        $ntax[$$self] = $ntax;
-    }    
-    else {
-        $ntax[$$self] = undef;   
-    }
-    return $self;
-}
 
 =item set_nchar()
 
@@ -400,23 +394,21 @@ sub set_ntax {
 
 =cut
 
-sub set_nchar {
-    my ( $self, $nchar ) = @_;
-    if ( defined $nchar and $nchar !~ m/^\d+$/ ) {
-        Bio::Phylo::Util::Exceptions::BadFormat->throw(
-            error => "not a valid nchar value ($nchar)",
-        );        
+    sub set_nchar {
+        my ( $self, $nchar ) = @_;
+        if ( defined $nchar and $nchar !~ m/^\d+$/ ) {
+            Bio::Phylo::Util::Exceptions::BadFormat->throw(
+                error => "not a valid nchar value ($nchar)", );
+        }
+        elsif ( defined $nchar ) {
+            $nchar[$$self] = $nchar;
+        }
+        else {
+            $nchar[$$self] = undef;
+        }
+        return $self;
     }
-    elsif ( defined $nchar ) {
-        $nchar[$$self] = $nchar;
-    }    
-    else {
-        $nchar[$$self] = undef;   
-    }
-    return $self;
-}
 
-    
 =back
 
 =head2 ACCESSORS
@@ -468,8 +460,8 @@ sub set_nchar {
 =cut    
 
     sub get_num_characters {
-        my $self  = shift;
-        my $obs   = {};
+        my $self = shift;
+        my $obs  = {};
         foreach my $row ( @{ $self->get_entities } ) {
             my $taxon = $row->get_taxon;
             foreach ( $row->get_char ) {
@@ -477,13 +469,13 @@ sub set_nchar {
             }
         }
         my ( $nchar, $ntax ) = ( 0, 0 );
-        foreach my $k ( keys %{ $obs } ) {
+        foreach my $k ( keys %{$obs} ) {
             $nchar += $obs->{$k};
             $ntax++;
         }
         return $nchar / $ntax;
     }
-    
+
 =item get_num_states()
 
  Type    : Accessor
@@ -499,7 +491,7 @@ sub set_nchar {
     sub get_num_states {
         my $self = shift;
         return scalar @{ $symbols[$$self] };
-    }  
+    }
 
 =item get_num_taxa()
 
@@ -514,13 +506,13 @@ sub set_nchar {
 =cut
 
     sub get_num_taxa {
-        my $self  = shift;
-        my $obs   = {};
+        my $self = shift;
+        my $obs  = {};
         foreach my $row ( @{ $self->get_entities } ) {
             my $taxon = $row->get_taxon;
             $obs->{$taxon}++;
         }
-        my $ntax = scalar keys %{ $obs };
+        my $ntax = scalar keys %{$obs};
         return $ntax;
     }
 
@@ -562,7 +554,7 @@ sub set_nchar {
     sub get_chars_for_taxon {
         my ( $self, $taxon ) = @_;
         my @chars;
-        if ( $taxon ) {
+        if ($taxon) {
             if ( $taxon->can('_type') && $taxon->_type == _TAXON_ ) {
                 foreach my $datum ( @{ $self->get_entities } ) {
                     if ( my $tax = $datum->get_taxon ) {
@@ -572,18 +564,16 @@ sub set_nchar {
             }
             else {
                 Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-                    'error' => "\"$taxon\" is not a valid taxon",
-                );
+                    'error' => "\"$taxon\" is not a valid taxon", );
             }
         }
         else {
             Bio::Phylo::Util::Exceptions::BadArgs->throw(
-                'error' => 'Need a taxon to match against',
-            );
+                'error' => 'Need a taxon to match against', );
         }
         return \@chars;
-    }   
-    
+    }
+
 =item get_cols()
 
  Type    : Accessor
@@ -607,22 +597,22 @@ sub set_nchar {
            package.
 
 =cut    
-    
+
     sub get_cols {
         my $self  = shift->_flatten;
-        my $copy = $self->copy_atts;
+        my $copy  = $self->copy_atts;
         my @range = @_;
         while ( my $taxon = $self->get_taxa->next ) {
             my $datum   = shift @{ $self->get_chars_for_taxon($taxon) };
             my $charstr = $datum->get_char;
-            my $chars   = ref $charstr ? $charstr 
-                                       : $datum->get_type =~ m/CONT/ 
-                                       ? [ split(/\s+/, $charstr) ] 
-                                       : [ split(//,    $charstr) ];
+            my $chars   =
+                ref $charstr ? $charstr
+              : $datum->get_type =~ m/CONT/ ? [ split( /\s+/, $charstr ) ]
+              : [ split( //, $charstr ) ];
             my $newchars = [];
-            for my $i ( @range ) {
+            for my $i (@range) {
                 if ( exists $chars->[$i] ) {
-                    push @{ $newchars }, $chars->[$i];
+                    push @{$newchars}, $chars->[$i];
                 }
                 else {
                     Bio::Phylo::Util::Exceptions::OutOfBounds->throw(
@@ -631,12 +621,12 @@ sub set_nchar {
                 }
             }
             my $newdat = $datum->copy_atts;
-            $newdat->set_char( $newchars );
-            $copy->insert( $newdat );
+            $newdat->set_char($newchars);
+            $copy->insert($newdat);
         }
         return $copy;
-    } 
-    
+    }
+
 =item get_rows()
 
  Type    : Accessor
@@ -655,23 +645,22 @@ sub set_nchar {
         my $copy  = $self->copy_atts;
         my @range = @_;
         my $taxa  = $self->get_taxa->get_entities;
-        for my $i ( @range ) {
-            if ( my $taxon  = $taxa->[$i] ) {
-                foreach my $datum ( @{ $self->get_chars_for_taxon( $taxon ) } ) {
+        for my $i (@range) {
+            if ( my $taxon = $taxa->[$i] ) {
+                foreach my $datum ( @{ $self->get_chars_for_taxon($taxon) } ) {
                     my $datcopy = $datum->copy_atts;
                     $datcopy->set_char( $datum->get_char );
-                    $copy->insert( $datcopy );
+                    $copy->insert($datcopy);
                 }
-            }        
+            }
             else {
                 Bio::Phylo::Util::Exceptions::OutOfBounds->throw(
-                    'error' => "Taxon position index $i out of bounds",
-                );
+                    'error' => "Taxon position index $i out of bounds", );
             }
         }
         return $copy;
     }
-    
+
 =item get_missing()
 
  Type    : Accessor
@@ -687,7 +676,6 @@ sub set_nchar {
         my $self = shift;
         return $missing[$$self];
     }
-
 
 =item get_gap()
 
@@ -728,7 +716,7 @@ sub set_nchar {
 =cut
 
     sub get_ntax {
-        my $self = shift; 
+        my $self = shift;
         return $ntax[$$self];
     }
 
@@ -751,11 +739,11 @@ sub set_nchar {
 =cut
 
     sub get_nchar {
-        my $self = shift; 
+        my $self = shift;
         return $nchar[$$self];
     }
 
-# TODO: get_rows, splice, concat
+    # TODO: get_rows, splice, concat
 
 =back
 
@@ -779,10 +767,10 @@ sub set_nchar {
 =cut
 
     sub validate {
-        my $self  = shift;
+        my $self = shift;
         if ( not $self->get_nchar or not $self->get_ntax ) {
-            Bio::Phylo::Util::Exceptions::BadArgs->throw(
-                error => "'set_ntax' and 'set_nchar' need to be assigned for this to work",
+            Bio::Phylo::Util::Exceptions::BadArgs->throw( error =>
+"'set_ntax' and 'set_nchar' need to be assigned for this to work",
             );
         }
         my $nchar = $self->get_nchar;
@@ -795,18 +783,20 @@ sub set_nchar {
                 $obs->{$taxon}++;
             }
         }
-        foreach my $k ( keys %{ $obs } ) {
+        foreach my $k ( keys %{$obs} ) {
             if ( $obs->{$k} != $nchar ) {
                 Bio::Phylo::Util::Exceptions::BadFormat->throw(
-                    error => "Bad nchar (" . $obs->{$k} . ") for taxon " . $k->get_name,
-                );            
+                        error => "Bad nchar ("
+                      . $obs->{$k}
+                      . ") for taxon "
+                      . $k->get_name, );
             }
         }
-        if ( scalar keys %{ $obs } != $ntax ) {
+        if ( scalar keys %{$obs} != $ntax ) {
             Bio::Phylo::Util::Exceptions::BadFormat->throw(
-                error => "Bad ntax - observed: ". scalar keys ( %{ $obs } ) . ", expected: $ntax"
-            );
-        }        
+                error => "Bad ntax - observed: " . scalar
+                  keys( %{$obs} ) . ", expected: $ntax" );
+        }
     }
 
 =item copy_atts()
@@ -820,11 +810,11 @@ sub set_nchar {
  Args    : None
 
 =cut 
-    
+
     sub copy_atts {
         my $self = shift;
         my $copy = __PACKAGE__->new;
-        
+
         # attributes from Bio::Phylo::Matrices::Matrix
         $copy->set_taxa( $self->get_taxa );
         $copy->set_type( $self->get_type );
@@ -833,15 +823,13 @@ sub set_nchar {
         $copy->set_ntax( $self->get_ntax )   if $self->get_ntax;
         $copy->set_gap( $self->get_gap );
         $copy->set_missing( $self->get_missing );
-        
+
         # attributes from Bio::Phylo
         $copy->set_name( $self->get_name );
         $copy->set_desc( $self->get_desc );
         $copy->set_score( $self->get_score );
         $copy->set_generic( %{ $self->get_generic } ) if $self->get_generic;
-        
         return $copy;
-        
     }
 
 =item to_nexus()
@@ -878,13 +866,12 @@ sub set_nchar {
 
     sub to_cipres {
         my $self = shift;
-        my @tmp = $self->_check_cache;
-        return $tmp[1] if $tmp[0];        
+        my @tmp  = $self->_check_cache;
+        return $tmp[1] if $tmp[0];
         eval { require 'CipresIDL'; };
-        if ( $@ ) {
-            Bio::Phylo::Util::Exceptions::Extension::Error->throw(
-                'error' => 'This method requires CipresIDL, which you don\'t have',
-            );
+        if ($@) {
+            Bio::Phylo::Util::Exceptions::Extension::Error->throw( 'error' =>
+                  'This method requires CipresIDL, which you don\'t have', );
         }
         my ( $chars_lol, $i, @charStateLookup ) = ( [], 0 );
         my %lookup = map { $_ => $i++ } @{ $self->get_symbols };
@@ -898,14 +885,14 @@ sub set_nchar {
         }
         @charStateLookup = ( 0 .. $#{ $self->get_symbols } );
         my $cipres_matrix = CipresIDL::DataMatrix->new(
-            'm_symbols'         => join( '', @{ $self->get_symbols } ),
-            'm_numStates'       => $self->get_num_states,
+            'm_symbols'   => join( '', @{ $self->get_symbols } ),
+            'm_numStates' => $self->get_num_states,
             'm_numCharacters'   => $self->get_num_characters,
             'm_charStateLookup' => [ \@charStateLookup ],
             'm_matrix'          => $chars_lol,
             'm_datatype'        => cipres_type( $self->get_type ),
-        );        
-        $self->_store_cache( $cipres_matrix );
+        );
+        $self->_store_cache($cipres_matrix);
         return $cipres_matrix;
     }
 
@@ -930,15 +917,15 @@ sub set_nchar {
         $self->_flush_cache;
         my $taxa = Bio::Phylo::Taxa->new;
         $taxa->set_name('Untitled_taxa_block');
-        $taxa->set_desc('Generated from ' . $self . ' on ' . localtime());
-        my %data;   
+        $taxa->set_desc( 'Generated from ' . $self . ' on ' . localtime() );
+        my %data;
         foreach my $datum ( @{ $self->get_entities } ) {
             my $name = $datum->get_name;
-            if ( ! exists $data{$name} ) {
+            if ( !exists $data{$name} ) {
                 my $taxon = Bio::Phylo::Taxa::Taxon->new;
-                $taxon->set_name( $name );
+                $taxon->set_name($name);
                 $data{$name} = {
-                    'datum' => [ $datum ],
+                    'datum' => [$datum],
                     'taxon' => $taxon,
                 };
             }
@@ -947,14 +934,14 @@ sub set_nchar {
             }
         }
         foreach my $name ( keys %data ) {
-            my $taxon = $data{$name}->{'taxon'};       
+            my $taxon = $data{$name}->{'taxon'};
             foreach my $datum ( @{ $data{$name}->{'datum'} } ) {
                 $datum->set_taxon($taxon);
                 $taxon->set_data($datum);
-            }       
-            $taxa->insert($taxon);        
+            }
+            $taxa->insert($taxon);
         }
-        $self->set_taxa($taxa);    
+        $self->set_taxa($taxa);
         return $taxa;
     }
 
@@ -1015,56 +1002,58 @@ sub set_nchar {
         my $self = shift;
         $self->_flush_cache;
         my $flattened = $self->copy_atts;
-        my $taxa = {};
+        my $taxa      = {};
         while ( my $datum = $self->next ) {
             my $taxon;
             if ( not $taxon = $datum->get_taxon ) {
                 Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-                    error => "Unlinked datum encountered!",
-                );
-            }        
-            if ( not exists $taxa->{ $taxon } ) {
-                $taxa->{ $taxon } = [];
+                    error => "Unlinked datum encountered!", );
             }
-            push @{ $taxa->{ $taxon } }, $datum;
+            if ( not exists $taxa->{$taxon} ) {
+                $taxa->{$taxon} = [];
+            }
+            push @{ $taxa->{$taxon} }, $datum;
         }
         my ( $newdata, $length ) = ( [], 0 );
-        foreach my $taxon ( keys %{ $taxa } ) {
-            my $newdat = Bio::Phylo::Matrices::Datum->new( 
+        foreach my $taxon ( keys %{$taxa} ) {
+            my $newdat = Bio::Phylo::Matrices::Datum->new(
                 '-taxon' => $taxon,
                 '-pos'   => 0,
             );
             my ( $char, $note ) = ( [], [] );
-            foreach my $datum ( @{ $taxa->{ $taxon } } ) {
+            foreach my $datum ( @{ $taxa->{$taxon} } ) {
                 my $begin = $datum->get_position ? $datum->get_position : 0;
-                my @char = $datum->get_char;
-                my $end = @char ? $begin + $#char : $begin;
-                if ( @char ) {
+                my @char  = $datum->get_char;
+                my $end   = @char ? $begin + $#char : $begin;
+                if (@char) {
                     my $j = 0;
                     for my $i ( $begin .. $end ) {
                         $char->[$i] = $char[$j];
                         $j++;
                     }
                 }
-                $note->[ $begin .. $end ] = @{ $datum->get_annotation } if @{ $datum->get_annotation };
+                $note->[ $begin .. $end ] = @{ $datum->get_annotation }
+                  if @{ $datum->get_annotation };
+
                 # copy atts
-                $newdat->set_weight(  $datum->get_weight  );
-                $newdat->set_name(    $datum->get_name    );
-                $newdat->set_desc(    $datum->get_desc    );
-                $newdat->set_score(   $datum->get_score   );
-                $newdat->set_type(    $datum->get_type    );
-                $newdat->set_generic( %{ $datum->get_generic } ) if $datum->get_generic; 
+                $newdat->set_weight( $datum->get_weight );
+                $newdat->set_name( $datum->get_name );
+                $newdat->set_desc( $datum->get_desc );
+                $newdat->set_score( $datum->get_score );
+                $newdat->set_type( $datum->get_type );
+                $newdat->set_generic( %{ $datum->get_generic } )
+                  if $datum->get_generic;
             }
-            $length = $#{ $char } if $#{ $char } > $length;
-            $newdat->set_char( $char );
-            $newdat->set_annotations( @{ $note } );
-            push @{ $newdata }, $newdat;
+            $length = $#{$char} if $#{$char} > $length;
+            $newdat->set_char($char);
+            $newdat->set_annotations( @{$note} );
+            push @{$newdata}, $newdat;
         }
-        $flattened->_is_flat(1);    
-        foreach my $datum ( @{ $newdata } ) {
+        $flattened->_is_flat(1);
+        foreach my $datum ( @{$newdata} ) {
             my @char = $datum->get_char;
             my $note = $datum->get_annotation;
-            if ( @char ) {
+            if (@char) {
                 for my $i ( 0 .. $length ) {
                     if ( not defined $char[$i] ) {
                         $char[$i] = '?';
@@ -1072,9 +1061,9 @@ sub set_nchar {
                 }
             }
             $datum->set_char( \@char );
-            $datum->set_annotations( @{ $note } );
-            $flattened->insert( $datum );
-        }    
+            $datum->set_annotations( @{$note} );
+            $flattened->insert($datum);
+        }
         return $flattened;
     }
 
@@ -1101,10 +1090,10 @@ sub set_nchar {
 
     sub DESTROY {
         my $self = shift;
-        foreach( keys %{ $fields } ) {
+        foreach ( keys %{$fields} ) {
             delete $fields->{$_}->[$$self];
         }
-        $self->_del_from_super;        
+        $self->_del_from_super;
         $self->SUPER::DESTROY;
         return 1;
     }
@@ -1203,5 +1192,4 @@ itself.
 =cut
 
 }
-
 1;

@@ -1,4 +1,4 @@
-# $Id: Nexus.pm,v 1.4 2006/04/12 22:38:23 rvosa Exp $
+# $Id: Nexus.pm,v 1.5 2006/05/18 06:41:42 rvosa Exp $
 # Subversion: $Rev: 190 $
 package Bio::Phylo::Unparsers::Nexus;
 use strict;
@@ -73,18 +73,21 @@ sub _to_string {
         $matrix->_flatten;
     }
     my $string = "BEGIN DATA;\n[! Data block written by " . ref $self;
-    $string   .= " " . $self->VERSION . " on " . localtime() . " ]\n";
-    $string   .= "    DIMENSIONS NTAX=" . $matrix->get_num_taxa . ' ';
-    $string   .= 'NCHAR=' . $matrix->get_num_characters . ";\n";
-    $string   .= "    FORMAT DATATYPE=" . $matrix->get_type . ";\n    MATRIX\n";
+    $string .= " " . $self->VERSION . " on " . localtime() . " ]\n";
+    $string .= "    DIMENSIONS NTAX=" . $matrix->get_num_taxa . ' ';
+    $string .= 'NCHAR=' . $matrix->get_num_characters . ";\n";
+    $string .= "    FORMAT DATATYPE=" . $matrix->get_type . ";\n    MATRIX\n";
     my $length = 0;
     foreach my $datum ( @{ $matrix->get_entities } ) {
-        $length = length( $datum->get_name ) if length( $datum->get_name ) > $length;
+        $length = length( $datum->get_name )
+          if length( $datum->get_name ) > $length;
     }
     $length += 4;
     my $sp = ' ';
     foreach my $datum ( @{ $matrix->get_entities } ) {
-        $string .= "        " . $datum->get_name . ( $sp x ( $length - length( $datum->get_name ) ) );
+        $string .= "        "
+          . $datum->get_name
+          . ( $sp x ( $length - length( $datum->get_name ) ) );
         $string .= join ' ', $datum->get_char;
         $string .= "\n";
     }
@@ -123,7 +126,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Nexus.pm,v 1.4 2006/04/12 22:38:23 rvosa Exp $
+$Id: Nexus.pm,v 1.5 2006/05/18 06:41:42 rvosa Exp $
 
 =head1 AUTHOR
 

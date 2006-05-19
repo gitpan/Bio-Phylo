@@ -12,20 +12,19 @@ use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
 # classic @ISA manipulation, not using 'base'
 use vars qw($VERSION @ISA);
 @ISA = qw(Bio::Phylo::Listable);
-
 {
 
     # inside-out class arrays
     my @forests;
     my @matrices;
     my @ntax;
-    
+
     # $fields hashref necessary for object destruction
     my $fields = {
         '-forests'  => \@forests,
         '-matrices' => \@matrices,
         '-ntax'     => \@ntax,
-    }; 
+    };
 
 =head1 NAME
 
@@ -78,10 +77,10 @@ A taxa object can link to multiple forest and matrix objects.
         $forests[$$self]  = {};
         $matrices[$$self] = {};
         $ntax[$$self]     = undef;
-        if ( @_ ) {
+        if (@_) {
             my %opt;
             eval { %opt = @_; };
-            if ( $@ ) {
+            if ($@) {
                 Bio::Phylo::Util::Exceptions::OddHash->throw( error => $@ );
             }
             else {
@@ -94,10 +93,10 @@ A taxa object can link to multiple forest and matrix objects.
                 @_ = %opt;
             }
         }
-        $self->_set_super;        
+        $self->_set_super;
         return $self;
     }
-    
+
 =back
 
 =head2 MUTATORS
@@ -121,15 +120,17 @@ A taxa object can link to multiple forest and matrix objects.
 
     sub set_forest {
         my ( $self, $forest ) = @_;
-        if ( blessed $forest && $forest->can('_type') && $forest->_type == _FOREST_ ) {
+        if (   blessed $forest
+            && $forest->can('_type')
+            && $forest->_type == _FOREST_ )
+        {
             $forests[$$self]->{$forest} = $forest;
             weaken( $forests[$$self]->{$forest} );
             $forest->set_taxa($self) if $forest->get_taxa != $self;
         }
         else {
             Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-                error => "\"$forest\" doesn't look like a forest object"
-            );
+                error => "\"$forest\" doesn't look like a forest object" );
         }
     }
 
@@ -150,7 +151,10 @@ A taxa object can link to multiple forest and matrix objects.
 
     sub set_matrix {
         my ( $self, $matrix ) = @_;
-        if ( blessed $matrix && $matrix->can('_type') && $matrix->_type == _MATRIX_ ) {
+        if (   blessed $matrix
+            && $matrix->can('_type')
+            && $matrix->_type == _MATRIX_ )
+        {
             $matrices[$$self]->{$matrix} = $matrix;
             weaken( $matrices[$$self]->{$matrix} );
             if ( $matrix->get_taxa ) {
@@ -162,8 +166,7 @@ A taxa object can link to multiple forest and matrix objects.
         }
         else {
             Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-                error => "\"$matrix\" doesn't look like a matrix object"
-            );
+                error => "\"$matrix\" doesn't look like a matrix object" );
         }
     }
 
@@ -182,7 +185,7 @@ A taxa object can link to multiple forest and matrix objects.
 
     sub unset_forest {
         my ( $self, $forest ) = @_;
-        
+
         # no need for type checking really. If it's there, it gets killed,
         # otherwise skips silently
         delete $forests[$$self]->{$forest};
@@ -235,8 +238,7 @@ A taxa object can link to multiple forest and matrix objects.
         if ( defined $ntax ) {
             if ( $ntax !~ m/^\d+$/ ) {
                 Bio::Phylo::Util::Exceptions::BadNumber->throw(
-                    error => "\"$ntax\" is not a valid integer"
-                );
+                    error => "\"$ntax\" is not a valid integer" );
             }
             else {
                 $ntax[$$self] = $ntax;
@@ -269,7 +271,7 @@ A taxa object can link to multiple forest and matrix objects.
 
     sub get_forests {
         my $self = shift;
-        my @tmp = values %{ $forests[$$self] };
+        my @tmp  = values %{ $forests[$$self] };
         return \@tmp;
     }
 
@@ -288,10 +290,10 @@ A taxa object can link to multiple forest and matrix objects.
 
     sub get_matrices {
         my $self = shift;
-        my @tmp = values %{ $matrices[$$self] };
+        my @tmp  = values %{ $matrices[$$self] };
         return \@tmp;
     }
-    
+
 =item get_ntax()
 
  Type    : Accessor
@@ -343,41 +345,44 @@ A taxa object can link to multiple forest and matrix objects.
 
     sub merge_by_name {
         my ( $self, $other_taxa ) = @_;
-        if ( $other_taxa && $other_taxa->can('_type') && $other_taxa->_type == _TAXA_ ) {
-            my %self  = map { $_->get_name => $_ } @{ $self->get_entities };
-            my %other = map { $_->get_name => $_ } @{ $other_taxa->get_entities };
+        if (   $other_taxa
+            && $other_taxa->can('_type')
+            && $other_taxa->_type == _TAXA_ )
+        {
+            my %self = map { $_->get_name => $_ } @{ $self->get_entities };
+            my %other =
+              map { $_->get_name => $_ } @{ $other_taxa->get_entities };
             my $new = Bio::Phylo::Taxa->new;
             foreach my $name ( keys %self ) {
                 my $taxon = Bio::Phylo::Taxa::Taxon->new( '-name' => $name );
                 foreach my $datum ( @{ $self{$name}->get_data } ) {
-                    $datum->set_taxon( $taxon );
-                    $taxon->set_datum( $datum );
+                    $datum->set_taxon($taxon);
+                    $taxon->set_datum($datum);
                 }
                 foreach my $node ( @{ $self{$name}->get_nodes } ) {
-                    $node->set_taxon( $taxon );
-                    $taxon->set_node( $node );
+                    $node->set_taxon($taxon);
+                    $taxon->set_node($node);
                 }
                 if ( exists $other{$name} ) {
                     foreach my $datum ( @{ $other{$name}->get_data } ) {
-                        $datum->set_taxon( $taxon );
-                        $taxon->set_datum( $datum );
+                        $datum->set_taxon($taxon);
+                        $taxon->set_datum($datum);
                     }
                     foreach my $node ( @{ $other{$name}->get_nodes } ) {
-                        $node->set_taxon( $taxon );
-                        $taxon->set_node( $node );
-                    }            
+                        $node->set_taxon($taxon);
+                        $taxon->set_node($node);
+                    }
                 }
-                $new->insert( $taxon );
+                $new->insert($taxon);
             }
-            return $new;        
+            return $new;
         }
         else {
             Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-                error => "\"$other_taxa\" is not a Taxa object"
-            );    
+                error => "\"$other_taxa\" is not a Taxa object" );
         }
     }
-    
+
 =item validate()
 
  Type    : Method
@@ -396,14 +401,13 @@ A taxa object can link to multiple forest and matrix objects.
         my $self = shift;
         if ( not $self->get_ntax ) {
             Bio::Phylo::Util::Exceptions::BadArgs->throw(
-                error => "'set_ntax' needs to be assigned for this to work",
-            );
+                error => "'set_ntax' needs to be assigned for this to work", );
         }
         my $ntax = scalar @{ $self->get_entities };
         if ( $self->get_ntax != $ntax ) {
             Bio::Phylo::Util::Exceptions::BadFormat->throw(
-                error => "Bad ntax - observed: $ntax, expected: " . $self->get_ntax,
-            );
+                error => "Bad ntax - observed: $ntax, expected: "
+                  . $self->get_ntax, );
         }
     }
 
@@ -430,9 +434,9 @@ A taxa object can link to multiple forest and matrix objects.
 
     sub DESTROY {
         my $self = shift;
-        foreach( keys %{ $fields } ) {
+        foreach ( keys %{$fields} ) {
             delete $fields->{$_}->[$$self];
-        }        
+        }
         $self->_del_from_super;
         $self->SUPER::DESTROY;
         return 1;
@@ -531,5 +535,4 @@ modify it under the same terms as Perl itself.
 =cut
 
 }
-
 1;
