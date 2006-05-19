@@ -1,4 +1,4 @@
-# $Id: Newick.pm,v 1.20 2006/03/07 20:54:16 rvosa Exp $
+# $Id: Newick.pm,v 1.21 2006/05/19 02:08:59 rvosa Exp $
 # Subversion: $Rev: 190 $
 package Bio::Phylo::Unparsers::Newick;
 use strict;
@@ -162,7 +162,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Newick.pm,v 1.20 2006/03/07 20:54:16 rvosa Exp $
+$Id: Newick.pm,v 1.21 2006/05/19 02:08:59 rvosa Exp $
 
 =head1 AUTHOR
 

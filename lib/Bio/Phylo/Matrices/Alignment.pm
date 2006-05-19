@@ -1,4 +1,4 @@
-# $Id: Alignment.pm,v 1.11 2006/03/14 12:01:56 rvosa Exp $
+# $Id: Alignment.pm,v 1.12 2006/05/19 02:08:56 rvosa Exp $
 package Bio::Phylo::Matrices::Alignment;
 use strict;
 use Bio::Phylo::Listable;
@@ -150,7 +150,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Alignment.pm,v 1.11 2006/03/14 12:01:56 rvosa Exp $
+$Id: Alignment.pm,v 1.12 2006/05/19 02:08:56 rvosa Exp $
 
 =head1 AUTHOR
 

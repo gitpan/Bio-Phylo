@@ -1,4 +1,4 @@
-# $Id: Taxa.pm,v 1.26 2006/04/12 22:38:22 rvosa Exp $
+# $Id: Taxa.pm,v 1.27 2006/05/19 02:08:51 rvosa Exp $
 package Bio::Phylo::Taxa;
 use strict;
 use Bio::Phylo::Listable;
@@ -505,7 +505,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Taxa.pm,v 1.26 2006/04/12 22:38:22 rvosa Exp $
+$Id: Taxa.pm,v 1.27 2006/05/19 02:08:51 rvosa Exp $
 
 =head1 AUTHOR
 

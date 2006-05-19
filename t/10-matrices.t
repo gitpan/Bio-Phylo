@@ -1,4 +1,4 @@
-# $Id: 10-matrices.t,v 1.14 2006/04/06 02:14:24 rvosa Exp $
+# $Id: 10-matrices.t,v 1.15 2006/05/19 02:08:59 rvosa Exp $
 use strict;
 use warnings;
 use Test::More tests => 10;

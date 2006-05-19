@@ -1,4 +1,4 @@
-# $Id: Svg.pm,v 1.9 2006/05/19 00:05:16 rvosa Exp $
+# $Id: Svg.pm,v 1.10 2006/05/19 02:08:58 rvosa Exp $
 # Subversion: $Rev: 192 $
 package Bio::Phylo::Treedrawer::Svg;
 use strict;
@@ -18,15 +18,17 @@ my %colors;
 =head1 NAME
 
 Bio::Phylo::Treedrawer::Svg - Creates svg tree drawings. No serviceable parts
-inside. (For extra per-node formatting, attach a hash reference to the node,
-like so: $node->set_generic( 'svg' => { 'stroke' => 'red' } ), which outlines
-the node, and branch leading up to it, in red.)
+inside.
 
 =head1 DESCRIPTION
 
 This module creates a scalable vector graphic from a Bio::Phylo::Trees::Tree
 object. It is called by the L<Bio::Phylo::Treedrawer> object, so look there to
-learn how to create tree drawings.
+learn how to create tree drawings. (For extra per-node formatting, attach a hash 
+reference to the node, like so: 
+$node->set_generic( 'svg' => { 'stroke' => 'red' } ), which outlines
+the node, and branch leading up to it, in red.)
+
 
 =begin comment
 
@@ -450,7 +452,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Svg.pm,v 1.9 2006/05/19 00:05:16 rvosa Exp $
+$Id: Svg.pm,v 1.10 2006/05/19 02:08:58 rvosa Exp $
 
 =head1 AUTHOR
 

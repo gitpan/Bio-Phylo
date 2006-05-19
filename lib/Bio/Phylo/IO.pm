@@ -1,4 +1,4 @@
-# $Id: IO.pm,v 1.14 2006/04/12 22:38:22 rvosa Exp $
+# $Id: IO.pm,v 1.15 2006/05/19 02:08:50 rvosa Exp $
 # Subversion: $Rev: 170 $
 package Bio::Phylo::IO;
 use strict;
@@ -306,7 +306,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: IO.pm,v 1.14 2006/04/12 22:38:22 rvosa Exp $
+$Id: IO.pm,v 1.15 2006/05/19 02:08:50 rvosa Exp $
 
 =head1 AUTHOR
 

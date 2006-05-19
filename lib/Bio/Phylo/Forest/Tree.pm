@@ -1,4 +1,4 @@
-# $Id: Tree.pm,v 1.22 2006/04/12 22:38:22 rvosa Exp $
+# $Id: Tree.pm,v 1.23 2006/05/19 02:08:54 rvosa Exp $
 # Subversion: $Rev: 177 $
 package Bio::Phylo::Forest::Tree;
 use strict;
@@ -1970,7 +1970,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Tree.pm,v 1.22 2006/04/12 22:38:22 rvosa Exp $
+$Id: Tree.pm,v 1.23 2006/05/19 02:08:54 rvosa Exp $
 
 =head1 AUTHOR
 

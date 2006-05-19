@@ -1,4 +1,4 @@
-# $Id: CONSTANT.pm,v 1.7 2006/04/12 22:38:23 rvosa Exp $
+# $Id: CONSTANT.pm,v 1.8 2006/05/19 02:08:59 rvosa Exp $
 package Bio::Phylo::Util::CONSTANT;
 use strict;
 use Scalar::Util qw(looks_like_number);
@@ -444,7 +444,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: CONSTANT.pm,v 1.7 2006/04/12 22:38:23 rvosa Exp $
+$Id: CONSTANT.pm,v 1.8 2006/05/19 02:08:59 rvosa Exp $
 
 =head1 AUTHOR
 

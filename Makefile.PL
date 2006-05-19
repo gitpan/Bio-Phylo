@@ -1,4 +1,4 @@
-# $Id: Makefile.PL,v 1.10 2006/05/18 06:41:39 rvosa Exp $
+# $Id: Makefile.PL,v 1.11 2006/05/19 02:08:50 rvosa Exp $
 # Subversion: $Rev: 177 $
 use strict;
 use warnings;

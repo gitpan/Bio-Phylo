@@ -1,4 +1,4 @@
-# $Id: Phylo.pm,v 1.30 2006/05/19 00:05:16 rvosa Exp $
+# $Id: Phylo.pm,v 1.31 2006/05/19 02:08:50 rvosa Exp $
 package Bio::Phylo;
 use strict;
 use Scalar::Util qw(looks_like_number weaken blessed);
@@ -12,9 +12,9 @@ use Storable qw(dclone);
 # 'make dist' to build a *.tar.gz without the "_rev#" in the package name, while
 # it still shows up otherwise (e.g. during 'make test') as a developer release,
 # with the "_rev#".
-my $rev = '$Id: Phylo.pm,v 1.30 2006/05/19 00:05:16 rvosa Exp $';
+my $rev = '$Id: Phylo.pm,v 1.31 2006/05/19 02:08:50 rvosa Exp $';
 $rev =~ s/^[^\d]+(\d+\.\d+)\b.*$/$1/;
-our $VERSION = '0.11';
+our $VERSION = '0.12';
 $VERSION .= '_' . $rev;
 my $VERBOSE = 0;
 use vars qw($VERSION);
@@ -695,7 +695,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Phylo.pm,v 1.30 2006/05/19 00:05:16 rvosa Exp $
+$Id: Phylo.pm,v 1.31 2006/05/19 02:08:50 rvosa Exp $
 
 =head1 AUTHOR
 

@@ -1,4 +1,4 @@
-# $Id: Exceptions.pm,v 1.1 2006/02/21 00:23:02 rvosa Exp $
+# $Id: Exceptions.pm,v 1.2 2006/05/19 02:08:59 rvosa Exp $
 # Subversion: $Rev: 170 $
 package Bio::Phylo::Util::Exceptions;
 use strict;
@@ -133,7 +133,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Exceptions.pm,v 1.1 2006/02/21 00:23:02 rvosa Exp $
+$Id: Exceptions.pm,v 1.2 2006/05/19 02:08:59 rvosa Exp $
 
 =head1 AUTHOR
 

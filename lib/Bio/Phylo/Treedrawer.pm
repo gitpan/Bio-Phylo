@@ -1,4 +1,4 @@
-# $Id: Treedrawer.pm,v 1.9 2006/05/19 00:05:16 rvosa Exp $
+# $Id: Treedrawer.pm,v 1.10 2006/05/19 02:08:51 rvosa Exp $
 # Subversion: $Rev: 192 $
 package Bio::Phylo::Treedrawer;
 use strict;
@@ -904,7 +904,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Treedrawer.pm,v 1.9 2006/05/19 00:05:16 rvosa Exp $
+$Id: Treedrawer.pm,v 1.10 2006/05/19 02:08:51 rvosa Exp $
 
 =head1 AUTHOR
 

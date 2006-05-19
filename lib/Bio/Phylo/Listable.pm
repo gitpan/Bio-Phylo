@@ -1,4 +1,4 @@
-# $Id: Listable.pm,v 1.31 2006/04/12 22:38:22 rvosa Exp $
+# $Id: Listable.pm,v 1.32 2006/05/19 02:08:51 rvosa Exp $
 package Bio::Phylo::Listable;
 use strict;
 use Bio::Phylo;
@@ -761,7 +761,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Listable.pm,v 1.31 2006/04/12 22:38:22 rvosa Exp $
+$Id: Listable.pm,v 1.32 2006/05/19 02:08:51 rvosa Exp $
 
 =head1 AUTHOR
 

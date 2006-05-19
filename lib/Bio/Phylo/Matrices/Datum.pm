@@ -1,4 +1,4 @@
-# $Id: Datum.pm,v 1.29 2006/05/18 06:41:40 rvosa Exp $
+# $Id: Datum.pm,v 1.30 2006/05/19 02:08:56 rvosa Exp $
 package Bio::Phylo::Matrices::Datum;
 use strict;
 use Bio::Phylo::Forest::Node;
@@ -762,7 +762,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Datum.pm,v 1.29 2006/05/18 06:41:40 rvosa Exp $
+$Id: Datum.pm,v 1.30 2006/05/19 02:08:56 rvosa Exp $
 
 =head1 AUTHOR
 
