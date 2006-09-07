@@ -5,7 +5,6 @@ use Bio::Phylo::Forest::Node;
 use Bio::Phylo::Util::IDPool;
 use Scalar::Util qw(weaken blessed);
 use Bio::Phylo::Util::CONSTANT qw(_DATUM_ _MATRIX_ _TAXON_ symbol_ok type_ok looks_like_number);
-use XML::Simple;
 
 # One line so MakeMaker sees it.
 use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
@@ -667,7 +666,7 @@ which can be linked to a taxon object.
             my $tag = $k;
             $tag =~ s/^-(.*)$/$1/;
             $xml .= '<' . $tag . '>';
-            $xml .= XMLout( $fields->{$k}->[ $self->get_id ] );
+            $xml .= $fields->{$k}->[ $self->get_id ];
             $xml .= '</' . $tag . '>';
         }
         return $xml;

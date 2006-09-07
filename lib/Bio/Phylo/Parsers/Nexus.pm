@@ -13,7 +13,6 @@ use Bio::Phylo::Util::Exceptions;
 use Scalar::Util qw(blessed);
 use List::Util qw(first);
 use IO::String;
-use Data::Dumper;
 
 # TODO: handle mixed?
 # One line so MakeMaker sees it.

@@ -11,7 +11,6 @@ use Scalar::Util qw(weaken blessed);
 use Bio::Phylo::Util::CONSTANT qw(looks_like_number);
 use Bio::Phylo::Util::IDPool;
 use Bio::Phylo::Util::Exceptions;
-use XML::Simple;
 
 # The bit of voodoo is for including CVS keywords in the main source file.
 # $Id is the subversion revision number. The way I set it up here allows
@@ -20,7 +19,7 @@ use XML::Simple;
 # with the "_rev#".
 my $rev = '$Id: Phylo.pm 2188 2006-09-07 07:25:09Z rvosa $';
 $rev =~ s/^[^\d]+(\d+)\b.*$/$1/;
-our $VERSION = 0.13;
+our $VERSION = 0.14;
 $VERSION .= "_$rev";
 my $VERBOSE = 0;
 use vars qw($VERSION);
@@ -456,9 +455,9 @@ and so on?
 =item to_xml()
 
  Type    : Format converter
- Title   : to_cipres
+ Title   : to_xml
  Usage   : my $xml = $obj->to_xml;
- Function: Turns the invocant object into an XML string.
+ Function: Returns an XML representation of the invocant object.
  Returns : SCALAR
  Args    : NONE
 
@@ -476,7 +475,11 @@ and so on?
         $xml .= '<name>' . $name . '</name>'    if $name;
         $xml .= '<score>' . $score . '</score>' if $score;
         $xml .= '<desc>' . $desc . '</desc>'    if $desc;
-        $xml .= XMLout($generic) if $generic && %{$generic};
+        if ( $generic and ref $generic eq 'HASH' ) {
+            $xml .= "<generic>\n";
+            $xml .= "<opt><key>$_</key><val>$generic->{$_}</val></opt>" for keys %$generic;
+            $xml .= "</generic>";
+        }
 
         if ( $self->isa('Bio::Phylo::Listable') ) {
             foreach my $ent ( @{ $self->get_entities } ) {

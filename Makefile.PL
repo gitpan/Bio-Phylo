@@ -23,7 +23,6 @@ WriteMakefile(
         'Test::More'       => 0.62,
         'Math::Random'     => 0.67,
         'IO::String'       => 1.05,
-        'XML::Simple'      => 2.14,
         'SVG'              => 1.07,
     },
     dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },

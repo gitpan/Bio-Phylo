@@ -1,17 +1,133 @@
-# http://module-build.sourceforge.net/META-spec.html
-#XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
-name:         Bio-Phylo
-version:      0.13
-version_from: lib/Bio/Phylo.pm
-installdirs:  site
+---
+name: Bio-Phylo
+version: 0.14
+author:
+  - 'Rutger A. Vos <rvosa@sfu.ca>'
+abstract: Phylogenetic analysis using perl.
+license: perl
+resources:
+  MailingList: mailto:rvosa@sfu.ca
+  bugtracker: http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Bio-Phylo
+  homepage: http://search.cpan.org/~rvosa/Bio-Phylo/
+  license: http://dev.perl.org/licenses/
+  repository: http://nladr-cvs.sdsc.edu/svn/CIPRES/cipresdev/trunk/cipres/framework/perl/
 requires:
-    Exception::Class:              1.23
-    IO::String:                    1.05
-    Math::Random:                  0.67
-    Scalar::Util:                  0
-    SVG:                           1.07
-    Test::More:                    0.62
-    XML::Simple:                   2.14
-
-distribution_type: module
-generated_by: ExtUtils::MakeMaker version 6.30
+  Exception::Class: 1.23
+  IO::String: 1.05
+  List::Util: 0
+  Math::Random: 0.67
+  SVG: 1.07
+  Scalar::Util: 0
+  Test::More: 0.62
+recommends:
+  Bio::Tree::NodeI: 0
+  Bio::Tree::TreeI: 0
+provides:
+  Bio::Phylo:
+    file: lib/Bio/Phylo.pm
+    version: 0.14
+  Bio::Phylo::Deprecated:
+    file: lib/Bio/Phylo.pm
+  Bio::Phylo::Forest:
+    file: lib/Bio/Phylo/Forest.pm
+    version: 0.13_2188
+  Bio::Phylo::Forest::Node:
+    file: lib/Bio/Phylo/Forest/Node.pm
+    version: 0.13_2188
+  Bio::Phylo::Forest::Tree:
+    file: lib/Bio/Phylo/Forest/Tree.pm
+    version: 0.13_2188
+  Bio::Phylo::Generator:
+    file: lib/Bio/Phylo/Generator.pm
+    version: 0.13_2188
+  Bio::Phylo::IO:
+    file: lib/Bio/Phylo/IO.pm
+    version: 0.13_2188
+  Bio::Phylo::Listable:
+    file: lib/Bio/Phylo/Listable.pm
+    version: 0.13_2188
+  Bio::Phylo::Matrices:
+    file: lib/Bio/Phylo/Matrices.pm
+    version: 0.13_2188
+  Bio::Phylo::Matrices::Alignment:
+    file: lib/Bio/Phylo.pm
+  Bio::Phylo::Matrices::CharSeq:
+    file: lib/Bio/Phylo/Matrices/Matrix.pm
+  Bio::Phylo::Matrices::Datum:
+    file: lib/Bio/Phylo/Matrices/Datum.pm
+    version: 0.13_2188
+  Bio::Phylo::Matrices::Matrix:
+    file: lib/Bio/Phylo/Matrices/Matrix.pm
+    version: 0.13_2188
+  Bio::Phylo::Matrices::Matrix::categorical:
+    file: lib/Bio/Phylo/Matrices/Matrix.pm
+  Bio::Phylo::Matrices::Matrix::continuous:
+    file: lib/Bio/Phylo/Matrices/Matrix.pm
+  Bio::Phylo::Matrices::Matrix::dna:
+    file: lib/Bio/Phylo/Matrices/Matrix.pm
+  Bio::Phylo::Matrices::Matrix::protein:
+    file: lib/Bio/Phylo/Matrices/Matrix.pm
+  Bio::Phylo::Matrices::Matrix::restriction:
+    file: lib/Bio/Phylo/Matrices/Matrix.pm
+  Bio::Phylo::Matrices::Matrix::rna:
+    file: lib/Bio/Phylo/Matrices/Matrix.pm
+  Bio::Phylo::Matrices::Matrix::standard:
+    file: lib/Bio/Phylo/Matrices/Matrix.pm
+  Bio::Phylo::Matrices::Sequence:
+    file: lib/Bio/Phylo.pm
+  Bio::Phylo::Parsers:
+    file: lib/Bio/Phylo.pm
+  Bio::Phylo::Parsers::Fastnewick:
+    file: lib/Bio/Phylo.pm
+  Bio::Phylo::Parsers::Fastnexus:
+    file: lib/Bio/Phylo.pm
+  Bio::Phylo::Parsers::Newick:
+    file: lib/Bio/Phylo/Parsers/Newick.pm
+    version: 0.13_2188
+  Bio::Phylo::Parsers::Nexus:
+    file: lib/Bio/Phylo/Parsers/Nexus.pm
+    version: 0.13_2188
+  Bio::Phylo::Parsers::Table:
+    file: lib/Bio/Phylo/Parsers/Table.pm
+    version: 0.13_2188
+  Bio::Phylo::Parsers::Taxlist:
+    file: lib/Bio/Phylo/Parsers/Taxlist.pm
+    version: 0.13_2188
+  Bio::Phylo::Taxa:
+    file: lib/Bio/Phylo/Taxa.pm
+    version: 0.13_2188
+  Bio::Phylo::Taxa::Taxon:
+    file: lib/Bio/Phylo/Taxa/Taxon.pm
+    version: 0.13_2188
+  Bio::Phylo::Treedrawer:
+    file: lib/Bio/Phylo/Treedrawer.pm
+    version: 0.13_2188
+  Bio::Phylo::Treedrawer::Svg:
+    file: lib/Bio/Phylo/Treedrawer/Svg.pm
+    version: 0.13_2188
+  Bio::Phylo::Unparsers:
+    file: lib/Bio/Phylo.pm
+  Bio::Phylo::Unparsers::Mrp:
+    file: lib/Bio/Phylo/Unparsers/Mrp.pm
+    version: 0.13_2188
+  Bio::Phylo::Unparsers::Newick:
+    file: lib/Bio/Phylo/Unparsers/Newick.pm
+    version: 0.13_2188
+  Bio::Phylo::Unparsers::Nexus:
+    file: lib/Bio/Phylo/Unparsers/Nexus.pm
+    version: 0.13_2188
+  Bio::Phylo::Unparsers::Pagel:
+    file: lib/Bio/Phylo/Unparsers/Pagel.pm
+    version: 0.13_2188
+  Bio::Phylo::Util::CONSTANT:
+    file: lib/Bio/Phylo/Util/CONSTANT.pm
+    version: 0.13_2188
+  Bio::Phylo::Util::Exceptions:
+    file: lib/Bio/Phylo/Util/Exceptions.pm
+    version: 0.13_2188
+  Bio::Phylo::Util::IDPool:
+    file: lib/Bio/Phylo/Util/IDPool.pm
+generated_by: Module::Build version 0.2805
+meta-spec:
+  url: http://module-build.sourceforge.net/META-spec-v1.2.html
+  version: 1.2

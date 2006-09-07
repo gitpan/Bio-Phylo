@@ -27,7 +27,6 @@ Bio::Phylo::IO - Input and output of phylogenetic data.
 =head1 SYNOPSIS
 
  use Bio::Phylo::IO;
- use Data::Dumper;
 
  # parsing a tree from a newick string
  my $tree_string = '(((A,B),C),D);';

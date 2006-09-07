@@ -5,7 +5,6 @@ use strict;
 use Bio::Phylo::Forest::Tree;
 use Bio::Phylo::Forest::Node;
 use Bio::Phylo::Util::CONSTANT qw(_TREE_ looks_like_number);
-#use Scalar::Util qw(looks_like_number);
 my @fields = qw(WIDTH HEIGHT MODE SHAPE PADDING NODE_RADIUS TEXT_HORIZ_OFFSET TEXT_VERT_OFFSET TEXT_WIDTH TREE _SCALEX _SCALEY SCALE FORMAT);
 
 # hashref of available tree drawer modules

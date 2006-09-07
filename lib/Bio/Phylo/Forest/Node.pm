@@ -4,7 +4,6 @@ use strict;
 use Bio::Phylo::Util::IDPool;
 use Bio::Phylo::Util::CONSTANT qw(_NODE_ _TREE_ _TAXON_ looks_like_number);
 use Scalar::Util qw(weaken);
-use XML::Simple;
 
 # One line so MakeMaker sees it.
 use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
@@ -1436,7 +1435,11 @@ orphans all nodes can be reached without recourse to the tree object.
         $xml .= '<name>' . $name . '</name>'    if $name;
         $xml .= '<score>' . $score . '</score>' if $score;
         $xml .= '<desc>' . $desc . '</desc>'    if $desc;
-        $xml .= XMLout($generic) if $generic && %{$generic};
+        if ( $generic and ref $generic eq 'HASH' ) {
+            $xml .= '<generic>';
+            $xml .= "<prop><key>$_</key><val>$generic->{$_}</val></prop>\n" for keys %$generic;
+            $xml .= '</generic>';
+        }
         $xml .= '<branchlength>' . $self->get_branch_length . '</branchlength>'
           if defined $self->get_branch_length;
         $xml .= '<parent idref="' . $class . $self->get_parent->get_id . '" />'

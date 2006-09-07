@@ -25,7 +25,6 @@ Bio::Phylo has the following dependencies (0 = any version):
   Test::More: 0
   Math::Random: 0
   IO::String: 0
-  XML::Simple: 0
   SVG: 1.07
   Storable: 0
   fields: 0
