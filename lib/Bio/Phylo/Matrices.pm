@@ -1,4 +1,4 @@
-# $Id: Matrices.pm,v 1.26 2006/05/19 02:08:51 rvosa Exp $
+# $Id: Matrices.pm 1185 2006-05-26 09:04:17Z rvosa $
 # Subversion: $Rev: 186 $
 package Bio::Phylo::Matrices;
 use strict;
@@ -148,7 +148,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Matrices.pm,v 1.26 2006/05/19 02:08:51 rvosa Exp $
+$Id: Matrices.pm 1185 2006-05-26 09:04:17Z rvosa $
 
 =head1 AUTHOR
 

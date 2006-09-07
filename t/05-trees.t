@@ -1,4 +1,4 @@
-# $Id: 05-trees.t,v 1.11 2006/03/14 02:26:04 rvosa Exp $
+# $Id: 05-trees.t 1185 2006-05-26 09:04:17Z rvosa $
 use strict;
 use warnings;
 use Test::More tests => 13;

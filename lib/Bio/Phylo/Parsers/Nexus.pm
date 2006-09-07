@@ -1,17 +1,27 @@
-# $Id: Nexus.pm,v 1.24 2006/05/19 02:08:58 rvosa Exp $
+# $Id: Nexus.pm 1783 2006-07-27 23:44:56Z rvosa $
 # Subversion: $Rev: 195 $
 package Bio::Phylo::Parsers::Nexus;
 use strict;
-use Bio::Phylo::Taxa::Taxon;
 use Bio::Phylo::Taxa;
-use Bio::Phylo::Matrices::Matrix;
+use Bio::Phylo::Taxa::Taxon;
+use Bio::Phylo::Forest;
 use Bio::Phylo::Matrices::Datum;
-use Bio::Phylo::Matrices;
-use Bio::Phylo::Parsers::Newick;
-use base 'Bio::Phylo::IO';
+use Bio::Phylo::Matrices::Matrix;
+use Bio::Phylo::IO qw(parse);
+use Bio::Phylo::Util::CONSTANT qw(_MATRIX_ _FOREST_ _TAXA_);
+use Bio::Phylo::Util::Exceptions;
+use Scalar::Util qw(blessed);
+use List::Util qw(first);
+use IO::String;
+use Data::Dumper;
 
+# TODO: handle mixed?
 # One line so MakeMaker sees it.
 use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
+
+# classic @ISA manipulation, not using 'base'
+use vars qw($VERSION @ISA);
+@ISA = qw(Bio::Phylo::IO);
 
 =head1 NAME
 
@@ -20,15 +30,19 @@ Bio::Phylo::Parsers::Nexus - Parses nexus files. No serviceable parts inside.
 =head1 DESCRIPTION
 
 This module parses nexus files. It is called by the L<Bio::Phylo::IO> module,
-there is no direct usage. The parser can only handle files with a single tree,
-taxon, and characters block. It returns a reference to an array containing one
-or more taxa, trees and matrices objects.
+there is no direct usage. The parser can handle files and strings with multiple
+tree, taxon, and characters blocks whose links are defined using Mesquite's
+"TITLE = 'some_name'" and "LINK TAXA = 'some_name'" tokens.
+
+The parser returns a reference to an array containing one or more taxa, trees
+and matrices objects. Nexus comments are stripped, private nexus blocks (and the
+'assumptions' block) are skipped. It currently doesn't handle 'mixed' data.
 
 =begin comment
 
  Type    : Constructor
- Title   : new
- Usage   : my $newick = new Bio::Phylo::Parsers::Nexus;
+ Title   : _new
+ Usage   : my $nexus = Bio::Phylo::Parsers::Nexus->_new;
  Function: Initializes a Bio::Phylo::Parsers::Nexus object.
  Returns : A Bio::Phylo::Parsers::Nexus object.
  Args    : none.
@@ -38,302 +52,860 @@ or more taxa, trees and matrices objects.
 =cut
 
 sub _new {
-    my $class = $_[0];
-    my $self  = {};
-    bless( $self, $class );
+    my $class = shift;
+
+    # this is a dispatch table whose sub references are invoked
+    # during parsing. the keys match the tokens upon which the
+    # respective subs are called. Underscored (private) fields are for parsing
+    # context.
+    my $self = {
+        '_current'         => undef,
+        '_previous'        => undef,
+        '_begin'           => undef,
+        '_ntax'            => undef,
+        '_nchar'           => undef,
+        '_gap'             => undef,
+        '_missing'         => undef,
+        '_i'               => undef,
+        '_tree'            => undef,
+        '_trees'           => undef,
+        '_treename'        => undef,
+        '_treestart'       => undef,
+        '_row'             => undef,
+        '_matrixtype'      => undef,
+        '_found'           => 0,
+        '_linemode'        => 0,
+        '_tokens'          => [],
+        '_context'         => [],
+        '_translate'       => [],
+        '_symbols'         => [],
+        '_charlabels'      => [],
+        '_comments'        => [],
+        '_treenames'       => [],
+        '_matrix'          => {},
+        'begin'            => \&_begin,
+        'taxa'             => \&_taxa,
+        'title'            => \&_title,
+        'dimensions'       => \&_dimensions,
+        'ntax'             => \&_ntax,
+        'taxlabels'        => \&_taxlabels,
+        'data'             => \&_data,
+        'characters'       => \&_characters,
+        'nchar'            => \&_nchar,
+        'format'           => \&_format,
+        'datatype'         => \&_datatype,
+        'gap'              => \&_gap,
+        'missing'          => \&_missing,
+        'charlabels'       => \&_charlabels,
+        'symbols'          => \&_symbols,
+        'items'            => \&_items,
+        'matrix'           => \&_matrix,
+        'trees'            => \&_trees,
+        'translate'        => \&_translate,
+        'tree'             => \&_tree,
+        'utree'            => \&_tree,
+        'end'              => \&_end,
+        '#nexus'           => \&_nexus,
+        'link'             => \&_link,
+        ';'                => \&_semicolon,
+    };
+    if ( ref $class ) {
+        %$class = %$self;
+    }
+    bless $self, __PACKAGE__;
     return $self;
 }
 
 =begin comment
 
  Type    : Wrapper
- Title   : from_handle(\*FH)
- Usage   : $nexus->from_handle(\*FH);
+ Title   : _from_handle(\*FH)
+ Usage   : $nexus->_from_handle(\*FH);
  Function: Does all the parser magic, from a file handle
- Returns : L<Phylo>
+ Returns : ARRAY
  Args    : \*FH = file handle
 
 =end comment
 
 =cut
 
+# trickery to get it to parse strings as well, uses IO::String
+*_from_string = \&_from_handle;
+
 sub _from_handle {
     my $self = shift;
-    my %opts = @_;
-    my @output;
-    my ( $t, $parsed, $comm, $data, $taxa, $char, $translate, $trees ) =
-      $self->_parse_handle( $opts{-handle} );
-    if ( @{$taxa} ) {
-        my $taxa_obj = $self->_parse_taxa( $taxa, $parsed );
-        return unless $taxa_obj;
-        push( @output, $taxa_obj );
-        my $matrix_obj = $self->_parse_char( $char, $taxa, $parsed ) if $char;
-        return unless $matrix_obj;
-        push( @output, $matrix_obj );
-        my $trees_obj = $self->_parse_trees( $trees, $translate ) if $trees;
-        return unless $trees_obj;
-        push( @output, $trees_obj );
-    }
-    my $comm_obj = $self->_parse_comm($comm) if $comm;
-    return unless $comm_obj;
-    push( @output, $comm_obj );
-    return \@output;
-}
+    $self->{'_lines' } = $self->_stringify( @_ );
+    $self->{'_tokens'} = $self->_tokenize( $self->{'_lines'} );
 
-=begin comment
-
-This method needs to be able to handle multiple tree blocks and multiple
-characters blocks. Also, where matches are performed on patterns that are
-potentially multiple words (e.g. NTAX = 10 instead of NTAX=10) it is assumed
-that all words are on the same line. This is not a requirement of the nexus
-specification, but it seemed easier. This needs to be changed.
-
- Type    : Parsers
- Title   : parse_handle(\*FH)
- Usage   : $nexus->parse_handle(\*FH);
- Function: Creates (file) handle, dispatches parser functions.
- Returns : Local arrays.
- Args    : \*FH is a reference to a file handle
-
-=end comment
-
-=cut
-
-sub _parse_handle {
-    my $self   = shift;
-    my $handle = $_[0];
-    my ( %t, %parsed, @comm, @data, @taxa, @char, @translate, @trees );
-    while ( readline($handle) ) {
-        my $line = $_;
-        foreach ( split( /\s+/, $_ ) ) {
-            $t{comm}++ if m/\[\s*[^%]/o;
-            if ( !$t{comm} ) {
-                $t{nexus} = 1 if m/#nexus/oi;
-                $t{begin} = 1 if m/begin/oi;
-                if ( m/data\s*;/oi && $t{begin} ) {
-                    ( $t{data}, $t{begin} ) = ( $t{begin}, $t{data} );
+    # iterate over tokens, dispatch methods from %{ $self } table
+    # This is the meat of the parsing, from here everything else is called.
+    my $i = 0;
+    my $private_block;
+    my $token_queue = [ undef, undef, undef ];
+    no strict 'refs';
+    TOKEN_LINE: for my $token_line ( @{ $self->{'_tokens'} } ) {
+        if ( not $self->{'_linemode'} ) {
+            RAW_TOKEN: for my $raw_token ( @{ $token_line } ) {
+                if ( $raw_token =~ qr/^\[/ ) {
+                    push @{ $self->{'_comments'} }, $raw_token;
+                    next RAW_TOKEN;
                 }
-                if ( m/taxa\s*;/oi && $t{begin} ) {
-                    ( $t{taxa}, $t{begin} ) = ( $t{begin}, $t{taxa} );
-                }
-                if ( m/characters\s*;/oi && $t{begin} ) {
-                    ( $t{char}, $t{begin} ) = ( $t{begin}, $t{char} );
-                }
-                if ( m/trees\s*;/oi && $t{begin} ) {
-                    ( $t{trees}, $t{begin} ) = ( $t{begin}, $t{trees} );
-                }
-                $t{taxlabels} = 1 if m/taxlabels/oi && $t{taxa};
-                $t{translate} = 1 if m/translate/oi && $t{trees};
-                $t{matrix}    = 1 if m/matrix/oi    && ( $t{data} || $t{char} );
-                if ( $line =~ /ntax\s*=\s*(\d+)\b/oi
-                    && ( $t{taxa} || $t{data} ) )
-                {
-                    $parsed{ntax} = $1;
-                }    # fix this
-                if ( $line =~ /nchar\s*=\s*(\d+)\b/oi
-                    && ( $t{char} || $t{data} ) )
-                {
-                    $parsed{nchar} = $1;
-                }    #
-                if ( $line =~ /datatype\s*=\s*(\w+)\b/oi
-                    && ( $t{char} || $t{data} ) )
-                {
-                    $parsed{datatype} = $1;
-                }    #
-                if (m/(end|endblock)\s*;/oi) {
-                    $t{data}  = 0 if $t{data};
-                    $t{taxa}  = 0 if $t{taxa};
-                    $t{char}  = 0 if $t{char};
-                    $t{trees} = 0 if $t{trees};
-                }
-                if ( $t{translate} ) {
-                    my $token = $_;
-                    $token =~ s/[;|,]//;
-                    push( @translate, $token )
-                      if $token && $token !~ /translate/oi;
-                }
-                if ( $t{taxlabels} ) {
-                    my $token = $_;
-                    $token =~ s/[;|,]//;
-                    push( @taxa, $token ) if $token && $token !~ /taxlabels/oi;
-                }
-                if ( $t{matrix} ) {
-                    my $token = $_;
-                    $token =~ s/[;|,]//;
-                    push( @char, $_ ) if $token && $token !~ /matrix/oi;
-                }
-                if ( $t{trees} && !$t{translate} ) {
-                    push( @trees, $_ ) unless m/trees/oi;
-                }
-                $t{taxlabels} = 0 if m/;/o && $t{taxlabels};
-                $t{translate} = 0 if m/;/o && $t{translate};
-                $t{matrix}    = 0 if m/;/o && $t{matrix};
-            }
-            else { push( @comm, $_ ); }
-            $t{comm}-- if m/\]/o && $t{comm};
-        }
-    }
-    return ( \%t, \%parsed, \@comm, \@data, \@taxa, \@char, \@translate,
-        \@trees );
-}
+                my $lower_case_token = lc( $raw_token );
+                push @$token_queue, $lower_case_token;
+                shift @$token_queue;
+                if ( exists $self->{$lower_case_token} and not $private_block ) {
+                    if ( ref $self->{$lower_case_token} eq 'CODE' ) {
+                        $self->{'_previous'} = $self->{'_current'};
+                        $self->{'_current'}  = $lower_case_token;
 
-=begin comment
+                        # pull code ref from dispatch table
+                        my $c = $self->{$lower_case_token};
 
- Type    : Parsers
- Title   : _parse_taxa(\@taxa)
- Usage   : $nexus->_parse_taxa(\@taxa);
- Function: Creates Bio::Phylo::Taxa object from array of taxon names.
- Returns : A Bio::Phylo::Taxa object
- Args    : A reference to an array holding taxon names.
-
-=end comment
-
-=cut
-
-sub _parse_taxa {
-    my $self = shift;
-    my ( $taxlist, $parsed ) = @_;
-    my $taxa = new Bio::Phylo::Taxa;
-    if ( $parsed->{ntax} != scalar @{$taxlist} ) {
-        my ( $exp, $obs ) = ( $parsed->{ntax}, scalar @{$taxlist} );
-        Bio::Phylo::Util::Exceptions::BadFormat->throw(
-            error => "observed ($obs) and expected ($exp) ntax unequal" );
-    }
-    foreach ( @{$taxlist} ) {
-        my $taxon = new Bio::Phylo::Taxa::Taxon;
-        $taxon->set_name($_);
-        $taxa->insert($taxon);
-    }
-    return $taxa;
-}
-
-=begin comment
-
- Type    : Parsers
- Title   : _parse_char(\@chars)
- Usage   : $nexus->_parse_char(\@chars);
- Function: Creates Bio::Phylo::Matrices::Matrix object from a character state
-           matrix.
- Returns : A Bio::Phylo::Matrices::Matrix object
- Args    : A reference to an array holding a character state matrix.
-
-=end comment
-
-=cut
-
-sub _parse_char {
-    my $self = shift;
-    my ( $charlist, $taxa, $parsed ) = @_;
-    my $matrix = new Bio::Phylo::Matrices::Matrix;
-    my $datatype;
-    if ( $parsed->{datatype} ) { $datatype = uc( $parsed->{datatype} ); }
-    else { $datatype = 'STANDARD'; }
-    my ( $charstring, $name );
-    for my $i ( 0 .. $#{$charlist} ) {
-        my $pattern = $charlist->[$i];
-        $pattern =~ s/\?/\\?/go;
-        if ( grep( /^$pattern$/, @{$taxa} ) ) {
-            if ($name) {
-                my ( $obs, $exp ) = ( length($charstring), $parsed->{nchar} );
-                if ( $obs != $exp ) {
-                    Bio::Phylo::Util::Exceptions::BadFormat->throw( error =>
-"observed ($obs) and expected ($exp) nchar unequal for $name"
-                    );
-                }
-
-                #                for my $j ( 0 .. length($charstring) ) {
-                my $datum = Bio::Phylo::Matrices::Datum->new(
-                    '-name' => $name,
-                    '-pos'  => 1,
-                    '-type' => $datatype,
-                    '-char' => $charstring,
-                );
-
-          #                    $datum->set_name($name);
-          #                    $datum->set_position( $j + 1 );
-          #                    $datum->set_type($datatype);
-          #                    $datum->set_char( substr( $charstring, $j, 1 ) );
-                $matrix->insert($datum);
-
-                #                }
-            }
-            $charstring = undef;
-            $name       = $charlist->[$i];
-        }
-        else {
-            if ($charstring) { $charstring .= $charlist->[$i]; }
-            else { $charstring = $charlist->[$i]; }
-        }
-    }
-    my $matrices = new Bio::Phylo::Matrices;
-    $matrices->insert($matrix);
-    return $matrices;
-}
-
-=begin comment
-
- Type    : Parsers
- Title   : _parse_trees(\@trees)
- Usage   : $nexus->_parse_trees(\@trees);
- Function: Creates Bio::Phylo::Forest object from an array of trees.
- Returns : A Bio::Phylo::Forest object
- Args    : A reference to an array holding newick trees.
-
-=end comment
-
-=cut
-
-sub _parse_trees {
-    my $self = shift;
-    my ( $tlist, $translate ) = ( $_[0], $_[1] );
-    my ( $nstring, @translist ) = ("");
-    if ($translate) {
-        for my $i ( 0 .. $#{$translate} ) {
-            push( @translist, $translate->[$i] ) if ( $i % 2 );
-        }
-    }
-    my $tliststring = '';
-    $tliststring .= $_ foreach ( @{$tlist} );
-    $tliststring =~ s/\[.*?\]//g;
-    foreach ( split( /;/, $tliststring ) ) {
-        next unless /\(.*\)/i;
-        s/^.*\=\s*(.*)$/$1/;
-        $nstring .= $_ . ";";
-    }
-    my $nparser = Bio::Phylo::Parsers::Newick->_new;
-    my $trees   =
-      $nparser->_from_string( -format => 'newick', -string => $nstring );
-    if (@translist) {
-        foreach my $tree ( @{ $trees->get_entities } ) {
-          NODE: foreach my $node ( @{ $tree->get_entities } ) {
-                for my $i ( 0 .. $#translist ) {
-                    if ( $node->is_terminal && $node->get_name == ( $i + 1 ) ) {
-                        $node->set_name( $translist[$i] );
-                        next NODE;
+                        # invoke as object method
+                        $self->$c($raw_token);
+                        next RAW_TOKEN;
                     }
                 }
+                elsif ( $self->{'_current'} and not $private_block ) {
+                    my $c = $self->{ $self->{'_current'} };
+                    $self->$c($raw_token);
+                    next RAW_TOKEN;
+                }
+
+                # $self->{'_begin'} is switched 'on' by &_begin(), and 'off'
+                # again by any one of the appropriate subsequent tokens, i.e.
+                # taxa, data, characters and trees
+                if ( $self->{'_begin'} and not exists $self->{$lower_case_token} and not $private_block ) {
+                    $private_block = $raw_token;
+                    next RAW_TOKEN;
+                }
+
+                # jump over private block content
+                if ( $private_block and $token_queue->[-2] eq 'end' and $token_queue->[-1] eq ';' ) {
+                    $private_block = 0;
+                    print "[ skipped private $private_block block ]\n" if $self->VERBOSE;
+                    next RAW_TOKEN;
+                }
+                else {
+                    next RAW_TOKEN;
+                }
             }
         }
+        elsif ( $self->{'_linemode'} ) {
+            my $c = $self->{ $self->{'_current'} };
+            push @{ $token_queue }, $token_line;
+            shift @$token_queue;
+            $self->$c($token_line);
+            next TOKEN_LINE;
+        }
     }
-    return $trees;
+
+    return $self->_post_process;
+}
+
+# makes array reference of strings, one string per line, from input
+# file handle or string;
+sub _stringify {
+    my $self = shift;
+    my %opts = @_;
+    my @lines;
+    if ( $opts{'-string'} ) {
+        $opts{'-handle'} = IO::String->new( $opts{'-string'} );
+    }
+    while ( my $line = readline( $opts{'-handle'} ) ) {
+        push @lines, $line;
+    }
+    return \@lines;
 }
 
 =begin comment
 
- Type    : _parse_comm
- Title   : _parse_comm()
- Usage   : $nexus->_parse_comm();
- Function: Parses nexus comments
- Returns : Nothing yet.
- Args    : none.
+ Type    : Method
+ Title   : _tokenize()
+ Usage   : $nexus->_tokenize($lines);
+ Function: Tokenizes lines in $lines array ref
+ Returns : Two dimensional ARRAY
+ Args    : An array ref of lines (e.g. read from an input file);
+ Comments: This method accepts an array ref holding lines that may contain
+           single quotes, double quotes or square brackets. Line breaks and
+           spaces inside these quoted/bracketed fragments are ignored, otherwise
+           it is split, e.g.:
+
+           [
+               [ '#NEXUS' ],
+               [ 'BEGIN TAXA; [taxablock comment]' ],
+               [ 'DIMENSIONS NTAX=3;' ],
+               [ 'TAXLABELS "Taxon \' A" \'Taxon B\' TAXON[comment]C' ],
+               ...etc...
+           ]
+
+           becomes:
+           [
+               [ '#NEXUS' ],
+               [
+                   'BEGIN',
+                   'TAXA',
+                   ';',
+                   '[taxablock comment]'
+               ],
+               [
+                   'DIMENSIONS',
+                   'NTAX',
+                   '=',
+                   '3',
+                   ';'
+               ],
+               [
+                   'TAXLABELS',
+                   '"Taxon \' A"',
+                   '\'Taxon B\'',
+                   'TAXON',
+                   '[comment]',
+                   'C'
+               ],
+               ...etc...
+           ]
+
 
 =end comment
 
 =cut
 
-sub _parse_comm {
-    my ( $self, $comm ) = @_;
-    return join( ' ', @{$comm} );
+sub _tokenize {
+    my ( $self, $lines ) = @_;
+    my ( $extract, $INSIDE_QUOTE, $continue ) = ( '', 0, 0 );
+    my ( @tokens, @split );
+
+    my $QUOTES_OR_BRACKETS       = qr/[\[\]'"]/mox;
+    my $OPENING_QUOTE_OR_BRACKET = qr/^(.*?)([\['"].*)$/mox;
+    my $CLOSING_BRACKET_MIDLINE  = qr/^.*?(\])(.*)$/mox;
+    my $CONTEXT_QB_AT_START      = qr/^([\['"])(.*)$/mox;
+
+    my $CONTEXT_CLOSER;
+    my $QuoteContext; # either " ' or [
+    my $QuoteStartLine;
+    my $LineCount = 0;
+    my %CLOSE_CHAR = (
+        '"' => '"',
+        "'" => "'",
+        '[' => ']',
+
+    );
+
+    # tokenize
+    LINE: for my $line (@$lines) {
+        $LineCount++;
+        printf( '[ Line: %d ] %s', $LineCount, $line ) if $self->VERBOSE;
+        TOKEN: while ( $line =~ /\S/ ) {
+
+            # line in file has no quoting/bracketing characters, and
+            # is no extension of a quoted/bracketed fragment starting
+            # on a previous line
+            if ( $line !~ $QUOTES_OR_BRACKETS && ! $INSIDE_QUOTE ) {
+                if ( $continue ) {
+                    push @{ $tokens[-1] }, $line;
+                    $continue = 0;
+                }
+                else {
+                    push @tokens, [$line];
+                }
+                next LINE;
+            }
+
+            # line in file has opening quoting/bracketing characters, and
+            # is no extension of a quoted/bracketed fragment starting
+            # on a previous line
+            elsif ( $line =~ $OPENING_QUOTE_OR_BRACKET && ! $INSIDE_QUOTE ) {
+                my ( $start, $quoted ) = ( $1, $2 );
+                push @tokens, [$start];
+                $line = $quoted;
+                $extract = $quoted;
+                $INSIDE_QUOTE++;
+                $continue = 1;
+                $QuoteContext = substr($quoted,0,1);
+                $QuoteStartLine = $LineCount;
+                $CONTEXT_QB_AT_START = qr/^(\Q$QuoteContext\E)(.*)$/;
+                my $context_closer = $CLOSE_CHAR{$QuoteContext};
+                $CONTEXT_CLOSER = qr/^(.*?)(\Q$context_closer\E)(.*)$/;
+                next TOKEN;
+            }
+
+            # line in file has no quoting/bracketing characters, and
+            # is an extension of a quoted/bracketed fragment starting
+            # on a previous line
+            elsif ( $line !~ $CONTEXT_CLOSER && $INSIDE_QUOTE ) {
+                $extract .= $line;
+                next LINE;
+            }
+            elsif ( $line =~ $CONTEXT_QB_AT_START && $INSIDE_QUOTE ) {
+                my ( $q, $remainder ) = ( $1, $1 . $2 );
+                if ( $q eq '"' || $q eq "'" ) {
+                    if ( $remainder =~ m/^($q[^$q]*?$q)(.*)$/ ) {
+                        push @{ $tokens[-1] }, ( $1 );
+                        $line = $2;
+                        $INSIDE_QUOTE--;
+                        next TOKEN;
+                    }
+                    elsif ( $remainder =~ m/^$q[^$q]*$/ ) {
+                        $extract .= $line;
+                        $continue = 1;
+                        next LINE;
+                    }
+                }
+                elsif ( $q eq '[' ) {
+                    for my $i ( 1 .. length($line) ) {
+                        $INSIDE_QUOTE++ if substr($line,$i,1) eq '[';
+                        if ( $i and ! $INSIDE_QUOTE ) {
+                            push @{ $tokens[-1] }, substr($line,0,$i);
+                            $line = substr($line,$i);
+                            next TOKEN;
+                        }
+                        $INSIDE_QUOTE-- if substr($line,$i,1) eq ']';
+                    }
+                    $extract = $line;
+                    $continue = 1;
+                    next LINE;
+                }
+            }
+            elsif ( $line =~ $CONTEXT_CLOSER && $INSIDE_QUOTE ) {
+                my ( $start, $q, $remainder ) = ( $1, $2, $3 );
+                $start = $extract . $start if $continue;
+                if ( $q eq '"' or $q eq "'" ) {
+                    push @{ $tokens[-1] }, $start;
+                    $line = $remainder;
+                    next TOKEN;
+                }
+                elsif ( $q eq ']' ) {
+                    for my $i ( 0 .. length($line) ) {
+                        $INSIDE_QUOTE++ if substr($line,$i,1) eq '[';
+                        if ( $i and ! $INSIDE_QUOTE ) {
+                            my $segment = substr($line,0,$i);
+                            if ( $continue ) {
+                                push @{ $tokens[-1] }, $extract . $segment;
+                            }
+                            else {
+                                push @{ $tokens[-1] }, $segment;
+                            }
+                            $line = substr($line,$i);
+                            next TOKEN;
+                        }
+                        $INSIDE_QUOTE-- if substr($line,$i,1) eq ']';
+                    }
+                    if ( $continue ) {
+                        $extract .= $line;
+                    }
+                    else {
+                        $extract = $line;
+                    }
+                    $continue = 1;
+                    next LINE;
+                }
+            }
+        }
+    }
+
+    print "\n" if $self->VERBOSE;
+
+    # an exception here means that an opening quote symbol " ' [
+    # ($QuoteContext) was encountered at input file/string line $QuoteStartLine.
+    # This can happen if any of these symbols is used in an illegal
+    # way, e.g. by using double quotes as gap symbols in matrices.
+    if ( $INSIDE_QUOTE ) {
+        Bio::Phylo::Util::Exceptions::BadArgs->throw(
+            error => "Unbalanced $QuoteContext starting at line $QuoteStartLine"
+        );
+    }
+
+    # final split: non-quoted/bracketed fragments are split on whitespace,
+    # others are preserved verbatim
+    foreach my $line (@tokens) {
+        my @line;
+        foreach my $word (@$line) {
+            if ( $word !~ $QUOTES_OR_BRACKETS ) {
+                $word =~ s/(=|;|,)/ $1 /g;
+                push @line, grep { /\S/ } split /\s+/, $word;
+            }
+            else {
+                push @line, $word;
+            }
+        }
+        push @split, \@line;
+    }
+    return \@split;
+}
+
+# link matrices and forests to taxa
+sub _post_process {
+    my $self = shift;
+    my $taxa = [];
+    foreach my $block ( @{ $self->{'_context'} } ) {
+        if ( $block->_type == _TAXA_ ) {
+            push @{$taxa}, $block;
+        }
+        elsif ( $block->_type != _TAXA_ and $block->can('set_taxa') ) {
+            if ( $taxa->[-1] and $taxa->[-1]->can('_type') == _TAXA_ and not $block->get_taxa ) {
+                $block->set_taxa( $taxa->[-1] );    # XXX exception here?
+            }
+        }
+    }
+    return $self->{'_context'};
+}
+
+=begin comment
+
+The following subs are called by the dispatch table stored in the object when
+their respective tokens are encountered.
+
+=end comment
+
+=cut
+
+sub _nexus {
+    my $self = shift;
+    print "#NEXUS\n" if uc( $_[0] ) eq '#NEXUS' and $self->VERBOSE;
+}
+
+sub _begin {
+    my $self = shift;
+    $self->{'_begin'} = 1;
+}
+
+sub _taxa {
+    my $self = shift;
+    if ( $self->{'_begin'} ) {
+        my $taxa = Bio::Phylo::Taxa->new();
+        my $name = ref $taxa;
+        $name =~ s/::/./g;
+        $taxa->set_name( $name . '.' . $taxa->get_id );
+        push @{ $self->{'_context'} }, $taxa;
+        print "BEGIN TAXA" if $self->VERBOSE;
+        $self->{'_begin'} = 0;
+    }
+    else {
+        $self->{'_current'} = 'link';  # because of 'link taxa = blah' construct
+    }
+}
+
+sub _title {
+    my $self  = shift;
+    my $token = shift;
+    if ( defined $token and uc($token) ne 'TITLE' ) {
+        my $title = $token;
+        if ( not $self->{'_context'}->[-1]->get_name ) {
+            $self->{'_context'}->[-1]->set_name($title);
+            print "$title" if $self->VERBOSE;
+        }
+    }
+    elsif ( uc($token) eq 'TITLE' ) {
+        print "TITLE " if $self->VERBOSE;
+    }
+}
+
+sub _link {
+    my $self  = shift;
+    my $token = shift;
+    if ( defined $token and $token !~ m/^(?:LINK|TAXA|=)$/i ) {
+        my $link = $token;
+        if ( not $self->{'_context'}->[-1]->get_taxa ) {
+            foreach my $block ( @{ $self->{'_context'} } ) {
+                if ( $block->get_name and $block->get_name eq $link ) {
+                    $self->{'_context'}->[-1]->set_taxa($block);
+                    last;
+                }
+            }
+            print "TAXA = $link" if $self->VERBOSE;
+        }
+    }
+    elsif ( uc($token) eq 'LINK' ) {
+        print "LINK " if $self->VERBOSE;
+    }
+}
+
+sub _dimensions {
+    my $self = shift;
+    print "DIMENSIONS " if $self->VERBOSE;
+}
+
+sub _ntax {
+    my $self = shift;
+    if ( defined $_[0] and $_[0] =~ m/^\d+$/ ) {
+        $self->{'_ntax'} = shift;
+        print " NTAX = ", $self->{'_ntax'} if $self->VERBOSE;
+    }
+}
+
+sub _taxlabels {
+    my $self = shift;
+    if ( defined $_[0] and uc( $_[0] ) ne 'TAXLABELS' ) {
+        push @{ $self->{'_taxlabels'} }, shift;
+    }
+    elsif ( defined $_[0] and uc( $_[0] ) eq 'TAXLABELS' ) {
+        $self->{'_context'}->[-1]->set_generic(
+            'nexus_comments' => $self->{'_comments'}
+        );
+        $self->{'_comments'} = [];
+    }
+}
+
+sub _data {
+    my $self = shift;
+    if ( $self->{'_begin'} ) {
+        $self->{'_begin'} = 0;
+        print "BEGIN DATA" if $self->VERBOSE;
+    }
+}
+
+sub _characters {
+    my $self = shift;
+    if ( $self->{'_begin'} ) {
+        $self->{'_begin'} = 0;
+        print "BEGIN CHARACTERS" if $self->VERBOSE;
+    }
+}
+
+sub _nchar {
+    my $self = shift;
+    if ( defined $_[0] and $_[0] =~ m/^\d+$/ ) {
+        $self->{'_nchar'} = shift;
+        print " NCHAR = ", $self->{'_nchar'} if $self->VERBOSE;
+    }
+}
+
+sub _format {
+    my $self = shift;
+    print "FORMAT " if $self->VERBOSE and uc($_[0]) eq 'FORMAT';
+}
+
+sub _datatype {
+    my $self = shift;
+    if ( defined $_[0] and $_[0] !~ m/^(?:DATATYPE|=)/i ) {
+        my $datatype = shift;
+        my $matrix = Bio::Phylo::Matrices::Matrix->new( '-type' => $datatype );
+        my $name = ref $matrix;
+        $name =~ s/::/./g;
+        $matrix->set_name( $name . '.' . $matrix->get_id );
+        push @{ $self->{'_context'} }, $matrix;
+        print "DATATYPE = ", $datatype if $self->VERBOSE;
+    }
+}
+
+sub _items {
+    my $self = shift;
+    print " ", shift, " " if $self->VERBOSE;
+}
+
+sub _gap {
+    my $self = shift;
+    if ( $_[0] !~ m/^(?:GAP|=)/i and !$self->{'_gap'} ) {
+        $self->{'_gap'} = shift;
+        print " GAP = ", $self->{'_gap'} if $self->VERBOSE;
+        undef $self->{'_gap'};
+    }
+}
+
+sub _missing {
+    my $self = shift;
+    if ( $_[0] !~ m/^(?:MISSING|=)/i and !$self->{'_missing'} ) {
+        $self->{'_missing'} = shift;
+        print " MISSING = ", $self->{'_missing'} if $self->VERBOSE;
+        undef $self->{'_missing'};
+    }
+}
+
+sub _symbols {
+    my $self = shift;
+    if ( $_[0] !~ m/^(?:SYMBOLS|=|")$/i and $_[0] =~ m/^"?(.)"?$/ ) {
+        push @{ $self->{'_symbols'} }, $1;
+    }
+}
+
+sub _charlabels {
+    my $self = shift;
+    if ( defined $_[0] and uc $_[0] ne 'CHARLABELS' ) {
+        push @{ $self->{'_charlabels'} }, shift;
+    }
+}
+
+sub _matrix {
+    my $self  = shift;
+    my $token = shift;
+    if ( not defined $self->{'_matrixtype'} ) {
+        $self->{'_matrixtype'} = $self->{'_context'}->[-1]->get_type;
+        if ( @{ $self->{'_charlabels'} } ) {
+            $self->{'_context'}->[-1]->set_charlabels(
+                $self->{'_charlabels'}
+            );
+        }
+    }
+
+    # first token: 'MATRIX'
+    if ( not UNIVERSAL::isa($token, 'ARRAY') and uc($token) eq 'MATRIX' ) {
+        $self->{'_linemode'} = 1;
+        if ( $self->VERBOSE ) {
+            print "MATRIX\n";
+        }
+        return;
+    }
+    elsif ( UNIVERSAL::isa($token, 'ARRAY') and not grep { /^;$/ } @{ $token } ) {
+        my $name;
+        for my $i ( 0 .. $#{ $token } ) {
+            if ( not $name and $token->[$i] !~ qr/^\[/ ) {
+                $name = $token->[$i];
+                if ( not exists $self->{'_matrix'}->{$name} ) {
+                    $self->{'_matrix'}->{$name} = [];
+                }
+            }
+            elsif ( $name and $token->[$i] !~ qr/^\[/ ) {
+                if ( uc($self->{'_matrixtype'}) eq 'CONTINUOUS' ) {
+                    push @{ $self->{'_matrix'}->{$name} }, map { split(/\s+/, $_) } $token->[$i];
+                }
+                else {
+                    push @{ $self->{'_matrix'}->{$name} }, map { split(//, $_) } $token->[$i];
+                }
+            }
+            else {
+                next;
+            }
+        }
+    }
+    elsif ( UNIVERSAL::isa($token, 'ARRAY') and grep { /^;$/ } @{ $token } ) {
+        my $name;
+        for my $i ( 0 .. $#{ $token } ) {
+            last if $token->[$i] eq ';';
+            if ( not $name and $token->[$i] !~ qr/^\[/ ) {
+                $name = $token->[$i];
+                $self->{'_matrix'}->{$name} = [] if not $self->{'_matrix'}->{$name};
+                next;
+            }
+            elsif ( $name and $token->[$i] !~ qr/^\[/ ) {
+                if ( uc($self->{'_matrixtype'}) eq 'CONTINUOUS' ) {
+                    push @{ $self->{'_matrix'}->{$name} }, map { split(/\s+/, $_) } $token->[$i];
+                }
+                else {
+                    push @{ $self->{'_matrix'}->{$name} }, map { split(//, $_) } $token->[$i];
+                }
+            }
+        }
+
+        # link to taxa
+        for my $row ( keys %{ $self->{'_matrix'} } ) {
+            my $taxon;
+
+            # find / create matching taxon, matrix is linked
+            if ( my $taxa = $self->{'_context'}->[-1]->get_taxa ) {
+                FINDTAXON: for ( @{ $taxa->get_entities } ) {
+                    if ( $_->get_name eq $row ) {
+                        $taxon = $_;
+                        last FINDTAXON;
+                    }
+                }
+                if ( not $taxon ) {
+                    $taxon = Bio::Phylo::Taxa::Taxon->new( '-name' => $row, );
+                    $taxa->insert($taxon);
+                }
+            }
+
+            # find / create taxa, matrix is not linked
+            else {
+                my $taxa;
+                FINDTAXA: for ( my $i = $#{ $self->{'_context'} } ; $i >= 0 ; $i-- ) {
+                    if ( $self->{'_context'}->[$i]->_type == _TAXA_ ) {
+                        $taxa = $self->{'_context'}->[$i];
+                        last FINDTAXA;
+                    }
+                }
+
+                # create new taxa block
+                if ( not $taxa ) {
+                    $taxa = Bio::Phylo::Taxa->new();
+                    my $name = ref $taxa;
+                    $name =~ s/::/./g;
+                    $taxa->set_name( $name . '.' . $taxa->get_id );
+                    my $current = pop( @{ $self->{'_context'} } );
+                    push @{ $self->{'_context'} }, $taxa, $current;
+                    $taxon = Bio::Phylo::Taxa::Taxon->new( '-name' => $row, );
+                    $taxa->insert($taxon);
+
+                }
+                else {
+                    FINDINNEW: for ( @{ $taxa->get_entities } ) {
+                        if ( $_->get_name eq $row ) {
+                            $taxon = $_;
+                            last FINDINNEW;
+                        }
+                    }
+                }
+
+                # link current block to taxa
+                if ( not $self->{'_context'}->[-1]->get_taxa ) {
+                    $self->{'_context'}->[-1]->set_taxa($taxa);
+                }
+            }
+
+            # create new datum
+            my $datum = Bio::Phylo::Matrices::Datum->new(
+                '-char'  => $self->{'_matrix'}->{ $row },
+                '-name'  => $row,
+                '-type'  => $self->{'_matrixtype'},
+                '-taxon' => $taxon,
+            );
+
+            # insert new datum in matrix
+            $self->{'_context'}->[-1]->insert($datum);
+            if ( $self->VERBOSE ) {
+                print $row, "\t";
+                if ( uc $self->{'_matrixtype'} eq 'CONTINUOUS' ) {
+                    print join( ' ', @{ $self->{'_matrix'}->{$row} } ), "\n";
+                }
+                else {
+                    print join( '', @{ $self->{'_matrix'}->{$row} } ), "\n";
+                }
+            }
+        }
+        $self->{'_matrix'} = {};
+        print ";\n" if $self->VERBOSE;
+
+        # Let's avoid these!
+        if ( $self->{'_context'}->[-1]->get_nchar != $self->{'_nchar'} ) {
+            my ( $obs, $exp ) = ( $self->{'_context'}->[-1]->get_nchar, $self->{'_nchar'} );
+            Bio::Phylo::Util::Exceptions::BadFormat->throw(
+                error => "Observed and expected nchar mismatch: $obs vs. $exp",
+            );
+        }
+        elsif ( $self->{'_context'}->[-1]->get_ntax != $self->{'_ntax'} ) {
+            my ( $obs, $exp ) = ( $self->{'_context'}->[-1]->get_ntax, $self->{'_ntax'} );
+            Bio::Phylo::Util::Exceptions::BadFormat->throw(
+                error => "Observed and expected ntax mismatch: $obs vs. $exp",
+            );
+        }
+
+        $self->{'_linemode'} = 0;
+    }
+}
+
+sub _trees {
+    my $self = shift;
+    if ( $self->{'_begin'} ) {
+        $self->{'_begin'}     = 0;
+        $self->{'_trees'}     = '';
+        $self->{'_treenames'} = [];
+        print "BEGIN TREES" if $self->VERBOSE;
+    }
+}
+
+sub _translate {
+    my $self = shift;
+    if ( defined $_[0] and $_[0] =~ m/^\d+$/ ) {
+        $self->{'_i'} = shift;
+        if ( $self->{'_i'} == 1 ) {
+            print "TRANSLATE\n", $self->{'_i'}, ' ' if $self->VERBOSE;
+        }
+        elsif ( $self->{'_i'} > 1 ) {
+            print ",\n", $self->{'_i'}, ' ' if $self->VERBOSE;
+        }
+    }
+    elsif ( defined $self->{'_i'} and defined $_[0] and $_[0] ne ';' ) {
+        my $i = $self->{'_i'};
+        $self->{'_translate'}->[$i] = $_[0];
+        print $self->{'_translate'}->[$i] if $self->VERBOSE;
+        $self->{'_i'} = undef;
+    }
+}
+
+sub _tree {
+    my $self = shift;
+    if ( not $self->{'_treename'} and $_[0] !~ m/^(U?TREE|\*)$/i ) {
+        $self->{'_treename'} = $_[0];
+    }
+    if ( $_[0] eq '=' and not $self->{'_treestart'} ) {
+        $self->{'_treestart'} = 1;
+    }
+    if ( $_[0] ne '=' and $self->{'_treestart'} ) {
+        $self->{'_tree'} .= $_[0];
+    }
+
+    # tr/// returns # of replacements, hence can be used to check
+    # tree description is balanced
+    if (    $self->{'_treestart'}
+        and $self->{'_tree'}
+        and $self->{'_tree'} =~ tr/(/(/ == $self->{'_tree'} =~ tr/)/)/ )
+    {
+        my $translated = $self->{'_tree'};
+        my $translate  = $self->{'_translate'};
+        for my $i ( 1 .. $#{$translate} ) {
+            $translated =~ s/(\(|,)$i(,|\)|:)/$1$translate->[$i]$2/;
+        }
+        print "TREE ", $self->{'_treename'}, " = ", $self->{'_tree'}
+          if $self->VERBOSE;
+        $self->{'_trees'} .= $translated . ';';
+        push @{ $self->{'_treenames'} }, $self->{'_treename'};
+        $self->{'_treestart'} = 0;
+        $self->{'_tree'}      = undef;
+        $self->{'_treename'}  = undef;
+    }
+}
+
+sub _end {
+    my $self = shift;
+    print "END" if uc( $_[0] ) eq 'END' and $self->VERBOSE;
+    $self->{'_translate'} = [];
+    if ( uc $self->{'_previous'} eq ';' and $self->{'_trees'} ) {
+        my $forest = parse( '-format' => 'newick', '-string' => $self->{'_trees'} );
+        for my $i ( 0 .. $#{ $self->{'_treenames'} } ) {
+            $forest->get_by_index($i)->set_name( $self->{'_treenames'}->[$i] );
+        }
+        $self->{'_trees'} = '';
+        $self->{'_treenames'} = [];
+        push @{ $self->{'_context'} }, $forest;
+    }
+}
+
+sub _semicolon {
+    my $self = shift;
+    if ( uc $self->{'_previous'} eq 'MATRIX' ) {
+        $self->{'_matrixtype'} = undef;
+        $self->{'_matrix'}     = {};
+        $self->{'_charlabels'} = [];
+        $self->{'_linemode'}   = 0;
+        if ( not $self->{'_context'}->[-1]->get_ntax ) {
+            my $taxon = {};
+            foreach my $row ( @{ $self->{'_context'}->[-1]->get_entities } ) {
+                $taxon->{ $row->get_taxon }++;
+            }
+            my $ntax = scalar keys %{$taxon};
+        }
+    }
+    elsif ( uc $self->{'_previous'} eq 'TAXLABELS' ) {
+        print "TAXLABELS\n" if $self->VERBOSE;
+        foreach my $name ( @{ $self->{'_taxlabels'} } ) {
+            print "\t$name\n" if $self->VERBOSE;
+            my $taxon = Bio::Phylo::Taxa::Taxon->new( '-name' => $name, );
+            $self->{'_context'}->[-1]->insert($taxon);
+        }
+        if ( $self->{'_context'}->[-1]->get_ntax != $self->{'_ntax'} ) {
+            Bio::Phylo::Util::Exceptions::BadFormat->throw(
+                error =>
+                sprintf(
+                    'Mismatch between observed and expected ntax: %d vs %d',
+                    $self->{'_context'}->[-1]->get_ntax,
+                    $self->{'_ntax'}
+                )
+            );
+        }
+        $self->{'_taxlabels'} = [];
+    }
+    elsif ( uc $self->{'_previous'} eq 'SYMBOLS' ) {
+        if ( $self->VERBOSE ) {
+            print 'SYMBOLS = "', join( ' ', @{ $self->{'_symbols'} } ), '"';
+        }
+        $self->{'_symbols'} = [];
+    }
+    elsif ( uc $self->{'_previous'} eq 'CHARLABELS' ) {
+        if ( $self->VERBOSE and @{ $self->{'_charlabels'} } ) {
+            print "CHARLABELS ", join( ' ', @{ $self->{'_charlabels'} } );
+        }
+    }
+    print ";\n" if $_[0] eq ';' and $self->VERBOSE;
 }
 
 =head1 SEE ALSO
@@ -367,7 +939,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Nexus.pm,v 1.24 2006/05/19 02:08:58 rvosa Exp $
+$Id: Nexus.pm 1783 2006-07-27 23:44:56Z rvosa $
 
 =head1 AUTHOR
 

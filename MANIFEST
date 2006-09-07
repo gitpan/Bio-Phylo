@@ -15,12 +15,8 @@ lib/Bio/Phylo/IO.pm
 lib/Bio/Phylo/Listable.pm
 lib/Bio/Phylo/Manual.pod
 lib/Bio/Phylo/Matrices.pm
-lib/Bio/Phylo/Matrices/Alignment.pm
 lib/Bio/Phylo/Matrices/Datum.pm
 lib/Bio/Phylo/Matrices/Matrix.pm
-lib/Bio/Phylo/Matrices/Sequence.pm
-lib/Bio/Phylo/Parsers/Fastnewick.pm
-lib/Bio/Phylo/Parsers/Fastnexus.pm
 lib/Bio/Phylo/Parsers/Newick.pm
 lib/Bio/Phylo/Parsers/Nexus.pm
 lib/Bio/Phylo/Parsers/Table.pm
@@ -37,8 +33,8 @@ lib/Bio/Phylo/Util/CONSTANT.pm
 lib/Bio/Phylo/Util/Exceptions.pm
 lib/Bio/Phylo/Util/IDPool.pm
 Makefile.PL
-MANIFEST
-META.yml
+Build.PL
+MANIFEST			This list of files
 README
 t/00-load.t
 t/01-phylo.t
@@ -60,6 +56,6 @@ t/16-unparse.t
 t/17-parse.t
 t/18-taxlist.t
 t/19-svg.t
-t/20-seq.t
 t/pod-coverage.t
 t/pod.t
+META.yml

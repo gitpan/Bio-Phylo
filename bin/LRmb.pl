@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# $Id: LRmb.pl,v 1.2 2005/08/09 12:36:12 rvosa Exp $
+# $Id: LRmb.pl 1185 2006-05-26 09:04:17Z rvosa $
 # Subversion: $Rev: 163 $
 use strict;
 use warnings;

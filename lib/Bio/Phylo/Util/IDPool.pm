@@ -18,7 +18,7 @@ use strict;
 
     sub _reclaim {
         my ( $class, $obj_IDREF ) = @_;
-        push @reclaim, ${$obj_IDREF};
+        push @reclaim, $obj_IDREF->get_id;
     }
 }
 1;
@@ -60,7 +60,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: IDPool.pm,v 1.6 2006/05/19 02:08:59 rvosa Exp $
+$Id: IDPool.pm 1721 2006-07-20 03:43:06Z rvosa $
 
 =head1 AUTHOR
 

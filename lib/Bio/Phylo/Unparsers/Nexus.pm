@@ -1,8 +1,11 @@
-# $Id: Nexus.pm,v 1.6 2006/05/19 02:08:59 rvosa Exp $
+# $Id: Nexus.pm 2108 2006-08-29 20:46:17Z rvosa $
 # Subversion: $Rev: 190 $
 package Bio::Phylo::Unparsers::Nexus;
 use strict;
-use base 'Bio::Phylo::IO';
+use Bio::Phylo::IO;
+
+use vars '@ISA';
+@ISA=qw(Bio::Phylo::IO);
 
 # One line so MakeMaker sees it.
 use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
@@ -69,14 +72,15 @@ sub _new {
 sub _to_string {
     my $self   = shift;
     my $matrix = $self->{'PHYLO'};
-    if ( not $matrix->_is_flat ) {
-        $matrix->_flatten;
-    }
     my $string = "BEGIN DATA;\n[! Data block written by " . ref $self;
     $string .= " " . $self->VERSION . " on " . localtime() . " ]\n";
-    $string .= "    DIMENSIONS NTAX=" . $matrix->get_num_taxa . ' ';
-    $string .= 'NCHAR=' . $matrix->get_num_characters . ";\n";
-    $string .= "    FORMAT DATATYPE=" . $matrix->get_type . ";\n    MATRIX\n";
+    $string .= "    DIMENSIONS NTAX=" . $matrix->get_ntax() . ' ';
+    $string .= 'NCHAR=' . $matrix->get_nchar() . ";\n";
+    $string .= "    FORMAT DATATYPE=" . $matrix->get_type();
+    $string .= " MISSING=" . $matrix->get_missing();
+    $string .= " GAP=" . $matrix->get_gap() . ";\n";
+    $string .= " CHARLABELS " . join( ' ', @{ $matrix->get_charlabels } ) . ";\n" if @{ $matrix->get_charlabels };
+    $string .= "    MATRIX\n";
     my $length = 0;
     foreach my $datum ( @{ $matrix->get_entities } ) {
         $length = length( $datum->get_name )
@@ -84,11 +88,17 @@ sub _to_string {
     }
     $length += 4;
     my $sp = ' ';
+    my $iscont = 1 if $matrix->get_type =~ m/continuous/i;
     foreach my $datum ( @{ $matrix->get_entities } ) {
         $string .= "        "
           . $datum->get_name
           . ( $sp x ( $length - length( $datum->get_name ) ) );
-        $string .= join ' ', $datum->get_char;
+        if ( $iscont ) {
+            $string .= join ' ', $datum->get_char;
+        }
+        else {
+            $string .= join '', $datum->get_char;
+        }
         $string .= "\n";
     }
     $string .= "    ;\nEND;\n";
@@ -126,7 +136,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Nexus.pm,v 1.6 2006/05/19 02:08:59 rvosa Exp $
+$Id: Nexus.pm 2108 2006-08-29 20:46:17Z rvosa $
 
 =head1 AUTHOR
 

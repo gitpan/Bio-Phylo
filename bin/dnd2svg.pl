@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# $Id: dnd2svg.pl,v 1.4 2005/08/01 23:06:12 rvosa Exp $
+# $Id: dnd2svg.pl 1185 2006-05-26 09:04:17Z rvosa $
 # Subversion: $Rev: 145 $
 # This script draws the newick tree description in the input file as a
 # scalable vector drawing.

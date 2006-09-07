@@ -1,14 +1,14 @@
-# $Id: 09-matrix.t,v 1.8 2006/04/06 02:14:23 rvosa Exp $
+# $Id: 09-matrix.t 1654 2006-07-13 04:01:22Z rvosa $
 use strict;
 use warnings;
-use Test::More tests => 26;
+use Test::More tests => 27;
 use Bio::Phylo::Matrices::Datum;
 use Bio::Phylo::Matrices::Matrix;
 use Bio::Phylo;
 use Bio::Phylo::Taxa::Taxon;
 use Bio::Phylo::Taxa;
 
-ok( my $matrix = new Bio::Phylo::Matrices::Matrix, '1 initialize' );
+ok( my $matrix = Bio::Phylo::Matrices::Matrix->new( -type => 'STANDARD' ), '1 initialize' );
 
 $matrix->VERBOSE( -level => 0 );
 
@@ -111,3 +111,21 @@ ok(
     '25 get by re'
 );
 ok( $matrix->DESTROY, '26 destroy' );
+ok( 
+    Bio::Phylo::Matrices::Matrix->new(
+        -type   => 'standard',
+        -lookup => {
+            '-' => [],
+            '1' => [ '1' ],
+            '2' => [ '2' ],
+            '3' => [ '3' ],
+            '?' => [ '1', '2', '3' ],            
+        },
+        -matrix => [
+            [ 'a' => 1, 1, 1 ],
+            [ 'b' => 2, 2, 2 ],
+            [ 'c' => 3, 3, 3 ],
+        ],
+    )->to_nexus,
+    '27 expanded constructor'
+);

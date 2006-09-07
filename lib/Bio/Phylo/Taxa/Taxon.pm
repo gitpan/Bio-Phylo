@@ -1,8 +1,9 @@
-# $Id: Taxon.pm,v 1.29 2006/05/19 02:08:58 rvosa Exp $
+# $Id: Taxon.pm 1343 2006-06-13 19:41:41Z rvosa $
 # Subversion: $Rev: 177 $
 package Bio::Phylo::Taxa::Taxon;
 use strict;
 use Bio::Phylo::Util::IDPool;
+use Bio::Phylo::Taxa::CDAT;
 use Scalar::Util qw(weaken blessed);
 use Bio::Phylo::Util::CONSTANT qw(_DATUM_ _NODE_ _TAXON_ _TAXA_);
 
@@ -11,7 +12,7 @@ use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
 
 # classic @ISA manipulation, not using 'base'
 use vars qw($VERSION @ISA);
-@ISA = qw(Bio::Phylo);
+@ISA = qw(Bio::Phylo Bio::Phylo::Taxa::CDAT);
 {
 
     # inside out class arrays
@@ -33,19 +34,19 @@ Bio::Phylo::Taxa::Taxon - The operational taxonomic unit.
  use Bio::Phylo::IO qw(parse);
  use Bio::Phylo::Taxa;
  use Bio::Phylo::Taxa::Taxon;
- 
+
  # array of names
  my @apes = qw(
-     Homo_sapiens 
-     Pan_paniscus 
-     Pan_troglodytes 
+     Homo_sapiens
+     Pan_paniscus
+     Pan_troglodytes
      Gorilla_gorilla
  );
- 
+
  # newick string
  my $str = '(((Pan_paniscus,Pan_troglodytes),';
  $str   .= 'Homo_sapiens),Gorilla_gorilla);';
- 
+
  # create tree object
  my $tree = parse(
     -format => 'newick',
@@ -57,18 +58,18 @@ Bio::Phylo::Taxa::Taxon - The operational taxonomic unit.
 
  # instantiate taxon objects, insert in taxa object
  foreach( @apes ) {
-    my $taxon = Bio::Phylo::Taxa::Taxon->new( 
-        -name => $_,    
+    my $taxon = Bio::Phylo::Taxa::Taxon->new(
+        -name => $_,
     );
     $taxa->insert($taxon);
  }
- 
+
  # crossreference tree and taxa
  $tree->crossreference($taxa);
- 
+
  # iterate over nodes
  while ( my $node = $tree->next ) {
-    
+
     # check references
     if ( $node->get_taxon ) {
 
@@ -93,7 +94,7 @@ cross-referencing datum objects and tree nodes.
  Type    : Constructor
  Title   : new
  Usage   : my $taxon = Bio::Phylo::Taxa::Taxon->new;
- Function: Instantiates a Bio::Phylo::Taxa::Taxon 
+ Function: Instantiates a Bio::Phylo::Taxa::Taxon
            object.
  Returns : A Bio::Phylo::Taxa::Taxon object.
  Args    : none.
@@ -142,10 +143,10 @@ cross-referencing datum objects and tree nodes.
  Type    : Mutator
  Title   : set_data
  Usage   : $taxon->set_data( $datum );
- Function: Associates data with 
+ Function: Associates data with
            the current taxon.
  Returns : Modified object.
- Args    : Must be an object of type 
+ Args    : Must be an object of type
            Bio::Phylo::Matrices::Datum
 
 =cut
@@ -179,7 +180,7 @@ cross-referencing datum objects and tree nodes.
  Type    : Mutator
  Title   : set_nodes
  Usage   : $taxon->set_nodes($node);
- Function: Associates tree nodes 
+ Function: Associates tree nodes
            with the current taxon.
  Returns : Modified object.
  Args    : A Bio::Phylo::Forest::Node object
@@ -217,8 +218,8 @@ cross-referencing datum objects and tree nodes.
  Type    : Mutator
  Title   : unset_datum
  Usage   : $taxon->unset_datum($node);
- Function: Disassociates datum from 
-           the invocant taxon (i.e. 
+ Function: Disassociates datum from
+           the invocant taxon (i.e.
            removes reference).
  Returns : Modified object.
  Args    : A Bio::Phylo::Matrix::Datum object
@@ -239,8 +240,8 @@ cross-referencing datum objects and tree nodes.
  Type    : Mutator
  Title   : unset_node
  Usage   : $taxon->unset_node($node);
- Function: Disassociates tree node from 
-           the invocant taxon (i.e. 
+ Function: Disassociates tree node from
+           the invocant taxon (i.e.
            removes reference).
  Returns : Modified object.
  Args    : A Bio::Phylo::Forest::Node object
@@ -267,10 +268,10 @@ cross-referencing datum objects and tree nodes.
  Type    : Accessor
  Title   : get_data
  Usage   : @data = @{ $taxon->get_data };
- Function: Retrieves data associated 
+ Function: Retrieves data associated
            with the current taxon.
- Returns : An ARRAY reference of 
-           Bio::Phylo::Matrices::Datum 
+ Returns : An ARRAY reference of
+           Bio::Phylo::Matrices::Datum
            objects.
  Args    : None.
 
@@ -287,9 +288,9 @@ cross-referencing datum objects and tree nodes.
  Type    : Accessor
  Title   : get_nodes
  Usage   : @nodes = @{ $taxon->get_nodes };
- Function: Retrieves tree nodes associated 
+ Function: Retrieves tree nodes associated
            with the current taxon.
- Returns : An ARRAY reference of 
+ Returns : An ARRAY reference of
            Bio::Phylo::Trees::Node objects
  Args    : None.
 
@@ -316,7 +317,7 @@ cross-referencing datum objects and tree nodes.
  Alias   :
  Returns : TRUE
  Args    : none
- Comments: You don't really need this, 
+ Comments: You don't really need this,
            it is called automatically when
            the object goes out of scope.
 
@@ -369,7 +370,7 @@ cross-referencing datum objects and tree nodes.
 
 =item L<Bio::Phylo>
 
-The taxon objects inherits from the L<Bio::Phylo> object. The methods defined 
+The taxon objects inherits from the L<Bio::Phylo> object. The methods defined
 there are also applicable to the taxon object.
 
 =item L<Bio::Phylo::Manual>
@@ -394,7 +395,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Taxon.pm,v 1.29 2006/05/19 02:08:58 rvosa Exp $
+$Id: Taxon.pm 1343 2006-06-13 19:41:41Z rvosa $
 
 =head1 AUTHOR
 

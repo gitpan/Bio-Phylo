@@ -1,6 +1,4 @@
-NAME
-
-Bio::Phylo v.0.12 - An object-oriented Perl module 
+Bio::Phylo - An object-oriented Perl module 
 for analyzing and manipulating phylogenetic trees. 
 
 DESCRIPTION
@@ -79,3 +77,4 @@ COPYRIGHT & LICENSE
 Copyright 2005 Rutger Vos, All Rights Reserved. 
 This program is free software; you can redistribute 
 it and/or modify it under the same terms as Perl itself.
+

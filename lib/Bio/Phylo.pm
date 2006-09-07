@@ -1,21 +1,27 @@
-# $Id: Phylo.pm,v 1.31 2006/05/19 02:08:50 rvosa Exp $
+# $Id: Phylo.pm 2188 2006-09-07 07:25:09Z rvosa $
 package Bio::Phylo;
 use strict;
-use Scalar::Util qw(looks_like_number weaken blessed);
+
+# old ugly hack for PAR, see
+# http://groups.google.com/group/perl.par/browse_thread/thread/4cfec27c14cc8f60/3549d0ce5355a5ea
+# delete $INC{'Scalar/Util.pm'};
+# eval 'use Scalar::Util 1.14 qw(weaken blessed);'; 
+use Scalar::Util qw(weaken blessed);
+
+use Bio::Phylo::Util::CONSTANT qw(looks_like_number);
 use Bio::Phylo::Util::IDPool;
 use Bio::Phylo::Util::Exceptions;
 use XML::Simple;
-use Storable qw(dclone);
 
 # The bit of voodoo is for including CVS keywords in the main source file.
 # $Id is the subversion revision number. The way I set it up here allows
 # 'make dist' to build a *.tar.gz without the "_rev#" in the package name, while
 # it still shows up otherwise (e.g. during 'make test') as a developer release,
 # with the "_rev#".
-my $rev = '$Id: Phylo.pm,v 1.31 2006/05/19 02:08:50 rvosa Exp $';
-$rev =~ s/^[^\d]+(\d+\.\d+)\b.*$/$1/;
-our $VERSION = '0.12';
-$VERSION .= '_' . $rev;
+my $rev = '$Id: Phylo.pm 2188 2006-09-07 07:25:09Z rvosa $';
+$rev =~ s/^[^\d]+(\d+)\b.*$/$1/;
+our $VERSION = 0.13;
+$VERSION .= "_$rev";
 my $VERBOSE = 0;
 use vars qw($VERSION);
 {
@@ -89,7 +95,7 @@ its constructor internally.
             else {
                 while ( my ( $key, $value ) = each %opt ) {
                     if ( $fields->{$key} ) {
-                        $fields->{$key}->[$$self] = $value;
+                        $fields->{$key}->[ $self->get_id ] = $value;
                         delete $opt{$key};
                     }
                 }
@@ -112,21 +118,22 @@ its constructor internally.
  Usage   : $obj->set_name($name);
  Function: Assigns an object's name.
  Returns : Modified object.
- Args    : Argument must be a string,
-           single quoted if it
-           contains [;|,|:\(|\)]
+ Args    : Argument must be a string, single 
+           quoted if it contains [;|,|:\(|\)] 
+           or spaces.
 
 =cut
 
     sub set_name {
         my ( $self, $name ) = @_;
         my $ref = ref $self;
-        if ( $name && $name !~ m/^'.*'$/ && $name =~ m/(?:;|,|:|\(|\))/ ) {
+        if ( $name && $name !~ m/^['"][^'"]*['"]$/ && $name =~ m/(?:;|,|:|\(|\)|\s)/ ) {
             Bio::Phylo::Util::Exceptions::BadString->throw(
-                error => "\"$name\" is a bad name format for $ref names" );
+                error => "\"$name\" is a bad name format for $ref names" 
+            );
         }
         else {
-            $name[$$self] = $name;
+            $name[ $self->get_id ] = $name =~ s/^\s*(.*?)\s*$/$1/;
         }
         return $self;
     }
@@ -144,7 +151,7 @@ its constructor internally.
 
     sub set_desc {
         my ( $self, $desc ) = @_;
-        $desc[$$self] = $desc;
+        $desc[ $self->get_id ] = $desc;
         return $self;
     }
 
@@ -155,7 +162,7 @@ its constructor internally.
  Usage   : $obj->set_score($score);
  Function: Assigns an object's numerical score.
  Returns : Modified object.
- Args    : Argument must be any of 
+ Args    : Argument must be any of
            perl's number formats.
 
 =cut
@@ -165,7 +172,7 @@ its constructor internally.
         if ( defined $_[1] ) {
             my $score = $_[1];
             if ( looks_like_number $score ) {
-                $score[$$self] = $score;
+                $score[ $self->get_id ] = $score;
             }
             else {
                 Bio::Phylo::Util::Exceptions::BadNumber->throw(
@@ -173,7 +180,7 @@ its constructor internally.
             }
         }
         else {
-            $score[$$self] = undef;
+            $score[ $self->get_id ] = undef;
         }
         return $self;
     }
@@ -185,7 +192,7 @@ its constructor internally.
  Usage   : $obj->set_generic(%generic);
  Function: Assigns generic key/value pairs to the invocant.
  Returns : Modified object.
- Args    : Valid arguments constitute 
+ Args    : Valid arguments constitute
            key/value pairs, for example:
            $node->set_generic(
                '-posterior' => 0.87565,
@@ -203,12 +210,12 @@ its constructor internally.
             }
             else {
                 foreach my $key ( keys %args ) {
-                    $generic[$$self]->{$key} = $args{$key};
+                    $generic[ $self->get_id ]->{$key} = $args{$key};
                 }
             }
         }
         else {
-            $generic[$$self] = {};
+            $generic[ $self->get_id ] = {};
         }
         return $self;
     }
@@ -232,7 +239,7 @@ its constructor internally.
 
     sub get_name {
         my $self = shift;
-        return $name[$$self];
+        return $name[ $self->get_id ];
     }
 
 =item get_desc()
@@ -248,7 +255,7 @@ its constructor internally.
 
     sub get_desc {
         my $self = shift;
-        return $desc[$$self];
+        return $desc[ $self->get_id ];
     }
 
 =item get_score()
@@ -264,7 +271,7 @@ its constructor internally.
 
     sub get_score {
         my $self = shift;
-        return $score[$$self];
+        return $score[ $self->get_id ];
     }
 
 =item get_generic()
@@ -287,10 +294,10 @@ its constructor internally.
     sub get_generic {
         my ( $self, $key ) = @_;
         if ( defined $key ) {
-            return $generic[$$self]->{$key};
+            return $generic[ $self->get_id ]->{$key};
         }
         else {
-            return $generic[$$self];
+            return $generic[ $self->get_id ];
         }
     }
 
@@ -307,7 +314,22 @@ its constructor internally.
 
     sub get_id {
         my $self = shift;
-        return $$self;
+        if ( UNIVERSAL::isa( $self, 'SCALAR' ) ) {
+            return $$self;
+        }
+        # for tied Bio::Phylo::Listable arrays
+        elsif ( UNIVERSAL::isa( $self, 'ARRAY' ) ) {
+            my $tied = tied @{ $self };
+            if ( $tied and UNIVERSAL::isa( $tied, 'SCALAR' ) ) {
+                return $$tied;
+            }
+            elsif ( not $tied ) {
+#                die "No object tied to \"$self\"\n";
+            }            
+        }
+        else {
+#            die "Object \"$self\" neither a tied ARRAY nor a SCALAR\n";
+        }
     }
 
 =back
@@ -328,8 +350,8 @@ get_by_regular_expression) uses this C<$obj-E<gt>get method>.
  Type    : Accessor
  Title   : get
  Usage   : my $treename = $tree->get('get_name');
- Function: Alternative syntax for safely accessing 
-           any of the object data; useful for 
+ Function: Alternative syntax for safely accessing
+           any of the object data; useful for
            interpolating runtime $vars.
  Returns : (context dependent)
  Args    : a SCALAR variable, e.g. $var = 'get_name';
@@ -361,14 +383,14 @@ get_by_regular_expression) uses this C<$obj-E<gt>get method>.
 
     sub clone {
         my $self  = shift;
-        my $clone = dclone($self);
-        return $clone;
+        #my $clone = dclone($self);
+        #return $clone;
     }
 
 =item VERBOSE()
 
-Getter and setter for the verbose level. Currently it's just 0=no messages,
-1=messages, but perhaps there could be more levels? For caller diagnostics
+Getter and setter for the verbose level. Currently it's just 0 = no messages,
+1 = messages, but perhaps there could be more levels? For caller diagnostics
 and so on?
 
  Type    : Accessor
@@ -376,7 +398,7 @@ and so on?
  Usage   : Phylo->VERBOSE(0|1)
  Function: Sets/gets verbose level
  Returns : Verbose level
- Args    : 0=no messages; 1=error messages
+ Args    : 0 = no messages; 1 = error messages
  Comments:
 
 =cut
@@ -420,7 +442,7 @@ and so on?
  Type    : Accessor
  Title   : VERSION
  Usage   : $phylo->VERSION;
- Function: Returns version number 
+ Function: Returns version number
            (including CVS revision number).
  Alias   :
  Returns : SCALAR
@@ -480,7 +502,7 @@ and so on?
  Alias   :
  Returns : TRUE
  Args    : none
- Comments: You don't really need this, 
+ Comments: You don't really need this,
            it is called automatically when
            the object goes out of scope.
 
@@ -488,8 +510,10 @@ and so on?
 
     sub DESTROY {
         my $self = shift;
-        foreach ( keys %{$fields} ) {
-            delete $fields->{$_}->[$$self];
+        if ( my $i = $self->get_id ) {
+            foreach ( keys %{$fields} ) {
+                delete $fields->{$_}->[$i];
+            }
         }
         Bio::Phylo::Util::IDPool->_reclaim($self);
         return 1;
@@ -511,8 +535,8 @@ and so on?
     sub _check_cache {
         my $self   = shift;
         my @caller = caller(1);
-        if ( exists $cache[$$self]->{ $caller[3] } ) {
-            return 1, $cache[$$self]->{ $caller[3] };
+        if ( exists $cache[ $self->get_id ]->{ $caller[3] } ) {
+            return 1, $cache[ $self->get_id ]->{ $caller[3] };
         }
     }
 
@@ -532,7 +556,7 @@ and so on?
     sub _store_cache {
         my ( $self, $result ) = @_;
         my @caller = caller(1);
-        $cache[$$self]->{ $caller[3] } = $result;
+        $cache[ $self->get_id ]->{ $caller[3] } = $result;
     }
 
 =begin comment
@@ -550,7 +574,7 @@ and so on?
 
     sub _flush_cache {
         my $self = shift;
-        $cache[$$self] = {};
+        $cache[ $self->get_id ] = {};
     }
 
 =begin comment
@@ -569,7 +593,7 @@ and so on?
 
     sub _get_container {
         my $self = shift;
-        return $container[$$self];
+        return $container[ $self->get_id ];
     }
 
 =begin comment
@@ -577,7 +601,7 @@ and so on?
  Type    : Internal method
  Title   : _set_container
  Usage   : $phylo->_set_container($obj);
- Function: Creates a reference from the invocant to the object that contains 
+ Function: Creates a reference from the invocant to the object that contains
            it (e.g. for a node, creates a reference to the tree it is in).
  Returns : Bio::Phylo::* object
  Args    : A Bio::Phylo::Listable object
@@ -592,8 +616,8 @@ and so on?
             if ( $container->can('_type') && $self->can('_container') ) {
                 if ( $container->_type == $self->_container ) {
                     if ( $container->contains($self) ) {
-                        $container[$$self] = $container;
-                        weaken( $container[$$self] );
+                        $container[ $self->get_id ] = $container;
+                        weaken( $container[ $self->get_id ] );
                         return $self;
                     }
                     else {
@@ -695,7 +719,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Phylo.pm,v 1.31 2006/05/19 02:08:50 rvosa Exp $
+$Id: Phylo.pm 2188 2006-09-07 07:25:09Z rvosa $
 
 =head1 AUTHOR
 
@@ -724,4 +748,25 @@ modify it under the same terms as Perl itself.
 =cut
 
 }
+
+package Bio::Phylo::Deprecated;
+
+package Bio::Phylo::Parsers::Fastnewick;
+push @Bio::Phylo::Parsers::Fastnewick::ISA, 'Bio::Phylo::Deprecated';
+
+package Bio::Phylo::Parsers::Fastnexus;
+push @Bio::Phylo::Parsers::Fastnexus::ISA, 'Bio::Phylo::Deprecated';
+
+package Bio::Phylo::Matrices::Sequence;
+push @Bio::Phylo::Matrices::Sequence::ISA, 'Bio::Phylo::Deprecated';
+
+package Bio::Phylo::Matrices::Alignment;
+push @Bio::Phylo::Matrices::Alignment::ISA, 'Bio::Phylo::Deprecated';
+
+package Bio::Phylo::Parsers;
+push @Bio::Phylo::Parsers::ISA, 'Bio::Phylo::Deprecated';
+
+package Bio::Phylo::Unparsers;
+push @Bio::Phylo::Unparsers::ISA, 'Bio::Phylo::Deprecated';
+
 1;

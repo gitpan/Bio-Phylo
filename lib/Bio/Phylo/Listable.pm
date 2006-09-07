@@ -1,4 +1,4 @@
-# $Id: Listable.pm,v 1.32 2006/05/19 02:08:51 rvosa Exp $
+# $Id: Listable.pm 1723 2006-07-20 07:27:45Z rvosa $
 package Bio::Phylo::Listable;
 use strict;
 use Bio::Phylo;
@@ -59,20 +59,31 @@ Matrix objects, Alignment objects, Taxa, Forest, Tree objects.
 =cut
 
     sub new {
-        my ( $class, $self ) = shift;
-        $self = __PACKAGE__->SUPER::new(@_);
-        bless $self, __PACKAGE__;
-        $entities[$$self] = [];
-        if (@_) {
+        my $class = shift;
+        my ( $package, $filename, $line ) = caller;        
+        $package = $class if $package eq 'main';
+        my @array;
+        tie @array, $package, @_;
+        return bless \@array, $package;
+    }
+    
+    sub TIEARRAY {
+        my $class = shift;
+        my $self = __PACKAGE__->SUPER::new( @_ );
+        bless $self, $class;
+        $entities[ $self->get_id ] = [];
+        if ( @_ ) {
             my %opt;
             eval { %opt = @_; };
-            if ($@) {
-                Bio::Phylo::Util::Exceptions::OddHash->throw( error => $@ );
+            if ( $@ ) {
+                Bio::Phylo::Util::Exceptions::OddHash->throw( 
+                    'error' => $@,                
+                );
             }
             else {
                 while ( my ( $key, $value ) = each %opt ) {
                     if ( $fields->{$key} ) {
-                        $fields->{$key}->[$$self] = $value;
+                        $fields->{$key}->[ $self->get_id ] = $value;
                         delete $opt{$key};
                     }
                 }
@@ -81,6 +92,7 @@ Matrix objects, Alignment objects, Taxa, Forest, Tree objects.
         }
         return $self;
     }
+    
 
 =back
 
@@ -101,45 +113,102 @@ Matrix objects, Alignment objects, Taxa, Forest, Tree objects.
 
     sub insert {
         my ( $self, $obj ) = @_;
+        $self = tied @$self if UNIVERSAL::isa( $self, 'ARRAY' );
         my ( $sref, $oref ) = ( ref $self, ref $obj );
         if ( $oref && $obj->can('_container') ) {
             if ( $self->_type == $obj->_container ) {
-
-                # for matrix insertion
-                if ( $self->can('get_type') && $obj->can('get_type') ) {
-                    if ( defined $self->get_type
-                        && $self->get_type ne $obj->get_type )
-                    {
+                if ( $self->can('get_type') && $obj->can('get_type') ) {                    
+                    my ( $stype, $otype ) = ( $self->get_type, $obj->get_type );
+                    if ( $stype !~ m/^$otype$/i ) {
                         Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-                            error =>
-                              "\"$sref\" has different type from \"$oref\"" );
+                              error => 
+                              sprintf(
+                                  'Data type mismatch for %s and %s: %s vs. %s', 
+                                  $sref, $oref, $stype, $otype
+                              )
+                        );
                     }
-                    elsif ( !defined $self->get_type ) {
-                        $self->set_type( $obj->get_type ) if $obj->get_type;
-                        $self->set_symbols( [ $obj->get_char ] )
-                          if $obj->get_char;
-                    }
-                }
-                push @{ $entities[$$self] }, $obj;
-
-                # for matrix flattening
-                if ( $self->_type == _MATRIX_ and not $self->_is_flat ) {
-                    $self->_flatten;
-                }
+                }                
+                push @{ $entities[ $self->get_id ] }, $obj;
                 $obj->_set_container($self);
             }
             else {
-                Bio::Phylo::Util::Exceptions::ObjectMismatch->throw( error =>
-                      "\"$sref\" objects don't accept \"$oref\" objects" );
+                Bio::Phylo::Util::Exceptions::ObjectMismatch->throw( 
+                    error => 
+                    sprintf(
+                        '%s objects don\'t accept %s objects',
+                        $sref, $oref
+                    )
+                );
             }
         }
         else {
             Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-                error => "\"$sref\" objects don't accept \"$oref\" objects" );
+                error =>                     
+                sprintf(
+                    '%s objects don\'t accept %s objects',
+                    $sref, $oref
+                )
+            );
         }
         $self->_flush_cache;
         return $self;
     }
+    
+=item insert_at_index()
+
+ Type    : Object method
+ Title   : insert_at_index
+ Usage   : $obj->insert_at_index($other_obj, $i);
+ Function: Inserts $other_obj at index $i in container $obj
+ Returns : A Bio::Phylo::Listable object.
+ Args    : A Bio::Phylo::* object.
+
+=cut    
+    
+    sub insert_at_index {
+        my ( $self, $obj, $index ) = @_;
+        $self = tied @$self if UNIVERSAL::isa( $self, 'ARRAY' );
+        my ( $sref, $oref ) = ( ref $self, ref $obj );
+        if ( $oref && $obj->can('_container') ) {
+            if ( $self->_type == $obj->_container ) {
+                if ( $self->can('get_type') && $obj->can('get_type') ) {                    
+                    my ( $stype, $otype ) = ( $self->get_type, $obj->get_type );
+                    if ( $stype !~ m/^$otype$/i ) {
+                        Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
+                              error => 
+                              sprintf(
+                                  'Data type mismatch for %s and %s: %s vs. %s', 
+                                  $sref, $oref, $stype, $otype
+                              )
+                        );
+                    }
+                }                
+                $entities[ $self->get_id ]->[$index] = $obj;
+                $obj->_set_container($self);
+            }
+            else {
+                Bio::Phylo::Util::Exceptions::ObjectMismatch->throw( 
+                    error => 
+                    sprintf(
+                        '"%s" objects don\'t accept "%s" objects',
+                        $sref, $oref
+                    )
+                );
+            }
+        }
+        else {
+            Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
+                error =>                     
+                sprintf(
+                    '"%s" objects don\'t accept "%s" objects',
+                    $sref, $oref
+                )
+            );
+        }
+        $self->_flush_cache;
+        return $self;
+    }    
 
 =item delete()
 
@@ -171,16 +240,16 @@ Matrix objects, Alignment objects, Taxa, Forest, Tree objects.
             && $obj->_container == $self->_type )
         {
             my $occurence_counter = 0;
-            if ( my $i = $index[$$self] ) {
+            if ( my $i = $index[ $self->get_id ] ) {
                 for my $j ( 0 .. $i ) {
-                    if ( $entities[$$self]->[$j] == $obj ) {
+                    if ( $entities[ $self->get_id ]->[$j] == $obj ) {
                         $occurence_counter++;
                     }
                 }
             }
-            my @modified = grep { $_ != $obj } @{ $entities[$$self] };
-            $entities[$$self] = \@modified;
-            $index[$$self] -= $occurence_counter;
+            my @modified = grep { $_ != $obj } @{ $entities[ $self->get_id ] };
+            $entities[ $self->get_id ] = \@modified;
+            $index[ $self->get_id ] -= $occurence_counter;
             $self->_flush_cache;
         }
         else {
@@ -273,7 +342,7 @@ Returns a reference to an array of objects contained by the listable object.
 
     sub get_entities {
         my $self = shift;
-        return $entities[$$self];
+        return $entities[ $self->get_id ];
     }
 
 =item contains()
@@ -326,8 +395,8 @@ Jumps to the first element contained by the listable object.
 
     sub first {
         my $self = shift;
-        $index[$$self] = 0;
-        return $entities[$$self]->[0];
+        $index[ $self->get_id ] = 0;
+        return $entities[ $self->get_id ]->[0];
     }
 
 =item last()
@@ -346,8 +415,8 @@ Jumps to the last element contained by the listable object.
 
     sub last {
         my $self = shift;
-        $index[$$self] = $#{ $entities[$$self] };
-        return $entities[$$self]->[-1];
+        $index[ $self->get_id ] = $#{ $entities[ $self->get_id ] };
+        return $entities[ $self->get_id ]->[-1];
     }
 
 =item current()
@@ -366,10 +435,10 @@ Returns the current focal element of the listable object.
 
     sub current {
         my $self = shift;
-        if ( !defined $index[$$self] ) {
-            $index[$$self] = 0;
+        if ( !defined $index[ $self->get_id ] ) {
+            $index[ $self->get_id ] = 0;
         }
-        return $entities[$$self]->[ $index[$$self] ];
+        return $entities[ $self->get_id ]->[ $index[ $self->get_id ] ];
     }
 
 =item next()
@@ -388,13 +457,13 @@ Returns the next focal element of the listable object.
 
     sub next {
         my $self = shift;
-        if ( !defined $index[$$self] ) {
-            $index[$$self] = 0;
-            return $entities[$$self]->[ $index[$$self] ];
+        if ( !defined $index[ $self->get_id ] ) {
+            $index[ $self->get_id ] = 0;
+            return $entities[ $self->get_id ]->[ $index[ $self->get_id ] ];
         }
-        elsif ( ( $index[$$self] + 1 ) <= $#{ $entities[$$self] } ) {
-            $index[$$self]++;
-            return $entities[$$self]->[ $index[$$self] ];
+        elsif ( ( $index[ $self->get_id ] + 1 ) <= $#{ $entities[ $self->get_id ] } ) {
+            $index[ $self->get_id ]++;
+            return $entities[ $self->get_id ]->[ $index[ $self->get_id ] ];
         }
         else {
             return;
@@ -417,12 +486,12 @@ Returns the previous element of the listable object.
 
     sub previous {
         my $self = shift;
-        if ( !$index[$$self] ) {    # either undef or 0
+        if ( !$index[ $self->get_id ] ) {    # either undef or 0
             return;
         }
-        elsif ( ( $index[$$self] - 1 ) >= 0 ) {
-            $index[$$self]--;
-            return $entities[$$self]->[ $index[$$self] ];
+        elsif ( ( $index[ $self->get_id ] - 1 ) >= 0 ) {
+            $index[ $self->get_id ]--;
+            return $entities[ $self->get_id ]->[ $index[ $self->get_id ] ];
         }
         else {
             return;
@@ -445,7 +514,7 @@ Returns the current internal index of the invocant.
 
     sub current_index {
         my $self = shift;
-        defined $index[$$self] ? return $index[$$self] : return 0;
+        defined $index[ $self->get_id ] ? return $index[ $self->get_id ] : return 0;
     }
 
 =item last_index()
@@ -464,7 +533,7 @@ Returns the highest valid index of the invocant.
 
     sub last_index {
         my $self = shift;
-        return $#{ $entities[$$self] };
+        return $#{ $entities[ $self->get_id ] };
     }
 
 =item get_by_index()
@@ -494,7 +563,7 @@ listable object.
         my @range = @_;
         if ( scalar @range > 1 ) {
             my @returnvalue;
-            eval { @returnvalue = @{ $entities[$$self] }[@range] };
+            eval { @returnvalue = @{ $entities[ $self->get_id ] }[@range] };
             if ($@) {
                 Bio::Phylo::Util::Exceptions::OutOfBounds->throw(
                     error => 'index out of bounds' );
@@ -503,7 +572,7 @@ listable object.
         }
         else {
             my $returnvalue;
-            eval { $returnvalue = $entities[$$self]->[ $range[0] ] };
+            eval { $returnvalue = $entities[ $self->get_id ]->[ $range[0] ] };
             if ($@) {
                 Bio::Phylo::Util::Exceptions::OutOfBounds->throw(
                     error => 'index out of bounds' );
@@ -692,11 +761,108 @@ in the order in which they were inserted in the Listable object.
 
     sub DESTROY {
         my $self = shift;
-        foreach ( keys %{$fields} ) {
-            delete $fields->{$_}->[$$self];
+        if ( my $i = $self->get_id ) {
+            foreach ( keys %{$fields} ) {
+                delete $fields->{$_}->[$i];
+            }
         }
         $self->SUPER::DESTROY;
         return 1;
+    }
+
+=begin comment
+
+=end comment
+
+=cut
+    
+    sub FETCH {
+        my ( $self, $index ) = @_;
+        return $entities[ $self->get_id ]->[$index];
+    }
+    
+    sub STORE {
+        my( $self, $index, $value ) = @_;
+        $self->insert_at_index( $value, $index );
+        $self->EXTEND( $index ) if $index > $self->FETCHSIZE();
+    }
+    
+    sub FETCHSIZE {
+        my $self = shift;
+        return scalar @{ $entities[ $self->get_id ] };
+    }
+    
+    sub STORESIZE {
+        my $self  = shift;
+        my $count = shift;                
+        if ( $count > $self->FETCHSIZE() ) {
+            foreach ( $count - $self->FETCHSIZE() .. $count ) {
+                $self->STORE( $_, '' );
+            }
+        } 
+        elsif ( $count < $self->FETCHSIZE() ) {
+            foreach ( 0 .. $self->FETCHSIZE() - $count - 2 ) {
+                $self->POP();
+            }
+        }
+    }
+    
+    sub EXTEND {   
+        my $self  = shift;
+        my $count = shift;
+        $self->STORESIZE( $count );
+    }
+    
+    sub EXISTS {
+        my $self  = shift;
+        my $index = shift;
+        return exists $entities[ $self->get_id ]->[$index];
+    }
+    
+    sub DELETE {
+        my $self  = shift;
+        my $index = shift;
+        return delete $entities[ $self->get_id ]->[$index];
+    }
+    
+    sub CLEAR {
+        my $self = shift;
+        return $entities[ $self->get_id ] = [];
+    }
+    
+    sub PUSH {  
+        my $self = shift;
+        $self->insert($_) for @_;
+        return $self->FETCHSIZE();
+    } 
+    
+    sub POP {
+        my $self = shift;
+        return pop @{ $entities[ $self->get_id ] };
+    }
+    
+    sub SHIFT {
+        my $self = shift;
+        return shift @{ $entities[ $self->get_id ] };
+    }
+    
+    sub UNSHIFT {
+        my $self = shift;
+        my @list = @_;
+        my $size = scalar( @list );
+        @{ $entities[ $self->get_id ] }[ $size .. $#{ $entities[ $self->get_id ] } + $size ] = @{ $entities[ $self->get_id ] };
+        $self->insert_at_index( $list[$_], $_ ) for ( 0 .. $#list );
+    }
+    
+    sub SPLICE {
+        my $self   = shift;
+        my $offset = shift || 0;
+        my $length = shift || $self->FETCHSIZE() - $offset;
+        splice @{ $entities[ $self->get_id ] }, $offset, $length;
+        for my $i ( 0 .. $#_ ) {
+            $self->insert_at_index( $_, $i + $offset );
+        }
+        return @$self[ $offset .. ( $length + $offset ) ];
     }
 
 =back
@@ -761,7 +927,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Listable.pm,v 1.32 2006/05/19 02:08:51 rvosa Exp $
+$Id: Listable.pm 1723 2006-07-20 07:27:45Z rvosa $
 
 =head1 AUTHOR
 

@@ -1,5 +1,4 @@
-# $Id: Makefile.PL,v 1.11 2006/05/19 02:08:50 rvosa Exp $
-# Subversion: $Rev: 177 $
+# $Id: Makefile.PL 2189 2006-09-07 08:06:13Z rvosa $
 use strict;
 use warnings;
 use ExtUtils::MakeMaker;
@@ -20,15 +19,12 @@ WriteMakefile(
     PL_FILES            => {},
     PREREQ_PM => {
         'Scalar::Util'     => 0,
-        'Exception::Class' => 0,
-        'Test::More'       => 0,
-        'Math::Random'     => 0,
-        'IO::String'       => 0,
-        'XML::Simple'      => 0,
+        'Exception::Class' => 1.23,
+        'Test::More'       => 0.62,
+        'Math::Random'     => 0.67,
+        'IO::String'       => 1.05,
+        'XML::Simple'      => 2.14,
         'SVG'              => 1.07,
-        'Storable'         => 0,
-        'fields'           => 0,
-        'base'             => 0,
     },
     dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
     clean               => { FILES => 'Bio-Phylo-*' },

@@ -1,9 +1,12 @@
-# $Id: Pagel.pm,v 1.20 2006/05/18 06:41:42 rvosa Exp $
+# $Id: Pagel.pm 2108 2006-08-29 20:46:17Z rvosa $
 # Subversion: $Rev: 191 $
 package Bio::Phylo::Unparsers::Pagel;
 use strict;
 use Bio::Phylo::Forest::Tree;
-use base 'Bio::Phylo::IO';
+use Bio::Phylo::IO;
+
+use vars '@ISA';
+@ISA=qw(Bio::Phylo::IO);
 
 # One line so MakeMaker sees it.
 use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
@@ -149,7 +152,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Pagel.pm,v 1.20 2006/05/18 06:41:42 rvosa Exp $
+$Id: Pagel.pm 2108 2006-08-29 20:46:17Z rvosa $
 
 =head1 AUTHOR
 

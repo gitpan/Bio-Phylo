@@ -1,4 +1,4 @@
-# $Id: 19-svg.t,v 1.6 2006/05/18 06:41:43 rvosa Exp $
+# $Id: 19-svg.t 1185 2006-05-26 09:04:17Z rvosa $
 use strict;
 use warnings;
 use lib 'lib/';

@@ -1,13 +1,17 @@
-# $Id: 15-table.t,v 1.9 2006/04/06 02:14:24 rvosa Exp $
+# $Id: 15-table.t 1652 2006-07-13 02:08:23Z rvosa $
 use strict;
 use warnings;
 use Test::More tests => 2;
 use Bio::Phylo::Parsers::Table;
 use Bio::Phylo::IO qw(parse unparse);
 Bio::Phylo->VERBOSE( -level => 0 );
-ok( my $table = Bio::Phylo::Parsers::Table->_new, '1 init' );
-my $string = do { local $/; <DATA> };
 
+ok( 
+    my $table = Bio::Phylo::Parsers::Table->_new, 
+    '1 init' 
+);
+
+my $string = do { local $/; <DATA> };
 ok(
     parse(
         -format    => 'table',

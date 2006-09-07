@@ -1,4 +1,4 @@
-# $Id: 17-parse.t,v 1.10 2006/05/18 06:41:42 rvosa Exp $
+# $Id: 17-parse.t 1783 2006-07-27 23:44:56Z rvosa $
 use strict;
 use warnings;
 use Test::More tests => 6;
@@ -13,9 +13,7 @@ ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Util::Exceptions::OddHash' ), '2 parse wron
 eval { parse( -format => 'none' ) };
 ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Util::Exceptions::BadArgs' ), '3 parse bad format' );
 
-eval { parse( -format => 'nexus', -string => 'blah' ) };
-ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Util::Exceptions::BadArgs' ),
-    '4 parse cannot string' );
+ok( parse( -format => 'nexus', -string => 'blah' ), '4 parse string' );
 
 eval { parse( -string => 'blah' ) };
 ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Util::Exceptions::BadArgs' ), '5 parse no format' );

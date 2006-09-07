@@ -1,11 +1,14 @@
-# $Id: Taxlist.pm,v 1.20 2006/05/19 02:08:58 rvosa Exp $
+# $Id: Taxlist.pm 2108 2006-08-29 20:46:17Z rvosa $
 # Subversion: $Rev: 193 $
 package Bio::Phylo::Parsers::Taxlist;
 use strict;
 use Bio::Phylo;
 use Bio::Phylo::Taxa;
 use Bio::Phylo::Taxa::Taxon;
-use base 'Bio::Phylo::IO';
+use Bio::Phylo::IO;
+
+use vars '@ISA';
+@ISA=qw(Bio::Phylo::IO);
 
 # One line so MakeMaker sees it.
 use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
@@ -119,7 +122,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Taxlist.pm,v 1.20 2006/05/19 02:08:58 rvosa Exp $
+$Id: Taxlist.pm 2108 2006-08-29 20:46:17Z rvosa $
 
 =head1 AUTHOR
 

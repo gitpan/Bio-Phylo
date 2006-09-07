@@ -1,8 +1,7 @@
-# $Id: Exceptions.pm,v 1.2 2006/05/19 02:08:59 rvosa Exp $
+# $Id: Exceptions.pm 1783 2006-07-27 23:44:56Z rvosa $
 # Subversion: $Rev: 170 $
 package Bio::Phylo::Util::Exceptions;
 use strict;
-use warnings;
 
 # One line so MakeMaker sees it.
 use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
@@ -29,6 +28,8 @@ use Exception::Class (
     'Bio::Phylo::Util::Exceptions::OutOfBounds' =>
       { isa => 'Bio::Phylo::Util::Exceptions' },
     'Bio::Phylo::Util::Exceptions::NotImplemented' =>
+      { isa => 'Bio::Phylo::Util::Exceptions' },
+    'Bio::Phylo::Util::Exceptions::Deprecated' =>
       { isa => 'Bio::Phylo::Util::Exceptions' },
 );
 1;
@@ -105,6 +106,10 @@ the C<< $obj->get_by_index($i) >> method call.
 Thrown when an interface method is called instead of the implementation
 by the child class.
 
+=item Bio::Phylo::Util::Exceptions::Deprecated
+
+Thrown when a deprecated method is called.
+
 =back
 
 =head1 SEE ALSO
@@ -133,7 +138,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Exceptions.pm,v 1.2 2006/05/19 02:08:59 rvosa Exp $
+$Id: Exceptions.pm 1783 2006-07-27 23:44:56Z rvosa $
 
 =head1 AUTHOR
 

@@ -1,4 +1,4 @@
-# $Id: Forest.pm,v 1.20 2006/05/19 02:08:50 rvosa Exp $
+# $Id: Forest.pm 1721 2006-07-20 03:43:06Z rvosa $
 package Bio::Phylo::Forest;
 use strict;
 use Bio::Phylo::Listable;
@@ -69,7 +69,7 @@ forest objects.
             else {
                 while ( my ( $key, $value ) = each %opt ) {
                     if ( $fields->{$key} ) {
-                        $fields->{$key}->[$$self] = $value;
+                        $fields->{$key}->[ $self->get_id ] = $value;
                         delete $opt{$key};
                     }
                 }
@@ -147,8 +147,8 @@ forest objects.
                         warn
 "Reset $replaced references from nodes to taxa outside taxa block";
                     }
-                    $taxa[$$self] = $taxa;
-                    weaken( $taxa[$$self] );
+                    $taxa[ $self->get_id ] = $taxa;
+                    weaken( $taxa[ $self->get_id ] );
                     my %tmp = map { $_ => 1 } @{ $taxa->get_forests };
                     $taxa->set_forest($self) if !exists $tmp{$self};
                 }
@@ -163,7 +163,7 @@ forest objects.
             }
         }
         else {
-            $taxa[$$self] = undef;
+            $taxa[ $self->get_id ] = undef;
         }
         return $self;
     }
@@ -188,7 +188,7 @@ forest objects.
 
     sub get_taxa {
         my $self = shift;
-        return $taxa[$$self];
+        return $taxa[ $self->get_id ];
     }
 
 =back
@@ -292,8 +292,10 @@ forest objects.
 
     sub DESTROY {
         my $self = shift;
-        foreach ( keys %{$fields} ) {
-            delete $fields->{$_}->[$$self];
+        if ( my $i = $self->get_id ) {
+            foreach ( keys %{$fields} ) {
+                delete $fields->{$_}->[$i];
+            }
         }
         $self->_del_from_super;
         $self->SUPER::DESTROY;
@@ -363,7 +365,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Forest.pm,v 1.20 2006/05/19 02:08:50 rvosa Exp $
+$Id: Forest.pm 1721 2006-07-20 03:43:06Z rvosa $
 
 =head1 AUTHOR
 

@@ -1,4 +1,4 @@
-# $Id: Tree.pm,v 1.23 2006/05/19 02:08:54 rvosa Exp $
+# $Id: Tree.pm 2187 2006-09-07 07:13:33Z rvosa $
 # Subversion: $Rev: 177 $
 package Bio::Phylo::Forest::Tree;
 use strict;
@@ -7,8 +7,8 @@ use Bio::Phylo::Forest::Node;
 use Bio::Phylo::IO qw(unparse);
 use Bio::Phylo::Util::IDPool;
 use Bio::Phylo::Util::CONSTANT
-  qw(_TREE_ _FOREST_ INT_SCORE_TYPE DOUBLE_SCORE_TYPE NO_SCORE_TYPE);
-use Scalar::Util qw(looks_like_number blessed);
+  qw(_TREE_ _FOREST_ INT_SCORE_TYPE DOUBLE_SCORE_TYPE NO_SCORE_TYPE looks_like_number);
+use Scalar::Util qw(blessed);
 
 # One line so MakeMaker sees it.
 use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
@@ -30,7 +30,7 @@ if ($HAS_BIOPERL_INTERFACE) {
     *number_nodes        = sub { return scalar @{ $_[0]->get_entities } };
     *total_branch_length = sub { return $_[0]->calc_tree_length };
     *height              = sub { return $_[0]->calc_tree_height };
-    *id                  = sub { return $_[0]->get_name };
+    *id                  = sub { return $_[0]->get_id };
     *score               =
       sub { $_[1] ? $_[0]->set_score( $_[1] )->get_score : $_[0]->get_score };
     *get_leaf_nodes = sub { return @{ $_[0]->get_terminals } };
@@ -834,19 +834,21 @@ for more methods.
         my $height    = $self->calc_tree_height;
 
         # Calculate the distance of each node to the root
-        my %soft_refs;
-        my $root = $self->get_root;
-        $soft_refs{$root} = 0;
-        my @nodes = $root;
-        while (@nodes) {
-            my $node     = shift @nodes;
-            my $path_len = $soft_refs{$node} += $node->get_branch_length;
-            my $children = $node->get_children or next;
-            for my $child (@$children) {
-                $soft_refs{$child} = $path_len;
-            }
-            push @nodes, @{$children};
-        }
+#        my %soft_refs;
+#        my $root = $self->get_root;
+#        $soft_refs{$root} = 0;
+#        my @nodes = $root;
+#        while (@nodes) {
+#            my $node     = shift @nodes;
+#            my $path_len = $soft_refs{$node} += $node->get_branch_length;
+#            my $children = $node->get_children or next;
+#            for my $child (@$children) {
+#                $soft_refs{$child} = $path_len;
+#            }
+#            push @nodes, @{$children};
+#        }
+        # the commented out block is more efficiently implemented like so:
+        my %soft_refs = map { $_ => $_->calc_path_to_root } @{ $self->get_entities };
 
         # Then, we know how far each node is from the root. At this point, we
         # can sort through and create the @g array
@@ -1819,7 +1821,7 @@ for more methods.
 =cut
 
     sub to_cipres {
-        eval { require CipresIDL; };
+        eval { require CipresIDL_api1; };
         if ($@) {
             Bio::Phylo::Util::Exceptions::Extension::Error->throw( 'error' =>
                   'This method requires CipresIDL, which you don\'t have', );
@@ -1831,22 +1833,22 @@ for more methods.
         my $m_name    = $self->get_name;
         my $_score    = $self->get_score;
         my $scoretype = $self->get_generic('score_type');
-        my $m_score   = CipresIDL::TreeScore->new;
+        my $m_score   = CipresIDL_api1::TreeScore->new;
         my $m_leafSet = [];
 
         for my $i ( 0 .. $#{ $self->get_entities } ) {
             push @{$m_leafSet}, $i if $self->get_by_index($i)->is_terminal;
         }
         if ( defined $scoretype && $scoretype == INT_SCORE_TYPE ) {
-            $m_score->intScore( 'CipresIDL::INT_SCORE_TYPE', $_score );
+            $m_score->intScore( 'CipresIDL_api1::INT_SCORE_TYPE', $_score );
         }
         elsif ( defined $scoretype && $scoretype == DOUBLE_SCORE_TYPE ) {
-            $m_score->doubleScore( 'CipresIDL::DOUBLE_SCORE_TYPE', $_score );
+            $m_score->doubleScore( 'CipresIDL_api1::DOUBLE_SCORE_TYPE', $_score );
         }
         else {
-            $m_score->noScore( 'CipresIDL::NO_SCORE_TYPE', $_score );
+            $m_score->noScore( 'CipresIDL_api1::NO_SCORE_TYPE', $_score );
         }
-        my $cipres_tree = CipresIDL::Tree->new(
+        my $cipres_tree = CipresIDL_api1::Tree->new(
             'm_newick'  => $m_newick,
             'm_score'   => $m_score,
             'm_leafSet' => $m_leafSet,
@@ -1970,7 +1972,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Tree.pm,v 1.23 2006/05/19 02:08:54 rvosa Exp $
+$Id: Tree.pm 2187 2006-09-07 07:13:33Z rvosa $
 
 =head1 AUTHOR
 

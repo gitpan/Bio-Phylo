@@ -1,11 +1,12 @@
-# $Id: IO.pm,v 1.15 2006/05/19 02:08:50 rvosa Exp $
+# $Id: IO.pm 1664 2006-07-14 08:15:22Z rvosa $
 # Subversion: $Rev: 170 $
 package Bio::Phylo::IO;
 use strict;
-use warnings;
 use Bio::Phylo;
 my @parsers = qw(Newick Nexus Table Taxlist);
 my @unparsers = qw(Newick Pagel Svg);
+
+my $cached_parsers = {};
 
 BEGIN {
     use Exporter   ();
@@ -180,11 +181,18 @@ sub parse {
         );
     }
     my $lib = 'Bio::Phylo::Parsers::' . ucfirst( $opts{-format} );
-    eval "require $lib";
-    if ( $@ ) {
-        Bio::Phylo::Util::Exceptions::ExtensionError->throw( error => $@ );
+    my $parser;
+    if ( exists $cached_parsers->{$lib} ) {
+        $parser = $cached_parsers->{$lib};
     }
-    my $parser = $lib->_new;
+    else {
+        eval "require $lib";
+        if ( $@ ) {
+            Bio::Phylo::Util::Exceptions::ExtensionError->throw( error => $@ );
+        }
+        $parser = $lib->_new;
+        $cached_parsers->{$lib} = $parser;
+    }
     if ( $opts{-file} && $parser->can('_from_handle') ) {
         eval { open FH, '<', $opts{-file}; };
         if ( $! ) {
@@ -306,7 +314,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: IO.pm,v 1.15 2006/05/19 02:08:50 rvosa Exp $
+$Id: IO.pm 1664 2006-07-14 08:15:22Z rvosa $
 
 =head1 AUTHOR
 

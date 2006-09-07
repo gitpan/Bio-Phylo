@@ -1,4 +1,4 @@
-# $Id: 02-newick.t,v 1.9 2006/02/23 07:54:41 rvosa Exp $
+# $Id: 02-newick.t 1185 2006-05-26 09:04:17Z rvosa $
 use strict;
 use warnings;
 use Test::More tests => 3;

@@ -1,12 +1,13 @@
-# $Id: Matrix.pm,v 1.32 2006/05/19 02:08:56 rvosa Exp $
+# $Id: Matrix.pm 2187 2006-09-07 07:13:33Z rvosa $
 package Bio::Phylo::Matrices::Matrix;
 use strict;
+use Bio::CDAT::CharMatrixI;
 use Bio::Phylo::Listable;
 use Bio::Phylo::Util::IDPool;
 use Bio::Phylo::IO qw(unparse);
 use Bio::Phylo::Util::CONSTANT
-  qw(_MATRICES_ _MATRIX_ _TAXON_ _TAXA_ symbol_ok type_ok cipres_type infer_type);
-use Scalar::Util qw(looks_like_number weaken);
+qw(_MATRICES_ _MATRIX_ _TAXON_ _TAXA_ _DATUM_ symbol_ok type_ok cipres_type infer_type looks_like_number);
+use Scalar::Util qw(weaken);
 use Bio::Phylo::Matrices::Datum;
 use Bio::Phylo::Taxa;
 use Bio::Phylo::Taxa::Taxon;
@@ -17,63 +18,77 @@ use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
 # classic @ISA manipulation, not using 'base'
 use vars qw($VERSION @ISA);
 @ISA = qw(Bio::Phylo::Listable);
+
+# Inherited Bio::Matrix::MatrixI methods
+*matrix_id    = sub { return $_[0]->get_id };
+*matrix_name  = sub { return $_[0]->get_name };
+*num_rows     = sub { return $_[0]->get_ntax };
+*num_columns  = sub { return $_[0]->get_nchar };
+*column_names = sub { return $_[0]->get_char_labels };
+*row_names    = sub { return map { $_->get_name } @{ $_[0]->get_entities } };
+# get_entry($row,$col)
+# get_column($col)
+# get_row($row)
+# get_diagonal()
+*column_num_for_name = sub { 
+    my $labels = $_[0]->get_char_labels;
+    for my $i ( 0 .. $#{ $labels } ) {
+        return $i if $labels->[$i] eq $_[1];
+    }
+    return;
+};
+# row_num_for_name($name)
+
+# Bio::Matrix::GenericMatrix methods
+# add_row($row)
+# remove_row($row)
+# add_column($col)
+# remove_column($col)
 {
 
     # inside out class arrays
-    my @type;
-    my @symbols;
     my @taxa;
-    my @is_flat;
-    my @ntax;
-    my @nchar;
-    my @missing;
-    my @gap;
+    my @char_labels;
 
     # $fields hashref necessary for object destruction
     my $fields = {
-        '-type'    => \@type,
-        '-symbols' => \@symbols,
-        '-taxa'    => \@taxa,
-        '-is_flat' => \@is_flat,
-        '-ntax'    => \@ntax,
-        '-nchar'   => \@nchar,
-        '-missing' => \@missing,
-        '-gap'     => \@gap,
+        '-taxa'   => \@taxa,
+        '-labels' => \@char_labels,
     };
 
 =head1 NAME
 
-Bio::Phylo::Matrices::Matrix - The matrix object to aggregate datum objects.
+Bio::Phylo::Matrices::Matrix - Character state matrix, implements Bio::CDAT::CharMatrixI
 
 =head1 SYNOPSIS
 
  use Bio::Phylo::Matrices::Matrix;
- use Bio::Phylo::Matrices::Datum;
+ use Bio::Phylo::Taxa;
  use Bio::Phylo::Taxa::Taxon;
- 
- # instantiate matrix object
- my $matrix = Bio::Phylo::Matrices::Matrix->new;
- 
- # instantiate a taxon object
- my $taxon = Bio::Phylo::Taxa::Taxon->new;
 
- # instantiate 1000 datum objects and insert them in the matrix
- for my $i ( 0 .. 1000 ) {
-    my $datum = Bio::Phylo::Matrices::Datum->new( 
-        -pos   => $i,
-        -type  => 'STANDARD',
-        -taxon => $taxon,
-        -char  => int(rand(2)),
-    );
-    $matrix->insert($datum);
+ # instantiate taxa object
+ my $taxa = Bio::Phylo::Taxa->new();
+ for ( 'Homo sapiens', 'Pan paniscus', 'Pan troglodytes' ) {
+     $taxa->insert( Bio::Phylo::Taxa::Taxon->new( '-name' => $_ ) );
  }
- 
- # retrieve all datum objects whose position >= 500
- my @second_half_of_matrix = @{ $matrix->get_by_value(
-    -value => 'get_position',
-    -ge    => 500
- ) };
- 
+
+ # instantiate matrix object
+ my $matrix = Bio::Phylo::Matrices::Matrix->new(
+     '-taxa'   => $taxa,
+     '-type'   => 'STANDARD',
+     '-lookup' => { 
+         '-' => [],
+         '0' => [ '0' ],
+         '1' => [ '1' ],
+         '?' => [ '0', '1' ],
+     },
+     '-labels' => [ 'Opposable big toes', 'Opposable thumbs', 'Not a pygmy' ],
+     '-matrix' => [
+         [ 'Homo sapiens'    => '0', '1', '1' ],
+         [ 'Pan paniscus'    => '1', '1', '0' ],
+         [ 'Pan troglodytes' => '1', '1', '1' ],
+     ],
+ );
 
 =head1 DESCRIPTION
 
@@ -93,12 +108,16 @@ methods defined there apply here.
  Type    : Constructor
  Title   : new
  Usage   : my $matrix = Bio::Phylo::Matrices::Matrix->new;
- Function: Instantiates a Bio::Phylo::Matrices::Matrix 
+ Function: Instantiates a Bio::Phylo::Matrices::Matrix
            object.
  Returns : A Bio::Phylo::Matrices::Matrix object.
- Args    : NONE required, but look up the inheritance 
-           tree to the SUPER class Bio::Phylo::Listable, 
-           and its parent Bio::Phylo
+ Args    : -type   => required, datatype, one of dna|rna|protein|
+                      continuous|standard|restriction|mixed
+           -taxa   => optional, link to taxa object
+           -lookup => character state lookup hash ref
+           -labels => array ref of character labels
+           -matrix => two-dimensional array, first element of every
+                      row is label, subsequent are characters
 
 =cut
 
@@ -106,24 +125,48 @@ methods defined there apply here.
         my ( $class, $self ) = shift;
         $self = __PACKAGE__->SUPER::new(@_);
         bless $self, __PACKAGE__;
-        $missing[$$self] = '?';
-        $gap[$$self]     = '-';
-        $ntax[$$self]    = undef;
-        $nchar[$$self]   = undef;
         if (@_) {
             my %opt;
             eval { %opt = @_; };
-            if ($@) {
-                Bio::Phylo::Util::Exceptions::OddHash->throw( error => $@ );
+            if ( $@ ) {
+                Bio::Phylo::Util::Exceptions::OddHash->throw( 'error' => $@ );
             }
             else {
-                while ( my ( $key, $value ) = each %opt ) {
-                    if ( $fields->{$key} ) {
-                        $fields->{$key}->[$$self] = $value;
-                        delete $opt{$key};
+                if ( not $opt{'-type'} ) {
+                    Bio::Phylo::Util::Exceptions::BadArgs->throw(
+                        'error' => '"-type" must be defined in constructor'
+                    );
+                }
+                else {
+                    my $class = __PACKAGE__ . '::' . lc( $opt{'-type'} );
+                    eval { $self = $class->new( $self, $opt{'-lookup'} ); };
+                    if ( $@ ) {
+                        Bio::Phylo::Util::Exceptions::BadFormat->throw(
+                            'error' => "Type \"$opt{'-type'}\" not supported"
+                        );
+                    }                
+                }
+                if ( exists $opt{'-labels'} ) {
+                    eval { $char_labels[ $self->get_id ] = [ @{ $opt{'-labels'} } ] };
+                    if ( $@ ) {
+                        Bio::Phylo::Util::Exceptions::BadArgs->throw(
+                            'error' => $@
+                        );                    
                     }
                 }
-                @_ = %opt;
+                else {
+                    $char_labels[ $self->get_id ] = [];
+                }
+                if ( exists $opt{'-matrix'} ) {
+                    foreach my $row ( @{ $opt{'-matrix'} } ) {
+                        $self->insert(
+                            Bio::Phylo::Matrices::CharSeq->new(
+                                shift( @{ $row } ),
+                                $row,
+                            )
+                        );
+                    }
+                }
             }
         }
         $self->_set_super;
@@ -141,21 +184,21 @@ methods defined there apply here.
  Type    : Mutator
  Title   : set_taxa
  Usage   : $matrix->set_taxa( $taxa );
- Function: Links the invocant matrix object 
+ Function: Links the invocant matrix object
            to a taxa object. Individual datum
            objects are linked to individual taxon
            objects by name, i.e. by what is
            returned by $datum->get_name
  Returns : $matrix
  Args    : A Bio::Phylo::Taxa object.
- Comments: This method checks whether any 
+ Comments: This method checks whether any
            of the datum objects in the
-           invocant link to Bio::Phylo::Taxa::Taxon 
-           objects not contained by $matrix. If 
-           found, these are set to undef and the 
+           invocant link to Bio::Phylo::Taxa::Taxon
+           objects not contained by $matrix. If
+           found, these are set to undef and the
            following message is displayed:
-           
-           "Reset X references from datum objects 
+
+           "Reset X references from datum objects
            to taxa outside taxa block"
 
 =cut
@@ -188,8 +231,8 @@ methods defined there apply here.
                         warn
 "Reset $replaced references from datum objects to taxa outside taxa block";
                     }
-                    $taxa[$$self] = $taxa;
-                    weaken( $taxa[$$self] );
+                    $taxa[ $self->get_id ] = $taxa;
+                    weaken( $taxa[ $self->get_id ] );
                     $taxa->set_matrix($self);
                 }
                 else {
@@ -203,209 +246,25 @@ methods defined there apply here.
             }
         }
         else {
-            $taxa[$$self] = undef;
+            $taxa[ $self->get_id ] = undef;
         }
         return $self;
     }
 
-=item set_type()
+=item set_charlabels()
 
  Type    : Mutator
- Title   : set_type
- Usage   : $matrix->set_type($type);
- Function: Assigns a matrix's type.
- Returns : Modified object.
- Args    : $type must be one of [DNA|RNA|STANDARD|
-           PROTEIN|NUCLEOTIDE|CONTINUOUS]. If no 
-           argument supplied, matrix type is set 
-           to undefined.
-
+ Title   : set_charlabels
+ Usage   : $matrix->set_charlabels( [ 'char1', 'char2', 'char3' ] );
+ Function: Assigns character labels.
+ Returns : $self
+ Args    : ARRAY
+ 
 =cut
 
-    sub set_type {
-        my ( $self, $type ) = @_;
-        if ( $type && type_ok($type) ) {
-            $type[$$self] = uc $type;
-        }
-        elsif ( $type && !type_ok($type) ) {
-            Bio::Phylo::Util::Exceptions::BadFormat->throw(
-                error => "\"$type\" is a bad data type" );
-        }
-        elsif ( !$type ) {
-            $type[$$self] = undef;
-        }
-        return $self;
-    }
-
-=item set_symbols()
-
- Type    : Mutator
- Title   : set_symbol
- Usage   : $matrix->set_symbols($symbols);
- Function: Assigns/adds an array ref 
-           of allowed symbols
- Returns : Modified object.
- Args    : A reference to an array of symbols. 
-           When no argument is given,
-           the symbol table is reset.
-
-=cut
-
-    sub set_symbols {
-        my ( $self, $symbols ) = @_;
-        if ( my $type = $self->get_type ) {
-            if ( defined $symbols && ref $symbols eq 'ARRAY' ) {
-                my %tmp;
-                %tmp = map { $_ => 1 } @{ $self->get_symbols }
-                  if defined $self->get_symbols;
-                foreach ( keys %{ { map { uc($_) => 1 } @{$symbols} } } ) {
-                    if ( symbol_ok( '-type' => $type, '-char' => $_ ) ) {
-                        $tmp{$_} = 1;
-                    }
-                    else {
-                        Bio::Phylo::Util::Exceptions::BadString->throw(
-                            error => "\"$_\" is not a valid \"$type\" symbol" );
-                    }
-                }
-                my @sym = keys %tmp;
-                $symbols[$$self] = \@sym;
-            }
-            elsif ( defined $symbols && ref $symbols ne 'ARRAY' ) {
-                Bio::Phylo::Util::Exceptions::BadArgs->throw(
-                    'error' => "\"$symbols\" is not an array reference", );
-            }
-            elsif ( !defined $symbols ) {
-                $symbols[$$self] = undef;
-            }
-            return $self;
-        }
-        else {
-            Bio::Phylo::Util::Exceptions::BadFormat->throw(
-                error => 'please define the data type first' );
-        }
-    }
-
-=item set_missing()
-
- Type    : Mutator
- Title   : set_missing
- Usage   : $matrix->set_missing('?');
- Function: Assigns the missing character symbol.
- Returns : Modified object.
- Args    : A symbol used to indicate missing
-           data. Default is '?'.
-
-=cut
-
-    sub set_missing {
-        my ( $self, $missing ) = @_;
-        if ( defined $missing and $missing !~ m/^.$/ ) {
-            Bio::Phylo::Util::Exceptions::BadFormat->throw(
-                error => 'not a valid missing data symbol', );
-        }
-        elsif ( defined $missing ) {
-            $missing[$$self] = $missing;
-        }
-        else {
-            Bio::Phylo::Util::Exceptions::BadFormat->throw(
-                error => 'please define a missing data symbol', );
-        }
-        return $self;
-    }
-
-=item set_gap()
-
- Type    : Mutator
- Title   : set_gap
- Usage   : $matrix->set_gap('-');
- Function: Assigns the gap (indel?) character symbol.
- Returns : Modified object.
- Args    : A symbol used to indicate gaps. 
-           Default is '-'.
-
-=cut
-
-    sub set_gap {
-        my ( $self, $gap ) = @_;
-        if ( defined $gap and $gap !~ m/^.$/ ) {
-            Bio::Phylo::Util::Exceptions::BadFormat->throw(
-                error => 'not a valid gap symbol', );
-        }
-        elsif ( defined $gap ) {
-            $gap[$$self] = $gap;
-        }
-        else {
-            Bio::Phylo::Util::Exceptions::BadFormat->throw(
-                error => 'please define a gap symbol', );
-        }
-        return $self;
-    }
-
-=item set_ntax()
-
- Type    : Mutator
- Title   : set_ntax
- Usage   : $matrix->set_ntax(10);
- Function: Assigns the intended number of 
-           taxa for the matrix.
- Returns : Modified object.
- Args    : Optional: An integer. If no
-           value is given, ntax is reset
-           to the undefined default.
- Comments: This value is only necessary 
-           for the $matrix->validate 
-           method. If you don't need to
-           call that, this value is 
-           better left unset.
-
-=cut
-
-    sub set_ntax {
-        my ( $self, $ntax ) = @_;
-        if ( defined $ntax and $ntax !~ m/^\d+$/ ) {
-            Bio::Phylo::Util::Exceptions::BadFormat->throw(
-                error => "not a valid ntax value ($ntax)", );
-        }
-        elsif ( defined $ntax ) {
-            $ntax[$$self] = $ntax;
-        }
-        else {
-            $ntax[$$self] = undef;
-        }
-        return $self;
-    }
-
-=item set_nchar()
-
- Type    : Mutator
- Title   : set_nchar
- Usage   : $matrix->set_nchar(10);
- Function: Assigns the intended number of 
-           characters for the matrix.
- Returns : Modified object.
- Args    : Optional: An integer. If no
-           value is given, nchar is reset
-           to the undefined default.
- Comments: This value is only necessary 
-           for the $matrix->validate 
-           method. If you don't need to
-           call that, this value is 
-           better left unset.
-
-=cut
-
-    sub set_nchar {
-        my ( $self, $nchar ) = @_;
-        if ( defined $nchar and $nchar !~ m/^\d+$/ ) {
-            Bio::Phylo::Util::Exceptions::BadFormat->throw(
-                error => "not a valid nchar value ($nchar)", );
-        }
-        elsif ( defined $nchar ) {
-            $nchar[$$self] = $nchar;
-        }
-        else {
-            $nchar[$$self] = undef;
-        }
+    sub set_charlabels {
+        my ( $self, $labels ) = @_;
+        $char_labels[ $self->get_id ] = $labels;
         return $self;
     }
 
@@ -414,7 +273,7 @@ methods defined there apply here.
 =head2 ACCESSORS
 
 =over
-    
+
 =item get_type()
 
  Type    : Accessor
@@ -425,12 +284,9 @@ methods defined there apply here.
            PROTEIN|NUCLEOTIDE|CONTINUOUS);
  Args    : NONE
 
-=cut    
+=cut
 
-    sub get_type {
-        my $self = shift;
-        return $type[$$self];
-    }
+# implemented by subclasses, see below
 
 =item get_symbols()
 
@@ -441,79 +297,29 @@ methods defined there apply here.
  Returns : ARRAY
  Args    : NONE
 
-=cut    
+=cut
 
     sub get_symbols {
         my $self = shift;
-        return $symbols[$$self];
+        return [ keys %{ $self->get_charstate_lookup } ];
     }
 
-=item get_num_characters()
-
- Type    : Accessor
- Title   : get_num_characters
- Usage   : my $nchar = $matrix->get_num_characters;
- Function: Retrieves number of characters
- Returns : ARRAY
- Args    : NONE
-
-=cut    
-
-    sub get_num_characters {
-        my $self = shift;
-        my $obs  = {};
-        foreach my $row ( @{ $self->get_entities } ) {
-            my $taxon = $row->get_taxon;
-            foreach ( $row->get_char ) {
-                $obs->{$taxon}++;
-            }
-        }
-        my ( $nchar, $ntax ) = ( 0, 0 );
-        foreach my $k ( keys %{$obs} ) {
-            $nchar += $obs->{$k};
-            $ntax++;
-        }
-        return $nchar / $ntax;
-    }
 
 =item get_num_states()
 
  Type    : Accessor
  Title   : get_num_states
  Usage   : my $nstates = $matrix->get_num_states;
- Function: Retrieves the number of distinct 
+ Function: Retrieves the number of distinct
            states in the matrix
  Returns : SCALAR
  Args    : NONE
 
-=cut  
+=cut
 
     sub get_num_states {
         my $self = shift;
-        return scalar @{ $symbols[$$self] };
-    }
-
-=item get_num_taxa()
-
- Type    : Accessor
- Title   : get_num_taxa
- Usage   : my $ntax = $matrix->get_num_taxa;
- Function: Retrieves the number of 
-           distinct taxa in the matrix
- Returns : SCALAR
- Args    : NONE
-     
-=cut
-
-    sub get_num_taxa {
-        my $self = shift;
-        my $obs  = {};
-        foreach my $row ( @{ $self->get_entities } ) {
-            my $taxon = $row->get_taxon;
-            $obs->{$taxon}++;
-        }
-        my $ntax = scalar keys %{$obs};
-        return $ntax;
+        return scalar @{ $self->get_symbols };
     }
 
 =item get_taxa()
@@ -521,7 +327,7 @@ methods defined there apply here.
  Type    : Accessor
  Title   : get_taxa
  Usage   : my $taxa = $matrix->get_taxa;
- Function: Retrieves the Bio::Phylo::Taxa 
+ Function: Retrieves the Bio::Phylo::Taxa
            object linked to the invocant.
  Returns : Bio::Phylo::Taxa
  Args    : NONE
@@ -534,17 +340,17 @@ methods defined there apply here.
 
     sub get_taxa {
         my $self = shift;
-        return $taxa[$$self];
+        return $taxa[ $self->get_id ];
     }
 
 =item get_chars_for_taxon()
 
  Type    : Accessor
  Title   : get_chars_for_taxon
- Usage   : my @chars = @{ 
-               $matrix->get_chars_for_taxon($taxon) 
+ Usage   : my @chars = @{
+               $matrix->get_chars_for_taxon($taxon)
            };
- Function: Retrieves the datum 
+ Function: Retrieves the datum
            objects for $taxon
  Returns : ARRAY
  Args    : A Bio::Phylo::Taxa::Taxon object
@@ -581,22 +387,22 @@ methods defined there apply here.
  Usage   : my $cols = $matrix->get_cols( 0 .. 100 );
  Function: Retrieves columns in $matrix
  Returns : Bio::Phylo::Matrices::Matrix (shallow copy)
- Args    : Column numbers, zero-based, 
+ Args    : Column numbers, zero-based,
            throws exception if out of bounds.
- Notes   : This method can be used as a makeshift 
-           bootstrapper/jackknifer. The trick is to 
+ Notes   : This method can be used as a makeshift
+           bootstrapper/jackknifer. The trick is to
            create the appropriate argument list, i.e.
-           for bootstrapping one with the same number 
-           of elements as there are columns in the 
-           matrix - but resampled with replacement; 
-           for jackknifing a list where the number 
-           of elements is that of the number of columns 
-           to keep. You can generate such a list by 
-           iteratively calling shift(shuffle(@list)) 
-           where shuffle comes from the List::Util 
+           for bootstrapping one with the same number
+           of elements as there are columns in the
+           matrix - but resampled with replacement;
+           for jackknifing a list where the number
+           of elements is that of the number of columns
+           to keep. You can generate such a list by
+           iteratively calling shift(shuffle(@list))
+           where shuffle comes from the List::Util
            package.
 
-=cut    
+=cut
 
     sub get_cols {
         my $self  = shift->_flatten;
@@ -634,11 +440,11 @@ methods defined there apply here.
  Usage   : my $rows = $matrix->get_rows( 0 .. 100 );
  Function: Retrieves rows in $matrix
  Returns : Bio::Phylo::Matrices::Matrix (shallow copy)
- Args    : Row numbers, zero-based, throws 
+ Args    : Row numbers, zero-based, throws
            exception if out of bounds.
- Notes   : 
+ Notes   :
 
-=cut  
+=cut
 
     sub get_rows {
         my $self  = shift->_flatten;
@@ -661,6 +467,22 @@ methods defined there apply here.
         return $copy;
     }
 
+=item get_charlabels()
+
+ Type    : Accessor
+ Title   : get_charlabels
+ Usage   : $matrix->get_charlabels;
+ Function: Retrieves character labels.
+ Returns : ARRAY
+ Args    : None.
+ 
+=cut
+
+    sub get_charlabels {
+        my $self = shift;
+        return $char_labels[ $self->get_id ];
+    }
+
 =item get_missing()
 
  Type    : Accessor
@@ -674,7 +496,12 @@ methods defined there apply here.
 
     sub get_missing {
         my $self = shift;
-        return $missing[$$self];
+        my $lookup  = $self->get_charstate_lookup;
+        my @missing = map   { $_->[0] }
+                      sort  { $b->[1] <=> $a->[1] } 
+                      map   { [ $_, scalar @{ $lookup->{$_} } ] }
+                      keys %{ $lookup };
+        return $missing[0];
     }
 
 =item get_gap()
@@ -689,8 +516,13 @@ methods defined there apply here.
 =cut
 
     sub get_gap {
-        my $self = shift;
-        return $gap[$$self];
+        my $self   = shift;
+        my $lookup = $self->get_charstate_lookup;
+        my @gap    = map   { $_->[0] }
+                     sort  { $a->[1] <=> $b->[1] } 
+                     map   { [ $_, scalar @{ $lookup->{$_} } ] }
+                     keys %{ $lookup };
+        return $gap[0];
     }
 
 =item get_ntax()
@@ -698,7 +530,7 @@ methods defined there apply here.
  Type    : Accessor
  Title   : get_ntax
  Usage   : my $ntax = $matrix->get_ntax;
- Function: Retrieves the intended number of 
+ Function: Retrieves the intended number of
            taxa for the matrix.
  Returns : An integer, or undefined.
  Args    : None.
@@ -708,7 +540,7 @@ methods defined there apply here.
            method to check if the computed
            number of taxa matches with
            what is asserted here. In other words,
-           this method does not return the 
+           this method does not return the
            *actual* number of taxa in the matrix
            (use 'get_num_taxa' for that), but the
            number it is supposed to have.
@@ -717,7 +549,7 @@ methods defined there apply here.
 
     sub get_ntax {
         my $self = shift;
-        return $ntax[$$self];
+        return scalar @{ $self->get_entities };
     }
 
 =item get_nchar()
@@ -725,7 +557,7 @@ methods defined there apply here.
  Type    : Accessor
  Title   : get_nchar
  Usage   : $matrix->get_nchar;
- Function: Retrieves the intended number of 
+ Function: Retrieves the intended number of
            characters for the matrix.
  Returns : An integer, or undefined.
  Args    : None.
@@ -740,76 +572,54 @@ methods defined there apply here.
 
     sub get_nchar {
         my $self = shift;
-        return $nchar[$$self];
+        my $nchar;
+        foreach my $datum ( @{ $self->get_entities } ) {
+            my @chars = $datum->get_char;
+            if ( not $nchar ) {
+                if ( ref $chars[0] eq 'ARRAY' ) {
+                    $nchar = scalar @{ $chars[0] };
+                }
+                else {
+                    $nchar = scalar @chars;
+                }
+            }
+            else {
+                if ( ref $chars[0] eq 'ARRAY' ) {
+                    if ( $nchar != scalar @{ $chars[0] } ) {
+                        Bio::Phylo::Util::Exceptions::OutOfBounds->throw(
+                            'error' => 'Observed and expected nchar mismatch'
+                        );
+                    }
+                }
+                else {
+                    if ( $nchar != scalar @chars ) {
+                        Bio::Phylo::Util::Exceptions::OutOfBounds->throw(
+                            'error' => 'Observed and expected nchar mismatch'
+                        );                    
+                    }
+                }            
+            }
+        }
+        return $nchar;
     }
-
-    # TODO: get_rows, splice, concat
 
 =back
 
-=head2 METHODS
+=head2 UTILITY METHODS
 
 =over
-
-=item validate()
-
- Type    : Method
- Title   : validate
- Usage   : $matrix->validate;
- Function: Compares computed ntax and nchar with
-           asserted. Reacts violently if something
-           doesn't match.
- Returns : Void.
- Args    : None
- Comments: 'set_ntax' and 'set_nchar' need to be 
-           assigned for this to work.
-
-=cut
-
-    sub validate {
-        my $self = shift;
-        if ( not $self->get_nchar or not $self->get_ntax ) {
-            Bio::Phylo::Util::Exceptions::BadArgs->throw( error =>
-"'set_ntax' and 'set_nchar' need to be assigned for this to work",
-            );
-        }
-        my $nchar = $self->get_nchar;
-        my $ntax  = $self->get_ntax;
-        my $obs   = {};
-        foreach my $row ( @{ $self->get_entities } ) {
-            my $taxon = $row->get_taxon;
-            foreach ( $row->get_char ) {
-                $obs->{$taxon} = 0 if not defined $obs->{$taxon};
-                $obs->{$taxon}++;
-            }
-        }
-        foreach my $k ( keys %{$obs} ) {
-            if ( $obs->{$k} != $nchar ) {
-                Bio::Phylo::Util::Exceptions::BadFormat->throw(
-                        error => "Bad nchar ("
-                      . $obs->{$k}
-                      . ") for taxon "
-                      . $k->get_name, );
-            }
-        }
-        if ( scalar keys %{$obs} != $ntax ) {
-            Bio::Phylo::Util::Exceptions::BadFormat->throw(
-                error => "Bad ntax - observed: " . scalar
-                  keys( %{$obs} ) . ", expected: $ntax" );
-        }
-    }
 
 =item copy_atts()
 
  Type    : Method
  Title   : copy_atts
  Usage   : my $copy = $matrix->copy_atts;
- Function: Creates an empty copy of invocant 
+ Function: Creates an empty copy of invocant
            (i.e. no data, but all the attributes).
  Returns : Bio::Phylo::Matrices::Matrix (shallow copy)
  Args    : None
 
-=cut 
+=cut
 
     sub copy_atts {
         my $self = shift;
@@ -866,34 +676,14 @@ methods defined there apply here.
 
     sub to_cipres {
         my $self = shift;
-        my @tmp  = $self->_check_cache;
-        return $tmp[1] if $tmp[0];
-        eval { require 'CipresIDL'; };
-        if ($@) {
-            Bio::Phylo::Util::Exceptions::Extension::Error->throw( 'error' =>
-                  'This method requires CipresIDL, which you don\'t have', );
-        }
-        my ( $chars_lol, $i, @charStateLookup ) = ( [], 0 );
-        my %lookup = map { $_ => $i++ } @{ $self->get_symbols };
-        $i = 0;
-        foreach my $taxon ( @{ $self->get_taxa } ) {
-            $chars_lol->[$i] = [];
-            foreach ( @{ $self->get_chars_for_taxon($taxon) } ) {
-                push @{ $chars_lol->[$i] }, $lookup{$_};
-            }
-            $i++;
-        }
-        @charStateLookup = ( 0 .. $#{ $self->get_symbols } );
-        my $cipres_matrix = CipresIDL::DataMatrix->new(
-            'm_symbols'   => join( '', @{ $self->get_symbols } ),
-            'm_numStates' => $self->get_num_states,
-            'm_numCharacters'   => $self->get_num_characters,
-            'm_charStateLookup' => [ \@charStateLookup ],
-            'm_matrix'          => $chars_lol,
-            'm_datatype'        => cipres_type( $self->get_type ),
-        );
-        $self->_store_cache($cipres_matrix);
-        return $cipres_matrix;
+        my $class = 'Cipres::Util::TypeConverter';
+        eval "require $class"; 
+        if ( $@ ) {
+        Bio::Phylo::Util::Exceptions::Extension::Error->throw(
+                'error' => 'This method requires Cipres::Util::TypeConverter, which you don\'t have',
+            );
+        };
+        return Cipres::Util::TypeConverter::matrix2cipres( $self );
     }
 
 =item make_taxa()
@@ -901,13 +691,13 @@ methods defined there apply here.
  Type    : Utility method
  Title   : make_taxa
  Usage   : my $taxa = $matrix->make_taxa;
- Function: Creates a Bio::Phylo::Taxa object 
+ Function: Creates a Bio::Phylo::Taxa object
            from the data in invocant.
  Returns : Bio::Phylo::Taxa
  Args    : NONE
- Comments: N.B.!: the newly created taxa 
-           object will replace all earlier 
-           references to other taxa and 
+ Comments: NOTE: the newly created taxa
+           object will replace all earlier
+           references to other taxa and
            taxon objects.
 
 =cut
@@ -945,128 +735,6 @@ methods defined there apply here.
         return $taxa;
     }
 
-=begin comment
-
- Type    : Boolean test
- Title   : _is_flat
- Usage   : if ( $matrix->_is_flat ) {
-               # do something
-           }
- Function: This is a switch to indicate whether the _flatten method needs
-           to be called.
- Returns : Boolean
- Args    : with arg: setter; without: getter
-
-=end comment
-
-=cut
-
-    sub _is_flat {
-        my $self = shift;
-        $is_flat[$$self] = shift if @_;
-        return $is_flat[$$self];
-    }
-
-=begin comment
-
- Type    : Format convertor
- Title   : _flatten
- Usage   : my $flattened = $matrix->_flatten;
- Function: Matrix objects can consist of 
-           non-contiguous or overlapping
-           datum objects for the same taxon. 
-           This method assigns each taxon one 
-           contiguous datum object, filling 
-           the intervals with '?' missing data. 
-           It resolves overlaps (i.e. multiple 
-           datum objects that occupy the same 
-           position) by favouring the most
-           recently inserted datum.
- Returns : Bio::Phylo::Matrices::Matrix
- Args    : none
- Comments: Bio::Phylo::Matrices::Matrix objects 
-           are *NOT* rectangular by default. If a 
-           matrix is linked to a taxa object, but 
-           not all taxa in that taxa object have 
-           data in the matrix, their rows in the 
-           matrix will be *empty*. Use the '_flatten' 
-           method to pad their rows with '?' missing 
-           data in order to obtain a rectangular 
-           matrix (e.g. to write to a nexus file).
-
-=end comment
-
-=cut
-
-    sub _flatten {
-        my $self = shift;
-        $self->_flush_cache;
-        my $flattened = $self->copy_atts;
-        my $taxa      = {};
-        while ( my $datum = $self->next ) {
-            my $taxon;
-            if ( not $taxon = $datum->get_taxon ) {
-                Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-                    error => "Unlinked datum encountered!", );
-            }
-            if ( not exists $taxa->{$taxon} ) {
-                $taxa->{$taxon} = [];
-            }
-            push @{ $taxa->{$taxon} }, $datum;
-        }
-        my ( $newdata, $length ) = ( [], 0 );
-        foreach my $taxon ( keys %{$taxa} ) {
-            my $newdat = Bio::Phylo::Matrices::Datum->new(
-                '-taxon' => $taxon,
-                '-pos'   => 0,
-            );
-            my ( $char, $note ) = ( [], [] );
-            foreach my $datum ( @{ $taxa->{$taxon} } ) {
-                my $begin = $datum->get_position ? $datum->get_position : 0;
-                my @char  = $datum->get_char;
-                my $end   = @char ? $begin + $#char : $begin;
-                if (@char) {
-                    my $j = 0;
-                    for my $i ( $begin .. $end ) {
-                        $char->[$i] = $char[$j];
-                        $j++;
-                    }
-                }
-                $note->[ $begin .. $end ] = @{ $datum->get_annotation }
-                  if @{ $datum->get_annotation };
-
-                # copy atts
-                $newdat->set_weight( $datum->get_weight );
-                $newdat->set_name( $datum->get_name );
-                $newdat->set_desc( $datum->get_desc );
-                $newdat->set_score( $datum->get_score );
-                $newdat->set_type( $datum->get_type );
-                $newdat->set_generic( %{ $datum->get_generic } )
-                  if $datum->get_generic;
-            }
-            $length = $#{$char} if $#{$char} > $length;
-            $newdat->set_char($char);
-            $newdat->set_annotations( @{$note} );
-            push @{$newdata}, $newdat;
-        }
-        $flattened->_is_flat(1);
-        foreach my $datum ( @{$newdata} ) {
-            my @char = $datum->get_char;
-            my $note = $datum->get_annotation;
-            if (@char) {
-                for my $i ( 0 .. $length ) {
-                    if ( not defined $char[$i] ) {
-                        $char[$i] = '?';
-                    }
-                }
-            }
-            $datum->set_char( \@char );
-            $datum->set_annotations( @{$note} );
-            $flattened->insert($datum);
-        }
-        return $flattened;
-    }
-
 =back
 
 =head2 DESTRUCTOR
@@ -1082,7 +750,7 @@ methods defined there apply here.
  Alias   :
  Returns : TRUE
  Args    : none
- Comments: You don't really need this, 
+ Comments: You don't really need this,
            it is called automatically when
            the object goes out of scope.
 
@@ -1090,8 +758,10 @@ methods defined there apply here.
 
     sub DESTROY {
         my $self = shift;
-        foreach ( keys %{$fields} ) {
-            delete $fields->{$_}->[$$self];
+        if ( my $i = $self->get_id ) {
+            foreach ( keys %{$fields} ) {
+                delete $fields->{$_}->[$i];
+            }
         }
         $self->_del_from_super;
         $self->SUPER::DESTROY;
@@ -1130,9 +800,37 @@ methods defined there apply here.
 
 =back
 
+=head1 Re-Implemented Bio::Matrix::MatrixI methods
+
+Consult the L<Bio::Matrix::MatrixI> documentation for details about 
+the following methods:
+
+=over
+
+=item matrix_id()
+
+=item matrix_name()
+
+=item num_rows()
+
+=item num_columns()
+
+=item row_names()
+
+=item column_names()
+
+=item column_num_for_name()
+
+=back
+
 =head1 SEE ALSO
 
 =over
+
+=item L<Bio::CDAT::CharMatrixI>
+
+This object implements the L<Bio::CDAT::CharMatrixI> interface,
+so the methods defined therein are available here.
 
 =item L<Bio::Phylo::Listable>
 
@@ -1162,7 +860,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Matrix.pm,v 1.32 2006/05/19 02:08:56 rvosa Exp $
+$Id: Matrix.pm 2187 2006-09-07 07:13:33Z rvosa $
 
 =head1 AUTHOR
 
@@ -1192,4 +890,331 @@ itself.
 =cut
 
 }
+
+################################################################################
+package Bio::Phylo::Matrices::Matrix::categorical;
+sub is_valid {
+    my ( $self, @chars ) = @_;
+    my $lookup = $self->get_charstate_lookup;
+    foreach(@chars){
+        return if not exists $lookup->{$_};
+    }
+    return 1;
+}
+################################################################################
+package Bio::Phylo::Matrices::Matrix::dna;
+use vars '@ISA';
+@ISA=qw(Bio::Phylo::Matrices::Matrix Bio::Phylo::Matrices::Matrix::categorical);
+{
+    my @lookup;
+    my $IUPAC = {
+        'A' => [ 'A'             ], # 1000
+        'B' => [ 'C','G','T'     ], # 0111
+        'C' => [ 'C'             ], # 0100
+        'D' => [ 'A','G','T'     ], # 1011
+        'G' => [ 'G'             ], # 0010
+        'H' => [ 'A','C','T'     ], # 1101
+        'K' => [ 'G','T'         ], # 0011
+        'M' => [ 'A','C'         ], # 1100
+        'N' => [ 'A','C','G','T' ], # 1111
+        'R' => [ 'A','G'         ], # 1010
+        'S' => [ 'C','G'         ], # 0110
+        'T' => [ 'T'             ], # 0001
+        'U' => [ 'U'             ], # 0001
+        'V' => [ 'A','C','G'     ], # 1110
+        'W' => [ 'A','T'         ], # 1001
+        'X' => [ 'A','C','G','T' ], # 1111
+        'Y' => [ 'C','T'         ], # 0101
+        '-' => [                 ], # 0000
+        '?' => [ 'A','C','G','T' ], # 1111
+    };
+    sub new {
+        my ( $class, $self, $lookup ) = @_;
+        if ( $lookup ) {
+            $lookup[ $self->get_id ] = $lookup;
+        }
+        else {
+            $lookup[ $self->get_id ] = $IUPAC;
+        }
+        return bless $self, $class;
+    }
+    sub set_charstate_lookup {
+        my ( $self, $lookup ) = @_;
+        $lookup[ $self->get_id ] = $lookup;
+        return $self;
+    }
+    sub get_charstate_lookup {
+        my ( $self ) = @_;
+        return $lookup[ $self->get_id ];
+    } 
+    sub get_type { 'DNA' }
+    sub default_charstate_looup { $IUPAC }           
+    sub DESTROY {
+        my ( $self ) = @_;
+        if ( my $i = $self->get_id ) {
+            delete $lookup[$i];
+        }        
+        $self->SUPER::DESTROY;
+    }
+       
+    
+}
+################################################################################
+package Bio::Phylo::Matrices::Matrix::rna;
+use vars '@ISA';
+@ISA=qw(Bio::Phylo::Matrices::Matrix Bio::Phylo::Matrices::Matrix::dna);
+{
+    sub new {
+        my ( $class, $self, $lookup ) = @_;
+        return bless Bio::Phylo::Matrices::Matrix::dna->new($self,$lookup), $class;
+    }
+    sub get_type { 'RNA' }
+}
+################################################################################
+package Bio::Phylo::Matrices::Matrix::protein;
+use vars '@ISA';
+@ISA=qw(Bio::Phylo::Matrices::Matrix Bio::Phylo::Matrices::Matrix::categorical);
+{
+    my @lookup;
+    my $PROT_LOOKUP = {
+        '-' => [],
+        'A' => [ 'A' ],
+        'C' => [ 'C' ],
+        'D' => [ 'D' ],
+        'E' => [ 'E' ],
+        'F' => [ 'F' ],
+        'G' => [ 'G' ],
+        'H' => [ 'H' ],
+        'I' => [ 'I' ],
+        'K' => [ 'K' ],
+        'L' => [ 'L' ],
+        'M' => [ 'M' ],
+        'N' => [ 'N' ],
+        'P' => [ 'P' ],
+        'Q' => [ 'Q' ],
+        'R' => [ 'R' ],
+        'S' => [ 'S' ],
+        'T' => [ 'T' ],
+        'U' => [ 'U' ],
+        'V' => [ 'V' ],
+        'W' => [ 'W' ],
+        'X' => [ 'X' ],
+        'Y' => [ 'Y' ],
+        '*' => [ '*' ],
+        'B' => [ 'D','N' ],
+        'Z' => [ 'E','Q' ],
+        '?' => [ qw(A C D E F G H I K L M N P Q R S T U V W X Y Z) ],
+    };    
+    sub new {
+        my ( $class, $self, $lookup ) = @_;
+        if ( $lookup ) {
+            $lookup[ $self->get_id ] = $lookup;
+        }
+        else {
+            $lookup[ $self->get_id ] = $PROT_LOOKUP;
+        }
+        return bless $self, $class;
+    }    
+    sub set_charstate_lookup {
+        my ( $self, $lookup ) = @_;
+        $lookup[ $self->get_id ] = $lookup;
+        return $self;
+    }
+    sub get_charstate_lookup {
+        my ( $self ) = @_;
+        return $lookup[ $self->get_id ];
+    }
+    sub default_charstate_looup { $PROT_LOOKUP }    
+    sub get_type { 'PROTEIN' } 
+    sub DESTROY {
+        my ( $self ) = @_;
+        delete $lookup[ $self->get_id ];
+        $self->SUPER::DESTROY;
+    }    
+}
+################################################################################
+package Bio::Phylo::Matrices::Matrix::restriction;
+use vars '@ISA';
+@ISA=qw(Bio::Phylo::Matrices::Matrix Bio::Phylo::Matrices::Matrix::categorical);
+{
+    my @lookup;
+    my $REST_LOOKUP = {
+        '-' => [],
+        '0' => [ '0' ],
+        '1' => [ '1' ],
+        '?' => [ '0', '1' ],
+    };
+    sub new {
+        my ( $class, $self, $lookup ) = @_;
+        if ( $lookup ) {
+            $lookup[ $self->get_id ] = $lookup;
+        }
+        else {
+            $lookup[ $self->get_id ] = $REST_LOOKUP;
+        }
+        return bless $self, $class;
+    }    
+    sub set_charstate_lookup {
+        my ( $self, $lookup ) = @_;
+        $lookup[ $self->get_id ] = $lookup;
+        return $self;
+    }
+    sub get_charstate_lookup {
+        my ( $self ) = @_;
+        return $lookup[ $self->get_id ];
+    }
+    sub default_charstate_looup { $REST_LOOKUP }
+    sub get_type { 'RESTRICTION' }
+    sub DESTROY {
+        my ( $self ) = @_;
+        delete $lookup[ $self->get_id ];
+        $self->SUPER::DESTROY;
+    }    
+}
+################################################################################
+package Bio::Phylo::Matrices::Matrix::standard;
+use vars '@ISA';
+@ISA=qw(Bio::Phylo::Matrices::Matrix Bio::Phylo::Matrices::Matrix::categorical);
+{
+    my @lookup;
+    my $STANDARD = {
+        '-' => [],
+        '0' => [ '0' ],
+        '1' => [ '1' ],
+        '2' => [ '2' ],
+        '3' => [ '3' ],
+        '4' => [ '4' ],
+        '5' => [ '5' ],
+        '6' => [ '6' ],
+        '7' => [ '7' ],
+        '8' => [ '8' ],
+        '9' => [ '9' ],
+        '?' => [ ( 0 .. 9 ) ],
+    };
+    sub new {
+        my ( $class, $self, $lookup ) = @_;
+        if ( $lookup ) {
+            $lookup[ $self->get_id ] = $lookup;
+        }
+        else {
+            $lookup[ $self->get_id ] = $STANDARD;
+        }
+        return bless $self, $class;
+    }
+    sub set_charstate_lookup {
+        my ( $self, $lookup ) = @_;
+        $lookup[ $self->get_id ] = $lookup;
+        return $self;
+    }
+    sub get_charstate_lookup {
+        my ( $self ) = @_;
+        return $lookup[ $self->get_id ];
+    }
+    sub default_charstate_lookup { $STANDARD }
+    sub get_type { 'STANDARD' }
+    sub DESTROY {
+        my ( $self ) = @_;
+        delete $lookup[ $self->get_id ];
+        $self->SUPER::DESTROY;
+    }    
+}
+################################################################################
+package Bio::Phylo::Matrices::Matrix::continuous;
+use vars '@ISA';
+use Scalar::Util qw(looks_like_number);
+@ISA=qw(Bio::Phylo::Matrices::Matrix);
+{
+    my @lookup;
+    sub new {
+        my ( $class, $self ) = @_;
+        return bless $self, $class;
+    }
+    sub set_charstate_lookup {
+        my ( $self, $lookup ) = @_;
+        $lookup[ $self->get_id ] = $lookup;
+        return $self;
+    }
+    sub get_charstate_lookup {
+        my ( $self ) = @_;
+        return $lookup[ $self->get_id ];
+    }
+    sub get_type { 'CONTINUOUS' };
+    sub is_valid {
+        my ( $self, @chars ) = @_;
+        foreach(@chars){
+            return if not looks_like_number $_;
+        }
+        return 1;
+    }
+    sub DESTROY {
+        my ( $self ) = @_;
+        delete $lookup[ $self->get_id ];
+        $self->SUPER::DESTROY;
+    }    
+}
+################################################################################
+package Bio::Phylo::Matrices::CharSeq;
+use Bio::Phylo::Util::CONSTANT qw(_MATRIX_ _DATUM_);
+
+use vars '@ISA';
+@ISA=qw(Bio::Phylo);
+my $class = 'Bio::RangeI';
+eval "require $class";
+if ( not $@ ) {
+    push @ISA, $class;
+}
+
+my ( @start, @container, @tuple );
+
+use overload '@{}' => sub { $tuple[$$_[0]] }, 'fallback' => 1;
+
+sub new {
+    my ( $class, $name, $chars ) = @_;
+    my $self = $class->SUPER::new( '-name' => $name );
+    $tuple[ $self->get_id ] = [ $name, $chars ];
+    return bless $self, $class;
+}
+sub get_char {
+    my $self = shift;
+    return wantarray ? @{ $tuple[ $self->get_id ]->[1] } : join ' ', @{ $tuple[ $self->get_id ]->[1] };
+}
+sub get_taxon {
+    my $self = shift;
+    return ref $tuple[ $self->get_id ]->[0] ? $tuple[ $self->get_id ]->[0] : undef;
+}
+sub start {
+    my ( $self, $start ) = @_;
+    $start[ $self->get_id ] = $start if $start;
+    return $start[ $self->get_id ];
+}
+sub end {
+    return $#{ $_[0]->get_char } + $_[0]->start;
+}
+sub strand {
+
+}
+sub length {
+    return $_[0]->end - $_[0]->start;
+}
+sub toString {
+
+}
+sub overlaps {
+    return ( $_[0]->start <= $_[1]->end  && $_[0]->end >= $_[1]->start ) ? 1 : 0;
+}
+sub contains {
+    return ( $_[0]->start <= $_[1]->start && $_[0]->end >= $_[1]->end ) ? 1 : 0;
+}
+sub equals {
+    return ( $_[0]->start == $_[1]->start && $_[0]->end == $_[1]->end ) ? 1 : 0;
+}
+sub intersection {
+
+}
+sub union {
+
+}
+sub _container { _MATRIX_ }
+sub _type { _DATUM_ }
+
 1;

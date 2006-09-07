@@ -1,5 +1,5 @@
 #!perl -T
-# $Id: pod-coverage.t,v 1.3 2005/07/22 00:46:33 rvosa Exp $
+# $Id: pod-coverage.t 1185 2006-05-26 09:04:17Z rvosa $
 use Test::More;
 eval "use Test::Pod::Coverage 1.04";
 plan skip_all => "Test::Pod::Coverage 1.04 required for testing POD coverage"

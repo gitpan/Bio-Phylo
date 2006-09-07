@@ -1,14 +1,12 @@
-# $Id: Treedrawer.pm,v 1.10 2006/05/19 02:08:51 rvosa Exp $
+# $Id: Treedrawer.pm 2187 2006-09-07 07:13:33Z rvosa $
 # Subversion: $Rev: 192 $
 package Bio::Phylo::Treedrawer;
 use strict;
-use warnings;
 use Bio::Phylo::Forest::Tree;
 use Bio::Phylo::Forest::Node;
-use Bio::Phylo::Util::CONSTANT qw(_TREE_);
-use Scalar::Util qw(looks_like_number);
-use fields
-  qw(WIDTH HEIGHT MODE SHAPE PADDING NODE_RADIUS TEXT_HORIZ_OFFSET TEXT_VERT_OFFSET TEXT_WIDTH TREE _SCALEX _SCALEY SCALE FORMAT);
+use Bio::Phylo::Util::CONSTANT qw(_TREE_ looks_like_number);
+#use Scalar::Util qw(looks_like_number);
+my @fields = qw(WIDTH HEIGHT MODE SHAPE PADDING NODE_RADIUS TEXT_HORIZ_OFFSET TEXT_VERT_OFFSET TEXT_WIDTH TREE _SCALEX _SCALEY SCALE FORMAT);
 
 # hashref of available tree drawer modules
 my $drawers = { 'Svg' => 1 };
@@ -69,10 +67,8 @@ nodes) and calls the appropriate format-specific drawer.
 =cut
 
 sub new {
-    my Bio::Phylo::Treedrawer $self = shift;
-    unless ( ref $self ) {
-        $self = fields::new($self);
-    }
+    my $class = shift;
+    my $self = {};
     $self->{'WIDTH'}             = 500;
     $self->{'HEIGHT'}            = 500;
     $self->{'MODE'}              = 'CLADO';
@@ -100,7 +96,7 @@ sub new {
             }
         }
     }
-    return $self;
+    return bless $self, $class;
 }
 
 =back
@@ -113,11 +109,11 @@ sub new {
 
  Type    : Mutator
  Title   : set_format
- Usage   : $treedrawer->set_format('svg');
+ Usage   : $treedrawer->set_format('Svg');
  Function: Sets the drawer submodule.
  Returns :
  Args    : Name of an image format (currently 
-           only svg supported)
+           only Svg supported)
 
 =cut
 
@@ -904,7 +900,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Treedrawer.pm,v 1.10 2006/05/19 02:08:51 rvosa Exp $
+$Id: Treedrawer.pm 2187 2006-09-07 07:13:33Z rvosa $
 
 =head1 AUTHOR
 

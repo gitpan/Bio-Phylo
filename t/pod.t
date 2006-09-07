@@ -1,5 +1,5 @@
 #!perl -T
-# $Id: pod.t,v 1.2 2005/07/22 00:46:33 rvosa Exp $
+# $Id: pod.t 1185 2006-05-26 09:04:17Z rvosa $
 use Test::More;
 eval "use Test::Pod 1.14";
 plan skip_all => "Test::Pod 1.14 required for testing POD" if $@;

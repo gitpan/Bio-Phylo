@@ -1,4 +1,4 @@
-# $Id: Taxa.pm,v 1.27 2006/05/19 02:08:51 rvosa Exp $
+# $Id: Taxa.pm 1721 2006-07-20 03:43:06Z rvosa $
 package Bio::Phylo::Taxa;
 use strict;
 use Bio::Phylo::Listable;
@@ -17,13 +17,11 @@ use vars qw($VERSION @ISA);
     # inside-out class arrays
     my @forests;
     my @matrices;
-    my @ntax;
 
     # $fields hashref necessary for object destruction
     my $fields = {
         '-forests'  => \@forests,
         '-matrices' => \@matrices,
-        '-ntax'     => \@ntax,
     };
 
 =head1 NAME
@@ -74,9 +72,8 @@ A taxa object can link to multiple forest and matrix objects.
         my ( $class, $self ) = shift;
         $self = Bio::Phylo::Taxa->SUPER::new(@_);
         bless $self, __PACKAGE__;
-        $forests[$$self]  = {};
-        $matrices[$$self] = {};
-        $ntax[$$self]     = undef;
+        $forests[ $self->get_id ]  = {};
+        $matrices[ $self->get_id ] = {};
         if (@_) {
             my %opt;
             eval { %opt = @_; };
@@ -86,7 +83,7 @@ A taxa object can link to multiple forest and matrix objects.
             else {
                 while ( my ( $key, $value ) = each %opt ) {
                     if ( $fields->{$key} ) {
-                        $fields->{$key}->[$$self] = $value;
+                        $fields->{$key}->[ $self->get_id ] = $value;
                         delete $opt{$key};
                     }
                 }
@@ -124,8 +121,8 @@ A taxa object can link to multiple forest and matrix objects.
             && $forest->can('_type')
             && $forest->_type == _FOREST_ )
         {
-            $forests[$$self]->{$forest} = $forest;
-            weaken( $forests[$$self]->{$forest} );
+            $forests[ $self->get_id ]->{$forest} = $forest;
+            weaken( $forests[ $self->get_id ]->{$forest} );
             $forest->set_taxa($self) if $forest->get_taxa != $self;
         }
         else {
@@ -155,8 +152,8 @@ A taxa object can link to multiple forest and matrix objects.
             && $matrix->can('_type')
             && $matrix->_type == _MATRIX_ )
         {
-            $matrices[$$self]->{$matrix} = $matrix;
-            weaken( $matrices[$$self]->{$matrix} );
+            $matrices[ $self->get_id ]->{$matrix} = $matrix;
+            weaken( $matrices[ $self->get_id ]->{$matrix} );
             if ( $matrix->get_taxa ) {
                 $matrix->set_taxa($self) if $matrix->get_taxa != $self;
             }
@@ -188,7 +185,7 @@ A taxa object can link to multiple forest and matrix objects.
 
         # no need for type checking really. If it's there, it gets killed,
         # otherwise skips silently
-        delete $forests[$$self]->{$forest};
+        delete $forests[ $self->get_id ]->{$forest};
         return $self;
     }
 
@@ -210,45 +207,10 @@ A taxa object can link to multiple forest and matrix objects.
 
         # no need for type checking really. If it's there, it gets killed,
         # otherwise skips silently
-        delete $matrices[$$self]->{$matrix};
+        delete $matrices[ $self->get_id ]->{$matrix};
         return $self;
     }
 
-=item set_ntax()
-
- Type    : Mutator
- Title   : set_ntax
- Usage   : $taxa->set_ntax(10);
- Function: Assigns the intended number of 
-           taxa for the invocant.
- Returns : Modified object.
- Args    : Optional: An integer. If no
-           value is given, ntax is reset
-           to the undefined default.
- Comments: This value is only necessary 
-           for the $taxa->validate 
-           method. If you don't need to
-           call that, this value is 
-           better left unset.
-
-=cut
-
-    sub set_ntax {
-        my ( $self, $ntax ) = @_;
-        if ( defined $ntax ) {
-            if ( $ntax !~ m/^\d+$/ ) {
-                Bio::Phylo::Util::Exceptions::BadNumber->throw(
-                    error => "\"$ntax\" is not a valid integer" );
-            }
-            else {
-                $ntax[$$self] = $ntax;
-            }
-        }
-        else {
-            $ntax[$$self] = undef;
-        }
-        return $self;
-    }
 
 =back
 
@@ -271,7 +233,7 @@ A taxa object can link to multiple forest and matrix objects.
 
     sub get_forests {
         my $self = shift;
-        my @tmp  = values %{ $forests[$$self] };
+        my @tmp  = values %{ $forests[ $self->get_id ] };
         return \@tmp;
     }
 
@@ -290,7 +252,7 @@ A taxa object can link to multiple forest and matrix objects.
 
     sub get_matrices {
         my $self = shift;
-        my @tmp  = values %{ $matrices[$$self] };
+        my @tmp  = values %{ $matrices[ $self->get_id ] };
         return \@tmp;
     }
 
@@ -299,26 +261,16 @@ A taxa object can link to multiple forest and matrix objects.
  Type    : Accessor
  Title   : get_ntax
  Usage   : my $ntax = $taxa->get_ntax;
- Function: Retrieves the intended number of 
-           taxa for the invocant.
- Returns : An integer, or undefined.
+ Function: Retrieves the number of taxa for the invocant.
+ Returns : INT
  Args    : None.
- Comments: The return value is whatever was
-           set by the 'set_ntax' method call.
-           'get_ntax' is used by the 'validate'
-           method to check if the computed
-           number of taxa matches with
-           what is asserted here. In other words,
-           calling $taxa->get_ntax doesn't return
-           the *actual* number of taxa in the 
-           matrix, but the number it is intended
-           to contain.
+ Comments:
 
 =cut
 
     sub get_ntax {
         my $self = shift;
-        return $ntax[$$self];
+        return scalar @{ $self->get_entities };
     }
 
 =back
@@ -383,34 +335,6 @@ A taxa object can link to multiple forest and matrix objects.
         }
     }
 
-=item validate()
-
- Type    : Method
- Title   : validate
- Usage   : $taxa->validate;
- Function: Compares computed ntax asserted. Reacts 
-           violently if something doesn't match.
- Returns : Void.
- Args    : None
- Comments: 'set_ntax' needs to be 
-           assigned for this to work.
-
-=cut
-
-    sub validate {
-        my $self = shift;
-        if ( not $self->get_ntax ) {
-            Bio::Phylo::Util::Exceptions::BadArgs->throw(
-                error => "'set_ntax' needs to be assigned for this to work", );
-        }
-        my $ntax = scalar @{ $self->get_entities };
-        if ( $self->get_ntax != $ntax ) {
-            Bio::Phylo::Util::Exceptions::BadFormat->throw(
-                error => "Bad ntax - observed: $ntax, expected: "
-                  . $self->get_ntax, );
-        }
-    }
-
 =back
 
 =head2 DESTRUCTOR
@@ -434,8 +358,10 @@ A taxa object can link to multiple forest and matrix objects.
 
     sub DESTROY {
         my $self = shift;
-        foreach ( keys %{$fields} ) {
-            delete $fields->{$_}->[$$self];
+        if ( my $i = $self->get_id ) {
+            foreach ( keys %{$fields} ) {
+                delete $fields->{$_}->[$i];
+            }
         }
         $self->_del_from_super;
         $self->SUPER::DESTROY;
@@ -505,7 +431,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Taxa.pm,v 1.27 2006/05/19 02:08:51 rvosa Exp $
+$Id: Taxa.pm 1721 2006-07-20 03:43:06Z rvosa $
 
 =head1 AUTHOR
 

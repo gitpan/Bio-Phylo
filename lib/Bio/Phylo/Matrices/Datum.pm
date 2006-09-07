@@ -1,10 +1,10 @@
-# $Id: Datum.pm,v 1.30 2006/05/19 02:08:56 rvosa Exp $
+# $Id: Datum.pm 2187 2006-09-07 07:13:33Z rvosa $
 package Bio::Phylo::Matrices::Datum;
 use strict;
 use Bio::Phylo::Forest::Node;
 use Bio::Phylo::Util::IDPool;
-use Scalar::Util qw(looks_like_number weaken blessed);
-use Bio::Phylo::Util::CONSTANT qw(_DATUM_ _MATRIX_ _TAXON_ symbol_ok type_ok);
+use Scalar::Util qw(weaken blessed);
+use Bio::Phylo::Util::CONSTANT qw(_DATUM_ _MATRIX_ _TAXON_ symbol_ok type_ok looks_like_number);
 use XML::Simple;
 
 # One line so MakeMaker sees it.
@@ -19,7 +19,7 @@ use vars qw($VERSION @ISA);
     my @taxon;
     my @weight;
     my @type;
-    my @char;
+    my @char; # to listable
     my @pos;
     my @annotations;
 
@@ -32,6 +32,12 @@ use vars qw($VERSION @ISA);
         '-pos'    => \@pos,
         '-note'   => \@annotations,
     };
+    
+    use overload '@{}' => sub {
+        my $taxon = $_[0]->get_taxon || $_[0]->get_name;
+        my @chars = $_[0]->get_char;
+        return [ $taxon, @chars ];    
+    }, 'fallback' => 1;
 
 =head1 NAME
 
@@ -54,20 +60,20 @@ Bio::Phylo::Matrices::Datum - The single observations object.
  );
 
  # ...and linking it to a taxon object
- my $taxon = Bio::Phylo::Taxa::Taxon->new( 
-     -name => 'Lemur_catta' 
+ my $taxon = Bio::Phylo::Taxa::Taxon->new(
+     -name => 'Lemur_catta'
  );
  $datum->set_taxon( $taxon );
- 
+
  # instantiating a matrix...
  my $matrix = Bio::Phylo::Matrices::Matrix->new;
- 
+
  # ...and insert datum in matrix
  $matrix->insert($datum);
 
 =head1 DESCRIPTION
 
-The datum object models a single observation or a sequence of observations, 
+The datum object models a single observation or a sequence of observations,
 which can be linked to a taxon object.
 
 =head1 METHODS
@@ -81,7 +87,7 @@ which can be linked to a taxon object.
  Type    : Constructor
  Title   : new
  Usage   : my $datum = Bio::Phylo::Matrices::Datum->new;
- Function: Instantiates a Bio::Phylo::Matrices::Datum 
+ Function: Instantiates a Bio::Phylo::Matrices::Datum
            object.
  Returns : A Bio::Phylo::Matrices::Datum object.
  Args    : None required. Optional:
@@ -90,7 +96,7 @@ which can be linked to a taxon object.
            -type   => DNA,
            -char   => [ 'G','A','T','T','A','C','A' ],
            -pos    => 2,
- 
+
 
 =cut
 
@@ -99,15 +105,15 @@ which can be linked to a taxon object.
         my $self  = __PACKAGE__->SUPER::new(@_);
 
 # the basic design is like this: every datum holds an array
-# reference with characters, i.e. $char[$$self] = [ 'A', 'C', 'G' ];
+# reference with characters, i.e. $char[ $self->get_id ] = [ 'A', 'C', 'G' ];
 # these characters can then be annotated, individually, using the
 # @annotations array, e.g.:
-# $annotations[$$self] = [ { -codonpos => 1 }, { -codonpos => 2 }, { -codonpos => 3 } ];
+# $annotations[ $self->get_id ] = [ { -codonpos => 1 }, { -codonpos => 2 }, { -codonpos => 3 } ];
 # this way, individual characters inside the @char array can be richly
 # annotated without having to spawn individual objects for every character
 # in a sequence.
-        $char[$$self]        = [];
-        $annotations[$$self] = [];
+        $char[ $self->get_id ]        = [];
+        $annotations[ $self->get_id ] = [];
         bless $self, $class;
         if (@_) {
             my %opt;
@@ -118,11 +124,11 @@ which can be linked to a taxon object.
             else {
                 while ( my ( $key, $value ) = each %opt ) {
                     if ( $fields->{$key} ) {
-                        $fields->{$key}->[$$self] = $value;
+                        $fields->{$key}->[ $self->get_id ] = $value;
                         if ( blessed $value && $value->can('_type') ) {
                             my $type = $value->_type;
                             if ( $type == _TAXON_ ) {
-                                weaken( $fields->{$key}->[$$self] );
+                                weaken( $fields->{$key}->[ $self->get_id ] );
                             }
                         }
                         delete $opt{$key};
@@ -147,7 +153,7 @@ which can be linked to a taxon object.
  Usage   : $datum->set_taxon($taxon);
  Function: Assigns the taxon a datum refers to.
  Returns : Modified object.
- Args    : $taxon must be a Bio::Phylo::Taxa::Taxon 
+ Args    : $taxon must be a Bio::Phylo::Taxa::Taxon
            object.
 
 =cut
@@ -167,8 +173,8 @@ which can be linked to a taxon object.
                         );
                     }
                 }
-                $taxon[$$self] = $taxon;
-                weaken( $taxon[$$self] );
+                $taxon[ $self->get_id ] = $taxon;
+                weaken( $taxon[ $self->get_id ] );
                 if ( $self->_get_container ) {
                     $self->_get_container->set_taxa( $taxon->_get_container );
                 }
@@ -179,7 +185,7 @@ which can be linked to a taxon object.
             }
         }
         else {
-            $taxon[$$self] = undef;
+            $taxon[ $self->get_id ] = undef;
         }
         $self->_flush_cache;
         return $self;
@@ -192,7 +198,7 @@ which can be linked to a taxon object.
  Usage   : $datum->set_weight($weight);
  Function: Assigns a datum's weight.
  Returns : Modified object.
- Args    : The $weight argument must be a 
+ Args    : The $weight argument must be a
            number in any of Perl's number
            formats.
 
@@ -206,11 +212,11 @@ which can be linked to a taxon object.
                     error => "\"$weight\" is a bad number format" );
             }
             else {
-                $weight[$$self] = $weight;
+                $weight[ $self->get_id ] = $weight;
             }
         }
         else {
-            $weight[$$self] = undef;
+            $weight[ $self->get_id ] = undef;
         }
         return $self;
     }
@@ -223,14 +229,14 @@ which can be linked to a taxon object.
  Function: Assigns a datum's type.
  Returns : Modified object.
  Args    : $type must be one of [DNA|RNA|STANDARD|
-           PROTEIN|NUCLEOTIDE|CONTINUOUS]. If DNA, 
+           PROTEIN|NUCLEOTIDE|CONTINUOUS]. If DNA,
            RNA or NUCLEOTIDE is defined, the
-           subsequently set char is validated against 
-           the IUPAC nucleotide one letter codes. If 
-           PROTEIN is defined, the char is validated 
-           against IUPAC one letter amino acid codes. 
-           Likewise, a STANDARD char has to be a single 
-           integer [0-9], while for CONTINUOUS all of 
+           subsequently set char is validated against
+           the IUPAC nucleotide one letter codes. If
+           PROTEIN is defined, the char is validated
+           against IUPAC one letter amino acid codes.
+           Likewise, a STANDARD char has to be a single
+           integer [0-9], while for CONTINUOUS all of
            Perl's number formats are allowed.
 
 =cut
@@ -242,10 +248,10 @@ which can be linked to a taxon object.
                 error => "\"$type\" is a bad data type" );
         }
         elsif ( !$type ) {
-            $type[$$self] = undef;
+            $type[ $self->get_id ] = undef;
         }
         else {
-            $type[$$self] = uc $type;
+            $type[ $self->get_id ] = uc $type;
         }
         return $self;
     }
@@ -257,18 +263,18 @@ which can be linked to a taxon object.
  Usage   : $datum->set_char($char);
  Function: Assigns a datum's character value.
  Returns : Modified object.
- Args    : The $char argument is checked against 
-           the allowed ranges for the various 
-           character types: IUPAC nucleotide (for 
-           types of DNA|RNA|NUCLEOTIDE), IUPAC 
-           single letter amino acid codes (for type 
+ Args    : The $char argument is checked against
+           the allowed ranges for the various
+           character types: IUPAC nucleotide (for
+           types of DNA|RNA|NUCLEOTIDE), IUPAC
+           single letter amino acid codes (for type
            PROTEIN), integers (STANDARD) or any of perl's
-           decimal formats (CONTINUOUS). The $char can be: 
+           decimal formats (CONTINUOUS). The $char can be:
                * a single character;
                * a string of characters;
                * an array reference of characters;
  Comments: Note that on assigning characters to a datum,
-           previously set annotations are removed.               
+           previously set annotations are removed.
 
 =cut
 
@@ -279,24 +285,24 @@ which can be linked to a taxon object.
                 if ( symbol_ok( '-type' => $type, '-char' => $char ) ) {
                     if ( $type !~ m/^CONTINUOUS$/i ) {
                         if ( not ref $char and length($char) > 1 ) {
-                            $char[$$self] = [ split( //, $char ) ];
+                            $char[ $self->get_id ] = [ split( //, $char ) ];
                         }
                         elsif ( not ref $char and length($char) == 1 ) {
-                            $char[$$self] = [$char];
+                            $char[ $self->get_id ] = [$char];
                         }
                         elsif ( ref $char eq 'ARRAY' ) {
-                            $char[$$self] = $char;
+                            $char[ $self->get_id ] = $char;
                         }
                     }
                     else {
                         if ( not ref $char and not looks_like_number $char ) {
-                            $char[$$self] = [ split( /\s+/, $char ) ];
+                            $char[ $self->get_id ] = [ split( /\s+/, $char ) ];
                         }
                         elsif ( not ref $char and looks_like_number $char ) {
-                            $char[$$self] = [$char];
+                            $char[ $self->get_id ] = [$char];
                         }
                         elsif ( ref $char eq 'ARRAY' ) {
-                            $char[$$self] = $char;
+                            $char[ $self->get_id ] = $char;
                         }
                     }
                 }
@@ -306,14 +312,14 @@ which can be linked to a taxon object.
                 }
             }
             else {
-                $char[$$self] = undef;
+                $char[ $self->get_id ] = undef;
             }
         }
         else {
             Bio::Phylo::Util::Exceptions::BadFormat->throw(
                 error => 'please define the data type first' );
         }
-        $annotations[$$self] = [];
+        $annotations[ $self->get_id ] = [];
         return $self;
     }
 
@@ -335,7 +341,7 @@ which can be linked to a taxon object.
                 error => "\"$pos\" is bad. Positions must be integers" );
         }
         else {
-            $pos[$$self] = $pos;
+            $pos[ $self->get_id ] = $pos;
         }
         return $self;
     }
@@ -344,11 +350,11 @@ which can be linked to a taxon object.
 
  Type    : Mutator
  Title   : set_annotation
- Usage   : $datum->set_annotation( 
-               -char       => 1, 
-               -annotation => { -codonpos => 1 } 
+ Usage   : $datum->set_annotation(
+               -char       => 1,
+               -annotation => { -codonpos => 1 }
            );
- Function: Assigns an annotation to a 
+ Function: Assigns an annotation to a
            character in the datum.
  Returns : Modified object.
  Args    : Required: -char       => $int
@@ -373,19 +379,19 @@ which can be linked to a taxon object.
                     error => "No character to annotate specified!" );
             }
             my $i = $opt{'-char'};
-            if ( not exists $char[$$self]->[$i] ) {
+            if ( not exists $char[ $self->get_id ]->[$i] ) {
                 Bio::Phylo::Util::Exceptions::OutOfBounds->throw(
                     error => "Specified char ($i) does not exist!" );
             }
             if ( exists $opt{'-annotation'} ) {
                 my $note = $opt{'-annotation'};
-                $annotations[$$self]->[$i] = {} if !$annotations[$$self]->[$i];
+                $annotations[ $self->get_id ]->[$i] = {} if !$annotations[ $self->get_id ]->[$i];
                 while ( my ( $k, $v ) = each %{$note} ) {
-                    $annotations[$$self]->[$i]->{$k} = $v;
+                    $annotations[ $self->get_id ]->[$i]->{$k} = $v;
                 }
             }
             else {
-                $annotations[$$self]->[$i] = undef;
+                $annotations[ $self->get_id ]->[$i] = undef;
             }
         }
         else {
@@ -399,18 +405,18 @@ which can be linked to a taxon object.
 
  Type    : Mutator
  Title   : set_annotations
- Usage   : $datum->set_annotations( 
-               { '-codonpos' => 1 }, 
-               { '-codonpos' => 2 }, 
-               { '-codonpos' => 3 },              
+ Usage   : $datum->set_annotations(
+               { '-codonpos' => 1 },
+               { '-codonpos' => 2 },
+               { '-codonpos' => 3 },
            );
  Function: Assign annotations to
            characters in the datum.
  Returns : Modified object.
- Args    : Hash references, where 
+ Args    : Hash references, where
            position in the argument
            list matches that of the
-           specified characters in 
+           specified characters in
            the character list.
  Comments: Use this method to annotate
            multiple characters. To
@@ -424,16 +430,16 @@ which can be linked to a taxon object.
         my $self = shift;
         if (@_) {
             for my $i ( 0 .. $#_ ) {
-                if ( not exists $char[$$self]->[$i] ) {
+                if ( not exists $char[ $self->get_id ]->[$i] ) {
                     Bio::Phylo::Util::Exceptions::OutOfBounds->throw(
                         error => "Specified char ($i) does not exist!" );
                 }
                 else {
                     if ( ref $_[$i] eq 'HASH' ) {
-                        $annotations[$$self]->[$i] = {}
-                          if !$annotations[$$self]->[$i];
+                        $annotations[ $self->get_id ]->[$i] = {}
+                          if !$annotations[ $self->get_id ]->[$i];
                         while ( my ( $k, $v ) = each %{ $_[$i] } ) {
-                            $annotations[$$self]->[$i]->{$k} = $v;
+                            $annotations[ $self->get_id ]->[$i]->{$k} = $v;
                         }
                     }
                     else {
@@ -463,7 +469,7 @@ which can be linked to a taxon object.
 
     sub get_taxon {
         my $self = shift;
-        return $taxon[$$self];
+        return $taxon[ $self->get_id ];
     }
 
 =item get_weight()
@@ -479,7 +485,7 @@ which can be linked to a taxon object.
 
     sub get_weight {
         my $self = shift;
-        return $weight[$$self];
+        return $weight[ $self->get_id ];
     }
 
 =item get_type()
@@ -496,7 +502,7 @@ which can be linked to a taxon object.
 
     sub get_type {
         my $self = shift;
-        return $type[$$self];
+        return $type[ $self->get_id ];
     }
 
 =item get_char()
@@ -505,10 +511,10 @@ which can be linked to a taxon object.
  Title   : get_char
  Usage   : my $char = $datum->get_char;
  Function: Retrieves a datum's character value.
- Returns : In scalar context, returns a single 
-           character, or a string of characters 
-           (e.g. a DNA sequence, or a space 
-           delimited series of continuous characters). 
+ Returns : In scalar context, returns a single
+           character, or a string of characters
+           (e.g. a DNA sequence, or a space
+           delimited series of continuous characters).
            In list context, returns a list of characters
            (of zero or more characters).
  Args    : NONE
@@ -518,11 +524,11 @@ which can be linked to a taxon object.
     sub get_char {
         my $self = shift;
         if ( $self->get_type and $self->get_type !~ m/^CONTINUOUS$/i ) {
-            return wantarray ? @{ $char[$$self] } : join '', @{ $char[$$self] };
+            return wantarray ? @{ $char[ $self->get_id ] } : join '', @{ $char[ $self->get_id ] };
         }
         else {
-            return wantarray ? @{ $char[$$self] } : join ' ',
-              @{ $char[$$self] };
+            return wantarray ? @{ $char[ $self->get_id ] } : join ' ',
+              @{ $char[ $self->get_id ] };
         }
     }
 
@@ -539,18 +545,18 @@ which can be linked to a taxon object.
 
     sub get_position {
         my $self = shift;
-        return $pos[$$self];
+        return $pos[ $self->get_id ];
     }
 
 =item get_annotation()
 
  Type    : Accessor
  Title   : get_annotation
- Usage   : $datum->get_annotation( 
-               '-char' => 1, 
+ Usage   : $datum->get_annotation(
+               '-char' => 1,
                '-key'  => '-codonpos',
            );
- Function: Retrieves an annotation to 
+ Function: Retrieves an annotation to
            a character in the datum.
  Returns : SCALAR or HASH
  Args    : Optional: -char => $int
@@ -572,19 +578,19 @@ which can be linked to a taxon object.
                 );
             }
             my $i = $opt{'-char'};
-            if ( not exists $char[$$self]->[$i] ) {
+            if ( not exists $char[ $self->get_id ]->[$i] ) {
                 Bio::Phylo::Util::Exceptions::OutOfBounds->throw(
                     error => "Specified char ($i) does not exist!", );
             }
             if ( exists $opt{'-key'} ) {
-                return $annotations[$$self]->[$i]->{ $opt{'-key'} };
+                return $annotations[ $self->get_id ]->[$i]->{ $opt{'-key'} };
             }
             else {
-                return $annotations[$$self]->[$i];
+                return $annotations[ $self->get_id ]->[$i];
             }
         }
         else {
-            return $annotations[$$self];
+            return $annotations[ $self->get_id ];
         }
     }
 
@@ -599,14 +605,14 @@ which can be linked to a taxon object.
  Type    : Method
  Title   : copy_atts
  Usage   : my $copy = $datum->copy_atts;
- Function: Creates an empty copy of invocant 
+ Function: Creates an empty copy of invocant
            (i.e. no data, but all the
            attributes).
- Returns : Bio::Phylo::Matrices::Datum 
+ Returns : Bio::Phylo::Matrices::Datum
            (shallow copy)
  Args    : None
 
-=cut 
+=cut
 
     sub copy_atts {
         my $self = shift;
@@ -638,8 +644,8 @@ which can be linked to a taxon object.
 
     sub reverse {
         my $self  = shift;
-        my @chars = reverse @{ $char[$$self] };
-        $char[$$self] = \@chars;
+        my @chars = reverse @{ $char[ $self->get_id ] };
+        $char[ $self->get_id ] = \@chars;
         return $self;
     }
 
@@ -661,7 +667,7 @@ which can be linked to a taxon object.
             my $tag = $k;
             $tag =~ s/^-(.*)$/$1/;
             $xml .= '<' . $tag . '>';
-            $xml .= XMLout( $fields->{$k}->[$$self] );
+            $xml .= XMLout( $fields->{$k}->[ $self->get_id ] );
             $xml .= '</' . $tag . '>';
         }
         return $xml;
@@ -684,7 +690,7 @@ which can be linked to a taxon object.
  Alias   :
  Returns : TRUE
  Args    : none
- Comments: You don't really need this, 
+ Comments: You don't really need this,
            it is called automatically when
            the object goes out of scope.
 
@@ -692,8 +698,10 @@ which can be linked to a taxon object.
 
     sub DESTROY {
         my $self = shift;
-        foreach ( keys %{$fields} ) {
-            delete $fields->{$_}->[$$self];
+        if ( my $i = $self->get_id ) {
+            foreach ( keys %{$fields} ) {
+                delete $fields->{$_}->[$i];
+            }
         }
         $self->SUPER::DESTROY;
         return 1;
@@ -762,7 +770,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Datum.pm,v 1.30 2006/05/19 02:08:56 rvosa Exp $
+$Id: Datum.pm 2187 2006-09-07 07:13:33Z rvosa $
 
 =head1 AUTHOR
 

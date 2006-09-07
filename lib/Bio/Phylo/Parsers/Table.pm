@@ -1,4 +1,4 @@
-# $Id: Table.pm,v 1.23 2006/05/19 02:08:58 rvosa Exp $
+# $Id: Table.pm 1652 2006-07-13 02:08:23Z rvosa $
 # Subversion: $Rev: 194 $
 package Bio::Phylo::Parsers::Table;
 use strict;
@@ -77,11 +77,12 @@ sub _new {
 sub _from_both {
     my $self   = shift;
     my %opts   = @_;
-    my $matrix = Bio::Phylo::Matrices::Matrix->new;
+    my $matrix = Bio::Phylo::Matrices::Matrix->new(
+        '-type' => $opts{'-type'},
+    );
     my $taxa   = Bio::Phylo::Taxa->new;
     $taxa->set_matrix($matrix);
     $matrix->set_taxa($taxa);
-    $matrix->_is_flat(1);
     my ( $fieldre, $linere );
 
     if ( $opts{'-fieldsep'} ) {
@@ -173,7 +174,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Table.pm,v 1.23 2006/05/19 02:08:58 rvosa Exp $
+$Id: Table.pm 1652 2006-07-13 02:08:23Z rvosa $
 
 =head1 AUTHOR
 

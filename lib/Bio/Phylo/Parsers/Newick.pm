@@ -1,10 +1,13 @@
-# $Id: Newick.pm,v 1.26 2006/05/19 02:08:58 rvosa Exp $
+# $Id: Newick.pm 2108 2006-08-29 20:46:17Z rvosa $
 package Bio::Phylo::Parsers::Newick;
 use strict;
 use Bio::Phylo::Forest;
 use Bio::Phylo::Forest::Tree;
 use Bio::Phylo::Forest::Node;
-use base 'Bio::Phylo::IO';
+use Bio::Phylo::IO;
+
+use vars '@ISA';
+@ISA=qw(Bio::Phylo::IO);
 
 # One line so MakeMaker sees it.
 use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
@@ -13,19 +16,19 @@ use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
 
 =head1 NAME
 
-Bio::Phylo::Parsers::Newick - Parses newick trees. No serviceable parts
-inside.
+Bio::Phylo::Parsers::Newick - Parses newick trees. No serviceable parts inside.
 
 =head1 DESCRIPTION
 
-This module parses tree descriptions in parenthetical format. It is called by
-the L<Bio::Phylo::IO> facade, don't call it directly.
+This module parses tree descriptions in parenthetical
+format. It is called by the L<Bio::Phylo::IO> facade,
+don't call it directly.
 
 =begin comment
 
  Type    : Constructor
- Title   : new
- Usage   : my $newick = new Bio::Phylo::Parsers::Newick;
+ Title   : _new
+ Usage   : my $newick = Bio::Phylo::Parsers::Newick->_new;
  Function: Initializes a Bio::Phylo::Parsers::Newick object.
  Returns : A Bio::Phylo::Parsers::Newick object.
  Args    : none.
@@ -44,8 +47,8 @@ sub _new {
 =begin comment
 
  Type    : Wrapper
- Title   : from_both(%options)
- Usage   : $newick->from_both(%options);
+ Title   : _from_both(%options)
+ Usage   : $newick->_from_both(%options);
  Function: Extracts trees from file, sends strings to _parse_string()
  Returns : Bio::Phylo::Forest
  Args    : -handle => (\*FH) or -string => (scalar).
@@ -66,7 +69,9 @@ sub _from_both {
             s/\s//g;
             $string .= $_;
             if ( $string =~ m/^(.+;)(.*)$/ ) {
-                $trees->insert( $self->_parse_string($1) );
+                my $current = $1;
+                $current = $self->_nodelabels($current) if $args{'-label'};
+                $trees->insert( $self->_parse_string($current) );
                 $string = $2;
             }
         }
@@ -76,6 +81,7 @@ sub _from_both {
             chomp;
             s/\s//g;
             my $tree = $_ . ';';
+            $tree = $self->_nodelabels($tree) if $args{'-label'};
             $trees->insert( $self->_parse_string($tree) );
         }
     }
@@ -99,46 +105,23 @@ sub _from_both {
 sub _parse_string {
     my ( $self, $string ) = @_;
     my $tree = Bio::Phylo::Forest::Tree->new;
-    $string = $self->_nodelabels($string);
-    foreach ( grep ( /\w/, split( /[\(|,|\)|;]+/o, $string ) ) ) {
-        my $node;
-        if (/^(.+):\s*(-?\d+\.?\d*e?[-|+]?\d*)$/oi) {
-            $node = Bio::Phylo::Forest::Node->new(
-                -name          => $1,
-                -branch_length => $2
-            );
-        }
-        else {
-            $node = Bio::Phylo::Forest::Node->new( -name => $_, );
-        }
-        $tree->insert($node);
+    my $root;
+    $string =~ s/^\((.*)\)([^()]*);$/$1/;
+    my $name = $2;
+    if ( $name && $name =~ m/^(.*?)\s*:\s*(.*)$/o ) {
+        $root = Bio::Phylo::Forest::Node->new(
+            '-name'          => $1,
+            '-branch_length' => $2,
+        );
     }
-    for my $i ( 0 .. $tree->last_index ) {
-        my $node = $tree->get_by_index($i);
-        my ( $st, $depth, $name ) = ( $string, 0, $node->get_name );
-        $st =~ s/^.*[,|\)|\(]$name([,|:|\)|;].*)$/$1/;
-        for my $x ( 0 .. length($st) ) {
-            if ( substr( $st, $x, 1 ) eq ')' || substr( $st, $x, 1 ) eq ';' ) {
-                $depth--;
-            }
-            if ( substr( $st, $x, 1 ) eq '(' ) {
-                $depth++;
-            }
-            if ( $depth == -1 ) {
-                $st = substr( $st, $x++ );
-                last;
-            }
-        }
-        $st =~ s/^\)(.+?)[:|,|;|\)].*$/$1/;
-        for my $j ( ( $i + 1 ) .. $tree->last_index ) {
-            my $p = $tree->get_by_index($j);
-            if ( $p->get_name eq $st ) {
-                $node->set_parent($p);
-                last;
-            }
-        }
+    elsif ( $name && $name !~ /:/ ) {
+        $root = Bio::Phylo::Forest::Node->new( '-name' => $name, );
     }
-    $tree->_analyze;
+    elsif ( ! $name ) {
+        $root = Bio::Phylo::Forest::Node->new( '-name' => '' );
+    }
+    $tree->insert($root);
+    &_parse( $string, $tree, $root );
     return $tree;
 }
 
@@ -148,8 +131,9 @@ sub _parse_string {
  Title   : _nodelabels($string)
  Usage   : my $labelled = $newick->_nodelabels($string);
  Function: Returns a newick string with labelled nodes
- Returns : SCALAR
+ Returns : SCALAR = a labelled newick tree description
  Args    : $string = a newick tree description
+ Notes   : Node labels are now optional, determined by the -labels => 1 switch.
 
 =end comment
 
@@ -169,6 +153,92 @@ sub _nodelabels {
         $string =~ s/(\))([:|,|;|\)])/$1.'n'.++$x.$2/ose;
     }
     return $string;
+}
+
+=begin comment
+
+ Type    : Internal method.
+ Title   : _parse
+ Usage   : my $labelled = $newick->_nodelabels($string);
+ Function: Recursive newick parser function
+ Returns : (Modifies caller's tree object)
+ Args    : $substr (a newick subtree), $tree (a tree object),
+           $parent (root of subtree)
+ Notes   :
+
+=end comment
+
+=cut
+
+sub _parse {
+    my ( $substr, $tree, $parent ) = @_;
+    my @clades;
+    my ( $level, $token ) = ( 0, '' );
+    for my $i ( 0 .. length($substr) ) {
+        my $c = substr( $substr, $i, 1 );
+        $level++ if $c eq '(';
+        $level-- if $c eq ')';
+        if ( !$level && $c eq ',' || $i == length($substr) ) {
+            my ( $node, $clade ) = &_token_handler($token);
+            if ($clade) {
+                push( @clades, [ $node, $clade ] );
+            }
+            else {
+                push( @clades, [$node] );
+            }
+            $token = '';
+        }
+        else {
+            $token .= $c;
+        }
+    }
+    $parent->set_first_daughter( $clades[0][0] )
+      ->set_last_daughter( $clades[-1][0] );
+    $clades[0][0]->set_parent($parent);
+    $tree->insert( $clades[0][0] );
+    &_parse( $clades[0][1], $tree, $clades[0][0] ) if $clades[0][1];
+    for my $i ( 1 .. $#clades ) {
+        $clades[$i][0]->set_parent($parent)
+          ->set_previous_sister(
+            $clades[ $i - 1 ][0]->set_next_sister( $clades[$i][0] ) );
+        $tree->insert( $clades[$i][0] );
+        &_parse( $clades[$i][1], $tree, $clades[$i][0] ) if $clades[$i][1];
+    }
+}
+
+=begin comment
+
+ Type    : Internal subroutine.
+ Title   : _token_handler
+ Usage   : my ( $node, $substring ) = &_token_handler($string);
+ Function: Tokenizes current substring, instantiates node objects.
+ Returns : L<Bio::Phylo::Forest::Node>, SCALAR substring
+ Args    : $token (a newick subtree)
+ Notes   :
+
+=end comment
+
+=cut
+
+sub _token_handler {
+    my $token = shift;
+    my ( $node, $name, $clade );
+    if ( $token =~ m/^\((.*)\)([^()]*)$/o ) {
+        ( $clade, $name ) = ( $1, $2 );
+    }
+    else {
+        $name = $token;
+    }
+    if ( $name =~ m/^([^:()]*?)\s*:\s*(.*)$/o ) {
+        $node = Bio::Phylo::Forest::Node->new(
+            '-name'          => $1,
+            '-branch_length' => $2,
+        );
+    }
+    else {
+        $node = Bio::Phylo::Forest::Node->new( '-name' => $name, );
+    }
+    return $node, $clade;
 }
 
 =head1 SEE ALSO
@@ -202,7 +272,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Newick.pm,v 1.26 2006/05/19 02:08:58 rvosa Exp $
+$Id: Newick.pm 2108 2006-08-29 20:46:17Z rvosa $
 
 =head1 AUTHOR
 

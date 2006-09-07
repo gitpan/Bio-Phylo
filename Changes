@@ -1,4 +1,9 @@
 Revision history for Bio::Phylo
+0.13 7/Sep/2006 0:08
+                       Nexus parser now parses interleaved matrices
+                       Dependency on Scalar::Util's newness is lessened
+				(i.e. dependency fix, should install easier)
+                       Installation choice between MB and EUMM makefiles
 0.08 20/Feb/2006 15:14
                        Improved referential integrity between nodes,
                                 taxa, and data.

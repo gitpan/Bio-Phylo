@@ -1,9 +1,9 @@
-# $Id: Node.pm,v 1.23 2006/05/19 02:08:51 rvosa Exp $
+# $Id: Node.pm 2187 2006-09-07 07:13:33Z rvosa $
 package Bio::Phylo::Forest::Node;
 use strict;
 use Bio::Phylo::Util::IDPool;
-use Bio::Phylo::Util::CONSTANT qw(_NODE_ _TREE_ _TAXON_);
-use Scalar::Util qw(looks_like_number weaken);
+use Bio::Phylo::Util::CONSTANT qw(_NODE_ _TREE_ _TAXON_ looks_like_number);
+use Scalar::Util qw(weaken);
 use XML::Simple;
 
 # One line so MakeMaker sees it.
@@ -1591,7 +1591,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Node.pm,v 1.23 2006/05/19 02:08:51 rvosa Exp $
+$Id: Node.pm 2187 2006-09-07 07:13:33Z rvosa $
 
 =head1 AUTHOR
 

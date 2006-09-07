@@ -1,7 +1,6 @@
 #!/usr/bin/perl
 use strict;
 use warnings;
-use diagnostics;
 use Pod::Usage;
 use Getopt::Long;
 use Bio::Phylo::Parsers 0.02;

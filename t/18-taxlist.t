@@ -1,4 +1,4 @@
-# $Id: 18-taxlist.t,v 1.6 2005/09/27 12:00:34 rvosa Exp $
+# $Id: 18-taxlist.t 1185 2006-05-26 09:04:17Z rvosa $
 use strict;
 use warnings;
 use Test::More tests => 1;

@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# $Id: postmb.pl,v 1.1 2005/08/01 23:06:14 rvosa Exp $
+# $Id: postmb.pl 1185 2006-05-26 09:04:17Z rvosa $
 # Subversion: $Rev: 145 $
 use strict;
 

@@ -1,15 +1,14 @@
-# $Id: Svg.pm,v 1.10 2006/05/19 02:08:58 rvosa Exp $
+# $Id: Svg.pm 2114 2006-08-29 23:51:35Z rvosa $
 # Subversion: $Rev: 192 $
 package Bio::Phylo::Treedrawer::Svg;
 use strict;
-use warnings;
 use constant PI => '3.14159265358979323846';
 use SVG (
     '-nocredits' => 1,
     '-inline'    => 1,
     '-indent'    => '    ',
 );
-use fields qw(TREE SVG DRAWER);
+my @fields = qw(TREE SVG DRAWER);
 
 # One line so MakeMaker sees it.
 use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
@@ -45,18 +44,16 @@ the node, and branch leading up to it, in red.)
 =cut
 
 sub _new {
-    my Bio::Phylo::Treedrawer::Svg $self = shift;
+    my $class = shift;
+    my $self = {};
     my %opt;
     eval { %opt = @_; };
     if ($@) {
         Bio::Phylo::Util::Exceptions::OddHash->throw( error => $@ );
     }
-    unless ( ref $self ) {
-        $self = fields::new($self);
-    }
     $self->{'TREE'}   = $opt{'-tree'};
     $self->{'DRAWER'} = $opt{'-drawer'};
-    return $self;
+    return bless $self, $class;
 }
 
 =begin comment
@@ -452,7 +449,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Svg.pm,v 1.10 2006/05/19 02:08:58 rvosa Exp $
+$Id: Svg.pm 2114 2006-08-29 23:51:35Z rvosa $
 
 =head1 AUTHOR
 

@@ -1,20 +1,17 @@
 # http://module-build.sourceforge.net/META-spec.html
 #XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
 name:         Bio-Phylo
-version:      0.12
+version:      0.13
 version_from: lib/Bio/Phylo.pm
 installdirs:  site
 requires:
-    base:                          0
-    Exception::Class:              0
-    fields:                        0
-    IO::String:                    0
-    Math::Random:                  0
+    Exception::Class:              1.23
+    IO::String:                    1.05
+    Math::Random:                  0.67
     Scalar::Util:                  0
-    Storable:                      0
     SVG:                           1.07
-    Test::More:                    0
-    XML::Simple:                   0
+    Test::More:                    0.62
+    XML::Simple:                   2.14
 
 distribution_type: module
-generated_by: ExtUtils::MakeMaker version 6.17
+generated_by: ExtUtils::MakeMaker version 6.30
