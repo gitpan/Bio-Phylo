@@ -1,7 +1,6 @@
 # $Id: Matrix.pm 2187 2006-09-07 07:13:33Z rvosa $
 package Bio::Phylo::Matrices::Matrix;
 use strict;
-use Bio::CDAT::CharMatrixI;
 use Bio::Phylo::Listable;
 use Bio::Phylo::Util::IDPool;
 use Bio::Phylo::IO qw(unparse);
@@ -58,7 +57,7 @@ use vars qw($VERSION @ISA);
 
 =head1 NAME
 
-Bio::Phylo::Matrices::Matrix - Character state matrix, implements Bio::CDAT::CharMatrixI
+Bio::Phylo::Matrices::Matrix - Character state matrix.
 
 =head1 SYNOPSIS
 
@@ -826,11 +825,6 @@ the following methods:
 =head1 SEE ALSO
 
 =over
-
-=item L<Bio::CDAT::CharMatrixI>
-
-This object implements the L<Bio::CDAT::CharMatrixI> interface,
-so the methods defined therein are available here.
 
 =item L<Bio::Phylo::Listable>
 

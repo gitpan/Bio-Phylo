@@ -1,4 +1,4 @@
-# $Id: Nexus.pm 1783 2006-07-27 23:44:56Z rvosa $
+# $Id: Nexus.pm 2196 2006-09-07 21:35:47Z rvosa $
 # Subversion: $Rev: 195 $
 package Bio::Phylo::Parsers::Nexus;
 use strict;
@@ -938,7 +938,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Nexus.pm 1783 2006-07-27 23:44:56Z rvosa $
+$Id: Nexus.pm 2196 2006-09-07 21:35:47Z rvosa $
 
 =head1 AUTHOR
 

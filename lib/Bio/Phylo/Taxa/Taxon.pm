@@ -3,7 +3,6 @@
 package Bio::Phylo::Taxa::Taxon;
 use strict;
 use Bio::Phylo::Util::IDPool;
-use Bio::Phylo::Taxa::CDAT;
 use Scalar::Util qw(weaken blessed);
 use Bio::Phylo::Util::CONSTANT qw(_DATUM_ _NODE_ _TAXON_ _TAXA_);
 
@@ -12,7 +11,7 @@ use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
 
 # classic @ISA manipulation, not using 'base'
 use vars qw($VERSION @ISA);
-@ISA = qw(Bio::Phylo Bio::Phylo::Taxa::CDAT);
+@ISA = qw(Bio::Phylo);
 {
 
     # inside out class arrays

@@ -1,11 +1,10 @@
 # $Id: CONSTANT.pm 2189 2006-09-07 08:06:13Z rvosa $
 package Bio::Phylo::Util::CONSTANT;
 use strict;
-use Memoize;
-use constant {
-    IUPAC => 0,
-    AMBIG => 1,
-};
+
+sub IUPAC { 0 }
+sub AMBIG { 1 }
+
 
 BEGIN {
     use Exporter ();
@@ -271,7 +270,6 @@ sub _SEQUENCE_  { 10 }
 sub _ALIGNMENT_ { 11 }
 sub _CHAR_      { 12 }
 
-memoize('INT_SCORE_TYPE');
 sub INT_SCORE_TYPE {
     eval { require CipresIDL_api1 };
     if ($@) {
@@ -284,7 +282,6 @@ sub INT_SCORE_TYPE {
     }
 }
 
-memoize('DOUBLE_SCORE_TYPE');
 sub DOUBLE_SCORE_TYPE {
     eval { require CipresIDL_api1 };
     if ($@) {
@@ -297,7 +294,6 @@ sub DOUBLE_SCORE_TYPE {
     }
 }
 
-memoize('NO_SCORE_TYPE');
 sub NO_SCORE_TYPE {
     eval { require CipresIDL_api1 };
     if ($@) {
@@ -310,7 +306,6 @@ sub NO_SCORE_TYPE {
     }
 }
 
-memoize('symbol_ok');
 sub symbol_ok {
     my %opt;
     eval { %opt = @_; };
@@ -350,7 +345,6 @@ sub symbol_ok {
     }
 }
 
-memoize('type_ok');
 sub type_ok {
     my $type = shift;
     if ( exists $TYPES->{ uc($type) } ) {
@@ -361,7 +355,6 @@ sub type_ok {
     }
 }
 
-memoize('cipres_type');
 sub cipres_type {
     my $type = shift;
     if ($type) {
@@ -379,7 +372,6 @@ sub cipres_type {
     }
 }
 
-memoize('infer_type');
 sub infer_type {
     my $chars = shift;
     foreach ( 'DNA', 'STANDARD', 'PROTEIN', 'CONTINUOUS' ) {
@@ -392,7 +384,6 @@ sub infer_type {
         'error' => 'No valid type found', );
 }
 
-memoize('sym2ambig');
 sub sym2ambig {
     my %opt;
     eval { %opt = @_ };
@@ -428,7 +419,6 @@ sub sym2ambig {
     }
 }
 
-memoize('ambig2sym');
 sub ambig2sym {
     my %opt;
     eval { %opt = @_ };
@@ -477,7 +467,6 @@ sub ambig2sym {
     }
 }
 
-memoize('nuc_symbols');
 sub nuc_symbols {
     my @symbols;
     foreach ( @{ $NUC_LOOKUP } ) {
@@ -486,7 +475,6 @@ sub nuc_symbols {
     return \@symbols;
 }
 
-memoize('prot_symbols');
 sub prot_symbols {
     my @symbols;
     foreach ( @{ $PROT_LOOKUP } ) {
@@ -548,6 +536,24 @@ are called internally by the other packages. There is no direct usage.
  Title   : NO_SCORE_TYPE
  Usage   : my $scoretype = NO_SCORE_TYPE;
  Function: A constant subroutine to indicate tree has no score.
+ Returns : INT
+ Args    : NONE
+
+=item IUPAC ()
+
+ Type    : constant
+ Title   : IUPAC
+ Usage   : no direct usage
+ Function: no direct usage
+ Returns : INT
+ Args    : NONE
+
+=item AMBIG ()
+
+ Type    : constant
+ Title   : IUPAC
+ Usage   : no direct usage
+ Function: no direct usage
  Returns : INT
  Args    : NONE
 
