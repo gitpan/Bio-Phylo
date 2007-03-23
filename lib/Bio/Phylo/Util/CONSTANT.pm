@@ -1,4 +1,4 @@
-# $Id: CONSTANT.pm 2189 2006-09-07 08:06:13Z rvosa $
+# $Id: CONSTANT.pm 3293 2007-03-17 17:12:43Z rvosa $
 package Bio::Phylo::Util::CONSTANT;
 use strict;
 
@@ -20,8 +20,27 @@ BEGIN {
       &INT_SCORE_TYPE &DOUBLE_SCORE_TYPE &NO_SCORE_TYPE &symbol_ok &type_ok
       &cipres_type &infer_type &sym2ambig &ambig2sym
       &prot_symbols &nuc_symbols &looks_like_number
+      &_CHARSTATE_ &_CHARSTATESEQ_ &_MATRIXROW_
+      &DNA_DATATYPE &RNA_DATATYPE &AA_DATATYPE &CATEGORICAL_DATATYPE &CONTINUOUS_DATATYPE
     );
-    %EXPORT_TAGS = ( all => [@EXPORT_OK] );
+    %EXPORT_TAGS = ( 
+        'all'       => [@EXPORT_OK],
+        'datatypes' => [ 
+            qw(
+                &DNA_DATATYPE &RNA_DATATYPE &AA_DATATYPE 
+                &CATEGORICAL_DATATYPE &CONTINUOUS_DATATYPE            
+            )         
+        ],
+        'objecttypes' => [
+            qw(
+                &_NONE_ &_NODE_ &_TREE_ &_FOREST_ &_TAXON_
+                &_TAXA_ &_CHAR_ &_DATUM_ &_MATRIX_ &_MATRICES_ 
+                &_SEQUENCE_ &_ALIGNMENT_ &_CHARSTATE_ 
+                &_CHARSTATESEQ_ &_MATRIXROW_
+            )
+        ],
+    
+    );
 }
 my $IUPAC_NUC = {
     'A' => 0,
@@ -46,19 +65,19 @@ my $IUPAC_NUC = {
     '?' => 19,
 };
 my $NUC_LOOKUP = [
-    [ 'A' => [ $IUPAC_NUC->{'A'}            ] ],
+    [ 'A' => [  $IUPAC_NUC->{'A'}           ] ],
     [ 'B' => [ @$IUPAC_NUC{'C','G','T'}     ] ],
-    [ 'C' => [ $IUPAC_NUC->{'C'}            ] ],
+    [ 'C' => [  $IUPAC_NUC->{'C'}           ] ],
     [ 'D' => [ @$IUPAC_NUC{'A','G','T'}     ] ],
-    [ 'G' => [ $IUPAC_NUC->{'G'}            ] ],
+    [ 'G' => [  $IUPAC_NUC->{'G'}           ] ],
     [ 'H' => [ @$IUPAC_NUC{'A','C','T'}     ] ],
     [ 'K' => [ @$IUPAC_NUC{'G','T'}         ] ],
     [ 'M' => [ @$IUPAC_NUC{'A','C'}         ] ],
     [ 'N' => [ @$IUPAC_NUC{'A','C','G','T'} ] ],
     [ 'R' => [ @$IUPAC_NUC{'A','G'}         ] ],
     [ 'S' => [ @$IUPAC_NUC{'C','G'}         ] ],
-    [ 'T' => [ $IUPAC_NUC->{'T'}            ] ],
-    [ 'U' => [ $IUPAC_NUC->{'U'}            ] ],
+    [ 'T' => [  $IUPAC_NUC->{'T'}           ] ],
+    [ 'U' => [  $IUPAC_NUC->{'U'}           ] ],
     [ 'V' => [ @$IUPAC_NUC{'A','C','G'}     ] ],
     [ 'W' => [ @$IUPAC_NUC{'A','T'}         ] ],
     [ 'X' => [ @$IUPAC_NUC{'A','C','G','T'} ] ],
@@ -129,131 +148,112 @@ my $PROT_LOOKUP = [
     [ '*' => [ $IUPAC_PROT->{'*'}     ] ],
 ];
 
-my $TYPES = {
-    'DNA' => {
-        'CHECK' => sub {
-            foreach my $char ( split( //, $_[0] ) ) {
-                if ( not exists $IUPAC_NUC->{ uc($char) } ) {
-                    return 0;
-                }
+my $TYPES = [];
+
+$TYPES->[ &DNA_DATATYPE ] = {
+    'CHECK' => sub {
+        foreach my $char ( split( //, $_[0] ) ) {
+            if ( not exists $IUPAC_NUC->{ uc($char) } ) {
+                return 0;
             }
-            return 1;
-        },
-        'CIPRES' => sub {
-            eval { require CipresIDL_api1 };
-            if ($@) {
-                Bio::Phylo::Util::Exceptions::Extension::Error->throw(
-                    'error' =>
-                      'This method requires CipresIDL_api1, which you don\'t have',
-                );
-            }
-            else {
-                return &CipresIDL_api1::DNA_DATATYPE;
-            }
-        },
+        }
+        return 1;
     },
-    'RNA' => {
-        'CHECK' => sub {
-            foreach my $char ( split( //, $_[0] ) ) {
-                if ( not exists $IUPAC_NUC->{ uc($char) } ) {
-                    return 0;
-                }
-            }
-            return 1;
-        },
-        'CIPRES' => sub {
-            eval { require CipresIDL_api1 };
-            if ($@) {
-                Bio::Phylo::Util::Exceptions::Extension::Error->throw(
-                    'error' =>
-                      'This method requires CipresIDL_api1, which you don\'t have',
-                );
-            }
-            else {
-                return &CipresIDL_api1::RNA_DATATYPE;
-            }
-        },
-    },
-    'NUCLEOTIDE' => {
-        'CHECK' => sub {
-            foreach my $char ( split( //, $_[0] ) ) {
-                if ( not exists $IUPAC_NUC->{ uc($char) } ) {
-                    return 0;
-                }
-            }
-            return 1;
-        },
-        'CIPRES' => sub {
-            eval { require CipresIDL_api1 };
-            if ($@) {
-                Bio::Phylo::Util::Exceptions::Extension::Error->throw(
-                    'error' =>
-                      'This method requires CipresIDL_api1, which you don\'t have',
-                );
-            }
-            else {
-                return &CipresIDL_api1::DNA_DATATYPE;
-            }
-        },
-    },
-    'PROTEIN' => {
-        'CHECK' => sub {
-            foreach my $char ( split( //, $_[0] ) ) {
-                if ( not exists $IUPAC_PROT->{ uc($char) } ) {
-                    return 0;
-                }
-            }
-            return 1;
-        },
-        'CIPRES' => sub {
-            eval { require CipresIDL_api1 };
-            if ($@) {
-                Bio::Phylo::Util::Exceptions::Extension::Error->throw(
-                    'error' =>
-                      'This method requires CipresIDL_api1, which you don\'t have',
-                );
-            }
-            else {
-                return &CipresIDL_api1::AA_DATATYPE;
-            }
-        },
-    },
-    'STANDARD' => {
-        'CHECK' => sub {
-            foreach my $char ( split( /\s+/, $_[0] ) ) {
-                if ( $char !~ /^\d$/ ) {
-                    return 0;
-                }
-            }
-            return 1;
-        },
-        'CIPRES' => sub {
-            eval { require CipresIDL_api1 };
-            if ($@) {
-                Bio::Phylo::Util::Exceptions::Extension::Error->throw(
-                    'error' =>
-                      'This method requires CipresIDL_api1, which you don\'t have',
-                );
-            }
-            else {
-                return &CipresIDL_api1::GENERIC_DATATYPE;
-            }
-        },
-    },
-    'CONTINUOUS' => {
-        'CHECK' => sub {
-            foreach my $char ( split( /\s+/, $_[0] ) ) {
-                if ( ! &looks_like_number( $char ) ) {
-                    return 0;
-                }
-            }
-            return 1;
-        },
-        'CIPRES' => sub {
-            Bio::Phylo::Util::Exceptions::NotImplemented->throw(
-                'error' => 'Continuous characters not implemented in Cipres.',
+    'CIPRES' => sub {
+        eval { require CipresIDL_api1 };
+        if ($@) {
+            Bio::Phylo::Util::Exceptions::Extension::Error->throw(
+                'error' =>
+                  'This method requires CipresIDL_api1, which you don\'t have',
             );
-        },
+        }
+        else {
+            return &CipresIDL_api1::DNA_DATATYPE;
+        }
+    },
+};
+
+$TYPES->[ &RNA_DATATYPE ] = {
+    'CHECK' => sub {
+        foreach my $char ( split( //, $_[0] ) ) {
+            if ( not exists $IUPAC_NUC->{ uc($char) } ) {
+                return 0;
+            }
+        }
+        return 1;
+    },
+    'CIPRES' => sub {
+        eval { require CipresIDL_api1 };
+        if ($@) {
+            Bio::Phylo::Util::Exceptions::Extension::Error->throw(
+                'error' =>
+                  'This method requires CipresIDL_api1, which you don\'t have',
+            );
+        }
+        else {
+            return &CipresIDL_api1::RNA_DATATYPE;
+        }
+    },
+};
+
+$TYPES->[ &AA_DATATYPE ] = {
+    'CHECK' => sub {
+        foreach my $char ( split( //, $_[0] ) ) {
+            if ( not exists $IUPAC_PROT->{ uc($char) } ) {
+                return 0;
+            }
+        }
+        return 1;
+    },
+    'CIPRES' => sub {
+        eval { require CipresIDL_api1 };
+        if ($@) {
+            Bio::Phylo::Util::Exceptions::Extension::Error->throw(
+                'error' =>
+                  'This method requires CipresIDL_api1, which you don\'t have',
+            );
+        }
+        else {
+            return &CipresIDL_api1::AA_DATATYPE;
+        }
+    },
+};
+
+$TYPES->[ &CATEGORICAL_DATATYPE ] = {
+    'CHECK' => sub {
+        foreach my $char ( split( /\s+/, $_[0] ) ) {
+            if ( $char !~ /^\d$/ ) {
+                return 0;
+            }
+        }
+        return 1;
+    },
+    'CIPRES' => sub {
+        eval { require CipresIDL_api1 };
+        if ($@) {
+            Bio::Phylo::Util::Exceptions::Extension::Error->throw(
+                'error' =>
+                  'This method requires CipresIDL_api1, which you don\'t have',
+            );
+        }
+        else {
+            return &CipresIDL_api1::GENERIC_DATATYPE;
+        }
+    },
+};
+$TYPES->[ &CONTINUOUS_DATATYPE ] = {
+    'CHECK' => sub {
+        foreach my $char ( split( /\s+/, $_[0] ) ) {
+            if ( ! &looks_like_number( $char ) ) {
+                return 0;
+            }
+        }
+        return 1;
+    },
+    'CIPRES' => sub {
+        Bio::Phylo::Util::Exceptions::NotImplemented->throw(
+            'error' => 'Continuous characters not implemented in Cipres.',
+        );
     },
 };
 
@@ -269,6 +269,17 @@ sub _MATRICES_  { 9  }
 sub _SEQUENCE_  { 10 }
 sub _ALIGNMENT_ { 11 }
 sub _CHAR_      { 12 }
+
+sub _CHARSTATE_    { 13 }
+sub _CHARSTATESEQ_ { 14 }
+sub _MATRIXROW_    { 15 }
+
+sub DNA_DATATYPE         { 0 }
+sub RNA_DATATYPE         { 1 }
+sub AA_DATATYPE          { 2 }
+sub CATEGORICAL_DATATYPE { 3 }
+sub CONTINUOUS_DATATYPE  { 4 }
+sub CUSTOM_DATATYPE      { 5 }
 
 sub INT_SCORE_TYPE {
     eval { require CipresIDL_api1 };
@@ -313,23 +324,22 @@ sub symbol_ok {
         Bio::Phylo::Util::Exceptions::OddHash->throw( 'error' => $@, );
     }
     elsif ( defined $opt{'-type'} && defined $opt{'-char'} ) {
-        $opt{'-type'} = uc( $opt{'-type'} );
-        if ( exists $TYPES->{ $opt{'-type'} } ) {
+        if ( $opt{'-type'} =~ qr/^\d+$/ && exists $TYPES->[ $opt{'-type'} ] ) {
             if ( ref $opt{'-char'} eq 'ARRAY' ) {
                 foreach my $char ( @{ $opt{'-char'} } ) {
-                    return if not $TYPES->{ $opt{'-type'} }->{'CHECK'}->($char);
+                    return if not $TYPES->[ $opt{'-type'} ]->{'CHECK'}->($char);
                 }
                 return 1;
             }
-            elsif ( $opt{'-type'} !~ m/^CONTINUOUS$/i ) {
+            elsif ( $opt{'-type'} != CONTINUOUS_DATATYPE ) {
                 foreach my $char ( split( //, $opt{'-char'} ) ) {
-                    return if not $TYPES->{ $opt{'-type'} }->{'CHECK'}->($char);
+                    return if not $TYPES->[ $opt{'-type'} ]->{'CHECK'}->($char);
                 }
                 return 1;
             }
-            elsif ( $opt{'-type'} =~ m/^CONTINUOUS$/i ) {
+            elsif ( $opt{'-type'} == CONTINUOUS_DATATYPE ) {
                 foreach my $char ( split( /\s+/, $opt{'-char'} ) ) {
-                    return if not $TYPES->{ $opt{'-type'} }->{'CHECK'}->($char);
+                    return if not $TYPES->[ $opt{'-type'} ]->{'CHECK'}->($char);
                 }
                 return 1;
             }
@@ -347,7 +357,7 @@ sub symbol_ok {
 
 sub type_ok {
     my $type = shift;
-    if ( exists $TYPES->{ uc($type) } ) {
+    if ( $type =~ m/^\d+$/ and exists $TYPES->[ $type ] ) {
         return 1;
     }
     else {
@@ -374,14 +384,15 @@ sub cipres_type {
 
 sub infer_type {
     my $chars = shift;
-    foreach ( 'DNA', 'STANDARD', 'PROTEIN', 'CONTINUOUS' ) {
+    for ( 'DNA', 'STANDARD', 'PROTEIN', 'CONTINUOUS' ) {
         eval { symbol_ok( '-type' => $_, '-char' => $chars ) };
         if ( not $@ ) {
             return $_;
         }
     }
     Bio::Phylo::Util::Exceptions::BadArgs->throw(
-        'error' => 'No valid type found', );
+        'error' => 'No valid type found', 
+    );
 }
 
 sub sym2ambig {
@@ -511,6 +522,62 @@ are called internally by the other packages. There is no direct usage.
 =head1 PUBLIC CONSTANTS
 
 =over
+
+=item AA_DATATYPE()
+
+ Type    : Constant
+ Title   : AA_DATATYPE
+ Usage   : my $datatype = AA_DATATYPE;
+ Function: A constant subroutine to indicate matrix datatype is amino acid.
+ Returns : INT
+ Args    : NONE
+
+=item CATEGORICAL_DATATYPE()
+
+ Type    : Constant
+ Title   : CATEGORICAL_DATATYPE
+ Usage   : my $datatype = CATEGORICAL_DATATYPE;
+ Function: A constant subroutine to indicate matrix datatype is 'standard'.
+ Returns : INT
+ Args    : NONE
+
+=item CONTINUOUS_DATATYPE()
+
+ Type    : Constant
+ Title   : CONTINUOUS_DATATYPE
+ Usage   : my $datatype = CONTINUOUS_DATATYPE;
+ Function: A constant subroutine to indicate matrix datatype is 'continuous'.
+ Returns : INT
+ Args    : NONE
+
+=item DNA_DATATYPE()
+
+ Type    : Constant
+ Title   : DNA_DATATYPE
+ Usage   : my $datatype = DNA_DATATYPE;
+ Function: A constant subroutine to indicate matrix datatype is dna/nucleotides.
+ Returns : INT
+ Args    : NONE
+
+=item RNA_DATATYPE()
+
+ Type    : Constant
+ Title   : RNA_DATATYPE
+ Usage   : my $datatype = RNA_DATATYPE;
+ Function: A constant subroutine to indicate matrix datatype is rna.
+ Returns : INT
+ Args    : NONE
+
+=item CUSTOM_DATATYPE()
+
+ Type    : Constant
+ Title   : CUSTOM_DATATYPE
+ Usage   : my $datatype = CUSTOM_DATATYPE;
+ Function: A constant subroutine to indicate matrix datatype is defined by
+           a custom ambiguity lookup table, e.g. for "mixed" molecular
+           and standard categorical data.
+ Returns : INT
+ Args    : NONE
 
 =item INT_SCORE_TYPE()
 
@@ -680,7 +747,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: CONSTANT.pm 2189 2006-09-07 08:06:13Z rvosa $
+$Id: CONSTANT.pm 3293 2007-03-17 17:12:43Z rvosa $
 
 =head1 AUTHOR
 

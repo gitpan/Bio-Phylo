@@ -6,8 +6,8 @@ use strict;
 
     sub _initialize {
         my $obj_ID = 0;
-        if (@reclaim) {
-            $obj_ID = shift(@reclaim);
+        if ( @reclaim ) {
+            $obj_ID = shift( @reclaim );
         }
         else {
             $obj_ID = $obj_counter;
@@ -17,8 +17,8 @@ use strict;
     }
 
     sub _reclaim {
-        my ( $class, $obj_IDREF ) = @_;
-        push @reclaim, $obj_IDREF->get_id;
+        my ( $class, $obj ) = @_;
+        #push @reclaim, $obj->get_id;
     }
 }
 1;
@@ -60,7 +60,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: IDPool.pm 1721 2006-07-20 03:43:06Z rvosa $
+$Id: IDPool.pm 3319 2007-03-20 01:39:35Z rvosa $
 
 =head1 AUTHOR
 

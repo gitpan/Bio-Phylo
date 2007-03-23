@@ -1,4 +1,4 @@
-# $Id: 10-matrices.t 1652 2006-07-13 02:08:23Z rvosa $
+# $Id: 10-matrices.t 3298 2007-03-19 18:57:16Z rvosa $
 use strict;
 use warnings;
 use Test::More tests => 10;
@@ -34,13 +34,11 @@ $datum1->set_type( 'DNA' );
 $datum3->set_type( 'DNA' );
 
 my $matrix = Bio::Phylo::Matrices::Matrix->new( '-type' => 'DNA' );
-#$matrix->set_type( 'DNA' );
 
 eval { $matrix->insert($datum1)->insert($datum3); };
 if ( $@ ) {
-print $@->trace->as_string;
+    print $@->trace->as_string;
 }
-print "inserted data\n";
 
 ok( $matrix->cross_reference($taxa), '8 cross ref m -> t' );
 

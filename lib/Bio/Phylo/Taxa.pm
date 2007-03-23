@@ -1,10 +1,11 @@
-# $Id: Taxa.pm 1721 2006-07-20 03:43:06Z rvosa $
+# $Id: Taxa.pm 3319 2007-03-20 01:39:35Z rvosa $
 package Bio::Phylo::Taxa;
 use strict;
 use Bio::Phylo::Listable;
 use Bio::Phylo::Util::IDPool;
 use Bio::Phylo::Util::CONSTANT qw(_NONE_ _TAXA_ _FOREST_ _MATRIX_);
 use Scalar::Util qw(weaken blessed);
+use Bio::Phylo::Mediators::TaxaMediator;
 
 # One line so MakeMaker sees it.
 use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
@@ -14,16 +15,6 @@ use vars qw($VERSION @ISA);
 @ISA = qw(Bio::Phylo::Listable);
 {
 
-    # inside-out class arrays
-    my @forests;
-    my @matrices;
-
-    # $fields hashref necessary for object destruction
-    my $fields = {
-        '-forests'  => \@forests,
-        '-matrices' => \@matrices,
-    };
-
 =head1 NAME
 
 Bio::Phylo::Taxa - An object-oriented module for managing taxa.
@@ -32,7 +23,7 @@ Bio::Phylo::Taxa - An object-oriented module for managing taxa.
 
  use Bio::Phylo::Taxa;
  use Bio::Phylo::Taxa::Taxon;
- 
+
  # A mesquite-style default
  # taxa block for 10 taxa.
  my $taxa  = Bio::Phylo::Taxa->new;
@@ -69,28 +60,17 @@ A taxa object can link to multiple forest and matrix objects.
 =cut
 
     sub new {
-        my ( $class, $self ) = shift;
-        $self = Bio::Phylo::Taxa->SUPER::new(@_);
-        bless $self, __PACKAGE__;
-        $forests[ $self->get_id ]  = {};
-        $matrices[ $self->get_id ] = {};
-        if (@_) {
-            my %opt;
-            eval { %opt = @_; };
-            if ($@) {
-                Bio::Phylo::Util::Exceptions::OddHash->throw( error => $@ );
-            }
-            else {
-                while ( my ( $key, $value ) = each %opt ) {
-                    if ( $fields->{$key} ) {
-                        $fields->{$key}->[ $self->get_id ] = $value;
-                        delete $opt{$key};
-                    }
-                }
-                @_ = %opt;
-            }
-        }
-        $self->_set_super;
+        # could be child class
+        my $class = shift;
+        
+        # notify user
+        $class->info("constructor called for '$class'");
+        
+        # recurse up inheritance tree, get ID
+        my $self = $class->SUPER::new( @_ );
+        
+        # local fields would be set here
+        
         return $self;
     }
 
@@ -117,18 +97,11 @@ A taxa object can link to multiple forest and matrix objects.
 
     sub set_forest {
         my ( $self, $forest ) = @_;
-        if (   blessed $forest
-            && $forest->can('_type')
-            && $forest->_type == _FOREST_ )
-        {
-            $forests[ $self->get_id ]->{$forest} = $forest;
-            weaken( $forests[ $self->get_id ]->{$forest} );
-            $forest->set_taxa($self) if $forest->get_taxa != $self;
-        }
-        else {
-            Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-                error => "\"$forest\" doesn't look like a forest object" );
-        }
+        Bio::Phylo::Mediators::TaxaMediator->set_link( 
+            '-one'  => $self, 
+            '-many' => $forest, 
+        );
+        return $self;
     }
 
 =item set_matrix()
@@ -148,23 +121,11 @@ A taxa object can link to multiple forest and matrix objects.
 
     sub set_matrix {
         my ( $self, $matrix ) = @_;
-        if (   blessed $matrix
-            && $matrix->can('_type')
-            && $matrix->_type == _MATRIX_ )
-        {
-            $matrices[ $self->get_id ]->{$matrix} = $matrix;
-            weaken( $matrices[ $self->get_id ]->{$matrix} );
-            if ( $matrix->get_taxa ) {
-                $matrix->set_taxa($self) if $matrix->get_taxa != $self;
-            }
-            else {
-                $matrix->set_taxa($self);
-            }
-        }
-        else {
-            Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-                error => "\"$matrix\" doesn't look like a matrix object" );
-        }
+        Bio::Phylo::Mediators::TaxaMediator->set_link( 
+            '-one'  => $self, 
+            '-many' => $matrix, 
+        );
+        return $self;
     }
 
 =item unset_forest()
@@ -182,10 +143,10 @@ A taxa object can link to multiple forest and matrix objects.
 
     sub unset_forest {
         my ( $self, $forest ) = @_;
-
-        # no need for type checking really. If it's there, it gets killed,
-        # otherwise skips silently
-        delete $forests[ $self->get_id ]->{$forest};
+        Bio::Phylo::Mediators::TaxaMediator->remove_link( 
+            '-one'  => $self, 
+            '-many' => $forest,
+        );
         return $self;
     }
 
@@ -204,10 +165,10 @@ A taxa object can link to multiple forest and matrix objects.
 
     sub unset_matrix {
         my ( $self, $matrix ) = @_;
-
-        # no need for type checking really. If it's there, it gets killed,
-        # otherwise skips silently
-        delete $matrices[ $self->get_id ]->{$matrix};
+        Bio::Phylo::Mediators::TaxaMediator->remove_link( 
+            '-one'  => $self, 
+            '-many' => $matrix,
+        );
         return $self;
     }
 
@@ -228,13 +189,15 @@ A taxa object can link to multiple forest and matrix objects.
  Returns : An ARRAY reference of 
            Bio::Phylo::Forest objects.
  Args    : None.
- 
+
 =cut
 
     sub get_forests {
         my $self = shift;
-        my @tmp  = values %{ $forests[ $self->get_id ] };
-        return \@tmp;
+        return Bio::Phylo::Mediators::TaxaMediator->get_link( 
+            '-source' => $self, 
+            '-type'   => _FOREST_,
+        );
     }
 
 =item get_matrices()
@@ -252,8 +215,10 @@ A taxa object can link to multiple forest and matrix objects.
 
     sub get_matrices {
         my $self = shift;
-        my @tmp  = values %{ $matrices[ $self->get_id ] };
-        return \@tmp;
+        return Bio::Phylo::Mediators::TaxaMediator->get_link( 
+            '-source' => $self, 
+            '-type'   => _MATRIX_,
+        );
     }
 
 =item get_ntax()
@@ -358,14 +323,12 @@ A taxa object can link to multiple forest and matrix objects.
 
     sub DESTROY {
         my $self = shift;
-        if ( my $i = $self->get_id ) {
-            foreach ( keys %{$fields} ) {
-                delete $fields->{$_}->[$i];
-            }
-        }
-        $self->_del_from_super;
+        
+        # notify user
+        $self->info("destructor called for '$self'");
+        
+        # recurse up inheritance tree for cleanup
         $self->SUPER::DESTROY;
-        return 1;
     }
 
 =begin comment
@@ -431,7 +394,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Taxa.pm 1721 2006-07-20 03:43:06Z rvosa $
+$Id: Taxa.pm 3319 2007-03-20 01:39:35Z rvosa $
 
 =head1 AUTHOR
 

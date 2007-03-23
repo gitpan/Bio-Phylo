@@ -1,17 +1,23 @@
-# $Id: Matrices.pm 1185 2006-05-26 09:04:17Z rvosa $
+# $Id: Matrices.pm 3293 2007-03-17 17:12:43Z rvosa $
 # Subversion: $Rev: 186 $
 package Bio::Phylo::Matrices;
 use strict;
+use warnings FATAL => 'all';
+use Bio::Phylo;
 use Bio::Phylo::Listable;
-use Bio::Phylo::Util::IDPool;
 use Bio::Phylo::Util::CONSTANT qw(_NONE_ _MATRICES_);
+use vars qw($VERSION @ISA);
 
-# One line so MakeMaker sees it.
-use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
+# set version based on svn rev
+my $version = $Bio::Phylo::VERSION;
+my $rev     = '$Id: Matrices.pm 3293 2007-03-17 17:12:43Z rvosa $';
+$rev        =~ s/^[^\d]+(\d+)\b.*$/$1/;
+$version    =~ s/_.+$/_$rev/;
+$VERSION    = $version;
 
 # classic @ISA manipulation, not using 'base'
-use vars qw($VERSION @ISA);
 @ISA = qw(Bio::Phylo::Listable);
+
 {
 
 =head1 NAME
@@ -22,10 +28,10 @@ Bio::Phylo::Matrices - Holds a set of matrix objects.
 
  use Bio::Phylo::Matrices;
  use Bio::Phylo::Matrices::Matrix;
- 
+
  my $matrices = Bio::Phylo::Matrices->new;
  my $matrix   = Bio::Phylo::Matrices::Matrix->new;
- 
+
  $matrices->insert($matrix);
 
 =head1 DESCRIPTION
@@ -52,37 +58,36 @@ are available to apply to a set of matrices.
 =cut
 
     sub new {
-        my ( $class, $self ) = shift;
-        $self = __PACKAGE__->SUPER::new(@_);
-        bless $self, __PACKAGE__;
+        # could be child class
+        my $class = shift;
+        
+        # notify user
+        $class->info("constructor called for '$class'");
+        
+        # recurse up inheritance tree, get ID
+        my $self = $class->SUPER::new( @_ );
+        
+        # local fields would be set here
+        
         return $self;
     }
 
-=back
+=begin comment
 
-=head2 DESTRUCTOR
+ Type    : Internal method
+ Title   : _cleanup
+ Usage   : $trees->_cleanup;
+ Function: Called during object destruction, for cleanup of instance data
+ Returns : 
+ Args    :
 
-=over
-
-=item DESTROY()
-
- Type    : Destructor
- Title   : DESTROY
- Usage   : $phylo->DESTROY
- Function: Destroys Phylo object
- Alias   :
- Returns : TRUE
- Args    : none
- Comments: You don't really need this, 
-           it is called automatically when
-           the object goes out of scope.
+=end comment
 
 =cut
 
-    sub DESTROY {
+    sub _cleanup {
         my $self = shift;
-        $self->SUPER::DESTROY;
-        return 1;
+        $self->info("cleaning up '$self'");
     }
 
 =begin comment
@@ -148,7 +153,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Matrices.pm 1185 2006-05-26 09:04:17Z rvosa $
+$Id: Matrices.pm 3293 2007-03-17 17:12:43Z rvosa $
 
 =head1 AUTHOR
 
@@ -178,4 +183,5 @@ modify it under the same terms as Perl itself.
 =cut
 
 }
+
 1;

@@ -1,4 +1,4 @@
-# $Id: Treedrawer.pm 2196 2006-09-07 21:35:47Z rvosa $
+# $Id: Treedrawer.pm 3331 2007-03-20 23:59:42Z rvosa $
 # Subversion: $Rev: 192 $
 package Bio::Phylo::Treedrawer;
 use strict;
@@ -6,9 +6,6 @@ use Bio::Phylo::Forest::Tree;
 use Bio::Phylo::Forest::Node;
 use Bio::Phylo::Util::CONSTANT qw(_TREE_ looks_like_number);
 my @fields = qw(WIDTH HEIGHT MODE SHAPE PADDING NODE_RADIUS TEXT_HORIZ_OFFSET TEXT_VERT_OFFSET TEXT_WIDTH TREE _SCALEX _SCALEY SCALE FORMAT);
-
-# hashref of available tree drawer modules
-my $drawers = { 'Svg' => 1 };
 
 # One line so MakeMaker sees it.
 use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
@@ -19,26 +16,29 @@ Bio::Phylo::Treedrawer - An object-oriented facade for drawing trees.
 
 =head1 SYNOPSIS
 
+ use Bio::Phylo::IO 'parse';
  use Bio::Phylo::Treedrawer;
- use Bio::Phylo::IO;
- 
+
+ my $string = '((A:1,B:2)n1:3,C:4)n2:0;';
+ my $tree = parse( -format => 'newick', -string => $string )->first;
+
  my $treedrawer = Bio::Phylo::Treedrawer->new(
-    -width  => 400,
+    -width  => 800,
     -height => 600,
     -shape  => 'CURVY', # curvogram
-    -mode   => 'CLADO', # cladogram
+    -mode   => 'PHYLO', # cladogram
     -format => 'SVG'
  );
- 
- my $tree = Bio::Phylo::IO->parse(
-    -format => 'newick',
-    -string => '((A,B),C);'
- )->first;
- 
+
+ $treedrawer->set_scale_options(
+    -width => '100%',
+    -major => '10%', # major cross hatch interval
+    -minor => '2%',  # minor cross hatch interval
+    -label => 'MYA',
+ );
+
  $treedrawer->set_tree($tree);
- $treedrawer->set_padding(50);
- 
- my $string = $treedrawer->draw;
+ print $treedrawer->draw;
 
 =head1 DESCRIPTION
 
@@ -67,35 +67,33 @@ nodes) and calls the appropriate format-specific drawer.
 
 sub new {
     my $class = shift;
-    my $self = {};
-    $self->{'WIDTH'}             = 500;
-    $self->{'HEIGHT'}            = 500;
-    $self->{'MODE'}              = 'CLADO';
-    $self->{'SHAPE'}             = 'RECT';
-    $self->{'PADDING'}           = 50;
-    $self->{'NODE_RADIUS'}       = 1;
-    $self->{'TEXT_HORIZ_OFFSET'} = 6;
-    $self->{'TEXT_VERT_OFFSET'}  = 4;
-    $self->{'TEXT_WIDTH'}        = 150;
-    $self->{'TREE'}              = undef;
-    $self->{'_SCALEX'}           = 1;
-    $self->{'_SCALEY'}           = 1;
-    $self->{'SCALE'}             = {};
-    $self->{'FORMAT'}            = 'SVG';
+    my $self = {
+        'WIDTH'             => 500,
+        'HEIGHT'            => 500,
+        'MODE'              => 'PHYLO',
+        'SHAPE'             => 'CURVY',
+        'PADDING'           => 50,
+        'NODE_RADIUS'       => 1,
+        'TEXT_HORIZ_OFFSET' => 6,
+        'TEXT_VERT_OFFSET'  => 4,
+        'TEXT_WIDTH'        => 150,
+        'TREE'              => undef,
+        '_SCALEX'           => 1,
+        '_SCALEY'           => 1,
+        'FORMAT'            => 'Svg',
+        'SCALE'             => undef,
+    };
+    bless $self, $class;
+    
     if (@_) {
         my %opts = @_;
-        foreach my $key ( keys %opts ) {
-            my $localkey = uc $key;
-            $localkey =~ s/-//;
-            unless ( ref $opts{$key} ) {
-                $self->{$localkey} = uc $opts{$key};
-            }
-            else {
-                $self->{$localkey} = $opts{$key}->clone->negative_to_zero;
-            }
+        for my $key ( keys %opts ) {
+            my $mutator = lc $key;
+            $mutator =~ s/^-/set_/;
+            $self->$mutator( $opts{$key} );
         }
     }
-    return bless $self, $class;
+    return $self;
 }
 
 =back
@@ -117,15 +115,19 @@ sub new {
 =cut
 
 sub set_format {
-    my $self = shift;
-    if ( $drawers->{ ucfirst( $_[0] ) } ) {
-        $self->{'FORMAT'} = ucfirst( $_[0] );
+    my ( $self, $format ) = @_;
+    $format = ucfirst( lc( $format ) );
+    my $class = __PACKAGE__ . '::' . $format;
+    eval "require $class";
+    if ( not $@ ) {
+        $self->{'FORMAT'} = $format;
+        return $self;
     }
     else {
         Bio::Phylo::Util::Exceptions::BadFormat->throw(
-            error => "\"$_[0]\" is not a valid image format" );
-    }
-    return $self;
+            'error' => "'$format' is not a valid image format"
+        );
+    }    
 }
 
 =item set_width()
@@ -140,13 +142,14 @@ sub set_format {
 =cut
 
 sub set_width {
-    my $self = shift;
-    if ( looks_like_number $_[0] ) {
-        $self->{'WIDTH'} = $_[0];
+    my ( $self, $width ) = @_;
+    if ( looks_like_number $width && $width > 0 ) {
+        $self->{'WIDTH'} = $width;
     }
     else {
         Bio::Phylo::Util::Exceptions::BadNumber->throw(
-            error => "\"$_[0]\" is not a valid number value" );
+            'error' => "'$width' is not a valid image width"
+        );
     }
     return $self;
 }
@@ -163,13 +166,14 @@ sub set_width {
 =cut
 
 sub set_height {
-    my $self = shift;
-    if ( looks_like_number $_[0] ) {
-        $self->{'HEIGHT'} = $_[0];
+    my ( $self, $height ) = @_;
+    if ( looks_like_number $height && $height > 0 ) {
+        $self->{'HEIGHT'} = $height;
     }
     else {
         Bio::Phylo::Util::Exceptions::BadNumber->throw(
-            error => "\"$_[0]\" is not a valid number value" );
+            'error' => "'$height' is not a valid image height"
+        );
     }
     return $self;
 }
@@ -187,13 +191,14 @@ sub set_height {
 =cut
 
 sub set_mode {
-    my $self = shift;
-    if ( $_[0] =~ m/(clado|phylo)/i ) {
-        $self->{'MODE'} = uc $_[0];
+    my ( $self, $mode ) = @_;
+    if ( $mode =~ m/^(?:clado|phylo)$/i ) {
+        $self->{'MODE'} = uc $mode;
     }
     else {
         Bio::Phylo::Util::Exceptions::BadFormat->throw(
-            error => "\"$_[0]\" is not a valid drawing mode" );
+            'error' => "'$mode' is not a valid drawing mode"
+        );
     }
     return $self;
 }
@@ -211,13 +216,14 @@ sub set_mode {
 =cut
 
 sub set_shape {
-    my $self = shift;
-    if ( $_[0] =~ m/(rect|diag|curvy)/i ) {
-        $self->{'SHAPE'} = uc $_[0];
+    my ( $self, $shape ) = @_;
+    if ( $shape =~ m/^(?:rect|diag|curvy)$/i ) {
+        $self->{'SHAPE'} = uc $shape;
     }
     else {
         Bio::Phylo::Util::Exceptions::BadFormat->throw(
-            error => "\"$_[0]\" is not a valid drawing shape" );
+            'error' => "'$shape' is not a valid drawing shape"
+        );
     }
     return $self;
 }
@@ -234,13 +240,14 @@ sub set_shape {
 =cut
 
 sub set_padding {
-    my $self = shift;
-    if ( looks_like_number $_[0] ) {
-        $self->{'PADDING'} = $_[0];
+    my ( $self, $padding ) = @_;
+    if ( looks_like_number $padding && $padding > 0 ) {
+        $self->{'PADDING'} = $padding;
     }
     else {
         Bio::Phylo::Util::Exceptions::BadNumber->throw(
-            error => "\"$_[0]\" is not a valid number value" );
+            'error' => "'$padding' is not a valid padding value"
+        );
     }
     return $self;
 }
@@ -257,13 +264,14 @@ sub set_padding {
 =cut
 
 sub set_node_radius {
-    my $self = shift;
-    if ( looks_like_number $_[0] ) {
-        $self->{'NODE_RADIUS'} = $_[0];
+    my ( $self, $radius ) = @_;
+    if ( looks_like_number $radius && $radius >= 0 ) {
+        $self->{'NODE_RADIUS'} = $radius;
     }
     else {
         Bio::Phylo::Util::Exceptions::BadNumber->throw(
-            error => "\"$_[0]\" is not a valid number value" );
+            'error' => "'$radius' is not a valid node radius value"
+        );
     }
     return $self;
 }
@@ -281,13 +289,14 @@ sub set_node_radius {
 =cut
 
 sub set_text_horiz_offset {
-    my $self = shift;
-    if ( looks_like_number $_[0] ) {
-        $self->{'TEXT_HORIZ_OFFSET'} = $_[0];
+    my ( $self, $offset ) = @_;
+    if ( looks_like_number $offset ) {
+        $self->{'TEXT_HORIZ_OFFSET'} = $offset;
     }
     else {
         Bio::Phylo::Util::Exceptions::BadNumber->throw(
-            error => "\"$_[0]\" is not a valid number value" );
+            'error' => "'$offset' is not a valid text horizontal offset value"
+        );
     }
     return $self;
 }
@@ -305,13 +314,14 @@ sub set_text_horiz_offset {
 =cut
 
 sub set_text_vert_offset {
-    my $self = shift;
-    if ( looks_like_number $_[0] ) {
-        $self->{'TEXT_VERT_OFFSET'} = $_[0];
+    my ( $self, $offset ) = @_;
+    if ( looks_like_number $offset ) {
+        $self->{'TEXT_VERT_OFFSET'} = $offset;
     }
     else {
         Bio::Phylo::Util::Exceptions::BadNumber->throw(
-            error => "\"$_[0]\" is not a valid number value" );
+            'error' => "'$offset' is not a valid text vertical offset value"
+        );
     }
     return $self;
 }
@@ -329,13 +339,14 @@ sub set_text_vert_offset {
 =cut
 
 sub set_text_width {
-    my $self = shift;
-    if ( looks_like_number $_[0] ) {
-        $self->{'TEXT_WIDTH'} = $_[0];
+    my ( $self, $width ) = @_;
+    if ( looks_like_number $width && $width > 0 ) {
+        $self->{'TEXT_WIDTH'} = $width;
     }
     else {
         Bio::Phylo::Util::Exceptions::BadNumber->throw(
-            error => "\"$_[0]\" is not a valid number value" );
+            'error' => "'$width' is not a valid text width value"
+        );
     }
     return $self;
 }
@@ -353,13 +364,14 @@ sub set_text_width {
 =cut
 
 sub set_tree {
-    my $self = shift;
-    if ( $_[0]->can('_type') && $_[0]->_type == _TREE_ ) {
-        $self->{'TREE'} = $_[0]->clone->negative_to_zero;
+    my ( $self, $tree ) = @_;
+    if ( $tree->can('_type') && $tree->_type == _TREE_ ) {
+        $self->{'TREE'} = $tree->negative_to_zero;
     }
     else {
         Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-            error => "\"$_[0]\" is not a valid tree" );
+            'error' => "'$tree' is not a valid tree"
+        );
     }
     return $self;
 }
@@ -437,9 +449,7 @@ sub set_scale_options {
 
 =cut
 
-sub get_format {
-    return $_[0]->{'FORMAT'};
-}
+sub get_format { shift->{'FORMAT'} }
 
 =item get_width()
 
@@ -452,9 +462,7 @@ sub get_format {
 
 =cut
 
-sub get_width {
-    return $_[0]->{'WIDTH'};
-}
+sub get_width { shift->{'WIDTH'} }
 
 =item get_height()
 
@@ -467,9 +475,7 @@ sub get_width {
 
 =cut
 
-sub get_height {
-    return $_[0]->{'HEIGHT'};
-}
+sub get_height { shift->{'HEIGHT'} }
 
 =item get_mode()
 
@@ -482,9 +488,7 @@ sub get_height {
 
 =cut
 
-sub get_mode {
-    return $_[0]->{'MODE'};
-}
+sub get_mode { shift->{'MODE'} }
 
 =item get_shape()
 
@@ -498,9 +502,7 @@ sub get_mode {
 
 =cut
 
-sub get_shape {
-    return $_[0]->{'SHAPE'};
-}
+sub get_shape { shift->{'SHAPE'} }
 
 =item get_padding()
 
@@ -513,9 +515,7 @@ sub get_shape {
 
 =cut
 
-sub get_padding {
-    return $_[0]->{'PADDING'};
-}
+sub get_padding { shift->{'PADDING'} }
 
 =item get_node_radius()
 
@@ -528,9 +528,7 @@ sub get_padding {
 
 =cut
 
-sub get_node_radius {
-    return $_[0]->{'NODE_RADIUS'};
-}
+sub get_node_radius { shift->{'NODE_RADIUS'} }
 
 =item get_text_horiz_offset()
 
@@ -545,9 +543,7 @@ sub get_node_radius {
 
 =cut
 
-sub get_text_horiz_offset {
-    return $_[0]->{'TEXT_HORIZ_OFFSET'};
-}
+sub get_text_horiz_offset { shift->{'TEXT_HORIZ_OFFSET'} }
 
 =item get_text_vert_offset()
 
@@ -562,9 +558,7 @@ sub get_text_horiz_offset {
 
 =cut
 
-sub get_text_vert_offset {
-    return $_[0]->{'TEXT_VERT_OFFSET'};
-}
+sub get_text_vert_offset { shift->{'TEXT_VERT_OFFSET'} }
 
 =item get_text_width()
 
@@ -579,9 +573,7 @@ sub get_text_vert_offset {
 
 =cut
 
-sub get_text_width {
-    return $_[0]->{'TEXT_WIDTH'};
-}
+sub get_text_width { shift->{'TEXT_WIDTH'} }
 
 =item get_tree()
 
@@ -595,9 +587,7 @@ sub get_text_width {
 
 =cut
 
-sub get_tree {
-    return $_[0]->{'TREE'};
-}
+sub get_tree { shift->{'TREE'} }
 
 =item get_scale_options()
 
@@ -613,9 +603,7 @@ sub get_tree {
 
 =cut
 
-sub get_scale_options {
-    return $_[0]->{'SCALE'};
-}
+sub get_scale_options { shift->{'SCALE'} }
 
 =begin comment
 
@@ -642,9 +630,7 @@ sub _set_scalex {
     return $self;
 }
 
-sub _get_scalex {
-    return $_[0]->{'_SCALEX'};
-}
+sub _get_scalex { shift->{'_SCALEX'} }
 
 =begin comment
 
@@ -671,9 +657,7 @@ sub _set_scaley {
     return $self;
 }
 
-sub _get_scaley {
-    return $_[0]->{'_SCALEY'};
-}
+sub _get_scaley { shift->{'_SCALEY'} }
 
 =back
 
@@ -721,7 +705,7 @@ sub draw {
     }
     $self->_y_terminals($root);
     $self->_y_internals;
-    my $library = __PACKAGE__ . '::' . ucfirst( $self->get_format );
+    my $library = __PACKAGE__ . '::' . ucfirst( lc( $self->get_format ) );
     eval "require $library";
     if ($@) {
         Bio::Phylo::Util::Exceptions::BadFormat->throw(
@@ -778,28 +762,27 @@ sub _x_positions_clado {
     my $root    = $tree->get_root;
     my $longest = $root->calc_max_nodes_to_tips;
     my $scalex  = $self->_get_scalex;
-    foreach my $tip ( @{ $tree->get_terminals } ) {
-        $tip->set_generic( x => ( ( $longest - 1 ) * $scalex ) );
+    my $padding = $self->get_padding;
+    for my $tip ( @{ $tree->get_terminals } ) {
+        $tip->set_generic( 'x' => ( ( $longest ) * $scalex ) );
     }
-    foreach my $node ( @{ $tree->get_internals } ) {
+    for my $internal ( @{ $tree->get_internals } ) {
+        my $id = $internal->get_id;
         my $longest1 = 0;
-        foreach my $f ( @{ $tree->get_entities } ) {
-            my ( $q, $current1 ) = ( $f, 0 );
-            if ( !$q->get_first_daughter && $q->get_parent ) {
-                while ($q) {
+        for my $node ( @{ $tree->get_entities } ) {
+            my ( $n, $current1 ) = ( $node, 0 );
+            if ( $n->is_terminal && $n->get_parent ) {
+                while ( $n->get_parent ) {
                     $current1++;
-                    $q = $q->get_parent;
-                    if (   $q
-                        && $q == $node
-                        && $current1 > $longest1 )
-                    {
+                    $n = $n->get_parent;
+                    if ( $n->get_id == $id && $current1 > $longest1 ) {
                         $longest1 = $current1;
                     }
                 }
             }
         }
-        my $xc = $longest - $longest1 - 1;
-        $node->set_generic( x => ( $xc * $scalex ) );
+        my $xc = $longest - $longest1;
+        $internal->set_generic( 'x' => ( ( $xc * $scalex ) + $padding ) );
     }
 }
 
@@ -899,7 +882,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Treedrawer.pm 2196 2006-09-07 21:35:47Z rvosa $
+$Id: Treedrawer.pm 3331 2007-03-20 23:59:42Z rvosa $
 
 =head1 AUTHOR
 

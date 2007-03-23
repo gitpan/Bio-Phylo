@@ -1,6 +1,6 @@
 =head1 NAME
 
-Bio::Phylo::Manual - Bio::Phylo v.0.14 user guide.
+Bio::Phylo::Manual - Bio::Phylo v.0.16 user guide.
 
 =head1 DESCRIPTION
 
@@ -1093,7 +1093,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
- $Id: Manual.pod 2196 2006-09-07 21:35:47Z rvosa $
+ $Id: Manual.pod 3259 2007-03-13 01:23:38Z rvosa $
 
 =head1 AUTHOR
 

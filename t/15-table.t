@@ -1,4 +1,4 @@
-# $Id: 15-table.t 1652 2006-07-13 02:08:23Z rvosa $
+# $Id: 15-table.t 3292 2007-03-17 16:52:08Z rvosa $
 use strict;
 use warnings;
 use Test::More tests => 2;

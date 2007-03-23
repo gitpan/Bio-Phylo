@@ -1,4 +1,4 @@
-# $Id: Generator.pm 1185 2006-05-26 09:04:17Z rvosa $
+# $Id: Generator.pm 3319 2007-03-20 01:39:35Z rvosa $
 package Bio::Phylo::Generator;
 use strict;
 use Bio::Phylo;
@@ -16,18 +16,6 @@ use vars qw($VERSION @ISA);
 @ISA = qw(Bio::Phylo);
 {
 
-    # inside out class arrays
-    my @name;
-    my @generic;
-    my @cache;
-
-    # $fields hashref necessary for object destruction
-    my $fields = {
-        '-name'    => \@name,
-        '-generic' => \@generic,
-        '-cache'   => \@cache,
-    };
-
 =head1 NAME
 
 Bio::Phylo::Generator - Generates random trees.
@@ -40,7 +28,7 @@ Bio::Phylo::Generator - Generates random trees.
      '-tips'  => 10, 
      '-model' => 'yule',
  );
- 
+
  # prints 'Bio::Phylo::Forest'
  print ref $trees;
 
@@ -67,25 +55,17 @@ equiprobable model.
 =cut
 
     sub new {
-        my ( $class, $self ) = shift;
-        $self = Bio::Phylo::Generator->SUPER::new(@_);
-        bless $self, __PACKAGE__;
-        if (@_) {
-            my %opt;
-            eval { %opt = @_; };
-            if ($@) {
-                Bio::Phylo::Util::Exceptions::OddHash->throw( error => $@ );
-            }
-            else {
-                while ( my ( $key, $value ) = each %opt ) {
-                    if ( $fields->{$key} ) {
-                        $fields->{$key}->[$$self] = $value;
-                        delete $opt{$key};
-                    }
-                }
-                @_ = %opt;
-            }
-        }
+        # could be child class
+        my $class = shift;
+        
+        # notify user
+        $class->info("constructor called for '$class'");
+        
+        # recurse up inheritance tree, get ID
+        my $self = $class->SUPER::new( @_ );
+        
+        # local fields would be set here
+        
         return $self;
     }
 
@@ -467,23 +447,19 @@ such that all shapes are equally probable.
 =begin comment
 
  Type    : Internal method
- Title   : DESTROY
- Usage   : $node->DESTROY;
- Function: Sends object ID back to pool
- Returns : CONSTANT
+ Title   : _cleanup
+ Usage   : $trees->_cleanup;
+ Function: Called during object destruction, for cleanup of instance data
+ Returns : 
  Args    :
 
 =end comment
 
 =cut
 
-    sub DESTROY {
+    sub _cleanup {
         my $self = shift;
-        Bio::Phylo::Util::IDPool->_reclaim($self);
-        foreach ( keys %{$fields} ) {
-            delete $fields->{$_}->[$$self];
-        }
-        return 1;
+        $self->info("cleaning up '$self'");
     }
 
 =back
@@ -514,7 +490,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Generator.pm 1185 2006-05-26 09:04:17Z rvosa $
+$Id: Generator.pm 3319 2007-03-20 01:39:35Z rvosa $
 
 =head1 AUTHOR
 

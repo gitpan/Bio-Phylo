@@ -1,4 +1,4 @@
-# $Id: Svg.pm 2114 2006-08-29 23:51:35Z rvosa $
+# $Id: Svg.pm 3331 2007-03-20 23:59:42Z rvosa $
 # Subversion: $Rev: 192 $
 package Bio::Phylo::Treedrawer::Svg;
 use strict;
@@ -223,14 +223,17 @@ sub _draw_scale {
     my $drawer  = $self->{'DRAWER'};
     my $svg     = $self->{'SVG'};
     my $tree    = $self->{'TREE'};
+    my $root    = $tree->get_root;
+    my $rootx   = $root->get_generic('x');
+    my $height  = $drawer->get_height;
     my $options = $drawer->get_scale_options;
-    if ($options) {
+    if ( $options ) {
         my ( $major, $minor ) = ( $options->{'-major'}, $options->{'-minor'} );
         my $width = $options->{'-width'};
         if ( $width =~ m/^(\d+)%$/ ) {
             $width =
               ( $1 / 100 ) * ( $tree->get_tallest_tip->get_generic('x') -
-                  $tree->get_root->get_generic('x') );
+                  $rootx );
         }
         if ( $major =~ m/^(\d+)%$/ ) {
             $major = ( $1 / 100 ) * $width;
@@ -239,58 +242,44 @@ sub _draw_scale {
             $minor = ( $1 / 100 ) * $width;
         }
         my $major_text  = 0;
-        my $major_scale =
-          ( $major / $width ) * $tree->get_root->calc_max_path_to_tips;
+        my $major_scale = ( $major / $width ) * $root->calc_max_path_to_tips;
         $svg->line(
             'class' => 'scale_bar',
-            'x1'    => $tree->get_root->get_generic('x'),
-            'y1'    => ( $drawer->get_height - 5 ),
-            'x2'    => $tree->get_root->get_generic('x') + $width,
-            'y2'    => ( $drawer->get_height - 5 ),
+            'x1'    => $rootx,
+            'y1'    => ( $height - 5 ),
+            'x2'    => $rootx + $width,
+            'y2'    => ( $height - 5 ),
         );
         $svg->tag(
             'text',
-            'x' => (
-                $tree->get_root->get_generic('x') + $width +
-                  $drawer->get_text_horiz_offset
-            ),
-            'y'     => ( $drawer->get_height - 5 ),
+            'x'     => ( $rootx + $width + $drawer->get_text_horiz_offset ),
+            'y'     => ( $height - 5 ),
             'class' => 'scale_label',
         )->cdata( $options->{'-label'} ? $options->{'-label'} : ' ' );
-        for (
-            my $i = $tree->get_root->get_generic('x') ;
-            $i <= ( $tree->get_root->get_generic('x') + $width ) ;
-            $i += $major
-          )
-        {
+        for ( my $i = $rootx; $i <= ( $rootx + $width ); $i += $major ) {
             $svg->line(
                 'class' => 'scale_major',
                 'x1'    => $i,
-                'y1'    => ( $drawer->get_height - 5 ),
+                'y1'    => ( $height - 5 ),
                 'x2'    => $i,
-                'y2'    => ( $drawer->get_height - 25 ),
+                'y2'    => ( $height - 25 ),
             );
             $svg->tag(
                 'text',
                 'x'     => $i,
-                'y'     => ( $drawer->get_height - 35 ),
+                'y'     => ( $height - 35 ),
                 'class' => 'major_label',
             )->cdata( $major_text ? $major_text : ' ' );
             $major_text += $major_scale;
         }
-        for (
-            my $i = $tree->get_root->get_generic('x') ;
-            $i <= ( $tree->get_root->get_generic('x') + $width ) ;
-            $i += $minor
-          )
-        {
+        for ( my $i = $rootx; $i <= ( $rootx + $width ); $i += $minor ) {
             next if not $i % $major;
             $svg->line(
                 'class' => 'scale_minor',
                 'x1'    => $i,
-                'y1'    => ( $drawer->get_height - 5 ),
+                'y1'    => ( $height - 5 ),
                 'x2'    => $i,
-                'y2'    => ( $drawer->get_height - 15 ),
+                'y2'    => ( $height - 15 ),
             );
         }
     }
@@ -449,7 +438,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Svg.pm 2114 2006-08-29 23:51:35Z rvosa $
+$Id: Svg.pm 3331 2007-03-20 23:59:42Z rvosa $
 
 =head1 AUTHOR
 

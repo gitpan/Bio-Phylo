@@ -1,4 +1,4 @@
-# $Id: Nexus.pm 2108 2006-08-29 20:46:17Z rvosa $
+# $Id: Nexus.pm 3292 2007-03-17 16:52:08Z rvosa $
 # Subversion: $Rev: 190 $
 package Bio::Phylo::Unparsers::Nexus;
 use strict;
@@ -77,9 +77,21 @@ sub _to_string {
     $string .= "    DIMENSIONS NTAX=" . $matrix->get_ntax() . ' ';
     $string .= 'NCHAR=' . $matrix->get_nchar() . ";\n";
     $string .= "    FORMAT DATATYPE=" . $matrix->get_type();
+    #$string .= $matrix->get_respectcase ? " RESPECTCASE" : "";
+    $string .= " MATCHCHAR=" . $matrix->get_matchchar if $matrix->get_matchchar;
     $string .= " MISSING=" . $matrix->get_missing();
-    $string .= " GAP=" . $matrix->get_gap() . ";\n";
-    $string .= " CHARLABELS " . join( ' ', @{ $matrix->get_charlabels } ) . ";\n" if @{ $matrix->get_charlabels };
+    $string .= " GAP=" . $matrix->get_gap() if $matrix->get_gap();
+    $string .= ";\n";
+    $string .= "    OPTIONS GAPMODE=";
+    $string .= $matrix->get_gapmode ? "NEWSTATE " : "MISSING ";
+    $string .= $matrix->get_polymorphism ? "MSTAXA=POLYMORPH;\n" : "MSTAXA=UNCERTAIN;\n";
+    my $charlabels;
+    if ( @{ $matrix->get_charlabels } ) {
+    	for my $label ( @{ $matrix->get_charlabels } ) {
+    		$charlabels .= $label =~ /\s/ ? " '$label'" : " $label";
+    	}
+	$string .= "    CHARLABELS$charlabels;\n";
+    }
     $string .= "    MATRIX\n";
     my $length = 0;
     foreach my $datum ( @{ $matrix->get_entities } ) {
@@ -88,17 +100,11 @@ sub _to_string {
     }
     $length += 4;
     my $sp = ' ';
-    my $iscont = 1 if $matrix->get_type =~ m/continuous/i;
     foreach my $datum ( @{ $matrix->get_entities } ) {
         $string .= "        "
           . $datum->get_name
           . ( $sp x ( $length - length( $datum->get_name ) ) );
-        if ( $iscont ) {
-            $string .= join ' ', $datum->get_char;
-        }
-        else {
-            $string .= join '', $datum->get_char;
-        }
+		$string .= $datum->get_char;
         $string .= "\n";
     }
     $string .= "    ;\nEND;\n";
@@ -136,7 +142,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Nexus.pm 2108 2006-08-29 20:46:17Z rvosa $
+$Id: Nexus.pm 3292 2007-03-17 16:52:08Z rvosa $
 
 =head1 AUTHOR
 

@@ -1,4 +1,4 @@
-# $Id: Exceptions.pm 1783 2006-07-27 23:44:56Z rvosa $
+# $Id: Exceptions.pm 3298 2007-03-19 18:57:16Z rvosa $
 # Subversion: $Rev: 170 $
 package Bio::Phylo::Util::Exceptions;
 use strict;
@@ -7,30 +7,51 @@ use strict;
 use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
 use Exception::Class (
     'Bio::Phylo::Util::Exceptions',
-    'Bio::Phylo::Util::Exceptions::BadNumber' =>
-      { isa => 'Bio::Phylo::Util::Exceptions' },
-    'Bio::Phylo::Util::Exceptions::BadString' =>
-      { isa => 'Bio::Phylo::Util::Exceptions' },
-    'Bio::Phylo::Util::Exceptions::BadFormat' =>
-      { isa => 'Bio::Phylo::Util::Exceptions' },
-    'Bio::Phylo::Util::Exceptions::OddHash' =>
-      { isa => 'Bio::Phylo::Util::Exceptions' },
-    'Bio::Phylo::Util::Exceptions::ObjectMismatch' =>
-      { isa => 'Bio::Phylo::Util::Exceptions' },
-    'Bio::Phylo::Util::Exceptions::UnknownMethod' =>
-      { isa => 'Bio::Phylo::Util::Exceptions' },
-    'Bio::Phylo::Util::Exceptions::BadArgs' =>
-      { isa => 'Bio::Phylo::Util::Exceptions' },
-    'Bio::Phylo::Util::Exceptions::FileError' =>
-      { isa => 'Bio::Phylo::Util::Exceptions' },
-    'Bio::Phylo::Util::Exceptions::ExtensionError' =>
-      { isa => 'Bio::Phylo::Util::Exceptions' },
-    'Bio::Phylo::Util::Exceptions::OutOfBounds' =>
-      { isa => 'Bio::Phylo::Util::Exceptions' },
-    'Bio::Phylo::Util::Exceptions::NotImplemented' =>
-      { isa => 'Bio::Phylo::Util::Exceptions' },
-    'Bio::Phylo::Util::Exceptions::Deprecated' =>
-      { isa => 'Bio::Phylo::Util::Exceptions' },
+    'Bio::Phylo::Util::Exceptions::BadNumber' => {
+        'isa' => 'Bio::Phylo::Util::Exceptions'
+    },
+    'Bio::Phylo::Util::Exceptions::BadString' => {
+        'isa' => 'Bio::Phylo::Util::Exceptions'
+    },
+    'Bio::Phylo::Util::Exceptions::BadFormat' => {
+        'isa' => 'Bio::Phylo::Util::Exceptions'
+    },
+    'Bio::Phylo::Util::Exceptions::OddHash' => {
+        'isa' => 'Bio::Phylo::Util::Exceptions'
+    },
+    'Bio::Phylo::Util::Exceptions::ObjectMismatch' => {
+        'isa' => 'Bio::Phylo::Util::Exceptions'
+    },
+    'Bio::Phylo::Util::Exceptions::UnknownMethod' => {
+        'isa' => 'Bio::Phylo::Util::Exceptions'
+    },
+    'Bio::Phylo::Util::Exceptions::BadArgs' => {
+        'isa' => 'Bio::Phylo::Util::Exceptions'
+    },
+    'Bio::Phylo::Util::Exceptions::FileError' => {
+        'isa' => 'Bio::Phylo::Util::Exceptions'
+    },
+    'Bio::Phylo::Util::Exceptions::ExtensionError' => {
+        'isa' => 'Bio::Phylo::Util::Exceptions'
+    },
+    'Bio::Phylo::Util::Exceptions::OutOfBounds' => {
+        'isa' => 'Bio::Phylo::Util::Exceptions'
+    },
+    'Bio::Phylo::Util::Exceptions::NotImplemented' => {
+        'isa' => 'Bio::Phylo::Util::Exceptions'
+    },
+    'Bio::Phylo::Util::Exceptions::Deprecated' => {
+        'isa' => 'Bio::Phylo::Util::Exceptions'
+    },
+    'Bio::Phylo::Util::Exceptions::InvalidData' => {
+        'isa' => [
+            'Bio::Phylo::Util::Exceptions::BadString',
+            'Bio::Phylo::Util::Exceptions::BadFormat',
+        ],
+    },      
+    'Bio::Phylo::Util::Exceptions::Generic' => {
+        'isa' => 'Bio::Phylo::Util::Exceptions'
+    },      
 );
 1;
 __END__
@@ -138,7 +159,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Exceptions.pm 1783 2006-07-27 23:44:56Z rvosa $
+$Id: Exceptions.pm 3298 2007-03-19 18:57:16Z rvosa $
 
 =head1 AUTHOR
 

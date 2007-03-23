@@ -1,4 +1,4 @@
-# $Id: IO.pm 2196 2006-09-07 21:35:47Z rvosa $
+# $Id: IO.pm 3290 2007-03-17 10:40:55Z rvosa $
 # Subversion: $Rev: 170 $
 package Bio::Phylo::IO;
 use strict;
@@ -32,23 +32,23 @@ Bio::Phylo::IO - Input and output of phylogenetic data.
  my $tree_string = '(((A,B),C),D);';
  my $tree = Bio::Phylo::IO->parse(
     '-string' => $tree_string,
-    
+
     # old parser, always adds node labels
     '-format' => 'newick',
  )->first;
- 
+
  # OR:
- 
+
  $tree = Bio::Phylo::IO->parse(
      '-string' => $tree_string,
-     
+
      # faster, new parser, node labels optional
      '-format' => 'fastnewick', 
-     
+
      # with node labels
      '-label'  => 1,            
   )->first; 
- 
+
  # note: newick parsers return 
  # 'Bio::Phylo::Forest'! Call 
  # ->first to retrieve the first 
@@ -62,13 +62,13 @@ Bio::Phylo::IO - Input and output of phylogenetic data.
  my $matrix = Bio::Phylo::IO->parse(
     '-string'   => $table_string,
     '-format'   => 'table',
-    
+
     # Data type, see Bio::Phylo::Parsers::Table
     '-type'     => 'STANDARD',
-    
+
     # field separator  
     '-fieldsep' => ',',
-    
+
     # line separator
     '-linesep'  => '|'          
  );
@@ -89,12 +89,12 @@ Bio::Phylo::IO - Input and output of phylogenetic data.
 
  # matches taxon names in tree to $taxa object
  $tree->cross_reference($taxa);  
- 
+
  # likewise for matrix  
  $matrix->cross_reference($taxa);
 
  print Bio::Phylo::IO->unparse(
-    
+
     # pass the tree object, 
     # crossreferenced to taxa, which
     # are crossreferenced to the matrix
@@ -110,7 +110,7 @@ Bio::Phylo::IO - Input and output of phylogenetic data.
  #C,n2,0.000000,2,2
  #n2,n3,0.000000
  #D,n3,0.000000,2,1
- 
+
 =head1 DESCRIPTION
 
 The IO module is the unified front end for parsing and unparsing phylogenetic
@@ -193,11 +193,13 @@ sub parse {
         $cached_parsers->{$lib} = $parser;
     }
     if ( $opts{-file} && $parser->can('_from_handle') ) {
-        eval { open FH, '<', $opts{-file}; };
+        require IO::File;
+        my $fh = IO::File->new;
+        $fh->open("< $opts{-file}");
         if ( $! ) {
             Bio::Phylo::Util::Exceptions::FileError->throw( error => $! );
         }
-        $opts{-handle} = *FH;
+        $opts{-handle} = $fh;
         return $parser->_from_handle(%opts);
     }
     elsif ( $opts{-string} && $parser->can('_from_string') ) {
@@ -313,7 +315,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: IO.pm 2196 2006-09-07 21:35:47Z rvosa $
+$Id: IO.pm 3290 2007-03-17 10:40:55Z rvosa $
 
 =head1 AUTHOR
 

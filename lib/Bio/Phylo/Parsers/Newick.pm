@@ -1,13 +1,12 @@
-# $Id: Newick.pm 2108 2006-08-29 20:46:17Z rvosa $
+# $Id: Newick.pm 3291 2007-03-17 11:34:46Z rvosa $
 package Bio::Phylo::Parsers::Newick;
 use strict;
-use Bio::Phylo::Forest;
-use Bio::Phylo::Forest::Tree;
-use Bio::Phylo::Forest::Node;
 use Bio::Phylo::IO;
-
+use Bio::Phylo;
 use vars '@ISA';
 @ISA=qw(Bio::Phylo::IO);
+
+my $logger = 'Bio::Phylo';
 
 # One line so MakeMaker sees it.
 use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
@@ -39,6 +38,7 @@ don't call it directly.
 
 sub _new {
     my $class = $_[0];
+    $logger->info("instantiating newick parser");
     my $self  = {};
     bless( $self, $class );
     return $self;
@@ -61,31 +61,91 @@ sub _new {
 sub _from_both {
     my $self  = shift;
     my %args  = @_;
-    my $trees = Bio::Phylo::Forest->new;
-    if ( $args{'-handle'} ) {
-        my $string;
-        while ( readline( $args{-handle} ) ) {
-            chomp;
-            s/\s//g;
-            $string .= $_;
-            if ( $string =~ m/^(.+;)(.*)$/ ) {
-                my $current = $1;
-                $current = $self->_nodelabels($current) if $args{'-label'};
-                $trees->insert( $self->_parse_string($current) );
-                $string = $2;
+    
+    # turn string into pseudo-handle
+    if ( $args{'-string'} ) {
+        require IO::String;
+        $args{'-handle'} = IO::String->new( $args{'-string'} );
+        $logger->debug("creating handle from string");
+    }
+    
+    # just concatenate
+    my $string;
+    while ( my $line = $args{-handle}->getline ) {
+        chomp( $line );
+        $string .= $line;
+    }
+    $logger->debug("concatenated lines");                   
+    
+    # remove comments, split on trees
+    my @trees = $self->_split( $string );
+    
+    # lazy loading, we only want the forest *now*
+    require Bio::Phylo::Forest;
+    my $forest = Bio::Phylo::Forest->new;    
+    
+    # parse trees
+    for my $tree ( @trees ) {
+        $forest->insert( $self->_parse_string( $tree ) );
+    }
+    
+    # adding labels to untagged nodes
+    if ( $args{'-label'} ) {
+        for my $tree ( @{ $forest->get_entities } ) {
+            my $i = 1;
+            for my $node ( @{ $tree->get_entities } ) {
+                if ( not $node->get_name ) {
+                    $node->set_name( 'n' . $i++ );
+                }
             }
         }
     }
-    if ( $args{'-string'} ) {
-        foreach ( split( /;/, $args{'-string'} ) ) {
-            chomp;
-            s/\s//g;
-            my $tree = $_ . ';';
-            $tree = $self->_nodelabels($tree) if $args{'-label'};
-            $trees->insert( $self->_parse_string($tree) );
+
+    # done
+    return $forest;
+}
+
+=begin comment
+
+ Type    : Parser
+ Title   : _split($string)
+ Usage   : my @strings = $newick->_split($string);
+ Function: Creates an array of (decommented) tree descriptions
+ Returns : A Bio::Phylo::Forest::Tree object.
+ Args    : $string = concatenated tree descriptions
+
+=end comment
+
+=cut
+
+sub _split {
+    my ( $self, $string ) = @_;
+    my ( $QUOTED, $COMMENTED ) = ( 0, 0 );
+    my $decommented = '';
+    my @trees;
+    TOKEN: for my $i ( 0 .. length( $string ) ) {
+        if ( ! $QUOTED && ! $COMMENTED && substr($string,$i,1) eq "'" ) {
+            $QUOTED++;
+        }
+        elsif ( ! $QUOTED && ! $COMMENTED && substr($string,$i,1) eq "[" ) {
+            $COMMENTED++;
+            next TOKEN;
+        }
+        elsif ( ! $QUOTED && $COMMENTED && substr($string,$i,1) eq "]" ) {
+            $COMMENTED--;
+            next TOKEN;
+        }
+        elsif ( $QUOTED && ! $COMMENTED && substr($string,$i,1) eq "'" && substr($string,$i,2) ne "''" ) {
+            $QUOTED--;
+        }
+        $decommented .= substr($string,$i,1) unless $COMMENTED;
+        if ( ! $QUOTED && ! $COMMENTED && substr($string,$i,1) eq ';' ) {
+            push @trees, $decommented;
+            $decommented = '';
         }
     }
-    return $trees;
+    $logger->debug("removed comments, split on tree descriptions");
+    return @trees;
 }
 
 =begin comment
@@ -104,25 +164,118 @@ sub _from_both {
 
 sub _parse_string {
     my ( $self, $string ) = @_;
+    $logger->info("going to parse tree string '$string'");
+    require Bio::Phylo::Forest::Tree;
+    require Bio::Phylo::Forest::Node;
     my $tree = Bio::Phylo::Forest::Tree->new;
-    my $root;
-    $string =~ s/^\((.*)\)([^()]*);$/$1/;
-    my $name = $2;
-    if ( $name && $name =~ m/^(.*?)\s*:\s*(.*)$/o ) {
-        $root = Bio::Phylo::Forest::Node->new(
-            '-name'          => $1,
-            '-branch_length' => $2,
-        );
+    my $remainder = $string;
+    my $token;
+    my @tokens;
+    while ( ( $token, $remainder ) = $self->_next_token( $remainder ) ) {
+        last if ( ! defined $token || ! defined $remainder );
+        $logger->info("fetched token '$token'");
+        push @tokens, $token;
     }
-    elsif ( $name && $name !~ /:/ ) {
-        $root = Bio::Phylo::Forest::Node->new( '-name' => $name, );
+    my $i;
+    for ( $i = $#tokens; $i >= 0; $i-- ) {
+        last if $tokens[$i] eq ';';
     }
-    elsif ( ! $name ) {
-        $root = Bio::Phylo::Forest::Node->new( '-name' => '' );
-    }
-    $tree->insert($root);
-    &_parse( $string, $tree, $root );
+    my $root = Bio::Phylo::Forest::Node->new;
+    $tree->insert( $root );
+    $self->_parse_node_data( $root, @tokens[ 0 .. ( $i - 1 ) ] );
+    $self->_parse_clade( $tree, $root, @tokens[ 0 .. ( $i - 1 ) ] );
     return $tree;
+}
+sub _parse_clade {
+    my ( $self, $tree, $root, @tokens ) = @_;
+    $logger->info("recursively parsing clade '@tokens'");
+    my ( @clade, $depth, @remainder );
+    TOKEN: for my $i ( 0 .. $#tokens ) {
+        if ( $tokens[$i] eq '(' ) {
+            if ( not defined $depth ) {
+                $depth = 1;
+                next TOKEN;
+            }
+            else {
+                $depth++;
+            }
+        }
+        elsif ( $tokens[$i] eq ',' && $depth == 1 ) {
+            my $node = Bio::Phylo::Forest::Node->new;
+            $root->set_child( $node );
+            $tree->insert( $node );
+            $self->_parse_node_data( $node, @clade );
+            $self->_parse_clade( $tree, $node, @clade );
+            @clade = ();
+            next TOKEN;
+        }
+        elsif ( $tokens[$i] eq ')' ) {
+            $depth--;
+            if ( $depth == 0 ) {
+                @remainder = @tokens[ ( $i + 1 ) .. $#tokens ];
+                my $node = Bio::Phylo::Forest::Node->new;
+                $root->set_child( $node );
+                $tree->insert( $node );
+                $self->_parse_node_data( $node, @clade );
+                $self->_parse_clade( $tree, $node, @clade );
+                last TOKEN;
+            }
+        }
+        push @clade, $tokens[$i];
+    }
+}
+sub _parse_node_data {
+    my ( $self, $node, @clade ) = @_;
+    $logger->info("parsing name and branch length for node");
+    my @tail;
+    PARSE_TAIL: for ( my $i = $#clade; $i >= 0; $i-- ) {
+        if ( $clade[$i] eq ')' ) {
+            @tail = @clade[ ( $i + 1 ) .. $#clade ];
+            last PARSE_TAIL;
+        }
+        elsif ( $i == 0 ) {
+            @tail = @clade;
+        }
+    }
+    # name only
+    if ( scalar @tail == 1 ) {
+        $node->set_name( $tail[0] );
+    }
+    elsif ( scalar @tail == 2 ) {
+        $node->set_branch_length( $tail[-1] );
+    }
+    elsif ( scalar @tail == 3 ) {
+        $node->set_name( $tail[0] );
+        $node->set_branch_length( $tail[-1] );
+    }
+}
+sub _next_token {
+    my ( $self, $string ) = @_;
+    $logger->info("tokenizing string '$string'");
+    my $QUOTED = 0;
+    my $token = '';
+    my $TOKEN_DELIMITER = qr/[():,;]/;
+    TOKEN: for my $i ( 0 .. length( $string ) ) {
+        $token .= substr($string,$i,1);
+        $logger->info("growing token: '$token'");
+        if ( ! $QUOTED && $token =~ $TOKEN_DELIMITER ) {
+            my $length = length( $token );
+            if ( $length == 1 ) {
+                $logger->info("single char token: '$token'");
+                return $token, substr($string,($i+1));
+            }
+            else {
+                $logger->info(sprintf("range token: %s", substr($token,0,$length-1)));
+                return substr($token,0,$length-1),substr($token,$length-1,1).substr($string,($i+1));
+            }
+        }
+        if ( ! $QUOTED && substr($string,$i,1) eq "'" ) {
+            $QUOTED++;
+        }
+        elsif ( $QUOTED && substr($string,$i,1) eq "'" && substr($string,$i,2) ne "''" ) {
+            $QUOTED--;
+        }        
+    }
 }
 
 =begin comment
@@ -272,7 +425,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Newick.pm 2108 2006-08-29 20:46:17Z rvosa $
+$Id: Newick.pm 3291 2007-03-17 11:34:46Z rvosa $
 
 =head1 AUTHOR
 

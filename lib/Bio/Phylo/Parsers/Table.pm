@@ -1,8 +1,9 @@
-# $Id: Table.pm 1652 2006-07-13 02:08:23Z rvosa $
+# $Id: Table.pm 3292 2007-03-17 16:52:08Z rvosa $
 # Subversion: $Rev: 194 $
 package Bio::Phylo::Parsers::Table;
 use strict;
 use Bio::Phylo;
+use Bio::Phylo::IO;
 use Bio::Phylo::Matrices::Matrix;
 use Bio::Phylo::Matrices::Datum;
 use Bio::Phylo::Taxa;
@@ -114,10 +115,9 @@ sub _from_both {
             my $taxon = Bio::Phylo::Taxa::Taxon->new( '-name' => $temp[0], );
             $taxa->insert($taxon);
             my $datum = Bio::Phylo::Matrices::Datum->new(
-                '-name' => $temp[0],
-                '-type' => uc $opts{'-type'},
-                '-char' => [ @temp[ 1, -1 ] ],
-                '-pos'  => 0,
+                '-name'  => $temp[0],
+                '-type'  => uc $opts{'-type'},
+                '-char'  => [ @temp[ 1, -1 ] ],
             );
             $datum->set_taxon($taxon);
             $taxon->set_data($datum);
@@ -133,7 +133,6 @@ sub _from_both {
                 '-name' => $temp[0],
                 '-type' => uc $opts{'-type'},
                 '-char' => [ @temp[ 1 .. $#temp ] ],
-                '-pos'  => 0,
             );
             $datum->set_taxon($taxon);
             $taxon->set_data($datum);
@@ -174,7 +173,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Table.pm 1652 2006-07-13 02:08:23Z rvosa $
+$Id: Table.pm 3292 2007-03-17 16:52:08Z rvosa $
 
 =head1 AUTHOR
 

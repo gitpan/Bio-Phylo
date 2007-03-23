@@ -1,0 +1,386 @@
+# $Id: ObjectCompat.pod 2262 2006-09-20 22:32:03Z rvosa $
+
+=head1 RFC: Object compatibility for phylogenetic software in OO perl
+
+ Rutger A. Vos
+ rvosa@sfu.ca
+ Department of Zoology, 6270 University Boulevard
+ University of British Columbia
+ Vancouver, BC, V6T 1Z4, Canada
+
+The most recent version of this document can be found at (user=guest, 
+pass=guest):
+
+ $URL: http://nladr-cvs.sdsc.edu/svn/CIPRES/cipresdev/trunk/cipres/framework/perl/phylo/lib/Bio/ObjectCompat.pod $
+
+The trunk version of this document is written in pod, a simple source
+code documentation format for perl5. To view it in an nroff-like formatter,
+use 'perldoc ObjectCompat.pod'. Pod can be converted to a number of different
+formats; by default the pod2text, pod2latex and pod2html utilities should be
+available for this purpose on systems with a recent perl installation.
+
+The version you are reading now is: $Revision: 2262 $
+
+B<Please help improve this document by making sure you are reading the
+most recent version, and sharing your feedback with the authors.>
+
+=head1 Abstract
+
+This document describes the steps required to obtain object
+compatibility between three software packages written in
+object-oriented perl5: L<BioPerl|http://www.bioperl.org/>, 
+L<Bio::NEXUS|http://www.molevol.org/camel/projects/nexus/> and 
+L<Bio::Phylo|http://search.cpan.org/~rvosa/Bio-Phylo/>. Of these three, 
+BioPerl is by far the most commonly used, largest and oldest project. We therefore
+suggest an approach that requires minimal, optional changes on its
+part, playing to the strength of its design in using interfaces such as
+L<Bio::Tree::TreeI> and L<Bio::Tree::NodeI>. We propose several new such
+interfaces, in particular for characters or character sequences,
+character state matrices and a character-data-and-tree object that
+forms a container for comparative data and phylogenetic trees.
+Implementation of these interfaces is largely left to Bio::NEXUS and
+Bio::Phylo, which thereby become compatible, such that users can draw
+on the strengths of both packages more easily.
+
+=head1 Introduction
+
+Phylogenetic analysis is a field that, from a programmer's
+perspective, deals with a limited set of objects: trees which are
+comprised of nodes, matrices which are comprised of character sequences
+of some sort, and a containing context to describe the relationship
+between the two: a character-data-and-tree object.
+
+=head2 Object-oriented perl5
+
+Objects in perl5 are references to data structures 'blessed
+into' a package, which defines the methods implemented by the
+object. Perl5 allows for multiple inheritance either by using the
+C<base> pragma or by manipulating the C<@ISA> array. Runtime
+modification of the inheritance tree and the symbol table allows for
+optional implementation of java-like interfaces, so that classes
+from different packages can become loosely coupled through the
+interfaces they implement. These properties can be used to make
+different packages written in object-oriented perl5 object-compatible.
+
+=head2 Phylogenetic software packages
+
+Several software libraries written in object-oriented perl5 now exist
+that all implement objects from the phylogenetic problem space - though
+all in slightly different ways. The largest among these packages is 
+L<BioPerl|http://www.bioperl.org/>, which is widely used by molecular biologists
+around the world. BioPerl's architecture is broad, with branches
+being maintained by many different developers who maintain
+compatibility with each other by implementing interfaces such as
+L<Bio::Tree::TreeI>, L<Bio::Tree::NodeI> (see
+also: L<http://search.cpan.org/~birney/bioperl-1.4/biodesign.pod>).
+Here we will describe how two smaller packages, 
+L<Bio::NEXUS|http://search.cpan.org/~tjhladish/Bio-NEXUS/> and 
+L<Bio::Phylo|http://search.cpan.org/~rvosa/Bio-Phylo> can be modified to become
+compatible with BioPerl so that their respective strengths become more
+easily accessible to the BioPerl user community. The approach we
+suggest may be a model for other phylogenetic software written in OO
+perl5, with BioPerl taking on the role of defining the standard
+interfaces - a kind of W3C for phyloinformatics.
+
+=head2 Interface conventions in BioPerl
+
+The typical approach taken in BioPerl is that java-like interfaces are
+defined in classes whose name are suffixed with an 'I', e.g.
+L<Bio::Tree::TreeI>. These classes inherit from L<Bio::Root::RootI>, which
+defines exception handling methods.
+
+The interfaces are never instantiated directly. Rather, the implementation
+class objects such as L<Bio::Tree::Tree> are instantiated by the IO system, in
+this case L<Bio::TreeIO>.
+
+The interfaces define method names to be implemented, throwing
+C<throw_not_implemented> exceptions when the code blocks are ever executed.
+Classes in BioPerl such as L<Bio::Tree::Tree> implement the actual subroutines
+defined in the interfaces they contain in their @ISA arrays, in this
+case L<Bio::Tree::TreeI>, thereby preventing these exceptions from ever
+being thrown.
+
+BioPerl's general design philosophy is that "complex" operations (generally,
+anything that is computationally intensive and/or requires external tools)
+are provided by separate factory classes that operate on the objects. The
+basic objects modelling biological data (trees, matrices) are therefore
+intentionally fairly concise.
+
+=head2 Optional interface inheritance
+
+Third-party packages can become compatible with BioPerl by defining in
+their @ISA arrays which BioPerl interfaces they implement. However,
+this creates a permanent dependency between it and BioPerl. A more
+dynamic option is by testing at runtime whether an interface is
+installed, and only then inheriting from it. An example of this is in
+L<Bio::Phylo::Forest::Tree> and L<Bio::Phylo::Forest::Node>.
+
+I (RAV) found that in many instances the interface defined methods that
+only differ slightly from those implemented natively by the Bio::Phylo
+classes (e.g. return values passed as a list versus an array
+reference), so I implemented wrapper code references overriding the
+symbol table with the entries as named in L<Bio::Tree::TreeI> (see
+L<Bio::Phylo::Forest::Tree>).
+
+The 
+L<Bio::NEXUS::Tree|http://www.molevol.org/camel/projects/nexus/doc/Tree.pm.html>
+and L<Bio::NEXUS::Node|http://www.molevol.org/camel/projects/nexus/doc/Node.pm.html> 
+object could be modified in a similar way, such that tree objects and node
+objects from Bio::NEXUS can similarly masquerade as BioPerl objects.
+
+=head2 Further integration
+
+Bio::NEXUS and Bio::Phylo can integrate further along three tracks:
+
+=over
+
+=item 1. Input and output
+
+All three packages now have their own IO architecture. A wrapper 
+class that functions like BioPerl's IO architecture 
+should be written. This would be something like a Bio::CDAT::IO
+class that parses and serializes CDAT objects. The IO class/object 
+sets up a character-data-and-tree architecture, where the actual data 
+objects - trees, matrices, taxa - are instantiated by file 
+parsers, database interfaces and cipres interfaces provided by 
+Bio::NEXUS and Bio::Phylo.
+
+=item 2. Internal code reviews
+
+The code bases of Bio::NEXUS and Bio::Phylo
+should be reviewed to minimize the number of locations where
+assumptions are made about the underlying data structure, instead using
+the advertised interface accessors and mutators as much as possible.
+This will facilitate tighter integration of objects in the future.
+
+=item 3. New interfaces
+
+In addition to the node and tree interfaces
+currently defined in BioPerl a number of new interfaces should be
+specified: an abstract character state matrix interface; a character,
+or character sequence interface supporting various data types; and a
+character-data-and-tree interface linking tree objects with matrix
+objects.
+
+=back
+
+The next section discusses these interfaces in more detail.
+
+=head1 New Interfaces
+
+The interfaces we propose are meant to be fairly minimal, providing
+mostly just accessors and mutators for the object's data. Substantial
+operations (e.g. calculations) will be provided by factory objects. 
+For example, inferring a tree would be something like:
+
+ my $inferrer = Bio::Tools::InferTree::FooBar->new;
+ my $tree = $inferrer->inferTree( $matrix );
+
+Rather than:
+
+ my $tree = $matrix->inferTree;
+
+=head2 Matrices
+
+At present, no suitable interface for character state matrices has been
+defined in BioPerl. We propose a matrix interface that inherits from
+the L<Bio::Matrix::MatrixI> interface adding the following notions:
+
+=over
+
+=item 1. Insertion and deletion
+
+The L<Bio::Matrix::MatrixI> interface
+does not define methods for inserting and deleting characters,
+character sequences and columns. These could be defined in the same way
+as done in L<Bio::Matrix::GenericMatrix>,
+i.e. C<$matrix-E<gt>add_row($row)>, C<$matrix-E<gt>remove_row($row)>,
+C<$matrix-E<gt>add_column($col)> and C<$matrix-E<gt>remove_column($col)>.
+
+=item 2. Matrix type safety
+
+A character state matrix has a pre-defined data type
+(dna/rna/nucleotide; amino acid; standard categorical; continuous)
+against which data inserted in the matrix must be validated. Once data has
+been inserted in the matrix there is little point in changing the datatype,
+so perhaps this should be a constant specified in the constructor, so that
+subsequently the interface only defines a readonly C<$matrix-E<gt>datatype()>
+method. Likewise, the number of taxa and characters in a matrix should be
+an emergent property of its contents so the C<$matrix-E<gt>ntax()> and
+C<$matrix-E<gt>nchar()> methods should be readonly.
+
+In a character state matrix, some symbols may be more ambiguous than others -
+most sequence alignments have gaps in them, and sometimes the sequences are
+just bad, with many N's or ?'s. Under the IUPAC single character ambiguity
+conventions, ambiguous symbols map to non-ambiguous ones as follows:
+
+ my $IUPAC = {
+    'A' => [ 'A'             ], # 1000
+    'B' => [ 'C','G','T'     ], # 0111
+    'C' => [ 'C'             ], # 0100
+    'D' => [ 'A','G','T'     ], # 1011
+    'G' => [ 'G'             ], # 0010
+    'H' => [ 'A','C','T'     ], # 1101
+    'K' => [ 'G','T'         ], # 0011
+    'M' => [ 'A','C'         ], # 1100
+    'N' => [ 'A','C','G','T' ], # 1111
+    'R' => [ 'A','G'         ], # 1010
+    'S' => [ 'C','G'         ], # 0110
+    'T' => [ 'T'             ], # 0001
+    'U' => [ 'U'             ], # 0001
+    'V' => [ 'A','C','G'     ], # 1110
+    'W' => [ 'A','T'         ], # 1001
+    'X' => [ 'A','C','G','T' ], # 1111
+    'Y' => [ 'C','T'         ], # 0101
+    '-' => [                 ], # 0000
+    '?' => [ 'A','C','G','T' ], # 1111
+ };
+
+The matrix interface should be able to take this ambiguity into account when
+parsing matrices, or when transforming them, for example for serialization to
+the L<CIPRES|http://www.phylo.org> architecture.
+
+To allow for this during validation of character C<$c> a character state lookup
+should be performed, such as by checking the C<$IUPAC> hash reference. If
+C<$matrix-E<gt>datatype =~ /^dna$/i> it means that the C<$IUPAC> hash reference
+is the lookup table. If C<not exists $IUPAC-E<gt>{$c}> an exception is thrown.
+
+The advantage of the lookup is that individual characters can subsequently be
+'pack'ed into, in the case of dna, a 4-bit vector (see # 1111 comments above),
+which saves memory. The whole procedure of type checking and compressing should
+be done using memoized functions. Similar tables for amino acid symbols and
+standard characters are left as an exercise for the reader :-)
+
+For instances where none of the default lookup tables suffice (i.e. when
+handling a 'mixed' matrix) the matrix interface should allow a
+lookup table as an argument to the constructor.
+
+=item 3. Matrix-to-CDAT linkage
+
+A character matrix can become contained by a CDAT object, analogous to the way 
+mesquite defines a project (using the C<title> and C<link> tokens, or possibly
+just by allowing only one taxa block, one tree block and one characters block
+to be in context at any one time). This facility may be defined as in 
+L<Bio::Phylo::Matrices::Matrix>, using C<$matrix-E<gt>set_cdat($cdat)> and 
+C<$matrix-E<gt>get_cdat()> methods, or just from the perspective of the CDAT
+container, e.g. C<$cdat-E<gt>add_matrix($matrix)>.
+
+=item 4. Utility methods for matrices
+
+ TODO
+
+=back
+
+A suggested namespace for this interface might be
+C<Bio::CDAT::CharMatrixI>. A prototype version of this interface is 
+developing at
+L<Bio::CDAT::CharMatrixI|http://nladr-cvs.sdsc.edu/svn/CIPRES/cipresdev/trunk/cipres/framework/perl/phylo/lib/Bio/CDAT/CharMatrixI>
+
+=head2 Character sequences
+
+BioPerl does not define a suitable interface for character sequences.
+We propose a character sequence interface that meets the following
+requirements:
+
+=over
+
+=item 1. Range operations
+
+Individual objects for each character in a
+matrix are not feasible from a performance and memory requirements
+point of view. Instead, character state data should be defined in
+ranges, i.e. inheriting from L<Bio::RangeI>.
+
+=item 2. Character type safety
+
+Like the character state matrix interface, the
+character sequence interface must be typed (e.g. dna/rna/nucleotide;
+protein; standard categorical or continuous), so that characters
+inserted in the character sequence object can be validated, and
+character sequence objects inserted in the matrix object can be checked
+for type identity with the matrix object. The data type may be defined
+using C<$char-E<gt>set_type($type)> and C<$char-E<gt>get_type()> methods.
+
+=item 3. Character-to-CDAT linkage
+
+Character sequence objects are contained by matrix objects, which in turn
+can be contained / handled by CDAT objects.
+
+=item 4. Meta data
+
+The character sequence object should allow for annotation of individual
+characters, for example as implemented in L<Bio::Phylo::Matrices::Datum>.
+
+=item 5. Charseq utility methods
+
+ TODO
+
+=back
+
+We suggest as a namespace for this interface C<Bio::CDAT::CharSeqI>.
+
+=head2 Character-data-and-tree
+
+Conceptually, nodes in phylogenetic trees and character sequences in
+matrices both refer to biological entities (e.g. OTUs). We want to make
+this relationship explicit by creating an intersection object that
+links the two. The CDAT object would be a thin wrapper around the more 
+fine grained BioPerl objects (L<Bio::Tree::TreeI> and 
+C<Bio::CDAT::CharMatrixI>) it contains. This CDAT object must meet the 
+following requirements:
+
+=over
+
+=item 1. CDAT-to-node linkage
+
+The CDAT object must be able to contain one or more L<Bio::Tree::TreeI> 
+objects, e.g. using C<$cdat-E<gt>set_tree($tree)> and C<$cdat-E<gt>get_trees()> 
+(and perhaps C<$cdat-E<gt>remove_trees($tree)>).
+
+=item 2. CDAT-to-character sequence linkage
+
+The CDAT object must be able to contain one or more C<Bio::CDAT::CharMatrixI> 
+objects, e.g. using C<$cdat-E<gt>set_matrices($matrix)> and 
+C<$cdat-E<gt>get_matrices($matrix)> (and perhaps 
+C<$cdat-E<gt>remove_matrices($matrix)>) methods.
+
+=item 3. CDAT utility methods
+
+ TODO
+
+=back
+
+We suggest as a namespace C<Bio::CDAT>.
+
+=head1 TODO list summary
+
+=head2 Interface expansion
+
+The new interfaces as described in this document might be added to
+BioPerl, but, in any case should be compatible with it in api design. 
+The CDAT linking methods as proposed in C<Bio::CDAT::CharSeqI>
+should similarly be defined in L<Bio::Tree::TreeI>. Code to this end is 
+currently growing at the svn 
+L<repository|http://nladr-cvs.sdsc.edu/svn/CIPRES/cipresdev/trunk/cipres/framework/perl/phylo/lib/Bio/CDAT>
+
+=head2 IO
+
+Bio::NEXUS, Bio::Phylo and BioPerl should become better integrated at the
+input/output level, for example by adopting the standard BioPerl
+architectures for parsers (e.g. L<Bio::TreeIO>), and by making trees
+received from L<CIPRES|http://www.phylo.org> conform to the BioPerl
+interfaces.
+
+=head2 Test data
+
+In order to ensure quality coding, we should adopt a set of test data
+files and a regression testing strategy. This is likely to develop out
+of the use cases.
+
+=head2 CPAN release cycles
+
+The intent is that the design phase takes place on cpan releases of
+Bio::NEXUS and Bio::Phylo, and only once the API has stabilized changes to
+the BioPerl core will be proposed.
+
+=cut

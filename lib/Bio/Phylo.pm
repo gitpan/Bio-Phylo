@@ -1,60 +1,101 @@
-# $Id: Phylo.pm 2196 2006-09-07 21:35:47Z rvosa $
+# $Id: Phylo.pm 3319 2007-03-20 01:39:35Z rvosa $
 package Bio::Phylo;
 use strict;
+use warnings FATAL => 'all';
+use vars qw($VERSION $VERBOSE $COMPAT);
 
-# old ugly hack for PAR, see
-# http://groups.google.com/group/perl.par/browse_thread/thread/4cfec27c14cc8f60/3549d0ce5355a5ea
-# delete $INC{'Scalar/Util.pm'};
-# eval 'use Scalar::Util 1.14 qw(weaken blessed);'; 
+# default value for verbosity: 0 only logs fatal messages,
+# 1=error, 2=warn, 3=info, 4=debug
+$VERBOSE = 0;
+
+# Because we use a roll-your-own looks_like_number from
+# Bio::Phylo::Util::CONSTANT, here we don't have to worry
+# about older S::U versions...
 use Scalar::Util qw(weaken blessed);
 
+#... instead, Bio::Phylo::Util::CONSTANT can worry about it
+# in one location
 use Bio::Phylo::Util::CONSTANT qw(looks_like_number);
 use Bio::Phylo::Util::IDPool;
 use Bio::Phylo::Util::Exceptions;
+use Bio::Phylo::Mediators::TaxaMediator;
 
-# The bit of voodoo is for including CVS keywords in the main source file.
-# $Id is the subversion revision number. The way I set it up here allows
-# 'make dist' to build a *.tar.gz without the "_rev#" in the package name, while
-# it still shows up otherwise (e.g. during 'make test') as a developer release,
-# with the "_rev#".
-my $rev = '$Id: Phylo.pm 2196 2006-09-07 21:35:47Z rvosa $';
+# Include the revision number from CIPRES subversion in $VERSION
+my $rev = '$Id: Phylo.pm 3319 2007-03-20 01:39:35Z rvosa $';
 $rev =~ s/^[^\d]+(\d+)\b.*$/$1/;
-our $VERSION = 0.15;
+$VERSION  = "0.16_RC1";
 $VERSION .= "_$rev";
-my $VERBOSE = 0;
-use vars qw($VERSION);
+
+# The following allows for semantics like:
+# 'use Bio::Phylo verbose => 1;' to increase verbosity,
+sub import {
+    my $class = shift;
+    if ( @_ ) {
+        my %opt;
+        eval { %opt = @_ };
+        if ( $@ ) {
+            Bio::Phylo::Util::Exceptions::OddHash->throw( 'error' => $@ );
+        }
+        else {
+            while ( my ( $key, $value ) = each %opt ) {
+                if ( $key =~ qr/^VERBOSE$/i ) {
+                    if ( $value > 4 || $value < 0 ) {
+                        Bio::Phylo::Util::Exceptions::OutOfBounds->throw(
+                            'error' => "verbosity must be >= 0 && <= 4 inclusive",
+                        );
+                    }
+                    else {
+                        $VERBOSE = $value;
+                    }
+                }
+                elsif ( $key =~ qr/^COMPAT$/i ) {
+                    $COMPAT = ucfirst( lc( $value ) );
+                }
+                else {
+                    Bio::Phylo::Util::Exceptions::BadArgs->throw(
+                        'error' => "'$key' is not a valid argument for import",
+                    );
+                }
+            }
+        }
+    }
+    return 1;
+}
+
 {
 
     # inside out class arrays
-    my @name;
-    my @desc;
-    my @score;
-    my @generic;
-    my @cache;
-    my @container;
+    my %name;
+    my %desc;
+    my %score;
+    my %generic;
+    my %cache;
+    my %container;
 
-    # $fields hashref necessary for object destruction
-    my $fields = {
-        '-name'      => \@name,
-        '-desc'      => \@desc,
-        '-score'     => \@score,
-        '-generic'   => \@generic,
-        '-cache'     => \@cache,
-        '-container' => \@container,
-    };
-
-    # global container for Forest, Matrix and Taxa objects (a la Mesquite
-    # project)
-    my $super = {};
+    # @fields array handy for object destruction
+    my @fields = (
+        \%name,
+        \%desc,
+        \%score,
+        \%generic,
+        \%cache,
+        \%container,
+    );
 
 =head1 NAME
 
 Bio::Phylo - Phylogenetic analysis using perl.
 
+=head1 SYNOPSIS
+
+ # verbosity goes from 0, only fatal messages, to 4: everything from
+ # fatal -> error -> warning -> info -> debug (which is a lot)
+ use Bio::Phylo verbose => 1;
+
 =head1 DESCRIPTION
 
-This is the base class for the Bio::Phylo package. All other modules inherit
-from it, the methods defined here are applicable to all. Consult the manual
+This is the base class for the Bio::Phylo package. Most other modules inherit
+from it, the methods defined here are applicable to them. Consult the manual
 for usage examples: L<Bio::Phylo::Manual>.
 
 =head1 METHODS
@@ -67,7 +108,9 @@ for usage examples: L<Bio::Phylo::Manual>.
 
 The Bio::Phylo object itself, and thus its constructor, is rarely, if ever, used
 directly. Rather, all other objects in this package inherit its methods, and call
-its constructor internally.
+its constructor internally. The arguments shown here can thus also be passed to
+any of the child classes' constructors, which will pass them on up the 
+inheritance tree.
 
  Type    : Constructor
  Title   : new
@@ -77,30 +120,67 @@ its constructor internally.
  Args    : -name    => (object name)
            -desc    => (object description)
            -score   => (numerical score)
-           -generic => (generic key/value pair)
+           -generic => (generic key/value pair, hash ref)
 
 =cut
 
     sub new {
+        # class could be a child class
         my $class = shift;
-        my $self  = Bio::Phylo::Util::IDPool->_initialize();
-        bless $self, __PACKAGE__;
-        if (@_) {
-            my %opt;
-            eval { %opt = @_; };
-            if ($@) {
-                Bio::Phylo::Util::Exceptions::OddHash->throw( error => $@ );
+        
+        # notify user
+        $class->info("constructor called for '$class'");
+        
+        # happens only once because root class is visited from every constructor
+        my $self = Bio::Phylo::Util::IDPool->_initialize();
+        
+        # bless in child class, not __PACKAGE__
+        bless $self, $class;
+                
+        # processing arguments
+        if ( @_ ) {
+
+            # notify user
+            $self->debug("root constructor called with args");
+            
+            # something's wrong
+            if ( ( scalar( @_ ) % 2 ) != 0 ) {
+                Bio::Phylo::Util::Exceptions::OddHash->throw( 
+                    'error' => "No even key/value pairs in constructor '@_'"
+                );
             }
+            
+            # looks like an ok hash
             else {
-                while ( my ( $key, $value ) = each %opt ) {
-                    if ( $fields->{$key} ) {
-                        $fields->{$key}->[ $self->get_id ] = $value;
-                        delete $opt{$key};
-                    }
+                
+                # notify user
+                $self->debug("going to process constructor args");
+                
+                # process all arguments
+                while ( @_ ) {
+                    my $key   = shift @_;
+                    my $value = shift @_;
+                    
+                    # notify user
+                    $self->debug("processing arg '$key'");
+                                        
+                    # don't access data structures directly, call mutators
+                    # in child classes or __PACKAGE__
+                    my $mutator = $key;
+                    $mutator =~ s/^-/set_/;
+                    
+                    # backward compat fixes:
+                    $mutator =~ s/^set_pos$/set_position/;
+                    $mutator =~ s/^set_matrix$/set_raw/;
+                    
+                    $self->$mutator( $value );
                 }
-                @_ = %opt;
             }
         }
+        
+        # register with mediator
+        Bio::Phylo::Mediators::TaxaMediator->register( $self );
+        
         return $self;
     }
 
@@ -117,23 +197,39 @@ its constructor internally.
  Usage   : $obj->set_name($name);
  Function: Assigns an object's name.
  Returns : Modified object.
- Args    : Argument must be a string, single 
+ Args    : Argument must be a string, will be single 
            quoted if it contains [;|,|:\(|\)] 
-           or spaces.
+           or spaces. Preceding and trailing spaces
+           will be removed.
 
 =cut
 
     sub set_name {
         my ( $self, $name ) = @_;
-        my $ref = ref $self;
-        if ( $name && $name !~ m/^['"][^'"]*['"]$/ && $name =~ m/(?:;|,|:|\(|\)|\s)/ ) {
-            Bio::Phylo::Util::Exceptions::BadString->throw(
-                error => "\"$name\" is a bad name format for $ref names" 
-            );
+        
+        # strip spaces
+        $name =~ s/^\s*(.*?)\s*$/$1/;
+
+        # check for bad characters
+        if ( $name =~ m/(?:;|,|:|\(|\)|\s)/ ) {
+
+            # had bad characters, but in quotes
+            if ( $name =~ m/^(['"])/ && $name =~ m/$1$/ ) {
+                $self->info("$name had bad characters, but was quoted");
+            }
+                        
+            # had unquoted bad characters
+            else {      
+                Bio::Phylo::Util::Exceptions::BadString->throw(
+                    'error' => "$self '$name' has unquoted bad characters"
+                );
+            }                                           
         }
-        else {
-            $name[ $self->get_id ] = $name =~ s/^\s*(.*?)\s*$/$1/;
-        }
+                    
+        # notify user
+        $self->info("setting name '$name'");
+                
+        $name{ $self->get_id } = $name;
         return $self;
     }
 
@@ -150,7 +246,11 @@ its constructor internally.
 
     sub set_desc {
         my ( $self, $desc ) = @_;
-        $desc[ $self->get_id ] = $desc;
+        
+        # notify user
+        $self->info("setting description '$desc'");
+        
+        $desc{ $self->get_id } = $desc;
         return $self;
     }
 
@@ -162,25 +262,27 @@ its constructor internally.
  Function: Assigns an object's numerical score.
  Returns : Modified object.
  Args    : Argument must be any of
-           perl's number formats.
+           perl's number formats, or undefined
+           to reset score.
 
 =cut
 
     sub set_score {
-        my $self = $_[0];
-        if ( defined $_[1] ) {
-            my $score = $_[1];
-            if ( looks_like_number $score ) {
-                $score[ $self->get_id ] = $score;
-            }
-            else {
-                Bio::Phylo::Util::Exceptions::BadNumber->throw(
-                    error => "Score \"$score\" is a bad number" );
-            }
+        my ( $self, $score ) = @_;
+                
+        # $score must be a number (or undefined)
+        if ( defined $score && ! looks_like_number $score ) {
+            Bio::Phylo::Util::Exceptions::BadNumber->throw(
+                'error' => "score \"$score\" is a bad number" 
+            );
         }
-        else {
-            $score[ $self->get_id ] = undef;
-        }
+
+        # notify user
+        $self->info("setting score '$score'");
+
+        # this resets the score of $score was undefined
+        $score{ $self->get_id } = $score;
+
         return $self;
     }
 
@@ -188,34 +290,65 @@ its constructor internally.
 
  Type    : Mutator
  Title   : set_generic
- Usage   : $obj->set_generic(%generic);
+ Usage   : $obj->set_generic( %generic );
  Function: Assigns generic key/value pairs to the invocant.
  Returns : Modified object.
- Args    : Valid arguments constitute
-           key/value pairs, for example:
-           $node->set_generic(
-               '-posterior' => 0.87565,
-           );
+ Args    : Valid arguments constitute:
+
+           * key/value pairs, for example:
+             $obj->set_generic( '-lnl' => 0.87565 );
+
+           * or a hash ref, for example:
+             $obj->set_generic( { '-lnl' => 0.87565 } );
+
+           * or nothing, to reset the stored hash, e.g.
+                $obj->set_generic( );
 
 =cut
 
     sub set_generic {
         my $self = shift;
-        if (@_) {
+        
+        # retrieve id just once, don't call $self->get_id in loops, inefficient
+        my $id = $self->get_id;       
+                
+        # this initializes the hash if it didn't exist yet, or resets it if no args
+        if ( ! defined $generic{$id} || ! @_ ) {
+            $generic{$id} = {};
+        }
+                
+        # have args
+        if ( @_ ) {
             my %args;
-            eval { %args = @_ };
-            if ($@) {
+            
+            # have a single arg, a hash ref
+            if ( scalar @_ == 1 && ref $_[0] eq 'HASH' ) {
+                %args = %{ $_[0] };
+            }
+            
+            # multiple args, hopefully even size key/value pairs
+            else {
+                eval { %args = @_ };
+            }
+            
+            # something's wrong, not a hash
+            if ( $@ ) {
                 Bio::Phylo::Util::Exceptions::OddHash->throw( error => $@ );
             }
+            
+            # everything okay.
             else {
+                                
+                # notify user
+                $self->info("setting generic key/value pairs '%args'");
+                                
+                # fill up the hash
                 foreach my $key ( keys %args ) {
-                    $generic[ $self->get_id ]->{$key} = $args{$key};
+                    $generic{$id}->{$key} = $args{$key};
                 }
             }
         }
-        else {
-            $generic[ $self->get_id ] = {};
-        }
+        
         return $self;
     }
 
@@ -230,7 +363,8 @@ its constructor internally.
  Type    : Accessor
  Title   : get_name
  Usage   : my $name = $obj->get_name;
- Function: Returns the object's name (if any).
+ Function: Returns the object's name (if none was set, the name
+           is a combination of the $obj's class and its UID).
  Returns : A string
  Args    : None
 
@@ -238,7 +372,17 @@ its constructor internally.
 
     sub get_name {
         my $self = shift;
-        return $name[ $self->get_id ];
+        $self->debug("getting name");
+        my $name = $name{ $self->get_id };
+        if ( defined $name ) {
+            return $name;
+        }
+        else {
+            my $dummy_name = ref $self;
+            $dummy_name =~ s/.*:://;
+            $dummy_name .= $self->get_id;
+            return $dummy_name;
+        }
     }
 
 =item get_desc()
@@ -254,7 +398,8 @@ its constructor internally.
 
     sub get_desc {
         my $self = shift;
-        return $desc[ $self->get_id ];
+        $self->debug("getting description");
+        return $desc{ $self->get_id };
     }
 
 =item get_score()
@@ -270,7 +415,8 @@ its constructor internally.
 
     sub get_score {
         my $self = shift;
-        return $score[ $self->get_id ];
+        $self->debug("getting score");
+        return $score{ $self->get_id };
     }
 
 =item get_generic()
@@ -282,7 +428,7 @@ its constructor internally.
            my %hash = %{ $obj->get_generic() };
  Function: Returns the object's generic data. If an
            argument is used, it is considered a key
-           for which the associated value is return.
+           for which the associated value is returned.
            Without arguments, a reference to the whole
            hash is returned.
  Returns : A string or hash reference.
@@ -292,11 +438,31 @@ its constructor internally.
 
     sub get_generic {
         my ( $self, $key ) = @_;
-        if ( defined $key ) {
-            return $generic[ $self->get_id ]->{$key};
+        
+        # retrieve just once
+        my $id = $self->get_id;
+        
+        # might not even have a generic hash yet, make one on-the-fly
+        if ( not defined $generic{$id} ) {
+            $generic{$id} = {};
         }
+        
+        # have an argument
+        if ( defined $key ) {
+        
+            # notify user
+            $self->debug("getting value for key '$key'");
+
+            return $generic{$id}->{$key};            
+        }
+        
+        # no argument, wants whole hash
         else {
-            return $generic[ $self->get_id ];
+                
+            # notify user
+            $self->debug("retrieving generic hash");
+            
+            return $generic{$id};
         }
     }
 
@@ -312,22 +478,38 @@ its constructor internally.
 =cut
 
     sub get_id {
+    
+        # self can be two things: either a blessed scalar, or an array tied
+        # to that blessed scalar (in case we call ->get_id on a listable object)
+        # in the latter case we first have to retrieve the tie'd object, and
+        # then dereference that for the id
         my $self = shift;
+        
+        $self->debug("getting ID for '$self'");
+        
+        # $self was a 'normal' object, not tied
         if ( UNIVERSAL::isa( $self, 'SCALAR' ) ) {
             return $$self;
         }
+        
         # for tied Bio::Phylo::Listable arrays
         elsif ( UNIVERSAL::isa( $self, 'ARRAY' ) ) {
+            
+            # get tied scalar from array
             my $tied = tied @{ $self };
             if ( $tied and UNIVERSAL::isa( $tied, 'SCALAR' ) ) {
                 return $$tied;
             }
+            
+            # this might happen if the tied object is destroyed before the array
             elsif ( not $tied ) {
-#                die "No object tied to \"$self\"\n";
+                $self->warn("no tie'd object - are we destroying?");
             }            
         }
+        
+        # so far never seen this one...
         else {
-#            die "Object \"$self\" neither a tied ARRAY nor a SCALAR\n";
+            $self->fatal("object neither array nor scalar");
         }
     }
 
@@ -360,14 +542,160 @@ get_by_regular_expression) uses this C<$obj-E<gt>get method>.
     sub get {
         my ( $self, $var ) = @_;
         if ( $self->can($var) ) {
+            
+            # notify user
+            $self->debug("retrieving return value for method '$var'");
+            
             return $self->$var;
         }
         else {
             my $ref = ref $self;
             Bio::Phylo::Util::Exceptions::UnknownMethod->throw(
-                error => "sorry, a \"$ref\" can't \"$var\"" );
+                'error' => "sorry, a '$ref' can't '$var'",
+            );
         }
     }
+
+=item debug()
+
+ Type    : logging method
+ Title   : debug
+ Usage   : $object->debug( "debugging message" );
+ Function: prints debugging message, depending on verbosity
+ Returns : invocant
+ Args    : logging message
+
+=cut
+
+    sub debug {
+        my ( $self, $msg ) = @_;
+        if ( $VERBOSE >= 4 ) {
+            my ( $package, $file1up,  $line1up, $subroutine ) = caller( 1 );
+            my ( $pack0up, $filename, $line,    $sub0up     ) = caller( 0 );
+            printf(
+                "%s %s [%s, %s] - %s\n",
+                'DEBUG',
+                $subroutine,
+                $filename,
+                $line,
+                $msg
+            );
+        }
+        return $self;
+    }
+
+=item info()
+
+ Type    : logging method
+ Title   : info
+ Usage   : $object->info( "info message" );
+ Function: prints info message, depending on verbosity
+ Returns : invocant
+ Args    : logging message
+
+=cut
+
+    sub info {
+        my ( $self, $msg ) = @_;
+        if ( $VERBOSE >= 3 ) {
+            my ( $package, $file1up,  $line1up, $subroutine ) = caller( 1 );
+            my ( $pack0up, $filename, $line,    $sub0up     ) = caller( 0 );
+            printf(
+                "%s %s [%s, %s] - %s\n",
+                'INFO',
+                $subroutine,
+                $filename,
+                $line,
+                $msg
+            );
+        }
+        return $self;
+    }
+
+=item warn()
+
+ Type    : logging method
+ Title   : warn
+ Usage   : $object->warn( "warning message" );
+ Function: prints warning message, depending on verbosity
+ Returns : invocant
+ Args    : logging message
+
+=cut
+
+    sub warn {
+        my ( $self, $msg ) = @_;
+        if ( $VERBOSE >= 2 ) {
+            my ( $package, $file1up,  $line1up, $subroutine ) = caller( 1 );
+            my ( $pack0up, $filename, $line,    $sub0up     ) = caller( 0 );
+            printf(
+                "%s %s [%s, %s] - %s\n",
+                'WARN',
+                $subroutine,
+                $filename,
+                $line,
+                $msg
+            );
+        }
+        return $self;
+    }
+
+=item error()
+
+ Type    : logging method
+ Title   : error
+ Usage   : $object->error( "error message" );
+ Function: prints error message, depending on verbosity
+ Returns : invocant
+ Args    : logging message
+
+=cut
+
+    sub error {
+        my ( $self, $msg ) = @_;
+        if ( $VERBOSE >= 1 ) {
+            my ( $package, $file1up,  $line1up, $subroutine ) = caller( 1 );
+            my ( $pack0up, $filename, $line,    $sub0up     ) = caller( 0 );
+            printf(
+                "%s %s [%s, %s] - %s\n",
+                'ERROR',
+                $subroutine,
+                $filename,
+                $line,
+                $msg
+            );
+        }
+        return $self;
+    }
+
+=item fatal()
+
+ Type    : logging method
+ Title   : fatal
+ Usage   : $object->fatal( "fatal message" );
+ Function: prints fatal message, depending on verbosity
+ Returns : invocant
+ Args    : logging message
+
+=cut
+
+    sub fatal {
+        my ( $self, $msg ) = @_;
+        if ( $VERBOSE >= 0 ) {
+            my ( $package, $file1up,  $line1up, $subroutine ) = caller( 1 );
+            my ( $pack0up, $filename, $line,    $sub0up     ) = caller( 0 );
+            printf(
+                "%s %s [%s, %s] - %s\n",
+                'FATAL',
+                $subroutine,
+                $filename,
+                $line,
+                $msg
+            );
+        }
+        return $self;
+    }
+
 
 =item clone()
 
@@ -377,40 +705,45 @@ get_by_regular_expression) uses this C<$obj-E<gt>get method>.
  Function: Creates a copy of the invocant object.
  Returns : A copy of the invocant.
  Args    : none.
+ Comments: Currently not implemented
 
 =cut
 
     sub clone {
-        my $self  = shift;
-        #my $clone = dclone($self);
-        #return $clone;
+        my $self = shift;
+        $self->error("cloning not (yet) implemented!");
+        return $self;
     }
 
 =item VERBOSE()
 
-Getter and setter for the verbose level. Currently it's just 0 = no messages,
-1 = messages, but perhaps there could be more levels? For caller diagnostics
-and so on?
+Getter and setter for the verbose level. This comes in five levels: 0 = only
+fatal messages (though, when something fatal happens, you'll most likely get
+an exception object), 1 = errors (hopefully recoverable), 2 = warnings 
+(recoverable), 3 = info (useful diagnostics), 4 = debug (every method call)
 
  Type    : Accessor
- Title   : VERBOSE(0|1)
- Usage   : Phylo->VERBOSE(0|1)
+ Title   : VERBOSE()
+ Usage   : Bio::Phylo->VERBOSE( -level => $level )
  Function: Sets/gets verbose level
  Returns : Verbose level
- Args    : 0 = no messages; 1 = error messages
+ Args    : 0 <= $level && $level <= 4
  Comments:
 
 =cut
 
     sub VERBOSE {
         my $class = shift;
-        if (@_) {
+        if ( @_ ) {
             my %opt;
-            eval { %opt = @_; };
-            if ($@) {
-                Bio::Phylo::Util::Exceptions::OddHash->throw( error => $@ );
+            eval { %opt = @_ };
+            if ( $@ ) {
+                Bio::Phylo::Util::Exceptions::OddHash->throw( 'error' => $@ );
             }
             $VERBOSE = $opt{'-level'};
+            
+            # notify user
+            $class->info("Changed verbosity level to '$VERBOSE'");
         }
         return $VERBOSE;
     }
@@ -431,7 +764,7 @@ and so on?
         my $self    = shift;
         my $name    = __PACKAGE__;
         my $version = __PACKAGE__->VERSION;
-        my $string  = qq{Rutger A. Vos, 2006. $name: };
+        my $string  = qq{Rutger A. Vos, 2005-2007. $name: };
         $string .= qq{Phylogenetic analysis using Perl, version $version};
         return $string;
     }
@@ -442,7 +775,7 @@ and so on?
  Title   : VERSION
  Usage   : $phylo->VERSION;
  Function: Returns version number
-           (including CVS revision number).
+           (including SVN revision number).
  Alias   :
  Returns : SCALAR
  Args    : NONE
@@ -462,33 +795,6 @@ and so on?
  Args    : NONE
 
 =cut
-
-    sub to_xml {
-        my $self  = shift;
-        my $class = ref $self;
-        $class =~ s/^.*:([^:]+)$/$1/g;
-        $class = lc($class);
-        my $xml     = '<' . $class . ' id="' . $class . $self->get_id . '">';
-        my $generic = $self->get_generic;
-        my ( $name, $score, $desc ) =
-          ( $self->get_name, $self->get_score, $self->get_desc );
-        $xml .= '<name>' . $name . '</name>'    if $name;
-        $xml .= '<score>' . $score . '</score>' if $score;
-        $xml .= '<desc>' . $desc . '</desc>'    if $desc;
-        if ( $generic and ref $generic eq 'HASH' ) {
-            $xml .= "<generic>\n";
-            $xml .= "<opt><key>$_</key><val>$generic->{$_}</val></opt>" for keys %$generic;
-            $xml .= "</generic>";
-        }
-
-        if ( $self->isa('Bio::Phylo::Listable') ) {
-            foreach my $ent ( @{ $self->get_entities } ) {
-                $xml .= $ent->to_xml;
-            }
-        }
-        $xml .= '</' . $class . '>';
-        return $xml;
-    }
 
 =back
 
@@ -513,71 +819,59 @@ and so on?
 
     sub DESTROY {
         my $self = shift;
-        if ( my $i = $self->get_id ) {
-            foreach ( keys %{$fields} ) {
-                delete $fields->{$_}->[$i];
+        
+        # notify user
+        $self->info("destructor called for '$self'");
+        
+        # build full @ISA from child to here 
+        my ( $class, $isa, $seen ) = ( ref( $self ), [], {} );
+        _recurse_isa( $class, $isa, $seen );
+        
+        # call *all* _cleanup methods, wouldn't work if simply SUPER::_cleanup
+        # given multiple inheritance
+        $self->info("going to clean up '$self'");
+        {
+            no strict 'refs';
+            for my $SUPER ( @{ $isa } ) {
+                my $cleanup = "${SUPER}::_cleanup";
+                $self->$cleanup;
             }
+            use strict;
         }
-        Bio::Phylo::Util::IDPool->_reclaim($self);
-        return 1;
+        $self->info("done cleaning up '$self'");
+        
+        # cleanup from mediator
+        Bio::Phylo::Mediators::TaxaMediator->unregister( $self );        
+                
+        # done cleaning up, id can be reclaimed
+        Bio::Phylo::Util::IDPool->_reclaim( $self );
+        
     }
 
-=begin comment
-
- Type    : Internal method
- Title   : _check_cache
- Usage   : $node->_check_cache;
- Function: Retrieves intermediate calculation results.
- Returns : SCALAR
- Args    :
-
-=end comment
-
-=cut
-
-    sub _check_cache {
-        my $self   = shift;
-        my @caller = caller(1);
-        if ( exists $cache[ $self->get_id ]->{ $caller[3] } ) {
-            return 1, $cache[ $self->get_id ]->{ $caller[3] };
+    sub _recurse_isa {
+        my ( $class, $isa, $seen ) = @_;
+        if ( not $seen->{$class} ) {
+            $seen->{$class} = 1;
+            push @{ $isa }, $class;
+            my @isa;
+            {
+                no strict 'refs';
+                @isa   = @{"${class}::ISA"};
+                use strict;
+            }
+            _recurse_isa( $_, $isa, $seen ) for @isa;
         }
     }
-
-=begin comment
-
- Type    : Internal method
- Title   : _store_cache
- Usage   : $node->_store_cache($value);
- Function: Stores intermediate calculation results.
- Returns : VOID
- Args    :
-
-=end comment
-
-=cut
-
-    sub _store_cache {
-        my ( $self, $result ) = @_;
-        my @caller = caller(1);
-        $cache[ $self->get_id ]->{ $caller[3] } = $result;
-    }
-
-=begin comment
-
- Type    : Internal method
- Title   : _flush_cache
- Usage   : $node->_flush_cache;
- Function: Stores intermediate calculation results.
- Returns : VOID
- Args    :
-
-=end comment
-
-=cut
-
-    sub _flush_cache {
+    
+    sub _cleanup {
         my $self = shift;
-        $cache[ $self->get_id ] = {};
+        $self->info("cleaning up '$self'");
+        my $id = $self->get_id;
+        
+        # cleanup local fields
+        for my $field ( @fields ) {
+            delete $field->{$id};
+        }
     }
 
 =begin comment
@@ -596,7 +890,7 @@ and so on?
 
     sub _get_container {
         my $self = shift;
-        return $container[ $self->get_id ];
+        return $container{ $self->get_id };
     }
 
 =begin comment
@@ -615,90 +909,38 @@ and so on?
 
     sub _set_container {
         my ( $self, $container ) = @_;
+        my $id = $self->get_id;
         if ( blessed $container ) {
-            if ( $container->can('_type') && $self->can('_container') ) {
+            if ( defined $container->_type && defined $self->_container ) {
                 if ( $container->_type == $self->_container ) {
                     if ( $container->contains($self) ) {
-                        $container[ $self->get_id ] = $container;
-                        weaken( $container[ $self->get_id ] );
+                        $container{$id} = $container;
+                        weaken( $container{$id} );
                         return $self;
                     }
                     else {
                         Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-                            error => "\"$self\" not in \"$container\"", );
+                            'error '=> "'$self' not in '$container'",
+                        );
                     }
                 }
                 else {
                     Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-                        error => "\"$container\" cannot contain \"$self\"", );
+                        'error' => "'$container' cannot contain '$self'",
+                    );
                 }
             }
             else {
                 Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-                    error => "Invalid objects", );
+                    'error' => "Invalid objects",
+                );
             }
         }
         else {
             Bio::Phylo::Util::Exceptions::BadArgs->throw(
-                error => "Argument not an object", );
+                'error' => "Argument not an object",
+            );
         }
-    }
-
-=begin comment
-
- Type    : Internal method
- Title   : _set_super
- Usage   : $phylo->_set_super;
- Function: Creates a reference to the invocant in the static $super hashref
- Returns : Bio::Phylo::* object
- Args    : None;
-
-=end comment
-
-=cut
-
-    sub _set_super {
-        my $self = shift;
-        $super->{$self} = $self;
-        weaken( $super->{$self} );
-        return $self;
-    }
-
-=begin comment
-
- Type    : Internal method
- Title   : _get_super
- Usage   : Bio::Phylo->_get_super;
- Function: Returns all references in the static $super hashref
- Returns : Bio::Phylo::* objects in an array ref
- Args    : None;
-
-=end comment
-
-=cut
-
-    sub _get_super {
-        my @tmp = values %{$super};
-        return \@tmp;
-    }
-
-=begin comment
-
- Type    : Internal method
- Title   : _del_from_super;
- Usage   : $phylo->_del_from_super;
- Function: Deletes invocant from $super hashref
- Returns : VOID
- Args    : None;
-
-=end comment
-
-=cut
-
-    sub _del_from_super {
-        my $self = shift;
-        delete $super->{$self};
-        return;
     }
 
 =back
@@ -722,7 +964,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Phylo.pm 2196 2006-09-07 21:35:47Z rvosa $
+$Id: Phylo.pm 3319 2007-03-20 01:39:35Z rvosa $
 
 =head1 AUTHOR
 
@@ -751,25 +993,5 @@ modify it under the same terms as Perl itself.
 =cut
 
 }
-
-package Bio::Phylo::Deprecated;
-
-package Bio::Phylo::Parsers::Fastnewick;
-push @Bio::Phylo::Parsers::Fastnewick::ISA, 'Bio::Phylo::Deprecated';
-
-package Bio::Phylo::Parsers::Fastnexus;
-push @Bio::Phylo::Parsers::Fastnexus::ISA, 'Bio::Phylo::Deprecated';
-
-package Bio::Phylo::Matrices::Sequence;
-push @Bio::Phylo::Matrices::Sequence::ISA, 'Bio::Phylo::Deprecated';
-
-package Bio::Phylo::Matrices::Alignment;
-push @Bio::Phylo::Matrices::Alignment::ISA, 'Bio::Phylo::Deprecated';
-
-package Bio::Phylo::Parsers;
-push @Bio::Phylo::Parsers::ISA, 'Bio::Phylo::Deprecated';
-
-package Bio::Phylo::Unparsers;
-push @Bio::Phylo::Unparsers::ISA, 'Bio::Phylo::Deprecated';
 
 1;

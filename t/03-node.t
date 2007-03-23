@@ -1,4 +1,4 @@
-# $Id: 03-node.t 1185 2006-05-26 09:04:17Z rvosa $
+# $Id: 03-node.t 3292 2007-03-17 16:52:08Z rvosa $
 use strict;
 use warnings;
 use Test::More tests => 71;
@@ -71,9 +71,9 @@ ok( $root->get_descendants,                      '38 get descendants' );
 ok( $root->get_terminals,                        '39 get terminals' );
 ok( $root->get_internals,                        '40 get internals' );
 ok( $tree->get_root->calc_max_nodes_to_tips,     '41 calc max nodes to tips' );
-ok( ! $tree->get_root->calc_min_nodes_to_tips,   '42 calc min nodes to tips' );
-ok( ! $tree->get_root->calc_max_path_to_tips,    '43 calc max path to tips' );
-ok( ! $tree->get_root->calc_min_path_to_tips,    '44 calc min path to tips' );
+ok( $tree->get_root->calc_min_nodes_to_tips,     '42 calc min nodes to tips' );
+ok( $tree->get_root->calc_max_path_to_tips,      '43 calc max path to tips' );
+ok( $tree->get_root->calc_min_path_to_tips,      '44 calc min path to tips' );
 ok( my $nobltree = $trees[2],                    '45 get tree without branch lengths' );
 ok( $root = $nobltree->get_root,                 '46 get new root' );
 ok( !$root->calc_max_path_to_tips,               '47 calc max path to tips' );
@@ -99,11 +99,13 @@ ok( !$node1->get_taxon,                           '61 get no taxon' );
 
 eval { $node1->set_taxon('BAD!') };
 ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Util::Exceptions::ObjectMismatch' ), '62 set bad taxon' );
+undef($@);
 
-ok( $node1->set_taxon( new Bio::Phylo::Taxa::Taxon ),  '63 set good taxon' );
+ok( $node1->set_taxon( Bio::Phylo::Taxa::Taxon->new ),  '63 set good taxon' );
 
-eval { $node1->set_taxon( new Bio::Phylo::Forest::Node ) };
+eval { $node1->set_taxon( Bio::Phylo::Forest::Node->new ) };
 ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Util::Exceptions::ObjectMismatch' ), '64 set bad taxon' );
+undef($@);
 
 ok( $node->_container,                            '65 get container' );
 ok( $node->_type,                                 '66 get container type' );

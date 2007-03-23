@@ -1,6 +1,7 @@
-# $Id: Listable.pm 1723 2006-07-20 07:27:45Z rvosa $
+# $Id: Listable.pm 3319 2007-03-20 01:39:35Z rvosa $
 package Bio::Phylo::Listable;
 use strict;
+use warnings FATAL => 'all';
 use Bio::Phylo;
 use Bio::Phylo::Util::IDPool;
 use Bio::Phylo::Util::CONSTANT qw(:all);
@@ -15,14 +16,11 @@ use vars qw($VERSION @ISA);
 {
 
     # inside out class arrays
-    my @entities;
-    my @index;
+    my %entities;
+    my %index;
 
-    # $fields hashref necessary for object destruction
-    my $fields = {
-        '-entities' => \@entities,
-        '-index'    => \@index,
-    };
+    # $fields array necessary for object destruction
+    my @fields = ( \%entities, \%index );
 
 =head1 NAME
 
@@ -59,37 +57,33 @@ Matrix objects, Alignment objects, Taxa, Forest, Tree objects.
 =cut
 
     sub new {
+        
+        # could be child class
         my $class = shift;
-        my ( $package, $filename, $line ) = caller;        
-        $package = $class if $package eq 'main';
+        
+        # notify user
+        $class->info("constructor called for '$class'");
+        
+        # actual constructor is TIEARRAY
         my @array;
-        tie @array, $package, @_;
-        return bless \@array, $package;
+        tie @array, $class, @_;
+        return bless \@array, $class;
     }
     
     sub TIEARRAY {
+        # $class could be child class
         my $class = shift;
-        my $self = __PACKAGE__->SUPER::new( @_ );
-        bless $self, $class;
-        $entities[ $self->get_id ] = [];
-        if ( @_ ) {
-            my %opt;
-            eval { %opt = @_; };
-            if ( $@ ) {
-                Bio::Phylo::Util::Exceptions::OddHash->throw( 
-                    'error' => $@,                
-                );
-            }
-            else {
-                while ( my ( $key, $value ) = each %opt ) {
-                    if ( $fields->{$key} ) {
-                        $fields->{$key}->[ $self->get_id ] = $value;
-                        delete $opt{$key};
-                    }
-                }
-                @_ = %opt;
-            }
-        }
+        
+        # notify user
+        $class->info("TIEARRAY called for '$class'");
+                
+        # recurse up inheritance tree, $self returns as blessed in $class
+        my $self = $class->SUPER::new( @_ );
+
+        # create empty list
+        $self->clear;
+                
+        # done
         return $self;
     }
     
@@ -113,46 +107,19 @@ Matrix objects, Alignment objects, Taxa, Forest, Tree objects.
 
     sub insert {
         my ( $self, $obj ) = @_;
-        $self = tied @$self if UNIVERSAL::isa( $self, 'ARRAY' );
-        my ( $sref, $oref ) = ( ref $self, ref $obj );
-        if ( $oref && $obj->can('_container') ) {
-            if ( $self->_type == $obj->_container ) {
-                if ( $self->can('get_type') && $obj->can('get_type') ) {                    
-                    my ( $stype, $otype ) = ( $self->get_type, $obj->get_type );
-                    if ( $stype !~ m/^$otype$/i ) {
-                        Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-                              error => 
-                              sprintf(
-                                  'Data type mismatch for %s and %s: %s vs. %s', 
-                                  $sref, $oref, $stype, $otype
-                              )
-                        );
-                    }
-                }                
-                push @{ $entities[ $self->get_id ] }, $obj;
+        $self->info("inserting in '$self'");        
+        if ( $self->can_contain( $obj ) ) {
+            push @{ $entities{ $self->get_id } }, $obj;
+            if ( UNIVERSAL::can( $obj, '_set_container' ) ) {
                 $obj->_set_container($self);
             }
-            else {
-                Bio::Phylo::Util::Exceptions::ObjectMismatch->throw( 
-                    error => 
-                    sprintf(
-                        '%s objects don\'t accept %s objects',
-                        $sref, $oref
-                    )
-                );
-            }
+            return $self;
         }
         else {
             Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-                error =>                     
-                sprintf(
-                    '%s objects don\'t accept %s objects',
-                    $sref, $oref
-                )
+                'error' => 'Failed insertion!',
             );
         }
-        $self->_flush_cache;
-        return $self;
     }
     
 =item insert_at_index()
@@ -165,49 +132,22 @@ Matrix objects, Alignment objects, Taxa, Forest, Tree objects.
  Args    : A Bio::Phylo::* object.
 
 =cut    
-    
+
     sub insert_at_index {
         my ( $self, $obj, $index ) = @_;
-        $self = tied @$self if UNIVERSAL::isa( $self, 'ARRAY' );
-        my ( $sref, $oref ) = ( ref $self, ref $obj );
-        if ( $oref && $obj->can('_container') ) {
-            if ( $self->_type == $obj->_container ) {
-                if ( $self->can('get_type') && $obj->can('get_type') ) {                    
-                    my ( $stype, $otype ) = ( $self->get_type, $obj->get_type );
-                    if ( $stype !~ m/^$otype$/i ) {
-                        Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-                              error => 
-                              sprintf(
-                                  'Data type mismatch for %s and %s: %s vs. %s', 
-                                  $sref, $oref, $stype, $otype
-                              )
-                        );
-                    }
-                }                
-                $entities[ $self->get_id ]->[$index] = $obj;
+        $self->info("inserting in '$self'");        
+        if ( $self->can_contain( $obj ) ) {
+            $entities{ $self->get_id }->[$index] = $obj;
+            if ( UNIVERSAL::can( $obj, '_set_container' ) ) {
                 $obj->_set_container($self);
             }
-            else {
-                Bio::Phylo::Util::Exceptions::ObjectMismatch->throw( 
-                    error => 
-                    sprintf(
-                        '"%s" objects don\'t accept "%s" objects',
-                        $sref, $oref
-                    )
-                );
-            }
+            return $self;
         }
         else {
             Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-                error =>                     
-                sprintf(
-                    '"%s" objects don\'t accept "%s" objects',
-                    $sref, $oref
-                )
+                'error' => 'Failed insertion!',
             );
         }
-        $self->_flush_cache;
-        return $self;
     }    
 
 =item delete()
@@ -230,34 +170,51 @@ Matrix objects, Alignment objects, Taxa, Forest, Tree objects.
            datum object is deleted from a matrix 
            (say), the taxon will now hold undefined 
            references.
-           
+
 =cut
 
     sub delete {
         my ( $self, $obj ) = @_;
-        if (   ref $obj
-            && $obj->can('_container')
-            && $obj->_container == $self->_type )
-        {
+        my $id = $self->get_id;
+        if ( $self->can_contain( $obj ) ) {
             my $occurence_counter = 0;
-            if ( my $i = $index[ $self->get_id ] ) {
+            if ( my $i = $index{$id} ) {
                 for my $j ( 0 .. $i ) {
-                    if ( $entities[ $self->get_id ]->[$j] == $obj ) {
+                    if ( $entities{$id}->[$j] == $obj ) {
                         $occurence_counter++;
                     }
                 }
             }
-            my @modified = grep { $_ != $obj } @{ $entities[ $self->get_id ] };
-            $entities[ $self->get_id ] = \@modified;
-            $index[ $self->get_id ] -= $occurence_counter;
-            $self->_flush_cache;
+            my @modified = grep { $_ != $obj } @{ $entities{$id} };
+            $entities{$id} = \@modified;
+            $index{$id} -= $occurence_counter;
         }
         else {
             Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-                error => "Invocant object cannot contain argument object", );
+                'error' => "Invocant object cannot contain argument object",
+            );
         }
         return $self;
     }
+
+=item clear()
+
+ Type    : Object method
+ Title   : clear
+ Usage   : $obj->clear();
+ Function: Clears the container.
+ Returns : A Bio::Phylo::Listable object.
+ Args    : Note.
+ Note    : 
+
+=cut
+
+    sub clear {
+        my $self = shift;
+        $entities{ $self->get_id } = [];
+        return $self;
+    }
+    
 
 =item cross_reference()
 
@@ -308,7 +265,8 @@ C<$taxon-E<gt>get_data> field.
                     }
                     else {
                         Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-                            error => "$selfref can't link to $taxref" );
+                            'error' => "$selfref can't link to $taxref"
+                        );
                     }
                 }
             }
@@ -322,7 +280,8 @@ C<$taxon-E<gt>get_data> field.
         }
         else {
             Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-                error => "$taxref does not contain taxa" );
+                'error' => "$taxref does not contain taxa"
+            );
         }
     }
 
@@ -342,7 +301,8 @@ Returns a reference to an array of objects contained by the listable object.
 
     sub get_entities {
         my $self = shift;
-        return $entities[ $self->get_id ];
+        my $id = $self->get_id;
+        return defined $entities{$id} ? $entities{$id} : [];
     }
 
 =item contains()
@@ -356,20 +316,21 @@ Returns a reference to an array of objects contained by the listable object.
            contains the argument object
  Returns : BOOLEAN
  Args    : A Bio::Phylo::* object
- 
+
 =cut
 
     sub contains {
         my ( $self, $obj ) = @_;
         if ( blessed $obj ) {
             foreach my $ent ( @{ $self->get_entities } ) {
-                return 1 if $ent == $obj;
+                return 1 if $ent->get_id == $obj->get_id;
             }
             return 0;
         }
         else {
             Bio::Phylo::Util::Exceptions::BadArgs->throw(
-                error => "\"$obj\" is not a blessed object!" );
+                'error' => "\"$obj\" is not a blessed object!"
+            );
         }
     }
 
@@ -395,8 +356,9 @@ Jumps to the first element contained by the listable object.
 
     sub first {
         my $self = shift;
-        $index[ $self->get_id ] = 0;
-        return $entities[ $self->get_id ]->[0];
+        my $id = $self->get_id;
+        $index{$id} = 0;
+        return $entities{$id}->[0];
     }
 
 =item last()
@@ -415,8 +377,9 @@ Jumps to the last element contained by the listable object.
 
     sub last {
         my $self = shift;
-        $index[ $self->get_id ] = $#{ $entities[ $self->get_id ] };
-        return $entities[ $self->get_id ]->[-1];
+        my $id = $self->get_id; 
+        $index{$id} = $#{ $entities{$id} };
+        return $entities{$id}->[-1];
     }
 
 =item current()
@@ -435,10 +398,11 @@ Returns the current focal element of the listable object.
 
     sub current {
         my $self = shift;
-        if ( !defined $index[ $self->get_id ] ) {
-            $index[ $self->get_id ] = 0;
+        my $id = $self->get_id;         
+        if ( !defined $index{$id} ) {
+            $index{$id} = 0;
         }
-        return $entities[ $self->get_id ]->[ $index[ $self->get_id ] ];
+        return $entities{$id}->[ $index{$id} ];
     }
 
 =item next()
@@ -457,13 +421,14 @@ Returns the next focal element of the listable object.
 
     sub next {
         my $self = shift;
-        if ( !defined $index[ $self->get_id ] ) {
-            $index[ $self->get_id ] = 0;
-            return $entities[ $self->get_id ]->[ $index[ $self->get_id ] ];
+        my $id = $self->get_id;                 
+        if ( !defined $index{$id} ) {
+            $index{$id} = 0;
+            return $entities{$id}->[ $index{$id} ];
         }
-        elsif ( ( $index[ $self->get_id ] + 1 ) <= $#{ $entities[ $self->get_id ] } ) {
-            $index[ $self->get_id ]++;
-            return $entities[ $self->get_id ]->[ $index[ $self->get_id ] ];
+        elsif ( ( $index{$id} + 1 ) <= $#{ $entities{$id} } ) {
+            $index{$id}++;
+            return $entities{$id}->[ $index{$id} ];
         }
         else {
             return;
@@ -486,12 +451,15 @@ Returns the previous element of the listable object.
 
     sub previous {
         my $self = shift;
-        if ( !$index[ $self->get_id ] ) {    # either undef or 0
+        my $id = $self->get_id;
+        
+        # either undef or 0
+        if ( !$index{$id} ) {    
             return;
         }
-        elsif ( ( $index[ $self->get_id ] - 1 ) >= 0 ) {
-            $index[ $self->get_id ]--;
-            return $entities[ $self->get_id ]->[ $index[ $self->get_id ] ];
+        elsif ( 1 <= $index{$id} ) {
+            $index{$id}--;
+            return $entities{$id}->[ $index{$id} ];
         }
         else {
             return;
@@ -514,7 +482,8 @@ Returns the current internal index of the invocant.
 
     sub current_index {
         my $self = shift;
-        defined $index[ $self->get_id ] ? return $index[ $self->get_id ] : return 0;
+        my $id = $self->get_id; 
+        return defined $index{$id} ? $index{$id} : 0;
     }
 
 =item last_index()
@@ -533,7 +502,7 @@ Returns the highest valid index of the invocant.
 
     sub last_index {
         my $self = shift;
-        return $#{ $entities[ $self->get_id ] };
+        return $#{ $entities{ $self->get_id } };
     }
 
 =item get_by_index()
@@ -560,22 +529,25 @@ listable object.
 
     sub get_by_index {
         my $self  = shift;
+        my $id = $self->get_id;
         my @range = @_;
         if ( scalar @range > 1 ) {
             my @returnvalue;
-            eval { @returnvalue = @{ $entities[ $self->get_id ] }[@range] };
-            if ($@) {
+            eval { @returnvalue = @{ $entities{$id} }[@range] };
+            if ( $@ ) {
                 Bio::Phylo::Util::Exceptions::OutOfBounds->throw(
-                    error => 'index out of bounds' );
+                    'error' => 'index out of bounds'
+                );
             }
             return \@returnvalue;
         }
         else {
             my $returnvalue;
-            eval { $returnvalue = $entities[ $self->get_id ]->[ $range[0] ] };
-            if ($@) {
+            eval { $returnvalue = $entities{$id}->[ $range[0] ] };
+            if ( $@ ) {
                 Bio::Phylo::Util::Exceptions::OutOfBounds->throw(
-                    error => 'index out of bounds' );
+                    'error' => 'index out of bounds'
+                );
             }
             return $returnvalue;
         }
@@ -699,7 +671,8 @@ by the listable object that match a regular expression.
             }
             else {
                 Bio::Phylo::Util::Exceptions::BadArgs->throw(
-                    error => 'need a regular expression to evaluate' );
+                    'error' => 'need a regular expression to evaluate'
+		);
             }
         }
         return \@matches;
@@ -733,52 +706,84 @@ in the order in which they were inserted in the Listable object.
         }
         else {
             Bio::Phylo::Util::Exceptions::BadArgs->throw(
-                error => "\"$code\" is not a CODE reference!" );
+                'error' => "\"$code\" is not a CODE reference!"
+            );
         }
         return $self;
     }
 
 =back
 
-=head2 DESTRUCTOR
+=head2 TESTS
 
 =over
 
-=item DESTROY()
+=item can_contain()
 
- Type    : Destructor
- Title   : DESTROY
- Usage   : $phylo->DESTROY
- Function: Destroys Phylo object
- Alias   :
- Returns : TRUE
- Args    : none
- Comments: You don't really need this, 
-           it is called automatically when
-           the object goes out of scope.
+ Type    : Test
+ Title   : can_contain
+ Usage   : &do_something if $listable->can_contain( $obj );
+ Function: Tests if $obj can be inserted in $listable
+ Returns : BOOL
+ Args    : An $obj to test
 
 =cut
 
-    sub DESTROY {
-        my $self = shift;
-        if ( my $i = $self->get_id ) {
-            foreach ( keys %{$fields} ) {
-                delete $fields->{$_}->[$i];
-            }
+    sub can_contain {
+        my ( $self, $obj ) = @_;
+        $self->info("checking '$self'");
+        my ( $self_type, $obj_container );
+        eval {
+            $self_type = $self->_type;
+            $obj_container = $obj->_container;
+        };
+        if ( ! $@ && $self_type == $obj_container ) {
+            return 1;
         }
-        $self->SUPER::DESTROY;
-        return 1;
+        else {
+            undef($@);
+            return 0;
+        }
     }
 
 =begin comment
 
+ Type    : Internal method
+ Title   : _cleanup
+ Usage   : $listable->_cleanup;
+ Function: Called during object destruction, for cleanup of instance data
+ Returns : 
+ Args    :
+
 =end comment
 
 =cut
-    
+
+    sub _cleanup { 
+        my $self = shift;
+        $self->info("cleaning up '$self'");
+        my $id = $self->get_id;
+        for my $field ( @fields ) {
+            delete $field->{$id};
+        }
+    }
+
+=begin comment
+
+The following are probably the coolest thing about Bio::Phylo - the listable
+object is a tie'd array, so that (unless wrapped inside an adaptor) all listable
+subclasses can be accessed *as is they were arrays*, but *type safe*. To make
+this happen, a bunch of methods describing what should go on behind the scenes
+if these objects are accessed as arrays need to be defined. The methods below
+do just that. For more info, read perldoc perltie
+
+=end comment
+
+=cut
+
     sub FETCH {
         my ( $self, $index ) = @_;
-        return $entities[ $self->get_id ]->[$index];
+        return $entities{ $self->get_id }->[$index];
     }
     
     sub STORE {
@@ -789,7 +794,7 @@ in the order in which they were inserted in the Listable object.
     
     sub FETCHSIZE {
         my $self = shift;
-        return scalar @{ $entities[ $self->get_id ] };
+        return scalar @{ $entities{ $self->get_id } };
     }
     
     sub STORESIZE {
@@ -816,18 +821,19 @@ in the order in which they were inserted in the Listable object.
     sub EXISTS {
         my $self  = shift;
         my $index = shift;
-        return exists $entities[ $self->get_id ]->[$index];
+        return exists $entities{ $self->get_id }->[$index];
     }
     
     sub DELETE {
         my $self  = shift;
         my $index = shift;
-        return delete $entities[ $self->get_id ]->[$index];
+        return delete $entities{ $self->get_id }->[$index];
     }
     
     sub CLEAR {
         my $self = shift;
-        return $entities[ $self->get_id ] = [];
+        $self->clear;
+        return my $var = $self->get_entities;
     }
     
     sub PUSH {  
@@ -838,19 +844,20 @@ in the order in which they were inserted in the Listable object.
     
     sub POP {
         my $self = shift;
-        return pop @{ $entities[ $self->get_id ] };
+        return pop @{ $entities{ $self->get_id } };
     }
     
     sub SHIFT {
         my $self = shift;
-        return shift @{ $entities[ $self->get_id ] };
+        return shift @{ $entities{ $self->get_id } };
     }
     
     sub UNSHIFT {
         my $self = shift;
+        my $id = $self->get_id;
         my @list = @_;
         my $size = scalar( @list );
-        @{ $entities[ $self->get_id ] }[ $size .. $#{ $entities[ $self->get_id ] } + $size ] = @{ $entities[ $self->get_id ] };
+        @{ $entities{ $self->get_id } }[ $size .. $#{ $entities{$id} } + $size ] = @{ $entities{$id} };
         $self->insert_at_index( $list[$_], $_ ) for ( 0 .. $#list );
     }
     
@@ -858,7 +865,7 @@ in the order in which they were inserted in the Listable object.
         my $self   = shift;
         my $offset = shift || 0;
         my $length = shift || $self->FETCHSIZE() - $offset;
-        splice @{ $entities[ $self->get_id ] }, $offset, $length;
+        splice @{ $entities{ $self->get_id } }, $offset, $length;
         for my $i ( 0 .. $#_ ) {
             $self->insert_at_index( $_, $i + $offset );
         }
@@ -927,7 +934,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Listable.pm 1723 2006-07-20 07:27:45Z rvosa $
+$Id: Listable.pm 3319 2007-03-20 01:39:35Z rvosa $
 
 =head1 AUTHOR
 
