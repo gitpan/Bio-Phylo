@@ -5,6 +5,19 @@ use vars '@ISA';
 
 {
 
+=head1 NAME
+
+Bio::Phylo::Matrices::Datatype::Mixed - Datatype subclass,
+no serviceable parts inside
+
+=head1 DESCRIPTION
+
+The Bio::Phylo::Matrices::Datatype::* classes are used to validated data
+contained by L<Bio::Phylo::Matrices::Matrix> and L<Bio::Phylo::Matrices::Datum>
+objects.
+
+=cut   
+
     my ( %range, %missing, %gap );
     my @fields = ( \%range, \%missing, \%gap );
     
@@ -36,25 +49,94 @@ use vars '@ISA';
         }
         return bless $self, $package;
     }
-    
+
+=head1 METHODS
+
+=head2 MUTATORS
+
+=over
+
+=item set_missing()
+
+ Type    : Mutator
+ Title   : set_missing
+ Usage   : $obj->set_missing('?');
+ Function: Sets the symbol for missing data
+ Returns : Modified object.
+ Args    : Argument must be a single
+           character, default is '?'
+
+=cut
+
     sub set_missing {
         my ( $self, $missing ) = @_;
         $missing{ $self->get_id } = $missing;
         return $self;
     }
-    
+
+=item set_gap()
+
+ Type    : Mutator
+ Title   : set_gap
+ Usage   : $obj->set_gap('-');
+ Function: Sets the symbol for gaps
+ Returns : Modified object.
+ Args    : Argument must be a single
+           character, default is '-'
+
+=cut
+
     sub set_gap {
         my ( $self, $gap ) = @_;
         $gap{ $self->get_id } = $gap;
         return $self;
     }
-    
+
+=back
+
+=head2 ACCESSORS
+
+=over
+
+=item get_missing()
+
+ Type    : Accessor
+ Title   : get_missing
+ Usage   : my $missing = $obj->get_missing;
+ Function: Returns the object's missing data symbol
+ Returns : A string
+ Args    : None
+
+=cut
+
     sub get_missing { return $missing{ shift->get_id } }
-    
+
+=item get_gap()
+
+ Type    : Accessor
+ Title   : get_gap
+ Usage   : my $gap = $obj->get_gap;
+ Function: Returns the object's gap symbol
+ Returns : A string
+ Args    : None
+
+=cut
+
     sub get_gap { return $gap{ shift->get_id } }
     
     my $get_ranges = sub { $range{ shift->get_id } };
-    
+
+=item get_type()
+
+ Type    : Accessor
+ Title   : get_type
+ Usage   : my $type = $obj->get_type;
+ Function: Returns the object's datatype
+ Returns : A string
+ Args    : None
+
+=cut
+
     sub get_type {
         my $self = shift;
         my $string = 'mixed(';
@@ -76,7 +158,26 @@ use vars '@ISA';
         $string .= scalar( @{ $range } ) . ")";
         return $string;
     }
-    
+
+=back
+
+=head2 TESTS
+
+=over
+
+=item is_valid()
+
+ Type    : Test
+ Title   : is_valid
+ Usage   : if ( $obj->is_valid($datum) ) {
+              # do something
+           }
+ Function: Returns true if $datum only contains valid characters
+ Returns : BOOLEAN
+ Args    : A Bio::Phylo::Matrices::Datum object
+
+=cut
+
     sub is_valid { 
         my ( $self, $datum ) = @_;
         my ( $start, $end ) = ( $datum->get_position - 1, $datum->get_length - 1 );
@@ -105,5 +206,68 @@ use vars '@ISA';
     }
 
 }
+
+=back
+
+=head1 SEE ALSO
+
+=over
+
+=item L<Bio::Phylo::Matrices::Datatype>
+
+This object inherits from L<Bio::Phylo::Matrices::Datatype>, so the methods defined
+therein are also applicable to L<Bio::Phylo::Matrices::Datatype::Mixed>
+objects.
+
+=item L<Bio::Phylo::Manual>
+
+Also see the manual: L<Bio::Phylo::Manual>.
+
+=back
+
+=head1 FORUM
+
+CPAN hosts a discussion forum for Bio::Phylo. If you have trouble
+using this module the discussion forum is a good place to start
+posting questions (NOT bug reports, see below):
+L<http://www.cpanforum.com/dist/Bio-Phylo>
+
+=head1 BUGS
+
+Please report any bugs or feature requests to C<< bug-bio-phylo@rt.cpan.org >>,
+or through the web interface at
+L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Bio-Phylo>. I will be notified,
+and then you'll automatically be notified of progress on your bug as I make
+changes. Be sure to include the following in your request or comment, so that
+I know what version you're using:
+
+$Id: Mixed.pm 3386 2007-03-24 16:22:25Z rvosa $
+
+=head1 AUTHOR
+
+Rutger A. Vos,
+
+=over
+
+=item email: C<< rvosa@sfu.ca >>
+
+=item web page: L<http://www.sfu.ca/~rvosa/>
+
+=back
+
+=head1 ACKNOWLEDGEMENTS
+
+The author would like to thank Jason Stajich for many ideas borrowed
+from BioPerl L<http://www.bioperl.org>, and CIPRES
+L<http://www.phylo.org> and FAB* L<http://www.sfu.ca/~fabstar>
+for comments and requests.
+
+=head1 COPYRIGHT & LICENSE
+
+Copyright 2005 Rutger A. Vos, All Rights Reserved. This program is free
+software; you can redistribute it and/or modify it under the same terms as Perl
+itself.
+
+=cut
 
 1;

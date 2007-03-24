@@ -1,4 +1,4 @@
-# $Id: Node.pm 3318 2007-03-19 23:54:49Z rvosa $
+# $Id: Node.pm 3386 2007-03-24 16:22:25Z rvosa $
 package Bio::Phylo::Adaptor::Bioperl::Node;
 use Bio::Phylo::Adaptor;
 use vars '@ISA';
@@ -424,7 +424,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Tree.pm 3335 2007-03-21 00:53:50Z rvosa $
+$Id: Node.pm 3386 2007-03-24 16:22:25Z rvosa $
 
 =head1 AUTHOR
 

@@ -11,7 +11,7 @@ my ( @object, @relationship );
 
 =head1 NAME
 
-Bio::Phylo::Taxa::TaxaMediator - Mediator class to manage links between objects.
+Bio::Phylo::Mediators::TaxaMediator - Mediator class to manage links between objects.
 
 =head1 SYNOPSIS
 
@@ -323,7 +323,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: TaxaMediator.pm 3293 2007-03-17 17:12:43Z rvosa $
+$Id: TaxaMediator.pm 3386 2007-03-24 16:22:25Z rvosa $
 
 =head1 AUTHOR
 

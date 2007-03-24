@@ -83,7 +83,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Forest.pm 3285 2007-03-17 01:40:53Z rvosa $
+$Id: Adaptor.pm 3386 2007-03-24 16:22:25Z rvosa $
 
 =head1 AUTHOR
 

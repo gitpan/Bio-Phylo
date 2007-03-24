@@ -26,7 +26,7 @@ __END__
 
 =head1 NAME
 
-Bio::Phylo::Util::IDPool - Utility class for generating object IDs
+Bio::Phylo::Util::IDPool - Utility class for generating object IDs. No serviceable parts inside.
 
 =head1 DESCRIPTION
 
@@ -60,7 +60,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: IDPool.pm 3319 2007-03-20 01:39:35Z rvosa $
+$Id: IDPool.pm 3386 2007-03-24 16:22:25Z rvosa $
 
 =head1 AUTHOR
 
