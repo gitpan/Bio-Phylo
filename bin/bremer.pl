@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# $Id: bremer.pl 1185 2006-05-26 09:04:17Z rvosa $
+# $Id: bremer.pl 3394 2007-03-26 17:22:28Z rvosa $
 # Subversion: $Rev: 145 $
 use strict;
 use warnings;
@@ -116,3 +116,86 @@ qq{hsearch status=no enforce=yes constraints=$current timelimit=90 converse=yes 
     print qq{log stop;\n};
     print qq{end;\n};
 }
+
+__END__
+
+=head1 NAME
+
+bremer.pl - creates paup commands to calculate bremer values using
+parsimony ratchet.
+
+=head1 SYNOPSIS
+
+=over
+
+=item B<perl bremer.pl>
+
+B<-f>F<<treefile>>
+
+B<-l>C<nodelabel>
+
+B<-p>C<% of chars to reweight>
+
+B<-i>C<number of iterations>
+
+B<-n>C<number of characters>
+
+[ B<-h> ]
+
+=back
+
+=head1 DESCRIPTION
+
+The bremer.pl program takes a newick formatted tree from a file, looks for all
+labels whose basename is C<nodelabel> (e.g. if the basename is C<node>, it'll
+look for C<node1>, C<node2>, and so on). It will then print out paup commands
+that run, for each found node, a parsimony ratchet search for the number of
+iterations specified with B<-i>, reweighting a fraction (B<-p>) of the B<-n>
+characters. The ratchet search is performed using an inverse monophyly
+constraint on the tips subtended by the focal node, and so the difference
+between the length of shortest tree found during this ratchet search and the
+shortest unconstrained tree is the bremer value for the focal node.
+
+=head1 OPTIONS AND ARGUMENTS
+
+Note that there are no spaces between the option flags and their values.
+
+=over
+
+=item B<-f>F<<treefile>>
+
+A text file containing at least one newick formatted tree description with
+labelled nodes.
+
+=item B<-l>C<nodelabel>
+
+Base name of the nodes for which to write ratchet commands.
+
+=item B<-p>C<% of chars to reweight>
+
+Number of characters to reweight during ratchet searches.
+
+=item B<-i>C<number of iterations>
+
+Number of iterations for each ratchet search.
+
+=item B<-n>C<number of characters>
+
+Total number of characters in matrix.
+
+=item C<-h>
+
+Print help message and quit.
+
+=back
+
+=head1 FILES
+
+The program requires a valid newick-formatted labelled tree file.
+
+=head1 SEE ALSO
+
+Rutger Vos: L<http://search.cpan.org/~rvosa>
+
+=cut
+

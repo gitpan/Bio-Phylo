@@ -1,18 +1,23 @@
-# $Id: Node.pm 3386 2007-03-24 16:22:25Z rvosa $
+# $Id: Node.pm 3396 2007-03-26 18:08:40Z rvosa $
 package Bio::Phylo::Forest::Node;
 use strict;
 use Bio::Phylo::Taxa::TaxonLinker;
 use Bio::Phylo::Util::CONSTANT qw(_NODE_ _TREE_ _TAXON_ looks_like_number);
+use Bio::Phylo::Util::XMLWritable;
 use Bio::Phylo::Adaptor;
 use Scalar::Util qw(weaken);
 
 # classic @ISA manipulation, not using 'base'
 use vars qw($VERSION @ISA);
-@ISA = qw(Bio::Phylo Bio::Phylo::Taxa::TaxonLinker);
+@ISA = qw(
+    Bio::Phylo
+    Bio::Phylo::Taxa::TaxonLinker
+    Bio::Phylo::Util::XMLWritable
+);
 
 # set version based on svn rev
 my $version = $Bio::Phylo::VERSION;
-my $rev     = '$Id: Node.pm 3386 2007-03-24 16:22:25Z rvosa $';
+my $rev     = '$Id: Node.pm 3396 2007-03-26 18:08:40Z rvosa $';
 $rev        =~ s/^[^\d]+(\d+)\b.*$/$1/;
 $version    =~ s/_.+$/_$rev/;
 $VERSION    = $version;
@@ -1263,6 +1268,16 @@ orphans all nodes can be reached without recourse to the tree object.
 This object inherits from L<Bio::Phylo>, so the methods defined
 therein are also applicable to L<Bio::Phylo::Forest::Node> objects.
 
+=item L<Bio::Phylo::Taxa::TaxonLinker>
+
+This object inherits from L<Bio::Phylo::Taxa::TaxonLinker>, so methods
+defined there are also applicable here.
+
+=item L<Bio::Phylo::Util::XMLWritable>
+
+This object inherits from L<Bio::Phylo::Util::XMLWritable>, so methods
+defined there are also applicable here.
+
 =item L<Bio::Phylo::Manual>
 
 Also see the manual: L<Bio::Phylo::Manual>.
@@ -1285,7 +1300,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Node.pm 3386 2007-03-24 16:22:25Z rvosa $
+$Id: Node.pm 3396 2007-03-26 18:08:40Z rvosa $
 
 =head1 AUTHOR
 

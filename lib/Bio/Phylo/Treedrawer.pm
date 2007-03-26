@@ -1,4 +1,4 @@
-# $Id: Treedrawer.pm 3331 2007-03-20 23:59:42Z rvosa $
+# $Id: Treedrawer.pm 3387 2007-03-25 16:06:50Z rvosa $
 # Subversion: $Rev: 192 $
 package Bio::Phylo::Treedrawer;
 use strict;
@@ -365,7 +365,9 @@ sub set_text_width {
 
 sub set_tree {
     my ( $self, $tree ) = @_;
-    if ( $tree->can('_type') && $tree->_type == _TREE_ ) {
+    my $type;
+    eval { $type = $tree->_type };
+    if ( ! $@ && $type == _TREE_ ) {
         $self->{'TREE'} = $tree->negative_to_zero;
     }
     else {
@@ -400,8 +402,14 @@ sub set_tree {
 
 sub set_scale_options {
     my $self = shift;
-    if ( @_ && !scalar @_ % 2 ) {
-        my %o = @_;    # %options
+    if ( ( @_ && !scalar @_ % 2 ) || ( scalar @_ == 1 && ref $_[0] eq 'HASH' ) ) {
+        my %o; # %options
+        if ( scalar @_ == 1 && ref $_[0] eq 'HASH' ) {
+            %o = %{ $_[0] };
+        }
+        else {
+            %o = @_;
+        }
         if ( looks_like_number $o{'-width'} or $o{'-width'} =~ m/^\d+%$/ ) {
             $self->{'SCALE'}->{'-width'} = $o{'-width'};
         }
@@ -693,6 +701,11 @@ sub draw {
     }
     elsif ( $self->get_mode eq 'PHYLO' ) {
         $maxpath = $root->calc_max_path_to_tips;
+        if ( not $maxpath ) {
+            $self->get_tree->warn("no branch lengths on tree, switching to clado mode");
+            $self->set_mode('CLADO');
+            $maxpath = $root->calc_max_nodes_to_tips;
+        }
     }
     $self->_set_scalex(
         ( ( $width - ( ( 2 * $padding ) + $textwidth ) ) / $maxpath ) );
@@ -882,7 +895,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Treedrawer.pm 3331 2007-03-20 23:59:42Z rvosa $
+$Id: Treedrawer.pm 3387 2007-03-25 16:06:50Z rvosa $
 
 =head1 AUTHOR
 

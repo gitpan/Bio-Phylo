@@ -1,4 +1,4 @@
-# $Id: Pagel.pm 2108 2006-08-29 20:46:17Z rvosa $
+# $Id: Pagel.pm 3387 2007-03-25 16:06:50Z rvosa $
 # Subversion: $Rev: 191 $
 package Bio::Phylo::Unparsers::Pagel;
 use strict;
@@ -95,7 +95,7 @@ sub _to_string {
     foreach my $node ( @{ $tree->get_entities } ) {
         if ( $node->get_parent ) {
             $string .=
-              $node->get_name . ',' . $node->get_parent->get_name . ',';
+              $node->get_internal_name . ',' . $node->get_parent->get_internal_name . ',';
             if ( $node->get_branch_length ) {
                 $string .= sprintf( "%f", $node->get_branch_length );
             }
@@ -152,7 +152,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Pagel.pm 2108 2006-08-29 20:46:17Z rvosa $
+$Id: Pagel.pm 3387 2007-03-25 16:06:50Z rvosa $
 
 =head1 AUTHOR
 

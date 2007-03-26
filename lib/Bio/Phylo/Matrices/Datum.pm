@@ -552,6 +552,21 @@ which can be linked to a taxon object.
 This object inherits from L<Bio::Phylo>, so the methods defined
 therein are also applicable to L<Bio::Phylo::Matrices::Datum> objects.
 
+=item L<Bio::Phylo::Taxa::TaxonLinker>
+
+This object inherits from L<Bio::Phylo::Taxa::TaxonLinker>, so the methods
+defined therein are also applicable to L<Bio::Phylo::Matrices::Datum> objects.
+
+=item L<Bio::Phylo::Util::XMLWritable>
+
+This object inherits from L<Bio::Phylo::Util::XMLWritable>, so the methods
+defined therein are also applicable to L<Bio::Phylo::Matrices::Datum> objects.
+
+=item L<Bio::Phylo::Matrices::TypeSafeData>
+
+This object inherits from L<Bio::Phylo::Matrices::TypeSafeData>, so the methods
+defined therein are also applicable to L<Bio::Phylo::Matrices::Datum> objects.
+
 =item L<Bio::Phylo::Manual>
 
 Also see the manual: L<Bio::Phylo::Manual>.
@@ -574,7 +589,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Datum.pm 3386 2007-03-24 16:22:25Z rvosa $
+$Id: Datum.pm 3396 2007-03-26 18:08:40Z rvosa $
 
 =head1 AUTHOR
 

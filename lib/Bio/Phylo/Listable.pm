@@ -1,4 +1,4 @@
-# $Id: Listable.pm 3319 2007-03-20 01:39:35Z rvosa $
+# $Id: Listable.pm 3396 2007-03-26 18:08:40Z rvosa $
 package Bio::Phylo::Listable;
 use strict;
 use warnings FATAL => 'all';
@@ -6,13 +6,14 @@ use Bio::Phylo;
 use Bio::Phylo::Util::IDPool;
 use Bio::Phylo::Util::CONSTANT qw(:all);
 use Scalar::Util qw(blessed);
+use Bio::Phylo::Util::XMLWritable;
 
 # One line so MakeMaker sees it.
 use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
 
 # classic @ISA manipulation, not using 'base'
 use vars qw($VERSION @ISA);
-@ISA = qw(Bio::Phylo);
+@ISA = qw(Bio::Phylo Bio::Phylo::Util::XMLWritable);
 {
 
     # inside out class arrays
@@ -896,17 +897,13 @@ Iterate over a set of matrices.
 
 Iterate over the datum objects in a matrix.
 
-=item L<Bio::Phylo::Matrices::Alignment>
-
-Iterate over the sequences in an alignment.
-
 =item L<Bio::Phylo::Taxa>
 
 Iterate over a set of taxa.
 
 =back
 
-=head2 Superclass
+=head2 Superclasses
 
 =over
 
@@ -914,6 +911,11 @@ Iterate over a set of taxa.
 
 The listable class inherits from L<Bio::Phylo>, so look there for more methods
 applicable to L<Bio::Phylo::Listable> objects and subclasses.
+
+=item L<Bio::Phylo::Util::XMLWritable>
+
+This object inherits from L<Bio::Phylo::Util::XMLWritable>, so methods
+defined there are also applicable here.
 
 =back
 
@@ -934,7 +936,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Listable.pm 3319 2007-03-20 01:39:35Z rvosa $
+$Id: Listable.pm 3396 2007-03-26 18:08:40Z rvosa $
 
 =head1 AUTHOR
 

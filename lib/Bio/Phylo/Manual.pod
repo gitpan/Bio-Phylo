@@ -7,7 +7,13 @@ Bio::Phylo::Manual - Bio::Phylo v.0.16 user guide.
 This is the manual for Bio::Phylo. Bio::Phylo is a perl5 package for
 phylogenetic analysis. For installation instructions, read the README
 file in the root directory of the distribution. The stable URL for the
-most recent distribution is L<http://search.cpan.org/~rvosa/Bio-Phylo/>
+most recent distribution is L<http://search.cpan.org/~rvosa/Bio-Phylo/>.
+
+More documentation can be found as embedded documentation in the classes
+of this release. Note that Bio::Phylo uses inheritance to a large extent,
+such that any one object may inherit additional methods from a number
+of superclasses. In such cases, this will be noted in the "SEE ALSO"
+section of that class's documentation.
 
 =head1 INSTANT GRATIFICATION
 
@@ -583,48 +589,16 @@ objects.
 
 =item The L<Bio::Phylo::Matrices::Datum> object
 
-The datum object holds a single observation of a predefined type,
-such as molecular data, or a continuous character observation. The
+The datum object holds observations of a predefined type,
+such as molecular data, or continuous character states. The
 Datum object can be linked to a taxon object, to specify which OTU
-the observation refers to. A 'single observation' does not imply
-a single character state: Datum objects can hold a DNA sequence as
-well - which Bio::Phylo considers a single observation.
-
-=item The L<Bio::Phylo::Matrices::Sequence> object
-
-The Sequence object holds a string of characters of a predefined type,
-such as a molecular sequence, or a series of continuous character
-observations. The Sequence object can be linked to a taxon object,
-to specify which OTU the characters refer to. The sequence object
-is often more suitable for larger data sets (e.g. DNA sequences), the
-datum object is more memory intensive, but provides for more per
-character metadata - hence it is perhaps more appropriate for
-individual morphological observations.
+the observation refers to.
 
 =item The L<Bio::Phylo::Matrices::Matrix> object
 
 The matrix object is used to aggregate datum objects into a larger,
 iterator object, which can be accessed using the methods of the
 Bio::Phylo::Listable class.
-
-=item The L<Bio::Phylo::Matrices::Alignment> object
-
-The alignment object is used to aggregate sequence objects into a
-larger, iterator object, which can be accessed using the methods of
-the Bio::Phylo::Listable class.
-
-=item B<WARNING>
-
-B<It is IMPORTANT to note that matrix and alignment objects are, by
-default, B<NOT> rectangular. They are containers that hold datum
-and sequence objects, respectively, in the order in which they were
-inserted. Hence, taking a slice (using 'get_by_index') returns
-a set of their contained objects - not a set of columns!. If
-non-contiguous or overlapping datum objects have been inserted,
-iterating over the taxa linked to the matrix will yield B<EMPTY>
-rows (not rows with '?' missing data). To make your matrix rectangular,
-use the 'flatten' method, which concatenates the contained datum
-objects and pads empty sections with '??'.>
 
 =item The L<Bio::Phylo::Matrices> object
 
@@ -727,41 +701,12 @@ surface.
 
 The objects in Bio::Phylo are related in various ways. Some objects
 inherit from superclasses. Hence the object I<is a> special
-case of the superclass This type of relationship is shown
-below:
-
- # base class
- Bio::Phylo
-
- 	# facade parser, child classes
- 	Bio::Phylo::IO
- 		Bio::Phylo::Parsers::Newick
- 		Bio::Phylo::Parsers::Nexus
- 		Bio::Phylo::Parsers::Table
- 		Bio::Phylo::Parsers::Taxlist
- 		Bio::Phylo::Unparsers::Newick
- 		Bio::Phylo::Unparsers::Pagel
-
- 	# listable interface, child classes
- 	Bio::Phylo::Listable
- 		Bio::Phylo::Forest
- 		Bio::Phylo::Forest::Tree
- 		Bio::Phylo::Matrices
- 		Bio::Phylo::Matrices::Matrix
- 		Bio::Phylo::Matrices::Alignment
- 		Bio::Phylo::Taxon
-
- 	 # direct children of Bio::Phylo
- 	 Bio::Phylo::Forest::Node
- 	 Bio::Phylo::Matrices::Datum
- 	 Bio::Phylo::Matrices::Sequence
- 	 Bio::Phylo::Taxa::Taxon
- 	 Bio::Phylo::Generator
- 	 Bio::Phylo::Util::CONSTANT
- 	 Bio::Phylo::Util::Exceptions
-         Bio::Phylo::Util::IDPool
- 	 Bio::Phylo::Treedrawer
- 	 Bio::Phylo::Treedrawer::SVG
+case of the superclass. This has important implications for the API:
+the documentation for each class only lists the methods defined locally
+in that class, not the methods of the superclasses. Therefore, many
+objects can do much more than would seem from their local POD. Always
+inspect the "SEE ALSO" section of any class's documentation to see if
+there are superclasses where more functionality might be defined.
 
 =head2 'Has-a' relationships
 
@@ -783,14 +728,14 @@ Bio::Phylo are shown below:
      | | |NODE  | | |   | | |DATUM | |   |
      | | |______| | |   | | |______| |   |
      | |__________| |   | |__________|   |
-     |______________|   |                |
-                        |  ____________  |
-      __________        | |ALIGNMENT   | |
-     |TAXA      |       | |  ________  | |
-     |  ______  |       | | |SEQUENCE| | |
-     | |TAXON | |       | | |________| | |
-     | |______| |       | |____________| |
-     |__________|       |________________|
+     |______________|   |________________|
+                        
+      __________        
+     |TAXA      |      
+     |  ______  |     
+     | |TAXON | |     
+     | |______| |    
+     |__________| 
 
 
 =head1 ARGUMENT FORMATS
@@ -814,20 +759,17 @@ by a dash:
 
 Argument type is always checked. Numbers are checked for being
 numbers, names are checked for being sane strings, without '():;,'.
-Objects are checked for type. The only intentional exception is in
-object constructors, i.e. if you instantiate a node, and use extra
-arguments in the constructor call:
+Objects are checked for type.
+
+=head2 Constructor arguments
+
+All mutators (i.e. setters, methods called set_*) for a class and its
+superclasses can be accessed from the constructor. E.g. because the
+Bio::Phylo superclasses of object Bio::Phylo::Forest::Node has a
+"set_name" method, you can pass the following to the constructor:
 
  use Bio::Phylo::Forest::Node;
-
- my $node = Bio::Phylo::Forest::Node->new(
-     -name          => 'Node name',
-     -branch_length => 0.439
- );
-
-
-These arguments are not checked. You can abuse this to gain a
-performance advantage, but be careful not to specify garbage.
+ my $node = Bio::Phylo::Forest::Node->new( -name => "node1" );
 
 =head1 RETURN VALUES AND EXCEPTIONS
 
@@ -965,115 +907,9 @@ more.
 =item Interoperability with BioPerl and CIPRES
 
 The eventual aim of the Bio::Phylo project is to glue together the phylogenetics 
-aspects of BioPerl (L<http://www.bioperl.org>) and the CIPRES project
-(L<http://www.phylo.org>). The following does work (in pre-alpha). It is a program
-that: i) downloads sequences from genbank; ii) aligns them using Clustal; iii)
-turns the bioperl alignment in a Bio::Phylo::Matrices::Matrix object; iv) sends this
-to C<paup> (L<http://paup.csit.fsu.edu>) via CORBA; v) retrieves the inferred
-phylogeny; vi) displays it using TreeView. Note that this is not near release ready,
-but to wit:
-
-  #!/usr/bin/perl
-  use strict;
-  use warnings;
-  use Bio::DB::GenBank;
-  use Bio::Phylo::Taxa;
-  use Bio::Phylo::Taxa::Taxon;
-  use Bio::Phylo::Matrices::Datum;
-  use Bio::Phylo::Matrices::Matrix;
-  use Bio::Tools::Run::Alignment::Clustalw;
-  use CipresIDL::Scriptable;
-  use CipresIDL::LifeCycle;
-  use CipresIDL::TreeInfer;
-  use Cipres::Util::Registry;
-  use COPE::CORBA::ORB;
-  use CosEventChannelAdmin::ProxyPushConsumer_impl;
-  use Data::Dumper;
-  
-  my $DEBUG = 0;
-  
-  # get sequences from genbank
-  my $gb = Bio::DB::GenBank->new;
-  my $query = 'Daubentonia madagascariensis[Organism] AND mtDNA'
-  my $query = Bio::DB::Query::GenBank->new(
-      '-query'   => $query,
-      '-db'      => 'nucleotide'
-  );
-  my $seqio  = $gb->get_Stream_by_query( $query );
-  
-  # array ref for clustalw
-  my $sequences = [];
-  while( my $sequence = $seqio->next_seq ) {
-      print 'seq length is ', $sequence->length,"\n";
-      push @{ $sequences }, $sequence;
-  
-  }
-  
-  # Align sequences using clustalw
-  my $factory = Bio::Tools::Run::Alignment::Clustalw->new(
-      'ktuple' => 2, 
-      'matrix' => 'BLOSUM',
-  );
-  my $alignment = $factory->align( $sequences );
-  
-  # import alignment in Bio::Phylo
-  my $matrix = Bio::Phylo::Matrices::Matrix->new;
-  my $taxa   = Bio::Phylo::Taxa->new;
-  foreach my $sequence ( $alignment->each_seq ) {
-      my $taxon = Bio::Phylo::Taxa::Taxon->new( 
-          '-name' => $sequence->id 
-      );
-      $taxa->insert( $taxon );
-      my $i = 1;
-      my $datum = Bio::Phylo::Matrices::Datum->new(
-          '-type'  => 'DNA',
-          '-name'  => $sequence->id,
-          '-char'  => [ split(//, $sequence->seq) ],
-          '-taxon' => $taxon,
-      );
-      $matrix->insert( $datum );
-      $taxon->set_data( $datum );
-      $i++;
-      print $i, "\n" if $DEBUG;
-  }
-  
-  # start TreeInfer service
-  $ENV{'CIPRES_CONFIG_DIR'} = 'C:/cipres/build/CIPRES_winxp/resources';
-  my $reg = Cipres::Util::Registry->new( 
-      'C:/cipres/build/CIPRES_winxp/resources/cipres_registry.xml' 
-  );
-  $reg->set_vars( 
-      '%%IORFILE'     => 'service.ior',
-      '%%CIPRES_ROOT' => 'C:/cipres/build/CIPRES_winxp',
-      '%%SYSTEM_ROOT' => 'C:/',
-      '%%PYTHON'      => 'C:/Python24/python.exe',
-      '%%PAUP_PATH'   => 'C:/phylo/paupWin32/paup.exe',
-      '%%PERL'        => 'C:/mod_perl/Perl/bin/perl.exe',
-      '%%JAVA'        => 'C:/j2sdk1.4.2_10/bin/java.exe',
-  );
-  my $treeinf_service = shift @{ $reg->get_services_by_name('TreeInfer') };
-  $treeinf_service->start;
-  
-  # start orb
-  my $orb = CORBA::ORB_init();
-  my $tree_inf = $orb->string_to_object( $treeinf_service->get_ior );
-  $tree_inf = CipresIDL::TreeInfer->_narrow( $tree_inf );
-  print Dumper( $tree_inf );
-  
-  # infer tree
-  $tree_inf->setMatrix( $matrix->to_cipres );
-  my $proxypusher = CosEventChannelAdmin::ProxyPushConsumer_impl->new;
-  my $tree = $tree_inf->inferTree( $proxypusher );
-  print Dumper( $tree );
-  
-  # open treeview
-  my $treefile = 'outfile.dnd';
-  {
-      open( my $FH, '>', $treefile ) or die $!;
-      print $FH $tree->{'m_newick'};
-      close $FH;
-  }
-  system('C:\Program Files\Rod Page\TreeView\treev32.exe', $treefile);
+aspects of BioPerl (L<http://www.bioperl.org>), L<Bio::NEXUS> and the CIPRES project
+(L<http://www.phylo.org>). Refer to the L<Bio::ObjectCompat> document for
+discussion on this issue.
 
 =back
 
@@ -1093,7 +929,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
- $Id: Manual.pod 3259 2007-03-13 01:23:38Z rvosa $
+ $Id: Manual.pod 3396 2007-03-26 18:08:40Z rvosa $
 
 =head1 AUTHOR
 

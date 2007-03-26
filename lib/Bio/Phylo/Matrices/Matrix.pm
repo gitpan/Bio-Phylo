@@ -16,7 +16,6 @@ use Scalar::Util qw(blessed);
     Bio::Phylo::Listable 
     Bio::Phylo::Taxa::TaxaLinker 
     Bio::Phylo::Matrices::TypeSafeData
-    Bio::Phylo::Util::XMLWritable
 );
 
 my @inside_out_arrays = \(
@@ -530,7 +529,7 @@ sub check_taxa {
     my $self = shift;
     # is linked to taxa
     if ( my $taxa = $self->get_taxa ) {
-        my %taxa = map { $_->get_name => $_ } @{ $taxa->get_entities };
+        my %taxa = map { $_->get_internal_name => $_ } @{ $taxa->get_entities };
         ROW_CHECK: for my $row ( @{ $self->get_entities } ) {
             if ( my $taxon = $row->get_taxon ) {
                 next ROW_CHECK if exists $taxa{$taxon->get_name}; 
@@ -605,6 +604,18 @@ This object inherits from L<Bio::Phylo::Listable>, so the
 methods defined therein are also applicable to L<Bio::Phylo::Matrices::Matrix>
 objects.
 
+=item L<Bio::Phylo::Taxa::TaxaLinker>
+
+This object inherits from L<Bio::Phylo::Taxa::TaxaLinker>, so the
+methods defined therein are also applicable to L<Bio::Phylo::Matrices::Matrix>
+objects.
+
+=item L<Bio::Phylo::Matrices::TypeSafeData>
+
+This object inherits from L<Bio::Phylo::Matrices::TypeSafeData>, so the
+methods defined therein are also applicable to L<Bio::Phylo::Matrices::Matrix>
+objects.
+
 =item L<Bio::Phylo::Manual>
 
 Also see the manual: L<Bio::Phylo::Manual>.
@@ -627,7 +638,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Matrix.pm 3386 2007-03-24 16:22:25Z rvosa $
+$Id: Matrix.pm 3396 2007-03-26 18:08:40Z rvosa $
 
 =head1 AUTHOR
 

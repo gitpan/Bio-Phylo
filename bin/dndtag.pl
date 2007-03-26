@@ -3,56 +3,62 @@ use strict;
 use warnings;
 use Pod::Usage;
 use Getopt::Long;
-use Bio::Phylo::Parsers 0.02;
-use Bio::Phylo::Unparsers 0.02;
+use Bio::Phylo::IO 'parse';
 
-my ( $verbose, $man, $help, $nexus, $tree ) = ( 0, 0, 0, 0 );
+my ( $verbose, $nexus, $treefile, $string );
 
 sub check_args {
     Getopt::Long::GetOptions (
-        "treefile=s" => \$tree,
+        "treefile=s" => \$treefile,
+        "string=s"   => \$string,
         "nexus"      => \$nexus,
         "verbose"    => \$verbose,
-        "help|?"     => \$help,
-        "man"        => \$man );
-    pod2usage(1) if $help;
-    pod2usage( -verbose => 2 ) if $man;
+        "help|?"     => sub { pod2usage(1) },
+        "man"        => sub { pod2usage( -verbose => 2 ) },
+    );
     if (@ARGV) {
-        Pod::Usage::pod2usage (
+        pod2usage (
             -msg     => "Invalid argument(s): @ARGV",
             -exitval => 1,
-            -verbose => 0 );
+            -verbose => 0
+        );
     }
-    unless ( $tree ) {
-        Pod::Usage::pod2usage (
+    if ( not $treefile and not $string ) {
+        pod2usage (
             -msg     => "No input, no output!",
             -exitval => 2,
-            -verbose => 0 );
+            -verbose => 0
+        );
     }
     print STDERR "Sane command line arguments supplied.\n" if $verbose;
-    print STDERR "File name supplied: $tree\n" if $verbose;
+    print STDERR "File name supplied: $treefile\n" if $verbose and $treefile;
+    print STDERR "String supplied: $string\n" if $verbose and $string;
 }
 
-sub parse_file ($) {
-    my $infile = shift;
-    print STDERR "Going to parse $infile\n" if $verbose;
-    my $parser = new Bio::Phylo::Parsers;
-    return $parser->parse( -format => 'newick', -file => $infile );
-    print STDERR "Successfully parsed $infile\n" if $verbose;
+sub parse_file_or_string {
+    my %args = @_;
+    print STDERR "Going to parse %args\n" if $verbose;
+    return parse( -format => 'newick', %args );
 }
 
-sub main ($) {
-    my $infile = shift;
-    my $trees = parse_file $infile;
+sub main ($$$) {
+    my ( $infile, $string, $nexus ) = @_;
+    my $trees = defined $infile
+                    ? parse_file_or_string( -file   => $infile )
+                    : parse_file_or_string( -string => $string );
+    for my $tree ( @{ $trees->get_entities } ) {
+        for my $node ( @{ $tree->get_entities } ) {
+            $node->set_name( $node->get_internal_name );
+        }
+    }
     if ( $nexus ) {
         print "#NEXUS\n";
         print "BEGIN TREES;\n";
     }
-    my ( $i, $unparser ) = ( 1, new Bio::Phylo::Unparsers );
-    foreach my $tree ( @{$trees->get_entities} ) {
-        print "TREE TREE$i = " if $nexus;
-        print $unparser->unparse( -format => 'newick', -phylo => $tree ), "\n";
-        $i++;
+    my $i = 0;
+    for my $tree ( @{ $trees->get_entities } ) {
+        print 'TREE TREE', ++$i, ' = ' if $nexus;
+        print $tree->to_newick, "\n";
     }
     if ( $nexus ) {
         print "END;\n";
@@ -60,7 +66,7 @@ sub main ($) {
 }
 
 check_args;
-main $tree;
+main( $treefile, $string, $nexus );
 
 __END__
 
@@ -75,6 +81,7 @@ dndtag.pl - applies unique node labels to newick trees.
 =item B<perl dndtag.pl>
 
 [B<-t|--treefile> F<<tree file>>]
+[B<-s|--string> C<'newick string'>]
 [B<-n|--nexus>]
 [B<-v|--verbose>]
 [B<-h|--help>]
@@ -86,7 +93,7 @@ dndtag.pl - applies unique node labels to newick trees.
 
 The dndtag.pl program applies node labels to newick trees:
 
-    ((A,B),C); --> ((A,B)n1,C)n2;
+    ((A,B),C); --> ((A,B)Node1,C)Node2;
 
 The node labels are unique per tree. Already existing node labels are
 left in place. The output is written to standard out.
@@ -98,6 +105,12 @@ left in place. The output is written to standard out.
 =item B<-t|--treefile> F<<tree file>>
 
 A text file containing newick formatted tree descriptions.
+
+=item B<-s|--string> C<'newick string'>
+
+A tree string, i.e. a parenthetical statement, possibly shell-escaped (e.g. on
+/bin/bash, this statement needs to be single quoted, on windows cmd double
+quoted).
 
 =item B<-n|--nexus>
 
@@ -152,8 +165,8 @@ The following exit values are returned:
 
 =head1 FILES
 
-The program requires a valid newick-formatted tree file issued
-after the I<--treefile> command line argument.
+The program requires either a newick string or a valid newick-formatted tree
+file issued after the I<--treefile> command line argument.
 
 =head1 SEE ALSO
 
@@ -172,7 +185,7 @@ Meaning:
 =item I<No input, no output!>
 
 Meaning:
-    Apparently, no input file name was specified.
+    Apparently, no input file name or string was specified.
 
 =back
 

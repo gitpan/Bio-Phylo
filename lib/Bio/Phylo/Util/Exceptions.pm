@@ -1,4 +1,4 @@
-# $Id: Exceptions.pm 3298 2007-03-19 18:57:16Z rvosa $
+# $Id: Exceptions.pm 3395 2007-03-26 17:49:02Z rvosa $
 # Subversion: $Rev: 170 $
 package Bio::Phylo::Util::Exceptions;
 use strict;
@@ -58,14 +58,36 @@ __END__
 
 =head1 NAME
 
-Bio::Phylo::Util::Exceptions - Exception classes for Bio::Phylo. No serviceable parts
-inside.
+Bio::Phylo::Util::Exceptions - Exception classes for Bio::Phylo.
+
+=head1 SYNOPSIS
+
+ use Bio::Phylo::Forest::Node;
+ my $node = Bio::Phylo::Forest::Node->new;
+ 
+ # now let's try something illegal
+ eval {
+    $node->set_branch_length( 'non-numerical value' );
+ };
+
+ # have an error
+ if ( $@ && UNIVERSAL::isa( $@, 'Bio::Phylo::Util::Exception' ) ) {
+
+    # print out where the error came from
+    print $@->trace->as_string;
+ }
 
 =head1 DESCRIPTION
 
-This package defines exceptions that can be thrown by other modules. There are
+Sometimes, Bio::Phylo dies. If this happens because you did something that
+brought Bio::Phylo into an undefined and dangerous state (such as might happen
+if you provide a non-numerical value for a setter that needs numbers),
+Bio::Phylo will throw an "exception", a special form of the C<$@> variable
+that is a blessed object with useful methods to help you diagnose the problem.
+
+This package defines the exceptions that can be thrown by Bio::Phylo. There are
 no serviceable parts inside. Refer to the L<Exception::Class>
-perldoc for examples on how to catch exceptions and show traces.
+perldoc for more examples on how to catch exceptions and show traces.
 
 =head1 EXCEPTION TYPES
 
@@ -159,7 +181,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Exceptions.pm 3298 2007-03-19 18:57:16Z rvosa $
+$Id: Exceptions.pm 3395 2007-03-26 17:49:02Z rvosa $
 
 =head1 AUTHOR
 

@@ -1,4 +1,4 @@
-# $Id: Phylo.pm 3386 2007-03-24 16:22:25Z rvosa $
+# $Id: Phylo.pm 3396 2007-03-26 18:08:40Z rvosa $
 package Bio::Phylo;
 use strict;
 use warnings FATAL => 'all';
@@ -21,9 +21,9 @@ use Bio::Phylo::Util::Exceptions;
 use Bio::Phylo::Mediators::TaxaMediator;
 
 # Include the revision number from CIPRES subversion in $VERSION
-my $rev = '$Id: Phylo.pm 3386 2007-03-24 16:22:25Z rvosa $';
+my $rev = '$Id: Phylo.pm 3396 2007-03-26 18:08:40Z rvosa $';
 $rev =~ s/^[^\d]+(\d+)\b.*$/$1/;
-$VERSION  = "0.16_RC2";
+$VERSION  = "0.16_RC3";
 $VERSION .= "_$rev";
 
 # The following allows for semantics like:
@@ -363,8 +363,7 @@ inheritance tree.
  Type    : Accessor
  Title   : get_name
  Usage   : my $name = $obj->get_name;
- Function: Returns the object's name (if none was set, the name
-           is a combination of the $obj's class and its UID).
+ Function: Returns the object's name.
  Returns : A string
  Args    : None
 
@@ -373,17 +372,33 @@ inheritance tree.
     sub get_name {
         my $self = shift;
         $self->debug("getting name");
-        my $name = $name{ $self->get_id };
-        if ( defined $name ) {
-            return $name;
-        }
-        else {
-            my $dummy_name = ref $self;
-            $dummy_name =~ s/.*:://;
-            $dummy_name .= $self->get_id;
-            return $dummy_name;
-        }
+        return $name{ $self->get_id };
     }
+
+=item get_internal_name()
+
+ Type    : Accessor
+ Title   : get_internal_name
+ Usage   : my $name = $obj->get_internal_name;
+ Function: Returns the object's name (if none was set, the name
+           is a combination of the $obj's class and its UID).
+ Returns : A string
+ Args    : None
+
+=cut
+
+sub get_internal_name {
+    my $self = shift;
+    if ( my $name = $self->get_name ) {
+        return $name;
+    }
+    else {
+        my $internal_name = ref $self;
+        $internal_name =~ s/.*:://;
+        $internal_name .= $self->get_id;
+        return $internal_name;
+    }
+}
 
 =item get_desc()
 
@@ -964,7 +979,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Phylo.pm 3386 2007-03-24 16:22:25Z rvosa $
+$Id: Phylo.pm 3396 2007-03-26 18:08:40Z rvosa $
 
 =head1 AUTHOR
 

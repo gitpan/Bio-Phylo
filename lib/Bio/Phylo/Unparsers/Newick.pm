@@ -1,4 +1,4 @@
-# $Id: Newick.pm 2108 2006-08-29 20:46:17Z rvosa $
+# $Id: Newick.pm 3387 2007-03-25 16:06:50Z rvosa $
 # Subversion: $Rev: 190 $
 package Bio::Phylo::Unparsers::Newick;
 use strict;
@@ -104,7 +104,7 @@ sub _to_string {
                 $string = $n->get_name . ':' . $n->get_branch_length . ';';
             }
             else {
-                $n->get_name ? $string = $n->get_name . ';' : $string = ';';
+                $string = $n->get_name ? $n->get_name . ';' : ';';
             }
         }
         elsif ( !$n->get_previous_sister ) {
@@ -164,7 +164,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Newick.pm 2108 2006-08-29 20:46:17Z rvosa $
+$Id: Newick.pm 3387 2007-03-25 16:06:50Z rvosa $
 
 =head1 AUTHOR
 

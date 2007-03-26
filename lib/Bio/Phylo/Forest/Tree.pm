@@ -1,4 +1,4 @@
-# $Id: Tree.pm 3386 2007-03-24 16:22:25Z rvosa $
+# $Id: Tree.pm 3387 2007-03-25 16:06:50Z rvosa $
 # Subversion: $Rev: 177 $
 package Bio::Phylo::Forest::Tree;
 use strict;
@@ -1376,7 +1376,7 @@ for more methods.
                 {
                     my $newnode = new Bio::Phylo::Forest::Node;
                     $newnode->set_branch_length(0.00);
-                    $newnode->set_name( $node->get_name . 'r' . $i++ );
+                    $newnode->set_name( $node->get_internal_name . 'r' . $i++ );
 
                     # parent relationships
                     $newnode->set_parent($node);
@@ -1419,139 +1419,103 @@ for more methods.
 
     sub prune_tips {
         my ( $self, $tips ) = @_;
-        my $tree = $self->get_entities;
-      OUTER: for ( my $i = 0 ; $i <= $#{$tree} ; $i++ ) {
-            if ( !defined $tree->[$i] ) {
-                next OUTER;
-            }
-          INNER: foreach my $tip ( @{$tips} ) {
-                if ( !defined $tree->[$i] ) {
-                    last INNER;
-                }
-                if ( $tree->[$i]->get_name eq $tip && $tree->[$i]->is_terminal )
-                {
+        if ( blessed $tips ) {
+            my @tmp = map { $_->get_name } @{ $tips->get_entities };
+            $tips = \@tmp;
+        }
+        my %names_to_delete = map { $_ => 1 } @{ $tips };
+        TIP: for my $tip ( @{ $self->get_terminals } ) {
+            if ( exists $names_to_delete{ $tip->get_name } ){
 
-                    # scope out nodes that reference current
-                    my $ps = $tree->[$i]->get_previous_sister;
-                    my $ns = $tree->[$i]->get_next_sister;
-                    my $p  = $tree->[$i]->get_parent;
+                # scope out nodes that reference current
+                my $ps = $tip->get_previous_sister;
+                my $ns = $tip->get_next_sister;
+                my $p  = $tip->get_parent;
 
-                    # parent is polytomy
-                    if ( $p && scalar @{ $p->get_children } > 2 ) {
-                        if ( $p->get_first_daughter == $tree->[$i] ) {
+                # parent is polytomy
+                if ( $p && scalar @{ $p->get_children } > 2 ) {
+                    if ( $p->get_first_daughter->get_id == $tip->get_id ) {
                             $p->set_first_daughter($ns);
                             $ns->set_previous_sister();
                         }
-                        elsif ( $p->get_last_daughter == $tree->[$i] ) {
+                    elsif ( $p->get_last_daughter->get_id == $tip->get_id ) {
                             $p->set_last_daughter($ps);
                             $ps->set_next_sister();
                         }
-                        else {
-                            $ps->set_next_sister($ns);
-                            $ns->set_previous_sister($ps);
-                        }
-                        $tree->[$i] = undef;
-                        next OUTER;
+                    else {
+                        $ps->set_next_sister($ns);
+                        $ns->set_previous_sister($ps);
                     }
-
-                    # parent bifurcates, has parent
-                    my $gp = $p->get_parent;
-                    if ( $p && scalar @{ $p->get_children } <= 2 && $gp ) {
-                        my $sib;
-                        if ( $p->get_first_daughter == $tree->[$i] ) {
-                            $sib = $ns;
-                            $sib->set_previous_sister();
-                        }
-                        elsif ( $p->get_last_daughter == $tree->[$i] ) {
-                            $sib = $ps;
-                            $sib->set_next_sister();
-                        }
-                        my $sibbl = $sib->get_branch_length;
-                        my $pbl   = $p->get_branch_length;
-                        my $sibnbl;
-                        if ($sibbl) {
-                            $sibnbl = $sibbl;
-                        }
-                        if ($pbl) {
-                            $sibnbl += $pbl;
-                        }
-                        if ( defined $sibnbl ) {
-                            $sib->set_branch_length($sibnbl);
-                        }
-                        $sib->set_parent($gp);
-                        my $pps = $p->get_previous_sister;
-                        my $pns = $p->get_next_sister;
-                        if ($pps) {
-                            $sib->set_previous_sister($pps);
-                            $pps->set_next_sister($sib);
-                        }
-                        if ($pns) {
-                            $sib->set_next_sister($pns);
-                            $pns->set_previous_sister($sib);
-                        }
-                        if ( $gp->get_first_daughter == $p ) {
-                            $gp->set_first_daughter($sib);
-                        }
-                        elsif ( $gp->get_last_daughter == $p ) {
-                            $gp->set_last_daughter($sib);
-                        }
-                      PARENT: for ( my $j = 0 ; $j <= $#{$tree} ; $j++ ) {
-                            if ( !defined $tree->[$j] ) {
-                                next PARENT;
-                            }
-                            if ( $tree->[$j] == $p ) {
-                                $tree->[$j] = undef;
-                                last PARENT;
-                            }
-                        }
-                        $tree->[$i] = undef;
-                        next OUTER;
-                    }
-
-                    # parent bifurcates, is root
-                    elsif ( $p && !$gp && scalar @{ $p->get_children } <= 2 ) {
-                        if ( $p->get_first_daughter == $tree->[$i] ) {
-                            my $pld = $p->get_last_daughter;
-                            $pld->set_parent();
-                            $pld->set_next_sister();
-                            $pld->set_previous_sister();
-                        }
-                        elsif ( $p->get_last_daughter == $tree->[$i] ) {
-                            my $pfd = $p->get_first_daughter;
-                            $pfd->set_parent();
-                            $pfd->set_next_sister();
-                            $pfd->set_previous_sister();
-                        }
-                        $tree->[$i] = undef;
-                      PARENT: for ( my $j = 0 ; $j <= $#{$tree} ; $j++ ) {
-                            if ( !defined $tree->[$j] ) {
-                                next PARENT;
-                            }
-                            if ( $tree->[$j] == $p ) {
-                                $tree->[$j] = undef;
-                                last PARENT;
-                            }
-                        }
-                        next OUTER;
-                    }
+                    $self->delete( $tip );
+                    next TIP;
                 }
-                elsif ($tree->[$i]->get_name eq $tip
-                    && $tree->[$i]->is_internal )
-                {
-                    Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-                        'error' => "$tip is an internal node. Tips only please!"                        
-                    );
+
+                # parent bifurcates, has parent
+                my $gp = $p->get_parent;
+                if ( $p && scalar @{ $p->get_children } <= 2 && $gp ) {
+                    my $sib;
+                    if ( $p->get_first_daughter->get_id == $tip->get_id ) {
+                        $sib = $ns;
+                        $sib->set_previous_sister();
+                    }
+                    elsif ( $p->get_last_daughter->get_id == $tip->get_id ) {
+                        $sib = $ps;
+                        $sib->set_next_sister();
+                    }
+                    my $sibbl = $sib->get_branch_length;
+                    my $pbl   = $p->get_branch_length;
+                    my $sibnbl;
+                    if ($sibbl) {
+                        $sibnbl = $sibbl;
+                    }
+                    if ($pbl) {
+                        $sibnbl += $pbl;
+                    }
+                    if ( defined $sibnbl ) {
+                        $sib->set_branch_length($sibnbl);
+                    }
+                    $sib->set_parent($gp);
+                    my $pps = $p->get_previous_sister;
+                    my $pns = $p->get_next_sister;
+                    if ($pps) {
+                        $sib->set_previous_sister($pps);
+                        $pps->set_next_sister($sib);
+                    }
+                    if ($pns) {
+                        $sib->set_next_sister($pns);
+                        $pns->set_previous_sister($sib);
+                    }
+                    if ( $gp->get_first_daughter == $p ) {
+                        $gp->set_first_daughter($sib);
+                    }
+                    elsif ( $gp->get_last_daughter == $p ) {
+                        $gp->set_last_daughter($sib);
+                    }
+                    $self->delete( $tip );
+                    next TIP;
+                }
+
+                # parent bifurcates, is root
+                elsif ( $p && !$gp && scalar @{ $p->get_children } <= 2 ) {
+                    if ( $p->get_first_daughter->get_id == $tip->get_id ) {
+                        my $pld = $p->get_last_daughter;
+                        $pld->set_parent();
+                        $pld->set_next_sister();
+                        $pld->set_previous_sister();
+                    }
+                    elsif ( $p->get_last_daughter->get_id == $tip->get_id ) {
+                        my $pfd = $p->get_first_daughter;
+                        $pfd->set_parent();
+                        $pfd->set_next_sister();
+                        $pfd->set_previous_sister();
+                    }
+                    $self->delete( $tip );
+                    next TIP;
                 }
             }
         }
 
-        # splice undef nodes here
-        for ( my $j = $#{$tree} ; $j >= 0 ; $j-- ) {
-            if ( !defined $tree->[$j] ) {
-                splice @{$tree}, $j, 1;
-            }
-        }
-        return $self;
+        return $self->remove_unbranched_internals;
     }
 
 =item keep_tips()
@@ -1561,23 +1525,26 @@ for more methods.
  Usage   : $tree->keep_tips(\@taxa);
  Function: Keeps specified taxa from invocant.
  Returns : The pruned Bio::Phylo::Forest::Tree object.
- Args    : A list of taxon names.
+ Args    : An array ref of taxon names or a Bio::Phylo::Taxa object
  Comments:
 
 =cut
 
     sub keep_tips {
         my ( $tree, $tips ) = @_;
-        my ( @allnames, @taxatoprune );
-        foreach my $tip ( @{ $tree->get_terminals } ) {
-            push @allnames, $tip->get_name;
+        if ( blessed $tips ) {
+            my @tmp = map { $_->get_name } @{ $tips->get_entities };
+            $tips = \@tmp;
         }
-        foreach my $name (@allnames) {
-            if ( $name && !grep /^$name$/, @{$tips} ) {
-                push @taxatoprune, $name;
+        my %tip_names = map { $_->get_name => 1 } @{ $tree->get_terminals };
+        my %keep_taxa = map { $_ => 1 } @{ $tips };
+        my @taxa_to_prune;
+        for my $name ( keys %tip_names ) {
+            if ( not exists $keep_taxa{$name} ) {
+                push @taxa_to_prune, $name;
             }
         }
-        $tree->prune_tips( \@taxatoprune );
+        $tree->prune_tips( \@taxa_to_prune );
         return $tree;
     }
 
@@ -1865,7 +1832,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Tree.pm 3386 2007-03-24 16:22:25Z rvosa $
+$Id: Tree.pm 3387 2007-03-25 16:06:50Z rvosa $
 
 =head1 AUTHOR
 

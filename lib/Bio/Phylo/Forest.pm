@@ -1,4 +1,4 @@
-# $Id: Forest.pm 3386 2007-03-24 16:22:25Z rvosa $
+# $Id: Forest.pm 3387 2007-03-25 16:06:50Z rvosa $
 package Bio::Phylo::Forest;
 use strict;
 use warnings FATAL => 'all';
@@ -11,7 +11,7 @@ use vars qw($VERSION @ISA);
 
 # set version based on svn rev
 my $version = $Bio::Phylo::VERSION;
-my $rev = '$Id: Forest.pm 3386 2007-03-24 16:22:25Z rvosa $';
+my $rev = '$Id: Forest.pm 3387 2007-03-25 16:06:50Z rvosa $';
 $rev =~ s/^[^\d]+(\d+)\b.*$/$1/;
 $version =~ s/_.+$/_$rev/;
 $VERSION = $version;
@@ -92,7 +92,7 @@ forest objects.
         my $self = shift;
         # is linked
         if ( my $taxa = $self->get_taxa ) {
-            my %taxa = map { $_->get_name => $_ } @{ $taxa->get_entities };
+            my %taxa = map { $_->get_internal_name => $_ } @{ $taxa->get_entities };
             for my $tree ( @{ $self->get_entities } ) {
                 NODE_CHECK: for my $node ( @{ $tree->get_entities } ) {
                     if ( my $taxon = $node->get_taxon ) {
@@ -208,7 +208,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Forest.pm 3386 2007-03-24 16:22:25Z rvosa $
+$Id: Forest.pm 3387 2007-03-25 16:06:50Z rvosa $
 
 =head1 AUTHOR
 
