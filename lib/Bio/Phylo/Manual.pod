@@ -9,11 +9,12 @@ phylogenetic analysis. For installation instructions, read the README
 file in the root directory of the distribution. The stable URL for the
 most recent distribution is L<http://search.cpan.org/~rvosa/Bio-Phylo/>.
 
-More documentation can be found as embedded documentation in the classes
-of this release. Note that Bio::Phylo uses inheritance to a large extent,
+More documentation can be found as embedded L<perldoc> in the classes
+of this release. Note that Bio::Phylo uses inheritance to a great extent,
 such that any one object may inherit additional methods from a number
 of superclasses. In such cases, this will be noted in the "SEE ALSO"
-section of that class's documentation.
+section of that class's documentation. The Bio::Phylo documentation
+system rewards the methodical reader who follows these document links.
 
 =head1 INSTANT GRATIFICATION
 
@@ -37,9 +38,9 @@ used and vice versa.
 =item Problem
 
 No concept is valid in Perl if it cannot be expressed in a one-liner.
-For the Bio::Phylo package, small operations can often be expressed using
-a single, erm, expression from the command line. This is a rather long
-one-liner, but it proves a point.
+For the Bio::Phylo package, some operations can be performed using
+a single expression from the command line. This is a rather long
+one-liner, but it serves to demonstrate.
 
 =item Solution
 
@@ -49,13 +50,16 @@ one-liner, but it proves a point.
 =item Discussion
 
 The C<-MModule> switch includes a module the way you would use
-C<use Module;> in a script. Here we use the L<Bio::Phylo::IO> module.
-The C<-e> switch is used to evaluate the following expression. We
+C<use Module;> in a script. Here we use the L<Bio::Phylo::IO> module, which
+is Bio::Phylo's entry point into file parsing and file writing.
+
+The C<-e> switch is used to evaluate the subsequent expression. We
 parse a string, C<((A,B),C);>, of format C<newick>. The parser
 returns a L<Bio::Phylo::Forest> object (i.e. a set of trees, in this case
-a set of one). From this set we retrieve the first element, and calculate
-Colless' imbalance, which returns a number, which we print to standard out.
-This would print "1", obviously.
+a set of one). From this set we retrieve the first (and only) tree, and
+calculate Colless' imbalance, which returns a number, which we print to standard
+out. This would print "1", because the tree is a ladder, and therefore completely
+unbalanced.
 
 =item B<Sets of trees>
 
@@ -92,7 +96,8 @@ If you try to print a tree object, what's written is something like
 C<Bio::Phylo::Forest::Tree=SCALAR(0x1a337dc)> (that is, the 
 memory address that the object references). This is probably not 
 what you want, so the tree object has a C<$tree->to_newick> 
-method that stringifies the object to a newick string.
+method that stringifies the object to a newick string. Likewise, matrices
+can write a simple nexus C<data> block using C<$matrix->to_nexus>.
 
 =back
 
@@ -124,7 +129,7 @@ You want to create a L<Bio::Phylo::Forest::Tree> object from a newick string.
  # Call class method parse from Bio::Phylo::IO
  my $tree = Bio::Phylo::IO->parse(
     -string => $tree_string,
-    -format => 'fastnewick'
+    -format => 'newick'
  )->first;
 
  # note: newick parser returns 'Bio::Phylo::Forest'
@@ -135,18 +140,12 @@ You want to create a L<Bio::Phylo::Forest::Tree> object from a newick string.
 =item Discussion
 
 The L<Bio::Phylo::IO> module invokes specific parser modules. It is essentially
-a façade for the parsers. In the solution the L<Bio::Phylo::Parsers::Fastnewick>
-parser turns a tree description into a L<Bio::Phylo::Forest> object. 
-
-Note that there are currently two newick parsers to choose between, 'newick' and 
-'fastnewick'. The former is an older implementation, which appends unique node
-labels to all the nodes in the tree. It is an implementation that has been tested
-more thoroughly. On the other hand, 'fastnewick' has so far worked without 
-problems. It does not introduce node labels, and parses large trees at greater
-speed than 'newick' (similar considerations apply to 'nexus' versus 'fastnexus').
+the front door for the parsers. In the solution the
+L<Bio::Phylo::Parsers::Newick> parser turns a tree description into a
+L<Bio::Phylo::Forest> object. 
 
 The returned forest object subclasses L<Bio::Phylo::Listable>, as a forest models 
-a set of trees that you can iterate over. By calling the C<->first> method, we 
+a list of trees that you can iterate over. By calling the C<->first> method, we 
 get the first tree in the forest - a L<Bio::Phylo::Forest::Tree> object (in the 
 example it's a very small forest, consisting of just this single tree).
 
@@ -177,7 +176,8 @@ You want to create a L<Bio::Phylo::Matrices::Matrix> object from a string.
 
 Here the L<Bio::Phylo::Parsers::Table> module parses a string
 C<A,1,2|B,1,2|C,2,2|D,2,1>, where the C<|> is considered a record or
-line separator, and the C<,> as a field separator.
+line separator, and the C<,> as a field separator. The default field and
+line separators are the tabstop character "\t" and the line break "\n".
 
 =item B<Parsing taxa>
 
@@ -242,7 +242,7 @@ object.
   use Bio::Phylo::IO qw(parse);
 
   my $string = '((A,B),(C,D));(((A,B),C)D);';
-  my $forest = parse( -format => 'fastnewick', -string => $string );
+  my $forest = parse( -format => 'newick', -string => $string );
 
   print ref $forest; # prints 'Bio::Phylo::Forest'
 
@@ -488,9 +488,9 @@ phylogenetic information and entities.
 The Bio::Phylo object is never used directly. However, all
 other objects inherit from it, which means that all objects
 have getters and setters for their name, description, score.
-They can all return a globally unique ID, can all be stringified
-to XML, and keep track of more administrative things such
-as the version number of the release.
+They can all return a globally unique ID, log messages, and
+keep track of more administrative things such as the version
+number of the release.
 
 =item The Bio::Phylo::Forest::* namespace
 
@@ -537,8 +537,8 @@ Once a node has served its purpose it
 can be destroyed. For this purpose there is a
 DESTRUCTOR, which cleans up once we're done with the
 node. However, in most cases you don't have to worry
-about constructing and destroying nodes as this is done
-for you by a parser or a generator as needs arise.
+about constructing and destroying nodes as this is handled
+by Bio::Phylo and perl for you.
 
 For a detailed description of all the node methods,
 their arguments and return values, consult the node
@@ -759,7 +759,23 @@ by a dash:
 
 Argument type is always checked. Numbers are checked for being
 numbers, names are checked for being sane strings, without '():;,'.
-Objects are checked for type.
+Objects are checked for type. Internally, Bio::Phylo never checks
+type based on class name, for example using
+C<$obj->isa('Some::Class')>. Instead, object identity is validated
+using a system of constants defined in L<Bio::Phylo::Util::CONSTANT>.
+If Bio::Phylo needs to test validate object type, it'll do something
+like:
+
+ use Bio::Phylo::Util::CONSTANT qw(:objecttypes);
+ use Bio::Phylo::Forest::Node;
+ my $node = Bio::Phylo::Forest::Node->new;
+ print "It's a node!" if $node->_type == _NODE_;
+
+Hence, Bio::Phylo uses a form of "duck typing" ("if it walks like a
+duck, and quacks like a duck, it probably is a duck"), as opposed
+to one that is based on inheritance from a java-like interface, as
+is the convention in bioperl. Both systems have their advantages and
+drawbacks, but luckily they can coexist side by without problems.
 
 =head2 Constructor arguments
 
@@ -897,7 +913,9 @@ implemented, must likely using BioPerl tools.
 
 =item Databases
 
-Implement access to TreeBase, Pandit and TolWeb.
+Implement access to TreeBase, Pandit, TolWeb and other databases. This could
+probably be done most elegantly by expanding the mediator system
+(Bio::Phylo::Mediators::* classes).
 
 =item Tests
 
@@ -907,9 +925,9 @@ more.
 =item Interoperability with BioPerl and CIPRES
 
 The eventual aim of the Bio::Phylo project is to glue together the phylogenetics 
-aspects of BioPerl (L<http://www.bioperl.org>), L<Bio::NEXUS> and the CIPRES project
-(L<http://www.phylo.org>). Refer to the L<Bio::ObjectCompat> document for
-discussion on this issue.
+aspects of BioPerl (L<http://www.bioperl.org>), L<Bio::NEXUS> and the CIPRES
+project (L<http://www.phylo.org>). Refer to the L<Bio::ObjectCompat> document
+for discussion on this issue.
 
 =back
 
@@ -929,7 +947,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
- $Id: Manual.pod 3396 2007-03-26 18:08:40Z rvosa $
+ $Id: Manual.pod 3409 2007-03-27 21:27:44Z rvosa $
 
 =head1 AUTHOR
 

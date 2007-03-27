@@ -1,4 +1,4 @@
-# $Id: Phylo.pm 3396 2007-03-26 18:08:40Z rvosa $
+# $Id: Phylo.pm 3409 2007-03-27 21:27:44Z rvosa $
 package Bio::Phylo;
 use strict;
 use warnings FATAL => 'all';
@@ -21,9 +21,9 @@ use Bio::Phylo::Util::Exceptions;
 use Bio::Phylo::Mediators::TaxaMediator;
 
 # Include the revision number from CIPRES subversion in $VERSION
-my $rev = '$Id: Phylo.pm 3396 2007-03-26 18:08:40Z rvosa $';
+my $rev = '$Id: Phylo.pm 3409 2007-03-27 21:27:44Z rvosa $';
 $rev =~ s/^[^\d]+(\d+)\b.*$/$1/;
-$VERSION  = "0.16_RC3";
+$VERSION  = "0.16_RC4";
 $VERSION .= "_$rev";
 
 # The following allows for semantics like:
@@ -94,9 +94,27 @@ Bio::Phylo - Phylogenetic analysis using perl.
 
 =head1 DESCRIPTION
 
-This is the base class for the Bio::Phylo package. Most other modules inherit
-from it, the methods defined here are applicable to them. Consult the manual
-for usage examples: L<Bio::Phylo::Manual>.
+This is the base class for the Bio::Phylo OO package. In this file, methods
+are defined that are performed by other objects in the Bio::Phylo release,
+i.e. objects that inherit from this class.
+
+For general information on how to use Bio::Phylo, consult the manual
+(L<Bio::Phylo::Manual>); for information on using Bio::Phylo in combination with
+Bioperl (L<http://www.bioperl.org>) and Bio::Nexus
+(L<http://search.cpan.org/~tjhladish/Bio-NEXUS>), consult the object
+compatibility document (L<Bio::ObjectCompat>).
+
+If you come here because you are trying to debug a problem you run into in
+using Bio::Phylo, you may be interested in the "exceptions" system as discussed
+in L<Bio::Phylo::Util::Exceptions>. In addition, you may find the logging system
+that is discussed below of use.
+
+Documentation on the various scripts included in this release is embedded in
+their respective source files, which, like all L<perldoc> can be viewed in
+various ways using the nroff-like formatter C<perldoc> F<<filename>> or using
+one of the many pod2* convertors such as pod2text, pod2html, pod2latex and so
+on. In addition, the scripts generally have a B<-h> or B<--help> or B<-?>
+option.
 
 =head1 METHODS
 
@@ -106,11 +124,14 @@ for usage examples: L<Bio::Phylo::Manual>.
 
 =item new()
 
-The Bio::Phylo object itself, and thus its constructor, is rarely, if ever, used
-directly. Rather, all other objects in this package inherit its methods, and call
-its constructor internally. The arguments shown here can thus also be passed to
-any of the child classes' constructors, which will pass them on up the 
-inheritance tree.
+The Bio::Phylo root object itself, and thus its constructor, is rarely, if ever,
+used directly. Rather, all other objects in this package inherit its methods,
+and call its constructor internally. The arguments shown here can thus also be
+passed to any of the child classes' constructors, which will pass them on up the 
+inheritance tree. Generally, constructors in Bio::Phylo subclasses can process
+as arguments all methods that have set_* in their names. The arguments are named
+for the methods, but "set_" has been replaced with a dash "-", e.g. the method
+"set_name" becomes the argument "-name" in the constructor.
 
  Type    : Constructor
  Title   : new
@@ -800,17 +821,6 @@ an exception object), 1 = errors (hopefully recoverable), 2 = warnings
 
     sub VERSION { $VERSION; }
 
-=item to_xml()
-
- Type    : Format converter
- Title   : to_xml
- Usage   : my $xml = $obj->to_xml;
- Function: Returns an XML representation of the invocant object.
- Returns : SCALAR
- Args    : NONE
-
-=cut
-
 =back
 
 =head2 DESTRUCTOR
@@ -979,7 +989,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Phylo.pm 3396 2007-03-26 18:08:40Z rvosa $
+$Id: Phylo.pm 3409 2007-03-27 21:27:44Z rvosa $
 
 =head1 AUTHOR
 
