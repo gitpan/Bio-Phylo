@@ -30,11 +30,19 @@ my $build = Module::Build->new(
         'resources'  => {
             'homepage'    => 'http://search.cpan.org/~rvosa/Bio-Phylo/',
             'bugtracker'  => 'http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Bio-Phylo',
-            'MailingList' => 'mailto:rvosa@sfu.ca',
-            'repository'  => 'http://nladr-cvs.sdsc.edu/svn/CIPRES/cipresdev/trunk/cipres/framework/perl/'
+            'MailingList' => 'mailto:rvos@interchange.ubc.ca',
+            'repository'  => 'http://nladr-cvs.sdsc.edu/svn/CIPRES/cipresdev/trunk/cipres/framework/perl/phylo'
         },
     },
-    'script_files' => [ qw|bin/age2bl.pl bin/bremer.pl bin/dnd2svg.pl bin/dndtag.pl bin/droptip.pl bin/LRmb.pl bin/postmb.pl| ],
+    'script_files' => [ 
+    	'bin/age2bl.pl', 
+    	'bin/bremer.pl', 
+    	'bin/dnd2svg.pl', 
+    	'bin/dndtag.pl', 
+    	'bin/droptip.pl', 
+    	'bin/LRmb.pl', 
+    	'bin/postmb.pl', 
+    ],
 );
 
 $build->create_build_script;

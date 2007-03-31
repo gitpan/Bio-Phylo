@@ -23,7 +23,7 @@ use Bio::Phylo::Mediators::TaxaMediator;
 # Include the revision number from CIPRES subversion in $VERSION
 my $rev = '$Id: Phylo.pm 3409 2007-03-27 21:27:44Z rvosa $';
 $rev =~ s/^[^\d]+(\d+)\b.*$/$1/;
-$VERSION  = "0.16_RC4";
+$VERSION  = "0.16";
 $VERSION .= "_$rev";
 
 # The following allows for semantics like:

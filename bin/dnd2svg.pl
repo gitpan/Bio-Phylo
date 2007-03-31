@@ -1,15 +1,11 @@
 #!/usr/bin/perl
-# $Id: dnd2svg.pl 3387 2007-03-25 16:06:50Z rvosa $
+# $Id: dnd2svg.pl 3478 2007-03-30 14:48:07Z rvosa $
 # Subversion: $Rev: 145 $
 # This script draws the newick tree description in the input file as a
 # scalable vector drawing.
 #
 # usage:
 # perl dnd2svg.pl <tree file>
-
-use lib '/Users/rvosa/src/bioperl/bioperl-live';
-use lib '/Users/rvosa/CIPRES-and-deps/cipres-1.0.1/build/lib/perl/lib';
-use lib '/Users/rvosa/CIPRES-and-deps/cipres-1.0.1/framework/perl/phylo/lib';
 
 use strict;
 use warnings;

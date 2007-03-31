@@ -1,17 +1,18 @@
-# $Id: Makefile.PL 2904 2007-01-30 23:29:05Z rvosa $
+# $Id: Makefile.PL 3432 2007-03-29 13:29:54Z rvosa $
 use strict;
 use warnings;
 use ExtUtils::MakeMaker;
 
 WriteMakefile(
     NAME                => 'Bio::Phylo',
-    AUTHOR              => 'Rutger Vos <rvosa@sfu.ca>',
+    AUTHOR              => 'Rutger Vos <rvos@interchange.ubc.ca>',
     VERSION_FROM        => 'lib/Bio/Phylo.pm',
     ABSTRACT_FROM       => 'lib/Bio/Phylo.pm',
     EXE_FILES           => [
                             'bin/age2bl.pl',
                             'bin/bremer.pl',
                             'bin/dnd2svg.pl',
+                            'bin/dndtag.pl',
                             'bin/droptip.pl',
                             'bin/LRmb.pl',
                             'bin/postmb.pl'
