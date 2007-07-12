@@ -8,6 +8,7 @@ use Bio::Phylo::Util::Exceptions;
 use Bio::Phylo::Matrices::TypeSafeData;
 use Bio::Phylo::Adaptor;
 use Bio::Phylo::Util::CONSTANT qw(:objecttypes looks_like_number);
+
 @ISA = qw(
     Bio::Phylo::Listable 
     Bio::Phylo::Taxa::TaxonLinker 
@@ -74,8 +75,7 @@ which can be linked to a taxon object.
  Args    : None required. Optional:
            -taxon  => $taxon,
            -weight => 0.234,
-           -type   => DNA,
-           -char   => [ 'G','A','T','T','A','C','A' ],
+           -type   => DNA,           
            -pos    => 2,
 
 
@@ -147,21 +147,31 @@ which can be linked to a taxon object.
                * a single character;
                * a string of characters;
                * an array reference of characters;
+               * an array of characters;
  Comments: Note that on assigning characters to a datum,
            previously set annotations are removed.
 
 =cut
 
     sub set_char { 
-        my ( $self, $char ) = @_;
-        if ( not UNIVERSAL::isa( $char, 'ARRAY' ) ) {
-            my $array = $self->get_type_object->split( $char );
-            $char{ $self->get_id } = $array;
+        my $self = shift;
+        my @data;
+        for my $arg ( @_ ) {
+        	if ( UNIVERSAL::isa( $arg, 'ARRAY') ) {
+        		push @data, @{ $arg };
+        	}
+        	else {
+        		push @data, @{ $self->get_type_object->split( $arg ) };
+        	}
+        }
+        if ( $self->can_contain( @data ) ) {
+        	$self->insert( $_ ) for @data;
         }
         else {
-            $char{ $self->get_id } = $char;
+        	Bio::Phylo::Util::Exceptions::InvalidData->throw(
+                'error' => 'Invalid data!',
+            );
         }
-        $self->validate;
         return $self;
     }
 
@@ -335,9 +345,9 @@ which can be linked to a taxon object.
 
     sub get_char {
         my $self = shift;
-        my $id = $self->get_id;
-        if ( $char{$id} ) {
-            return wantarray ? @{ $char{$id} } : $self->get_type_object->join( $char{$id} );
+        my @data = @{ $self->get_entities };
+        if ( @data ) {
+            return wantarray ? @data : $self->get_type_object->join( \@data );
         }
         else {
             return wantarray ? () : '';
@@ -421,9 +431,59 @@ which can be linked to a taxon object.
 
     sub get_length {
         my $self = shift;
-        my @chars = $self->get_char;
-        return scalar @chars;
+        my @char = $self->get_char;
+        $self->info( "Chars: @char" );
+        my $length = 0;
+        if ( my $matrix = $self->_get_container ) {
+        	for my $datum ( @{ $matrix->get_entities } ) {
+        		my $thislength = scalar @{ $datum->get_entities };
+        		$length = $thislength if $thislength > $length;
+        	}
+        	return $length;
+        }
+        else {
+        	return $self->last_index + 1;
+        }
     }
+
+=item get_by_index()
+
+ Type    : Accessor
+ Title   : get_by_index
+ Usage   : my $val = $datum->get_by_index($i);
+ Function: Retrieves state at index $i.
+ Returns : a character state.
+ Args    : INT
+
+=cut
+    
+    sub get_by_index {
+    	my ( $self, $index ) = @_;
+    	my $val = $self->SUPER::get_by_index( $index );
+    	return defined $val ? $val : $self->get_type_object->get_missing;
+    }
+
+=back
+
+=head2 TESTS
+
+=over
+
+=item can_contain()
+
+ Type    : Test
+ Title   : can_contain
+ Usage   : &do_something if $datum->can_contain( @args );
+ Function: Tests if $datum can contain @args
+ Returns : BOOLEAN
+ Args    : One or more arguments as can be provided to set_char
+
+=cut
+
+	sub can_contain {
+		my $self = shift;
+		return $self->get_type_object->is_valid( @_ );	
+	}
 
 =back
 
@@ -538,6 +598,22 @@ which can be linked to a taxon object.
             delete $field->{$id};
         }
     }
+    
+    sub FETCHSIZE {
+    	my $self = shift;
+    	if ( my $matrix = $self->_get_container ) {
+    		return $matrix->get_ntax - 1;
+    	}
+    	else {
+    		return $self->get_length - 1;
+    	}
+    }
+    
+    sub FETCH {
+        my ( $self, $index ) = @_;
+        my $val = $self->get_by_index( $index );
+        return defined $val ? $val : $self->get_type_object->get_missing;
+    }
         
 }
 
@@ -589,7 +665,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Datum.pm 3396 2007-03-26 18:08:40Z rvosa $
+$Id: Datum.pm 4158 2007-07-11 01:34:44Z rvosa $
 
 =head1 AUTHOR
 

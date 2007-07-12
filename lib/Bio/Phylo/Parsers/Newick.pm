@@ -1,4 +1,4 @@
-# $Id: Newick.pm 3291 2007-03-17 11:34:46Z rvosa $
+# $Id: Newick.pm 4167 2007-07-11 01:36:38Z rvosa $
 package Bio::Phylo::Parsers::Newick;
 use strict;
 use Bio::Phylo::IO;
@@ -425,7 +425,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Newick.pm 3291 2007-03-17 11:34:46Z rvosa $
+$Id: Newick.pm 4167 2007-07-11 01:36:38Z rvosa $
 
 =head1 AUTHOR
 

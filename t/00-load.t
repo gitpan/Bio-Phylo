@@ -1,4 +1,4 @@
-# $Id: 00-load.t 1185 2006-05-26 09:04:17Z rvosa $
+# $Id: 00-load.t 4186 2007-07-11 02:15:56Z rvosa $
 use Test::More tests => 1;
 
 BEGIN {

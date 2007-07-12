@@ -1,4 +1,4 @@
-# $Id: CONSTANT.pm 3293 2007-03-17 17:12:43Z rvosa $
+# $Id: CONSTANT.pm 4169 2007-07-11 01:36:59Z rvosa $
 package Bio::Phylo::Util::CONSTANT;
 use strict;
 
@@ -747,7 +747,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: CONSTANT.pm 3293 2007-03-17 17:12:43Z rvosa $
+$Id: CONSTANT.pm 4169 2007-07-11 01:36:59Z rvosa $
 
 =head1 AUTHOR
 

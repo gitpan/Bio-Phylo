@@ -1,9 +1,10 @@
-# $Id: Nexus.pm 3292 2007-03-17 16:52:08Z rvosa $
+# $Id: Nexus.pm 4193 2007-07-11 20:26:06Z rvosa $
 # Subversion: $Rev: 190 $
 package Bio::Phylo::Unparsers::Nexus;
 use strict;
 use Bio::Phylo::IO;
-
+use Bio::Phylo::Util::CONSTANT qw(:objecttypes);
+use Bio::Phylo::Util::Exceptions;
 use vars '@ISA';
 @ISA=qw(Bio::Phylo::IO);
 
@@ -19,7 +20,27 @@ inside.
 
 This module turns a L<Bio::Phylo::Matrices::Matrix> object into a nexus
 formatted matrix. It is called by the L<Bio::Phylo::IO> facade, don't call it
-directly.
+directly. You can pass the following additional arguments to the unparse call:
+	
+	# an array reference of matrix, forest and taxa objects:
+	-phylo => [ $block1, $block2 ]
+	
+	# the arguments that can be passed for matrix objects, 
+	# refer to Bio::Phylo::Matrices::Matrix::to_nexus:
+	-matrix_args => {}
+
+	# the arguments that can be passed for forest objects, 
+	# refer to Bio::Phylo::Forest::to_nexus:
+	-forest_args => {}
+
+	# the arguments that can be passed for taxa objects, 
+	# refer to Bio::Phylo::Taxa::to_nexus:
+	-taxa_args => {}	
+	
+	OR:
+	
+	# for backward compatibility:
+	-phylo => $matrix	
 
 =begin comment
 
@@ -71,44 +92,54 @@ sub _new {
 
 sub _to_string {
     my $self   = shift;
-    my $matrix = $self->{'PHYLO'};
-    my $string = "BEGIN DATA;\n[! Data block written by " . ref $self;
-    $string .= " " . $self->VERSION . " on " . localtime() . " ]\n";
-    $string .= "    DIMENSIONS NTAX=" . $matrix->get_ntax() . ' ';
-    $string .= 'NCHAR=' . $matrix->get_nchar() . ";\n";
-    $string .= "    FORMAT DATATYPE=" . $matrix->get_type();
-    #$string .= $matrix->get_respectcase ? " RESPECTCASE" : "";
-    $string .= " MATCHCHAR=" . $matrix->get_matchchar if $matrix->get_matchchar;
-    $string .= " MISSING=" . $matrix->get_missing();
-    $string .= " GAP=" . $matrix->get_gap() if $matrix->get_gap();
-    $string .= ";\n";
-    $string .= "    OPTIONS GAPMODE=";
-    $string .= $matrix->get_gapmode ? "NEWSTATE " : "MISSING ";
-    $string .= $matrix->get_polymorphism ? "MSTAXA=POLYMORPH;\n" : "MSTAXA=UNCERTAIN;\n";
-    my $charlabels;
-    if ( @{ $matrix->get_charlabels } ) {
-    	for my $label ( @{ $matrix->get_charlabels } ) {
-    		$charlabels .= $label =~ /\s/ ? " '$label'" : " $label";
+    my $blocks = $self->{'PHYLO'};
+    my $nexus  = "#NEXUS\n";
+    my $type;
+    eval { $type = $blocks->_type  };
+
+    # array?
+    if ( $@ ) {
+    	for my $block ( @$blocks ) {
+    		eval { $type = $block->_type };
+    		my %args;
+    		if ( $type == _FOREST_ ) {
+    			if ( exists $self->{'FOREST_ARGS'} ) {
+    				%args = %{ $self->{'FOREST_ARGS'} };
+    			}
+    		}
+    		elsif ( $type == _TAXA_ ) {
+    			if ( exists $self->{'TAXA_ARGS'} ) {
+    				%args = %{ $self->{'TAXA_ARGS'} };
+    			}    			
+    		}
+    		elsif ( $type == _MATRIX_ ) {
+    			if ( exists $self->{'MATRIX_ARGS'} ) {
+    				%args = %{ $self->{'MATRIX_ARGS'} };
+    			}     			
+    		}
+    		elsif ( $@ ) {
+		    	Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
+    				'error' => "Can't unparse this object: $blocks"
+    			);    			
+    		}
+    		$nexus .= $block->to_nexus(%args);
     	}
-	$string .= "    CHARLABELS$charlabels;\n";
     }
-    $string .= "    MATRIX\n";
-    my $length = 0;
-    foreach my $datum ( @{ $matrix->get_entities } ) {
-        $length = length( $datum->get_name )
-          if length( $datum->get_name ) > $length;
+    
+    # matrix?
+    elsif ( defined $type and $type == _MATRIX_ ) {
+    	$nexus .= $blocks->to_nexus;
     }
-    $length += 4;
-    my $sp = ' ';
-    foreach my $datum ( @{ $matrix->get_entities } ) {
-        $string .= "        "
-          . $datum->get_name
-          . ( $sp x ( $length - length( $datum->get_name ) ) );
-		$string .= $datum->get_char;
-        $string .= "\n";
+    
+    # wrong!
+    else {
+    	Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
+    		'error' => "Can't unparse this object: $blocks"
+    	);
     }
-    $string .= "    ;\nEND;\n";
-    return $string;
+    
+    return $nexus;
+
 }
 
 =head1 SEE ALSO
@@ -142,7 +173,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Nexus.pm 3292 2007-03-17 16:52:08Z rvosa $
+$Id: Nexus.pm 4193 2007-07-11 20:26:06Z rvosa $
 
 =head1 AUTHOR
 

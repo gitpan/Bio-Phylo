@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# $Id: droptip.pl 3388 2007-03-25 23:46:40Z rvosa $
+# $Id: droptip.pl 4183 2007-07-11 02:15:03Z rvosa $
 # Subversion: $Rev: 145 $
 # This script is used to create a subtree from a larger tree. The first
 # command line argument is the path to a text file containing a single

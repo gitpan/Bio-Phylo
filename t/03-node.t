@@ -1,7 +1,7 @@
-# $Id: 03-node.t 3292 2007-03-17 16:52:08Z rvosa $
+# $Id: 03-node.t 4186 2007-07-11 02:15:56Z rvosa $
 use strict;
 use warnings;
-use Test::More tests => 71;
+use Test::More tests => 73;
 use Bio::Phylo::IO qw(parse unparse);
 use Bio::Phylo::Forest::Node;
 use Bio::Phylo::Taxa::Taxon;
@@ -114,6 +114,13 @@ ok( $root->set_next_sister(),                     '68 remove next sister' );
 ok( $root->set_previous_sister(),                 '69 remove previous sister' );
 ok( $root->set_first_daughter(),                  '70 remove first daughter' );
 ok( $root->set_last_daughter(),                   '71 remove last daughter' );
+ok( $bigroot->to_newick,                          '72 write subtree to newick');
+my $H = shift @{ $trees[3]->get_by_regular_expression( 
+	'-value' => 'get_name', 
+	'-match' => qr/^H$/
+) };
+$H->set_root_below;
+ok( $trees[3]->get_root->get_name eq 'root', '73 reroot tree')
 __DATA__
 (H:1,(G:1,(F:1,(E:1,(D:1,(C:1,(A:1,B:1):1):1):1):1):1):1):0;
 (H:1,(G:1,(F:1,((C:1,(A:1,B:1):1):1,(D:1,E:1):1):1):1):1):0;

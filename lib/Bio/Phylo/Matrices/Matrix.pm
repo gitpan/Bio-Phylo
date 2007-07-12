@@ -338,9 +338,9 @@ sub get_nchar {
     my $nchar = 0;
     my $i = 1;
     for my $row ( @{ $self->get_entities } ) {
-	my $rowlength = $row->get_length;
-	$self->debug( sprintf("counted %s chars in row %s", $rowlength, $i++) );
-	$nchar = $rowlength if $rowlength > $nchar;
+		my $rowlength = $row->get_length;
+		$self->debug( sprintf("counted %s chars in row %s", $rowlength, $i++) );
+		$nchar = $rowlength if $rowlength > $nchar;
     }
     return $nchar;
 }
@@ -434,15 +434,129 @@ sub get_respectcase {
  Usage   : my $data_block = $matrix->to_nexus;
  Function: Converts matrix object into a nexus data block.
  Returns : Nexus data block (SCALAR).
- Args    : none
- Comments:
+ Args    : The following options are available:
+ 
+ 		   # if set, writes TITLE & LINK tokens
+ 		   '-links' => 1
+ 		   
+           # if set, writes block as a "data" block (deprecated, but used by mrbayes),
+           # otherwise writes "characters" block (default)
+ 	       -data_block => 1
+ 	       
+ 	       # if set, writes "RESPECTCASE" token
+ 	       -respectcase => 1
+ 	       
+ 	       # if set, writes "GAPMODE=(NEWSTATE of MISSING)" token
+ 	       -gapmode => 1
+ 	       
+ 	       # if set, writes "MSTAXA=(POLYMORPH or UNCERTAIN)" token
+ 	       -polymorphism => 1
+ 	       
+ 	       # if set, writes character labels
+ 	       -charlabels => 1
+ 	       
+		   # by default, names for sequences are derived from $datum->get_name, if 
+		   # 'internal' is specified, uses $datum->get_internal_name, if 'taxon'
+		   # uses $datum->get_taxon->get_name, if 'taxon_internal' uses 
+		   # $datum->get_taxon->get_internal_name, if $key, uses $datum->get_generic($key)
+		   -tipnames => one of (internal|taxon|taxon_internal|$key)
 
 =cut
 
 sub to_nexus {
     my $self = shift;
-    my $nexus = unparse( '-format' => 'nexus', '-phylo' => $self );
-    return $nexus;
+    my %args = @_;
+    my $string = sprintf "BEGIN %s;\n", $args{'-data_block'} ? 'DATA' : 'CHARACTERS';
+    $string .=   "[! Characters block written by " . ref($self) . " " . $self->VERSION . " on " . localtime() . " ]\n";
+    
+    # write links
+    if ( $args{'-links'} ) {
+    	$string .= sprintf "\tTITLE %s;\n", $self->get_internal_name;
+    	$string .= sprintf "\tLINK TAXA=%s;\n", $self->get_taxa->get_internal_name if $self->get_taxa;
+    }
+    
+    # dimensions token line - data block defines NTAX, characters block doesn't
+    if ( $args{'-data_block'} ) {
+    	$string .= "\tDIMENSIONS NTAX=" . $self->get_ntax() . ' ';
+    	$string .= 'NCHAR=' . $self->get_nchar() . ";\n";
+    }
+    else {
+    	$string .= "\tDIMENSIONS NCHAR=" . $self->get_nchar() . ";\n";    
+    }
+    
+    # format token line 
+    $string .= "\tFORMAT DATATYPE=" . $self->get_type();
+    $string .= ( $self->get_respectcase ? " RESPECTCASE" : "" ) if $args{'-respectcase'}; # mrbayes no like
+    $string .= " MATCHCHAR=" . $self->get_matchchar if $self->get_matchchar;
+    $string .= " MISSING=" . $self->get_missing();
+    $string .= " GAP=" . $self->get_gap() if $self->get_gap();
+    $string .= ";\n";
+    
+    # options token line (mrbayes no like)
+    if ( $args{'-gapmode'} or $args{'-polymorphism'} ) {
+    	$string .= "\tOPTIONS ";
+    	$string .= "GAPMODE=" . ( $self->get_gapmode      ? "NEWSTATE "  : "MISSING "   ) if $args{'-gapmode'};
+    	$string .= "MSTAXA="  . ( $self->get_polymorphism ? "POLYMORPH " : "UNCERTAIN " ) if $args{'-polymorphism'};
+    	$string .= ";\n";
+    }
+
+	# charlabels token line
+	if ( $args{'-charlabels'} ) {
+    	my $charlabels;
+	    if ( my @labels = @{ $self->get_charlabels } ) {
+    		for my $label ( @labels ) {
+    			$charlabels .= $label =~ /\s/ ? " '$label'" : " $label";
+	    	}
+			$string .= "\tCHARLABELS$charlabels;\n";
+    	}
+	}
+	
+	# ...and write matrix!
+    $string .= "\tMATRIX\n";
+    my $length = 0;
+    foreach my $datum ( @{ $self->get_entities } ) {
+        $length = length( $datum->get_name )
+          if length( $datum->get_name ) > $length;
+    }
+    $length += 4;
+    my $sp = ' ';
+    foreach my $datum ( @{ $self->get_entities } ) {
+        $string .= "\t\t";
+		
+		# construct name
+		my $name;
+		if ( not $args{'-seqnames'} ) {		
+			$name = $datum->get_name;
+		}
+		elsif ( $args{'-seqnames'} =~ /^internal$/i ) {					
+			$name = $datum->get_internal_name;
+		}
+		elsif ( $args{'-seqnames'} =~ /^taxon/i and $datum->get_taxon ) {
+			if ( $args{'-seqnames'} =~ /^taxon_internal$/i ) {
+				$name = $datum->get_taxon->get_internal_name;
+			}
+			elsif ( $args{'-seqnames'} =~ /^taxon$/i ) {
+				$name = $datum->get_taxon->get_name;
+			}
+		}
+		else {
+			$name = $datum->get_generic( $args{'-seqnames'} );
+		}        
+        $string .= $name . ( $sp x ( $length - length( $name ) ) );
+        
+        # write states
+		for my $i ( 0 .. ( $self->get_nchar - 1 ) ) {
+			if ( $datum->get_type =~ m/^CONTINUOUS$/ ) {
+				$string .= $datum->get_by_index($i) . " ";
+			}
+			else {
+				$string .= $datum->get_by_index($i);
+			}
+		}
+        $string .= "\n";
+    }
+    $string .= "\t;\nEND;\n";
+    return $string;
 }
 
 =item insert()
@@ -527,6 +641,7 @@ sub validate {
 
 sub check_taxa {
     my $self = shift;
+    
     # is linked to taxa
     if ( my $taxa = $self->get_taxa ) {
         my %taxa = map { $_->get_internal_name => $_ } @{ $taxa->get_entities };
@@ -547,11 +662,10 @@ sub check_taxa {
         }
         
     }
+    
     # not linked
     else {
-        my $row = $self->first;
-        $row->set_taxon();
-        for ( $row = $self->next ) {
+        for my $row ( @{ $self->get_entities } ) {
             $row->set_taxon();
         }
     }
@@ -638,7 +752,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Matrix.pm 3396 2007-03-26 18:08:40Z rvosa $
+$Id: Matrix.pm 4193 2007-07-11 20:26:06Z rvosa $
 
 =head1 AUTHOR
 

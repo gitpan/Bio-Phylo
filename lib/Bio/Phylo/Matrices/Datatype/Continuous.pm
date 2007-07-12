@@ -37,9 +37,9 @@ objects.
 
 =cut
 
-sub set_lookup { 
-    shift->warn( "Can't set lookup table for continuous characters" );
-    return;
+sub set_lookup {
+	shift->warn("Can't set lookup table for continuous characters");
+	return;
 }
 
 =back
@@ -59,9 +59,9 @@ sub set_lookup {
 
 =cut
 
-sub get_lookup { 
-    shift->warn( "Can't get lookup table for continuous characters" );
-    return;
+sub get_lookup {
+	shift->warn("Can't get lookup table for continuous characters");
+	return;
 }
 
 =back
@@ -84,17 +84,29 @@ sub get_lookup {
 =cut
 
 sub is_valid {
-    my ( $self, $datum ) = @_;
-    my $missing = $self->get_missing;
-    CHAR_CHECK: for my $char ( $datum->get_char ) {
-        if ( looks_like_number $char || $char eq $missing ) {
-            next CHAR_CHECK;
-        }
-        else {
-            return 0;
-        }
-    }
-    return 1;
+	my $self = shift;
+	my @data;
+	for my $arg (@_) {
+		if ( UNIVERSAL::can( $arg, 'get_char' ) ) {
+			push @data, $arg->get_char;
+		}
+		elsif ( UNIVERSAL::isa( $arg, 'ARRAY' ) ) {
+			push @data, @{$arg};
+		}
+		else {
+			push @data, @{ $self->split($arg) };
+		}
+	}
+	my $missing = $self->get_missing;
+  CHAR_CHECK: for my $char ( @data ) {
+		if ( looks_like_number $char || $char eq $missing ) {
+			next CHAR_CHECK;
+		}
+		else {
+			return 0;
+		}
+	}
+	return 1;
 }
 
 =back
@@ -115,9 +127,9 @@ sub is_valid {
 =cut
 
 sub split {
-    my ( $self, $string ) = @_;
-    my @array = CORE::split /\s+/, $string;
-    return \@array;
+	my ( $self, $string ) = @_;
+	my @array = CORE::split /\s+/, $string;
+	return \@array;
 }
 
 =item join()
@@ -132,8 +144,8 @@ sub split {
 =cut
 
 sub join {
-    my ( $self, $array ) = @_;
-    return CORE::join ' ', @{ $array };
+	my ( $self, $array ) = @_;
+	return CORE::join ' ', @{$array};
 }
 
 $MISSING = '?';
@@ -172,7 +184,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Continuous.pm 3386 2007-03-24 16:22:25Z rvosa $
+$Id: Continuous.pm 4159 2007-07-11 01:34:55Z rvosa $
 
 =head1 AUTHOR
 

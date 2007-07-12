@@ -1,10 +1,16 @@
 Revision history for Bio::Phylo
+0.17 
+                       Fixed SVG tree drawing bug on multiple draws
+                       Added to_newick method for node objects
+                       Added set_root_below method for node objects
+                       Added NodeMediator class to manage node relations
+                       Added to_nexus method for taxa objects
 0.14 7/Sep/2006 14:23
                        Removed dependency on XML::Simple
 0.13 7/Sep/2006 0:08
                        Nexus parser now parses interleaved matrices
                        Dependency on Scalar::Util's newness is lessened
-				(i.e. dependency fix, should install easier)
+					   (i.e. dependency fix, should install easier)
                        Installation choice between MB and EUMM makefiles
 0.08 20/Feb/2006 15:14
                        Improved referential integrity between nodes,
@@ -26,14 +32,14 @@ Revision history for Bio::Phylo
 0.06, 0.07             Lots of things that I didn't write down
 0.05 30/Sep/2005 20:53 Added sequence and alignment objects
                        Added lots more tree methods
-		       Unified parsing and unparsing in a single IO module
+		               Unified parsing and unparsing in a single IO module
                        Newick parser now correctly parses multiline strings
                        Implemented exceptions: Bio::Phylo::Exceptions
                        There is a discussion forum:
                        		http://www.cpanforum.com/dist/Bio-Phylo
                        Autovivification of blessed hashes now prevented by using 'fields'
                        Implemented a single iterator interface for trees, tree objects, matrices, etc.
-		       Implemented a separate treedrawer object for SVG drawings
+		       		   Implemented a separate treedrawer object for SVG drawings
                        Updated and expanded the documentation
 
 0.04 20/Aug/2005 18:45 Added clone method to duplicate objects

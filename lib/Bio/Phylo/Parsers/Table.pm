@@ -1,4 +1,4 @@
-# $Id: Table.pm 3292 2007-03-17 16:52:08Z rvosa $
+# $Id: Table.pm 4167 2007-07-11 01:36:38Z rvosa $
 # Subversion: $Rev: 194 $
 package Bio::Phylo::Parsers::Table;
 use strict;
@@ -173,7 +173,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Table.pm 3292 2007-03-17 16:52:08Z rvosa $
+$Id: Table.pm 4167 2007-07-11 01:36:38Z rvosa $
 
 =head1 AUTHOR
 

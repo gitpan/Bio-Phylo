@@ -274,11 +274,23 @@ on single characters for categorical data).
 =cut
 
     sub is_valid {
-        my ( $self, $datum ) = @_;
+        my $self = shift;
+        my @data;
+        for my $arg ( @_ ) {
+        	if ( UNIVERSAL::can( $arg, 'get_char') ) {
+        		push @data, $arg->get_char;
+        	}
+        	elsif ( UNIVERSAL::isa( $arg, 'ARRAY') ) {
+        		push @data, @{ $arg };
+        	}
+        	else {
+        		push @data, @{ $self->split( $arg ) };
+        	}
+        }        
         my $type = $self->get_type;
         my $lookup = $self->get_lookup;
         my ( $missing, $gap ) = ( $self->get_missing, $self->get_gap );
-        CHAR_CHECK: for my $char ( $datum->get_char ) {
+        CHAR_CHECK: for my $char ( @data ) {
             my $uc = uc $char;
             next CHAR_CHECK if not defined $char;
             if ( exists $lookup->{$uc} || ( defined $missing && $uc eq $missing ) || ( defined $gap && $uc eq $gap ) ) {
@@ -442,7 +454,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Datatype.pm 3386 2007-03-24 16:22:25Z rvosa $
+$Id: Datatype.pm 4158 2007-07-11 01:34:44Z rvosa $
 
 =head1 AUTHOR
 

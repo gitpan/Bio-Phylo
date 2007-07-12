@@ -5,6 +5,7 @@ bin/dndtag.pl
 bin/droptip.pl
 bin/LRmb.pl
 bin/postmb.pl
+Build.PL
 Changes
 lib/Bio/ObjectCompat.pod
 lib/Bio/Phylo.pm
@@ -21,9 +22,6 @@ lib/Bio/Phylo/IO.pm
 lib/Bio/Phylo/Listable.pm
 lib/Bio/Phylo/Manual.pod
 lib/Bio/Phylo/Matrices.pm
-lib/Bio/Phylo/Matrices/Datum.pm
-lib/Bio/Phylo/Matrices/Matrix.pm
-lib/Bio/Phylo/Matrices/TypeSafeData.pm
 lib/Bio/Phylo/Matrices/Datatype.pm
 lib/Bio/Phylo/Matrices/Datatype/Continuous.pm
 lib/Bio/Phylo/Matrices/Datatype/Custom.pm
@@ -33,14 +31,18 @@ lib/Bio/Phylo/Matrices/Datatype/Protein.pm
 lib/Bio/Phylo/Matrices/Datatype/Restriction.pm
 lib/Bio/Phylo/Matrices/Datatype/Rna.pm
 lib/Bio/Phylo/Matrices/Datatype/Standard.pm
+lib/Bio/Phylo/Matrices/Datum.pm
+lib/Bio/Phylo/Matrices/Matrix.pm
+lib/Bio/Phylo/Matrices/TypeSafeData.pm
 lib/Bio/Phylo/Mediators/TaxaMediator.pm
+lib/Bio/Phylo/Mediators/NodeMediator.pm
 lib/Bio/Phylo/Parsers/Newick.pm
 lib/Bio/Phylo/Parsers/Nexus.pm
 lib/Bio/Phylo/Parsers/Table.pm
 lib/Bio/Phylo/Parsers/Taxlist.pm
 lib/Bio/Phylo/Taxa.pm
-lib/Bio/Phylo/Taxa/Taxon.pm
 lib/Bio/Phylo/Taxa/TaxaLinker.pm
+lib/Bio/Phylo/Taxa/Taxon.pm
 lib/Bio/Phylo/Taxa/TaxonLinker.pm
 lib/Bio/Phylo/Treedrawer.pm
 lib/Bio/Phylo/Treedrawer/Svg.pm
@@ -53,8 +55,8 @@ lib/Bio/Phylo/Util/Exceptions.pm
 lib/Bio/Phylo/Util/IDPool.pm
 lib/Bio/Phylo/Util/XMLWritable.pm
 Makefile.PL
-Build.PL
 MANIFEST			This list of files
+META.yml
 README
 t/00-load.t
 t/01-phylo.t
@@ -82,4 +84,4 @@ t/regress_18208.t
 t/regress_21209.t
 t/regress_21417.t
 t/regress_22813.t
-META.yml
+t/regress_26332.t

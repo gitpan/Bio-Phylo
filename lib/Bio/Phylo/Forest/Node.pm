@@ -1,10 +1,11 @@
-# $Id: Node.pm 3396 2007-03-26 18:08:40Z rvosa $
+# $Id: Node.pm 4193 2007-07-11 20:26:06Z rvosa $
 package Bio::Phylo::Forest::Node;
 use strict;
 use Bio::Phylo::Taxa::TaxonLinker;
 use Bio::Phylo::Util::CONSTANT qw(_NODE_ _TREE_ _TAXON_ looks_like_number);
 use Bio::Phylo::Util::XMLWritable;
 use Bio::Phylo::Adaptor;
+use Bio::Phylo::Mediators::NodeMediator;
 use Scalar::Util qw(weaken);
 
 # classic @ISA manipulation, not using 'base'
@@ -17,12 +18,14 @@ use vars qw($VERSION @ISA);
 
 # set version based on svn rev
 my $version = $Bio::Phylo::VERSION;
-my $rev     = '$Id: Node.pm 3396 2007-03-26 18:08:40Z rvosa $';
+my $rev     = '$Id: Node.pm 4193 2007-07-11 20:26:06Z rvosa $';
 $rev        =~ s/^[^\d]+(\d+)\b.*$/$1/;
 $version    =~ s/_.+$/_$rev/;
 $VERSION    = $version;
 
 {
+	# node mediator singleton
+	my $mediator = Bio::Phylo::Mediators::NodeMediator->new;
 
     # inside out class arrays
     my %parent;
@@ -30,7 +33,7 @@ $VERSION    = $version;
     my %last_daughter;
     my %next_sister;
     my %previous_sister;
-    my %branch_length;
+    my %branch_length;    
 
     # $fields hashref necessary for object destruction
     my @fields = (
@@ -134,6 +137,9 @@ orphans all nodes can be reached without recourse to the tree object.
         # go up inheritance tree, eventually get an ID
         my $self = $class->SUPER::new( @_ );
         
+        # register with node mediator
+        $mediator->register( $self );
+        
         # adapt (or not, if $Bio::Phylo::COMPAT is not set)
         return Bio::Phylo::Adaptor->new( $self );
     }
@@ -165,6 +171,7 @@ orphans all nodes can be reached without recourse to the tree object.
         for my $i ( 0 .. $#k ) {
             $node->set_generic( $k[$i] => $v[$i] );
         }
+        $mediator->register( $node );
         return $node;
     }
 
@@ -200,8 +207,12 @@ orphans all nodes can be reached without recourse to the tree object.
                 );
             }
             else {
-                $parent{$id} = $parent;
-                weaken $parent{$id};
+                #$parent{$id} = $parent;
+                #weaken $parent{$id};
+                $mediator->set_link( 
+                	'node'   => $self, 
+                	'parent' => $parent, 
+                );
             }
         }
         else {
@@ -235,8 +246,12 @@ orphans all nodes can be reached without recourse to the tree object.
                 );
             }
             else {
-                $first_daughter{$id} = $first_daughter;
-                weaken $first_daughter{$id};
+                #$first_daughter{$id} = $first_daughter;
+                #weaken $first_daughter{$id};
+                $mediator->set_link(
+                	'node'           => $self,
+                	'first_daughter' => $first_daughter,
+                );
             }
         }
         else {
@@ -271,8 +286,12 @@ orphans all nodes can be reached without recourse to the tree object.
                 );
             }
             else {
-                $last_daughter{$id} = $last_daughter;
-                weaken $last_daughter{$id};
+                #$last_daughter{$id} = $last_daughter;
+                #weaken $last_daughter{$id};
+                $mediator->set_link(
+                	'node'          => $self,
+                	'last_daughter' => $last_daughter,
+                );
             }
         }
         else {
@@ -307,8 +326,12 @@ orphans all nodes can be reached without recourse to the tree object.
                 );
             }
             else {
-                $previous_sister{$id} = $previous_sister;
-                weaken $previous_sister{$id};
+                #$previous_sister{$id} = $previous_sister;
+                #weaken $previous_sister{$id};
+                $mediator->set_link(
+                	'node'            => $self,
+                	'previous_sister' => $previous_sister,
+                );
             }
         }
         else {
@@ -344,8 +367,12 @@ orphans all nodes can be reached without recourse to the tree object.
                 );
             }
             else {
-                $next_sister{$id} = $next_sister;
-                weaken $next_sister{$id};
+                #$next_sister{$id} = $next_sister;
+                #weaken $next_sister{$id};
+                $mediator->set_link(
+                	'node'        => $self,
+                	'next_sister' => $next_sister,
+                );
             }
         }
         else {
@@ -399,7 +426,7 @@ orphans all nodes can be reached without recourse to the tree object.
 =item set_branch_length()
 
  Type    : Mutator
- Title   : branch_length
+ Title   : set_branch_length
  Usage   : $node->set_branch_length(0.423e+2);
  Function: Assigns a node's branch length.
  Returns : Modified object.
@@ -426,6 +453,67 @@ orphans all nodes can be reached without recourse to the tree object.
         }
         return $self;
     }
+    
+=item set_root_below()
+
+ Type    : Mutator
+ Title   : set_root_below
+ Usage   : $node->set_root_below;
+ Function: Creates a new tree root below $node
+ Returns : New root if tree was modified, undef otherwise
+ Args    : NONE
+ Comments: throws Bio::Phylo::Util::Exceptions::BadArgs if 
+           $node isn't part of a tree
+
+=cut    
+
+	sub set_root_below {
+		my $node = shift;
+		if ( $node->get_ancestors ) {
+			my @ancestors = @{ $node->get_ancestors };
+			
+			# first collapse root
+			my $root = $ancestors[-1];					
+			my $lineage_containing_node;
+			my @children = @{ $root->get_children };
+			FIND_LINEAGE: for my $child ( @children ) {
+				if ( $child->get_id == $node->get_id ) {
+					$lineage_containing_node = $child;
+					last FIND_LINEAGE;					
+				}
+				for my $descendant ( @{ $child->get_descendants } ) {
+					if ( $descendant->get_id == $node->get_id ) {
+						$lineage_containing_node = $child;
+						last FIND_LINEAGE;
+					}
+				}
+			}
+			for my $child ( @children ) {
+				next if $child->get_id == $lineage_containing_node->get_id;
+				$child->set_parent( $lineage_containing_node );
+			}
+			
+			# now create new root as parent of $node
+			my $newroot = __PACKAGE__->new( '-name' => 'root' );
+			$node->set_parent( $newroot );
+			
+			# update list of ancestors, want to get rid of old root 
+			# at $ancestors[-1] and have new root as $ancestors[0]
+			unshift @ancestors, $newroot;
+			pop @ancestors;
+			
+			# update connections
+			for ( my $i = $#ancestors; $i >= 1; $i-- ) {
+				$ancestors[$i]->set_parent( $ancestors[ $i - 1] );
+			}			
+			
+			# delete root if part of tree, insert new
+			if ( my $tree = $node->_get_container ) {
+				$tree->delete( $root );
+				$tree->insert( $newroot );
+			}			
+		}
+	}
 
 =back
 
@@ -444,7 +532,7 @@ orphans all nodes can be reached without recourse to the tree object.
 
 =cut
 
-    sub get_parent { $parent{ shift->get_id } }
+    sub get_parent { $mediator->get_link( 'parent_of' => shift ) }
 
 =item get_first_daughter()
 
@@ -457,7 +545,7 @@ orphans all nodes can be reached without recourse to the tree object.
 
 =cut
 
-    sub get_first_daughter { $first_daughter{ shift->get_id } }
+    sub get_first_daughter { $mediator->get_link( 'first_daughter_of' => shift ) }
 
 =item get_last_daughter()
 
@@ -470,7 +558,7 @@ orphans all nodes can be reached without recourse to the tree object.
 
 =cut
 
-    sub get_last_daughter { $last_daughter{ shift->get_id } }
+    sub get_last_daughter { $mediator->get_link( 'last_daughter_of' => shift ) }
 
 =item get_previous_sister()
 
@@ -483,7 +571,7 @@ orphans all nodes can be reached without recourse to the tree object.
 
 =cut
 
-    sub get_previous_sister { $previous_sister{ shift->get_id } }
+    sub get_previous_sister { $mediator->get_link( 'previous_sister_of' => shift ) }
 
 =item get_next_sister()
 
@@ -496,7 +584,7 @@ orphans all nodes can be reached without recourse to the tree object.
 
 =cut
 
-    sub get_next_sister { $next_sister{ shift->get_id } }
+    sub get_next_sister { $mediator->get_link( 'next_sister_of' => shift ) }
 
 =item get_branch_length()
 
@@ -521,7 +609,7 @@ orphans all nodes can be reached without recourse to the tree object.
  Title   : get_ancestors
  Usage   : my @ancestors = @{ $node->get_ancestors };
  Function: Returns an array reference of ancestral nodes,
-           ordered from young to old.
+           ordered from young to old (i.e. $ancestors[-1] is root).
  Returns : Array reference of Bio::Phylo::Forest::Node
            objects.
  Args    : NONE
@@ -826,7 +914,7 @@ orphans all nodes can be reached without recourse to the tree object.
 =cut
 
     sub is_internal {
-	return !! shift->get_first_daughter;
+		return !! shift->get_first_daughter;
     }
 
 =item is_descendant_of()
@@ -1171,7 +1259,7 @@ orphans all nodes can be reached without recourse to the tree object.
 
 =item to_xml()
 
- Type    : Format converter
+ Type    : Serializer
  Title   : to_xml
  Usage   : my $xml = $obj->to_xml;
  Function: Turns the invocant object into an XML string.
@@ -1204,6 +1292,113 @@ orphans all nodes can be reached without recourse to the tree object.
         $xml .= '</' . $class . '>';
         return $xml;
     }
+    
+=item to_newick()
+
+ Type    : Serializer
+ Title   : to_newick
+ Usage   : my $newick = $obj->to_newick;
+ Function: Turns the invocant object into a newick string.
+ Returns : SCALAR
+ Args    : NONE
+
+=cut    
+    
+    {
+		my ( $root_id, $string );
+		no warnings 'uninitialized';
+		sub to_newick {
+			my $node = shift;
+			my %args = @_;	
+			$root_id = $node->get_id if not $root_id;
+			my $blformat = '%f';
+			
+			# first create the name
+			my $name;
+			if ( $node->is_terminal or $args{'-nodelabels'} ) {
+				if ( not $args{'-tipnames'} ) {		
+					$name = $node->get_name;
+				}
+				elsif ( $args{'-tipnames'} =~ /^internal$/i ) {
+					$name = $node->get_internal_name;
+				}
+				elsif ( $args{'-tipnames'} =~ /^taxon/i and $node->get_taxon ) {
+					if ( $args{'-tipnames'} =~ /^taxon_internal$/i ) {
+						$name = $node->get_taxon->get_internal_name;
+					}
+					elsif ( $args{'-tipnames'} =~ /^taxon$/i ) {
+						$name = $node->get_taxon->get_name;
+					}
+				}
+				else {
+					$name = $node->get_generic( $args{'-tipnames'} );
+				}
+				if ( $args{'-translate'} and exists $args{'-translate'}->{$name} ) {
+					$name = $args{'-translate'}->{$name};
+				}
+			}
+			
+			# now format branch length
+			my $branch_length;
+			if ( defined ( $branch_length = $node->get_branch_length ) ) {
+				if ( $args{'-blformat'} ) {
+					$blformat = $args{'-blformat'};
+				}
+				$branch_length = sprintf $blformat, $branch_length;
+			}
+			
+			# now format nhx
+			my $nhx;
+			if ( $args{'-nhxkeys'} ) {
+				my $sep;
+				if ( $args{'-nhxstyle'} =~ /^mesquite$/i ) {
+					$sep = ',';
+					$nhx = '[%';
+				}
+				else {
+					$sep = ':';
+					$nhx = '[&&NHX:';
+				}		
+				my @nhx;		
+				for my $i ( 0 .. $#{ $args{'-nhxkeys'} } ) {
+					my $key = $args{'-nhxkeys'}->[$i];
+					my $value = $node->get_generic($key);
+					push @nhx, " $key = $value " if $value;
+				}
+				if ( @nhx ) {
+					$nhx .= join $sep, @nhx;
+					$nhx .= ']'
+				}
+				else {
+					$nhx = '';
+				}
+			}
+			
+			# recurse further
+			if ( my $first_daughter = $node->get_first_daughter ) {
+				$string .= '(';
+				$first_daughter->to_newick(%args);
+			}
+			
+			# append to growing newick string
+			$string .= ')' if $node->get_first_daughter;			
+			$string .= $name if defined $name;
+			$string .= ':' . $branch_length if defined $branch_length;
+			$string .= $nhx if $nhx;
+			if ( $root_id == $node->get_id ) {
+				undef $root_id;
+				my $result = $string . ';';
+				undef $string;
+				return $result;
+			}
+			
+			# recurse further
+			elsif ( my $next_sister = $node->get_next_sister ) {
+				$string .= ',';
+				$next_sister->to_newick(%args);
+			}		
+		}
+	}
 
 =begin comment
 
@@ -1221,6 +1416,7 @@ orphans all nodes can be reached without recourse to the tree object.
     sub _cleanup {
         my $self = shift;
         $self->info("cleaning up '$self'");
+        $mediator->unregister( $self );
         my $id = $self->get_id;
         for my $field ( @fields ) {
             delete $field->{$id};
@@ -1300,7 +1496,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Node.pm 3396 2007-03-26 18:08:40Z rvosa $
+$Id: Node.pm 4193 2007-07-11 20:26:06Z rvosa $
 
 =head1 AUTHOR
 

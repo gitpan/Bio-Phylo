@@ -1,4 +1,4 @@
-# $Id: Nexus.pm 3318 2007-03-19 23:54:49Z rvosa $
+# $Id: Nexus.pm 4167 2007-07-11 01:36:38Z rvosa $
 # Subversion: $Rev: 195 $
 package Bio::Phylo::Parsers::Nexus;
 use strict;
@@ -826,25 +826,26 @@ sub _matrix {
             # create new datum
             my @logarray = @{ $self->{'_matrix'}->{ $row } };
             my $logstring = join ' ', @logarray;
-            $self->debug("Setting seq: $logstring");
+            $self->info("Setting seq: $logstring");
             my $datum = Bio::Phylo::Matrices::Datum->new(
                 '-name'  => $row,
                 '-taxon' => $taxon,
                 '-type'  => $self->{'_context'}->[-1]->get_type,
-                '-char'  => \@logarray,
+                #'-char'  => \@logarray,
             );
+            $datum->set_char( \@logarray );
 
             # insert new datum in matrix
             $self->{'_context'}->[-1]->insert( $datum );
             if ( $self->VERBOSE ) {
-                $self->debug( "parsed characters for taxon '$row'" );
+                $self->info( sprintf("parsed %s characters for taxon '$row'", $datum->get_length ) );
                 if ( $self->{'_matrixtype'} =~ qr/^continuous$/i ) {
                     my $logchars = join( ' ', @{ $self->{'_matrix'}->{$row} } );
-                    $self->debug( "characters: $logchars" );
+                    $self->info( "characters: $logchars" );
                 }
                 else {
                     my $logchars = join( '', @{ $self->{'_matrix'}->{$row} } );
-                    $self->debug( "characters: $logchars" );
+                    $self->info( "characters: $logchars" );
                 }
             }
         }
@@ -1022,7 +1023,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Nexus.pm 3318 2007-03-19 23:54:49Z rvosa $
+$Id: Nexus.pm 4167 2007-07-11 01:36:38Z rvosa $
 
 =head1 AUTHOR
 

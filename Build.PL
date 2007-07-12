@@ -3,7 +3,7 @@ use Module::Build;
 my $build = Module::Build->new(
     'module_name'   => 'Bio::Phylo',
     'license'       => 'perl',
-    'dist_author'   => 'Rutger A. Vos <rvosa@sfu.ca>',
+    'dist_author'   => 'Rutger A. Vos <rvos@interchange.ubc.ca>',
     'sign'          => 0,
     'create_readme' => 0,   
     'requires' => {

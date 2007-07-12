@@ -1,4 +1,4 @@
-# $Id: Newick.pm 3387 2007-03-25 16:06:50Z rvosa $
+# $Id: Newick.pm 4193 2007-07-11 20:26:06Z rvosa $
 # Subversion: $Rev: 190 $
 package Bio::Phylo::Unparsers::Newick;
 use strict;
@@ -20,7 +20,37 @@ inside.
 
 This module turns a tree object into a newick formatted (parenthetical) tree
 description. It is called by the L<Bio::Phylo::IO> facade, don't call it
-directly.
+directly. You can pass the following additional arguments to the unparse
+call:
+	
+	# by default, names for tips are derived from $node->get_name, if 
+	# 'internal' is specified, uses $node->get_internal_name, if 'taxon'
+	# uses $node->get_taxon->get_name, if 'taxon_internal' uses 
+	# $node->get_taxon->get_internal_name, if $key, uses $node->get_generic($key)
+	-tipnames => one of (internal|taxon|taxon_internal|$key)
+	
+	# for things like a translate table in nexus, or to specify truncated
+	# 10-character names, you can pass a translate mapping as a hashref.
+	# to generate the translated names, the strings obtained following the
+	# -tipnames rules are used.
+	-translate => { Homo_sapiens => 1, Pan_paniscus => 2 }	
+	
+	# array ref used to specify keys, which are embedded as key/value pairs (where
+	# the value is obtained from $node->get_generic($key)) in comments, 
+	# formatted depending on '-nhxstyle', which could be 'nhx' (default), i.e.
+	# [&&NHX:$key1=$value1:$key2=$value2] or 'mesquite', i.e. 
+	# [% $key1 = $value1, $key2 = $value2 ]
+	-nhxkeys => [ $key1, $key2 ]	
+	
+	# if set, appends labels to internal nodes (names obtained from the same
+	# source as specified by '-tipnames')
+	-nodelabels => 1
+	
+	# specifies a formatting style / dialect
+	-nhxstyle => one of (mesquite|nhx)
+	
+	# specifies a branch length sprintf number formatting template, default is %f
+	-blformat => '%e'
 
 =begin comment
 
@@ -71,11 +101,29 @@ sub _new {
 =cut
 
 sub _to_string {
-    my $self   = shift;
-    my $tree   = $self->{'PHYLO'};
-    my $n      = $tree->get_root;
-    my $string = $self->__to_string( $tree, $n );
-    return $string;
+    my $self = shift;
+    my $tree = $self->{'PHYLO'};
+    my $root = $tree->get_root;
+    my %args;
+    if ( $self->{'TRANSLATE'} ) {
+    	$args{'-translate'} = $self->{'TRANSLATE'};
+    }
+    if ( $self->{'TIPNAMES'} ) {
+    	$args{'-tipnames'} = $self->{'NAMES'};
+    }
+    if ( $self->{'NHXKEYS'} ) {
+    	$args{'-nhxkeys'} = $self->{'NHXKEYS'};
+    }
+    if ( $self->{'NODELABELS'} ) {
+    	$args{'-nodelabels'} = $self->{'NODELABELS'}; 
+    }
+    if ( $self->{'BLFORMAT'} ) {
+    	$args{'-blformat'} = $self->{'BLFORMAT'}; 
+    }   
+    if ( $self->{'NHXSTYLE'} ) {
+    	$args{'-nhxstyle'} = $self->{'NHXSTYLE'};
+    } 
+    return $root->to_newick( %args );
 }
 
 =begin comment
@@ -164,7 +212,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Newick.pm 3387 2007-03-25 16:06:50Z rvosa $
+$Id: Newick.pm 4193 2007-07-11 20:26:06Z rvosa $
 
 =head1 AUTHOR
 

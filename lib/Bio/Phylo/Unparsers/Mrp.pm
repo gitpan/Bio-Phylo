@@ -1,4 +1,4 @@
-# $Id: Mrp.pm 2108 2006-08-29 20:46:17Z rvosa $
+# $Id: Mrp.pm 4171 2007-07-11 01:43:07Z rvosa $
 # Subversion: $Rev: 190 $
 package Bio::Phylo::Unparsers::Mrp;
 use strict;
@@ -159,7 +159,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Mrp.pm 2108 2006-08-29 20:46:17Z rvosa $
+$Id: Mrp.pm 4171 2007-07-11 01:43:07Z rvosa $
 
 =head1 AUTHOR
 

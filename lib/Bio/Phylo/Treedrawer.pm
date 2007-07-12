@@ -1,14 +1,18 @@
-# $Id: Treedrawer.pm 3387 2007-03-25 16:06:50Z rvosa $
+# $Id: Treedrawer.pm 4153 2007-07-11 01:33:20Z rvosa $
 # Subversion: $Rev: 192 $
 package Bio::Phylo::Treedrawer;
 use strict;
 use Bio::Phylo::Forest::Tree;
 use Bio::Phylo::Forest::Node;
 use Bio::Phylo::Util::CONSTANT qw(_TREE_ looks_like_number);
+
 my @fields = qw(WIDTH HEIGHT MODE SHAPE PADDING NODE_RADIUS TEXT_HORIZ_OFFSET TEXT_VERT_OFFSET TEXT_WIDTH TREE _SCALEX _SCALEY SCALE FORMAT);
 
 # One line so MakeMaker sees it.
 use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
+
+my $tips = 0.000_000_000_000_01;
+
 
 =head1 NAME
 
@@ -692,6 +696,10 @@ sub draw {
             error => "Can't draw an undefined tree" );
     }
     my $root = $self->get_tree->get_root;
+
+    #Reset the stored data in the tree
+    $self->_reset_internal($root);
+
     my $tips = $self->get_tree->calc_number_of_terminals;
     my ( $width,   $height )    = ( $self->get_width,   $self->get_height );
     my ( $padding, $textwidth ) = ( $self->get_padding, $self->get_text_width );
@@ -716,7 +724,12 @@ sub draw {
     else {
         $self->_x_positions;
     }
+    
+    
+    
+    $self->_y_terminals(0);
     $self->_y_terminals($root);
+    $self->get_tree->get_root->set_generic('y'=>0);
     $self->_y_internals;
     my $library = __PACKAGE__ . '::' . ucfirst( lc( $self->get_format ) );
     eval "require $library";
@@ -724,11 +737,38 @@ sub draw {
         Bio::Phylo::Util::Exceptions::BadFormat->throw(
             error => "Can't load image drawer: $@" );
     }
+
     my $drawer = $library->_new(
         -tree   => $self->get_tree,
         -drawer => $self
     );
     $drawer->_draw;
+}
+
+=begin comment
+
+ Type    : Internal method.
+ Title   : _reset_internal
+ Usage   : $treedrawer->_reset_internal;
+ Function: resets the set_generic values stored by Treedrawer, this must be 
+           called at the start of each draw command or weird results are obtained!
+ Returns : nothing
+ Args    : treedrawer, node being processed
+
+=end comment
+
+=cut
+
+sub _reset_internal {
+    my ($self, $node) = @_;
+    my $tree = $self->get_tree;
+    $node->set_generic('x'=>undef);
+    $node->set_generic('y'=>undef);
+    my $children = $node->get_children;
+    foreach $node (@$children) {
+        _reset_internal($self,$node);
+    }
+
 }
 
 =begin comment
@@ -813,11 +853,10 @@ sub _x_positions_clado {
 =cut
 
 {
-    my $tips = 0.000_000_000_000_01;
 
     sub _y_terminals {
-        my $self = shift;
-        my $node = $_[0];
+        my ($self, $node) = @_;
+        if ($node == 0) { $tips = 0.000_000_000_000_01; return; }
         if ( !$node->get_first_daughter ) {
             $tips++;
             $node->set_generic(
@@ -895,7 +934,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Treedrawer.pm 3387 2007-03-25 16:06:50Z rvosa $
+$Id: Treedrawer.pm 4153 2007-07-11 01:33:20Z rvosa $
 
 =head1 AUTHOR
 

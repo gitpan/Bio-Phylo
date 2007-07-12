@@ -1,4 +1,4 @@
-# $Id: Taxon.pm 3319 2007-03-20 01:39:35Z rvosa $
+# $Id: Taxon.pm 4175 2007-07-11 02:13:51Z rvosa $
 # Subversion: $Rev: 177 $
 package Bio::Phylo::Taxa::Taxon;
 use strict;
@@ -356,7 +356,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Taxon.pm 3319 2007-03-20 01:39:35Z rvosa $
+$Id: Taxon.pm 4175 2007-07-11 02:13:51Z rvosa $
 
 =head1 AUTHOR
 

@@ -23,7 +23,7 @@ use 'perldoc ObjectCompat.pod'. Pod can be converted to a number of different
 formats; by default the pod2text, pod2latex and pod2html utilities should be
 available for this purpose on systems with a recent perl installation.
 
-The version you are reading now is: $Revision: 3409 $
+The version you are reading now is: $Revision: 4154 $
 
 B<Please help improve this document by making sure you are reading the
 most recent version, and sharing your feedback with the author.>

@@ -1,4 +1,4 @@
-# $Id: Forest.pm 3387 2007-03-25 16:06:50Z rvosa $
+# $Id: Forest.pm 4193 2007-07-11 20:26:06Z rvosa $
 package Bio::Phylo::Forest;
 use strict;
 use warnings FATAL => 'all';
@@ -11,7 +11,7 @@ use vars qw($VERSION @ISA);
 
 # set version based on svn rev
 my $version = $Bio::Phylo::VERSION;
-my $rev = '$Id: Forest.pm 3387 2007-03-25 16:06:50Z rvosa $';
+my $rev = '$Id: Forest.pm 4193 2007-07-11 20:26:06Z rvosa $';
 $rev =~ s/^[^\d]+(\d+)\b.*$/$1/;
 $version =~ s/_.+$/_$rev/;
 $VERSION = $version;
@@ -90,32 +90,21 @@ forest objects.
 
     sub check_taxa {
         my $self = shift;
+        
         # is linked
         if ( my $taxa = $self->get_taxa ) {
+            my %tips = map { $_->get_internal_name => $_ } map { @{ $_->get_terminals } } @{ $self->get_entities };
             my %taxa = map { $_->get_internal_name => $_ } @{ $taxa->get_entities };
-            for my $tree ( @{ $self->get_entities } ) {
-                NODE_CHECK: for my $node ( @{ $tree->get_entities } ) {
-                    if ( my $taxon = $node->get_taxon ) {
-                        next NODE_CHECK if exists $taxa{$taxon->get_name};
-                        $node->set_taxon() if $node->is_internal;
-                    }
-                    if ( $node->is_terminal ) {
-                        my $name = $node->get_name;
-                        if ( exists $taxa{$name} ) {
-                            $node->set_taxon( $taxa{$name} );
-                        }
-                        else {
-                            my $taxon = Bio::Phylo::Taxa::Taxon->new(
-                                -name => $name
-                            );
-                            $taxa{$name} = $taxon;
-                            $taxa->insert( $taxon );
-                            $node->set_taxon( $taxon );
-                        }
-                    }
-                }
-            }
+			for my $tip ( keys %tips ) {
+				$self->debug( "linking tip $tip" );
+				if ( not exists $taxa{$tip} ) {
+					$self->debug( "no taxon object for $tip yet, instantiating" );
+					$taxa->insert( $taxa{$tip} = Bio::Phylo::Taxa::Taxon->new( '-name' => $tip ) );					
+				}
+				$tips{$tip}->set_taxon( $taxa{$tip} );
+			}
         }
+        
         # not linked
         else {
             for my $tree ( @{ $self->get_entities } ) {
@@ -126,6 +115,139 @@ forest objects.
         }
         return $self;
     }
+
+=item to_nexus()
+
+ Type    : Format convertor
+ Title   : to_nexus
+ Usage   : my $data_block = $matrix->to_nexus;
+ Function: Converts matrix object into a nexus data block.
+ Returns : Nexus data block (SCALAR).
+ Args    : Trees can be formatted using the same arguments as those
+ 		   passed to Bio::Phylo::Unparsers::Newick. In addition, you
+ 		   can provide: 
+ 		   
+ 		   # as per mesquite's inter-block linking system (default is false):
+ 		   -links => 1 (to create a TITLE token, and a LINK token, if applicable)
+ 		   
+ 		   # rooting is determined based on basal trichotomy. "token" means 'TREE' or 'UTREE'
+ 		   # is used, "comment" means [&R] or [&U] is used, "nhx" means [%unrooted=on] or
+ 		   # [%unrooted=off] if used, default is "comment"
+ 		   -rooting => one of (token|comment|nhx)
+ 		   
+ 		   # to map taxon names to indices (default is false)
+ 		   -make_translate => 1 (autogenerate translation table, overrides -translate => {})
+ Comments:
+
+=cut
+
+	sub to_nexus {
+		my $self = shift;
+		my %args = ( '-rooting' => 'comment', @_ );
+		my %translate;
+		my $nexus;
+		
+		# make translation table
+		if ( $args{'-make_translate'} ) {			
+			my $i = 0;
+			for my $tree ( @{ $self->get_entities } ) {
+				for my $node ( @{ $tree->get_terminals } ) {
+					my $name;
+					if ( not $args{'-tipnames'} ) {		
+						$name = $node->get_name;
+					}
+					elsif ( $args{'-tipnames'} =~ /^internal$/i ) {
+						$name = $node->get_internal_name;
+					}
+					elsif ( $args{'-tipnames'} =~ /^taxon/i and $node->get_taxon ) {
+						if ( $args{'-tipnames'} =~ /^taxon_internal$/i ) {
+							$name = $node->get_taxon->get_internal_name;
+						}
+						elsif ( $args{'-tipnames'} =~ /^taxon$/i ) {
+							$name = $node->get_taxon->get_name;
+						}
+					}
+					else {
+						$name = $node->get_generic( $args{'-tipnames'} );
+					}
+					$translate{$name} = ( 1 + $i++ ) if not exists $translate{$name};
+				}
+			}			
+			$args{'-translate'} = \%translate;
+		}	
+		
+		# create header
+		$nexus  = "BEGIN TREES;\n";
+		$nexus .= "[! Trees block written by " . ref($self) . " " . $self->VERSION . " on " . localtime() . " ]\n";
+		if ( $args{'-links'} ) {
+			delete $args{'-links'};
+			$nexus .= "\tTITLE " . $self->get_internal_name . ";\n";
+			if ( my $taxa = $self->get_taxa ) {
+				$nexus .= "\tLINK TAXA=" . $taxa->get_internal_name . ";\n"
+			}
+		}
+				
+		# stringify translate table
+		if ( $args{'-make_translate'} ) {
+			delete $args{'-make_translate'};
+			$nexus .= "\tTRANSLATE\n";
+			my @translate;
+			for ( keys %translate ) { $translate[$translate{$_}-1] = $_ }
+			for my $i ( 0 .. $#translate ) {
+				$nexus .= "\t\t" . ( $i + 1 ) . " " . $translate[$i];
+				if ( $i == $#translate ) {
+					$nexus .= ";\n";
+				}
+				else {
+					$nexus .= ",\n";
+				}
+			}	
+		}
+		
+		# stringify trees
+		for my $tree ( @{ $self->get_entities } ) {
+			if ( $tree->is_rooted ) {
+				if ( $args{'-rooting'} =~ /^token$/i ) {
+					$nexus .= "\tTREE " . $tree->get_internal_name . ' = ' . $tree->to_newick(%args) . "\n"; 
+				}
+				elsif ( $args{'-rooting'} =~ /^comment$/i ) {
+					$nexus .= "\tTREE " . $tree->get_internal_name . ' = [&R] ' . $tree->to_newick(%args) . "\n"; 
+				}
+				elsif ( $args{'-rooting'} =~ /^nhx/i ) {
+					$tree->get_root->set_generic( 'unrooted' => 'off' );
+					if ( $args{'-nhxkeys'} ) {
+						push @{ $args{'-nhxkeys'} }, 'unrooted';
+					}
+					else {
+						$args{'-nhxkeys'} = [ 'unrooted' ];
+					}
+					$nexus .= "\tTREE " . $tree->get_internal_name . ' = ' . $tree->to_newick(%args) . "\n"; 
+				}				
+			}
+			else {
+				if ( $args{'-rooting'} =~ /^token$/i ) {
+					$nexus .= "\tUTREE " . $tree->get_internal_name . ' = ' . $tree->to_newick(%args) . "\n"; 
+				}
+				elsif ( $args{'-rooting'} =~ /^comment$/i ) {
+					$nexus .= "\tTREE " . $tree->get_internal_name . ' = [&U] ' . $tree->to_newick(%args) . "\n"; 
+				}
+				elsif ( $args{'-rooting'} =~ /^nhx/i ) {
+					$tree->get_root->set_generic( 'unrooted' => 'on' );
+					if ( $args{'-nhxkeys'} ) {
+						push @{ $args{'-nhxkeys'} }, 'unrooted';
+					}
+					else {
+						$args{'-nhxkeys'} = [ 'unrooted' ];
+					}
+					$nexus .= "\tTREE " . $tree->get_internal_name . ' = ' . $tree->to_newick(%args) . "\n"; 
+				}				
+			}			
+		}
+		
+		# done!
+		$nexus .= "END;\n";
+		return $nexus;
+	}
 
 =begin comment
 
@@ -208,7 +330,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Forest.pm 3387 2007-03-25 16:06:50Z rvosa $
+$Id: Forest.pm 4193 2007-07-11 20:26:06Z rvosa $
 
 =head1 AUTHOR
 

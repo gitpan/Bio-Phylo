@@ -67,6 +67,25 @@ sub set_taxon {
     return $self;
 }
 
+=item unset_taxon()
+
+ Type    : Mutator
+ Title   : unset_taxon
+ Usage   : $obj->unset_taxon();
+ Function: Unlinks the invocant object
+           from any taxon object.
+ Returns : Modified $obj
+ Args    : NONE
+
+=cut
+
+sub unset_taxon {
+	my $self = shift;
+	$self->debug( "unsetting taxon" );
+	$self->set_taxon();
+	return $self;
+}
+
 =back
 
 =head2 ACCESSORS
@@ -133,7 +152,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: TaxonLinker.pm 3386 2007-03-24 16:22:25Z rvosa $
+$Id: TaxonLinker.pm 4175 2007-07-11 02:13:51Z rvosa $
 
 =head1 AUTHOR
 

@@ -1,4 +1,4 @@
-# $Id: Listable.pm 3396 2007-03-26 18:08:40Z rvosa $
+# $Id: Listable.pm 4153 2007-07-11 01:33:20Z rvosa $
 package Bio::Phylo::Listable;
 use strict;
 use warnings FATAL => 'all';
@@ -107,9 +107,9 @@ Matrix objects, Alignment objects, Taxa, Forest, Tree objects.
 =cut
 
     sub insert {
-        my ( $self, $obj ) = @_;
-        $self->info("inserting in '$self'");        
-        if ( $self->can_contain( $obj ) ) {
+        my ( $self, $obj ) = @_;              
+        if ( defined $obj and $self->can_contain( $obj ) ) {
+            $self->info("inserting '$obj' in '$self'");
             push @{ $entities{ $self->get_id } }, $obj;
             if ( UNIVERSAL::can( $obj, '_set_container' ) ) {
                 $obj->_set_container($self);
@@ -324,6 +324,7 @@ Returns a reference to an array of objects contained by the listable object.
         my ( $self, $obj ) = @_;
         if ( blessed $obj ) {
             foreach my $ent ( @{ $self->get_entities } ) {
+                next if not $ent;
                 return 1 if $ent->get_id == $obj->get_id;
             }
             return 0;
@@ -773,7 +774,7 @@ in the order in which they were inserted in the Listable object.
 
 The following are probably the coolest thing about Bio::Phylo - the listable
 object is a tie'd array, so that (unless wrapped inside an adaptor) all listable
-subclasses can be accessed *as is they were arrays*, but *type safe*. To make
+subclasses can be accessed *as if they were arrays*, but *type safe*. To make
 this happen, a bunch of methods describing what should go on behind the scenes
 if these objects are accessed as arrays need to be defined. The methods below
 do just that. For more info, read perldoc perltie
@@ -790,7 +791,7 @@ do just that. For more info, read perldoc perltie
     sub STORE {
         my( $self, $index, $value ) = @_;
         $self->insert_at_index( $value, $index );
-        $self->EXTEND( $index ) if $index > $self->FETCHSIZE();
+#        $self->EXTEND( $index ) if $index > $self->FETCHSIZE();
     }
     
     sub FETCHSIZE {
@@ -813,11 +814,11 @@ do just that. For more info, read perldoc perltie
         }
     }
     
-    sub EXTEND {   
-        my $self  = shift;
-        my $count = shift;
-        $self->STORESIZE( $count );
-    }
+#    sub EXTEND {   
+#        my $self  = shift;
+#        my $count = shift;
+#        $self->STORESIZE( $count );
+#    }
     
     sub EXISTS {
         my $self  = shift;
@@ -858,7 +859,7 @@ do just that. For more info, read perldoc perltie
         my $id = $self->get_id;
         my @list = @_;
         my $size = scalar( @list );
-        @{ $entities{ $self->get_id } }[ $size .. $#{ $entities{$id} } + $size ] = @{ $entities{$id} };
+        @{ $entities{$id} }[ $size .. $#{ $entities{$id} } + $size ] = @{ $entities{$id} };
         $self->insert_at_index( $list[$_], $_ ) for ( 0 .. $#list );
     }
     
@@ -936,7 +937,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Listable.pm 3396 2007-03-26 18:08:40Z rvosa $
+$Id: Listable.pm 4153 2007-07-11 01:33:20Z rvosa $
 
 =head1 AUTHOR
 

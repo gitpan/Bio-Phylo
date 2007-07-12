@@ -66,6 +66,24 @@ sub set_taxa {
     return $self;
 }
 
+=item unset_taxa()
+
+ Type    : Mutator
+ Title   : unset_taxa
+ Usage   : $obj->unset_taxa();
+ Function: Removes the link between invocant object and taxa
+ Returns : Modified $obj
+ Args    : NONE
+
+=cut
+
+sub unset_taxa {
+	my $self = shift;
+	$self->info( "unsetting taxa" );
+	$self->set_taxa();
+	return $self;
+}
+
 =back
 
 =head2 ACCESSORS
@@ -152,7 +170,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: TaxaLinker.pm 3386 2007-03-24 16:22:25Z rvosa $
+$Id: TaxaLinker.pm 4175 2007-07-11 02:13:51Z rvosa $
 
 =head1 AUTHOR
 

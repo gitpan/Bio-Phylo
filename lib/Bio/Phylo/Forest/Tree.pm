@@ -1,4 +1,4 @@
-# $Id: Tree.pm 3387 2007-03-25 16:06:50Z rvosa $
+# $Id: Tree.pm 4193 2007-07-11 20:26:06Z rvosa $
 # Subversion: $Rev: 177 $
 package Bio::Phylo::Forest::Tree;
 use strict;
@@ -360,6 +360,27 @@ for more methods.
 =head2 TESTS
 
 =over
+
+=item is_rooted()
+
+ Type    : Test
+ Title   : is_rooted
+ Usage   : if ( $tree->is_rooted ) {
+              # do something
+           }
+ Function: Tests whether the invocant 
+           object is rooted.
+ Returns : BOOLEAN
+ Args    : NONE
+ Comments: A tree is considered unrooted if the basal
+ 		   split is a polytomy
+
+=cut
+
+	sub is_rooted {
+		my $self = shift;
+		return scalar( @{ $self->get_root->get_children } ) <= 2;
+	}
 
 =item is_binary()
 
@@ -1276,6 +1297,115 @@ for more methods.
 
 =back
 
+=head2 VISITOR METHODS
+
+=over
+
+=item visit_pre_order()
+
+ Type    : Visitor method
+ Title   : visit_pre_order
+ Usage   : $tree->visit_pre_order( sub{...} );
+ Function: Visits nodes in a pre order traversal, executes sub
+ Returns : $tree
+ Args    : A subroutine reference that operates on visited nodes.
+ Comments:
+
+=cut
+
+	sub visit_pre_order {
+		my ( $tree, $sub ) = @_;
+		if ( UNIVERSAL::isa( $sub, 'CODE' ) ) {
+			$tree->_visit_pre_order( $tree->get_root, $sub );
+		}
+		else {
+			Bio::Phylo::Util::Exceptions::BadArgs->throw(
+				'error' => "'$sub' not a CODE reference"
+			);
+		}
+		return $tree;
+	}
+	
+	sub _visit_pre_order {
+		my ( $tree, $node, $sub ) = @_;
+		$sub->( $node );		
+		if ( my $children = $node->get_children ) {
+			for my $child ( @{ $children } ) {
+				$tree->_visit_pre_order( $child, $sub );
+			}
+		}
+	}
+
+=item visit_level_order()
+
+ Type    : Visitor method
+ Title   : visit_level_order
+ Usage   : $tree->visit_level_order( sub{...} );
+ Function: Visits nodes in a level order traversal, executes sub
+ Returns : $tree
+ Args    : A subroutine reference that operates on visited nodes.
+ Comments:
+
+=cut	
+
+	sub visit_level_order {
+		my ( $tree, $sub ) = @_;
+		if ( UNIVERSAL::isa( $sub, 'CODE' ) ) {
+			my $root = $tree->get_root;
+			my @queue = ( $root );
+			while ( @queue ) {
+				my $node = shift @queue;
+				$sub->( $node );
+				if ( $node->get_children ) {
+					push @queue, @{ $node->get_children };
+				}
+			}
+		}
+		else {
+			Bio::Phylo::Util::Exceptions::BadArgs->throw(
+				'error' => "'$sub' not a CODE reference"
+			);
+		}
+		return $tree;
+	}
+
+=item visit_post_order()
+
+ Type    : Visitor method
+ Title   : visit_post_order
+ Usage   : $tree->visit_post_order( sub{...} );
+ Function: Visits nodes in a post order traversal, executes sub
+ Returns : $tree
+ Args    : A subroutine reference that operates on visited nodes.
+ Comments:
+
+=cut
+
+	sub visit_post_order {
+		my ( $tree, $sub ) = @_;
+		if ( UNIVERSAL::isa( $sub, 'CODE' ) ) {
+			$tree->_visit_post_order( $tree->get_root, $sub );
+		}
+		else {
+			Bio::Phylo::Util::Exceptions::BadArgs->throw(
+				'error' => "'$sub' not a CODE reference"
+			);
+		}
+		return $tree;
+	}
+	
+	sub _visit_post_order {
+		my ( $tree, $node, $sub ) = @_;
+		if ( my $children = $node->get_children ) {
+			for my $child ( @{ $children } ) {
+				$tree->_visit_post_order( $child, $sub );
+			}
+		}
+		$sub->( $node );	
+	}
+
+=back
+
 =head2 TREE MANIPULATION
 
 =over
@@ -1364,41 +1494,24 @@ for more methods.
 =cut
 
     sub resolve {
-        my $tree = $_[0];
-        foreach my $node ( @{ $tree->get_entities } ) {
-            if (   $node->is_internal
-                && $node->get_first_daughter->get_next_sister !=
-                $node->get_last_daughter )
-            {
+        my $tree = shift;
+        for my $node ( @{ $tree->get_internals } ) {
+            my @children = @{ $node->get_children };
+            if ( scalar @children > 2 ) {
                 my $i = 1;
-                while ( $node->get_first_daughter->get_next_sister !=
-                    $node->get_last_daughter )
-                {
-                    my $newnode = new Bio::Phylo::Forest::Node;
-                    $newnode->set_branch_length(0.00);
-                    $newnode->set_name( $node->get_internal_name . 'r' . $i++ );
-
-                    # parent relationships
-                    $newnode->set_parent($node);
-                    $node->get_first_daughter->set_parent($newnode);
-                    $node->get_first_daughter->get_next_sister->set_parent(
-                        $newnode);
-
-                    # daughter relationships
-                    $newnode->set_first_daughter( $node->get_first_daughter );
-                    $newnode->set_last_daughter(
-                        $node->get_first_daughter->get_next_sister );
-                    $node->set_first_daughter($newnode);
-
-                    # sister relationships
-                    $newnode->set_next_sister(
-                        $newnode->get_first_daughter->get_next_sister
-                          ->get_next_sister );
-                    $newnode->get_first_daughter->get_next_sister
-                      ->get_next_sister->set_previous_sister($newnode);
-                    $newnode->get_first_daughter->get_next_sister
-                      ->set_next_sister();
-                    $tree->insert($newnode);
+                while ( scalar @children > 2 ) {
+                    my $newnode = Bio::Phylo::Forest::Node->new(
+                    	'-branch_length' => 0.00,
+                    	'-name'          => 'r' . $i++,
+                    );
+                    $tree->insert( $newnode );
+                    $newnode->set_parent( $node );
+					for ( 1 .. 2 ) {
+						my $i = int(rand(scalar @children));
+						$children[$i]->set_parent( $newnode );
+						splice @children, $i, 1;
+					}   
+					push @children, $newnode;                 
                 }
             }
         }
@@ -1424,98 +1537,26 @@ for more methods.
             $tips = \@tmp;
         }
         my %names_to_delete = map { $_ => 1 } @{ $tips };
-        TIP: for my $tip ( @{ $self->get_terminals } ) {
-            if ( exists $names_to_delete{ $tip->get_name } ){
-
-                # scope out nodes that reference current
-                my $ps = $tip->get_previous_sister;
-                my $ns = $tip->get_next_sister;
-                my $p  = $tip->get_parent;
-
-                # parent is polytomy
-                if ( $p && scalar @{ $p->get_children } > 2 ) {
-                    if ( $p->get_first_daughter->get_id == $tip->get_id ) {
-                            $p->set_first_daughter($ns);
-                            $ns->set_previous_sister();
-                        }
-                    elsif ( $p->get_last_daughter->get_id == $tip->get_id ) {
-                            $p->set_last_daughter($ps);
-                            $ps->set_next_sister();
-                        }
-                    else {
-                        $ps->set_next_sister($ns);
-                        $ns->set_previous_sister($ps);
-                    }
-                    $self->delete( $tip );
-                    next TIP;
-                }
-
-                # parent bifurcates, has parent
-                my $gp = $p->get_parent;
-                if ( $p && scalar @{ $p->get_children } <= 2 && $gp ) {
-                    my $sib;
-                    if ( $p->get_first_daughter->get_id == $tip->get_id ) {
-                        $sib = $ns;
-                        $sib->set_previous_sister();
-                    }
-                    elsif ( $p->get_last_daughter->get_id == $tip->get_id ) {
-                        $sib = $ps;
-                        $sib->set_next_sister();
-                    }
-                    my $sibbl = $sib->get_branch_length;
-                    my $pbl   = $p->get_branch_length;
-                    my $sibnbl;
-                    if ($sibbl) {
-                        $sibnbl = $sibbl;
-                    }
-                    if ($pbl) {
-                        $sibnbl += $pbl;
-                    }
-                    if ( defined $sibnbl ) {
-                        $sib->set_branch_length($sibnbl);
-                    }
-                    $sib->set_parent($gp);
-                    my $pps = $p->get_previous_sister;
-                    my $pns = $p->get_next_sister;
-                    if ($pps) {
-                        $sib->set_previous_sister($pps);
-                        $pps->set_next_sister($sib);
-                    }
-                    if ($pns) {
-                        $sib->set_next_sister($pns);
-                        $pns->set_previous_sister($sib);
-                    }
-                    if ( $gp->get_first_daughter == $p ) {
-                        $gp->set_first_daughter($sib);
-                    }
-                    elsif ( $gp->get_last_daughter == $p ) {
-                        $gp->set_last_daughter($sib);
-                    }
-                    $self->delete( $tip );
-                    next TIP;
-                }
-
-                # parent bifurcates, is root
-                elsif ( $p && !$gp && scalar @{ $p->get_children } <= 2 ) {
-                    if ( $p->get_first_daughter->get_id == $tip->get_id ) {
-                        my $pld = $p->get_last_daughter;
-                        $pld->set_parent();
-                        $pld->set_next_sister();
-                        $pld->set_previous_sister();
-                    }
-                    elsif ( $p->get_last_daughter->get_id == $tip->get_id ) {
-                        my $pfd = $p->get_first_daughter;
-                        $pfd->set_parent();
-                        $pfd->set_next_sister();
-                        $pfd->set_previous_sister();
-                    }
-                    $self->delete( $tip );
-                    next TIP;
-                }
-            }
-        }
-
-        return $self->remove_unbranched_internals;
+        my %keep = map { $_->get_name => 1 } 
+        	       grep { not exists $names_to_delete{ $_->get_name } }
+        	       @{ $self->get_terminals };
+        $self->visit_post_order(
+        	sub {
+        		my $node = shift;
+        		if ( $node->is_terminal ) {
+        			$self->delete( $node ) if not $keep{$node->get_name}; 
+        		}
+        		else {
+					my $seen_tip_to_keep = 0;
+        			for my $tip ( @{ $node->get_terminals } ) {
+						$seen_tip_to_keep++ if $keep{$tip->get_name};
+        			}
+        			$self->delete( $node ) if not $seen_tip_to_keep;
+        		}
+        	}
+        );
+ 		$self->remove_unbranched_internals;
+        return $self;
     }
 
 =item keep_tips()
@@ -1650,30 +1691,26 @@ for more methods.
 
     sub remove_unbranched_internals {
         my $self = shift;
-        my $tree = $self->get_entities;
-        for my $i ( 0 .. $#{$tree} ) {
-            if ( my $node = $tree->[$i] ) {
-                my $count = $node->get_children ? scalar @{ $node->get_children } : 0;
-                my $is_internal = $node->is_internal;
-                if ( $node->get_parent && $is_internal && $count == 1 ) {
-                    $node->get_first_daughter->set_parent( $node->get_parent );
-                    my $childbl = $node->get_first_daughter->get_branch_length;
-                    my $bl = $node->get_branch_length;
-                    my $total;
-                    $total += $childbl if defined $childbl;
-                    $total += $bl if defined $bl;
-                    $node->get_first_daughter->set_branch_length($total);
-                    splice @{$tree}, $i, 1;
-                    $self->_analyze;
-                }
-                elsif ( !$node->get_parent && $is_internal && $count == 1 ) {
-                    $node->get_first_daughter->set_parent();
-                    splice @{$tree}, $i, 1;
-                }
-            }
-            else {
-                splice @{$tree}, $i, 1;
-            }
+        for my $node ( @{ $self->get_internals } ) {
+        	my @children = @{ $node->get_children };
+        	if ( scalar @children == 1 ) {
+        		my $child = $children[0];
+        		$child->set_parent( $node->get_parent );
+        		my $child_bl = $children[0]->get_branch_length;
+        		my $node_bl  = $node->get_branch_length;
+        		if ( defined $child_bl ) {
+        			if ( defined $node_bl ) {
+        				$child->set_branch_length( $child_bl + $node_bl );
+        			}
+        			else {
+        				$child->set_branch_length( $child_bl );
+        			}
+        		}
+        		else {
+        			$child->set_branch_length( $node_bl ) if defined $node_bl;
+        		}
+        		$self->delete( $node );
+        	}
         }
         return $self;
     }
@@ -1692,7 +1729,8 @@ for more methods.
 
     sub to_newick {
         my $self = shift;
-        my $newick = unparse( -format => 'newick', -phylo => $self );
+        my %args = @_;
+        my $newick = unparse( -format => 'newick', -phylo => $self, %args );
         return $newick;
     }
 
@@ -1832,7 +1870,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Tree.pm 3387 2007-03-25 16:06:50Z rvosa $
+$Id: Tree.pm 4193 2007-07-11 20:26:06Z rvosa $
 
 =head1 AUTHOR
 

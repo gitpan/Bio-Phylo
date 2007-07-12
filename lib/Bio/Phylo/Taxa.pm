@@ -1,4 +1,4 @@
-# $Id: Taxa.pm 3319 2007-03-20 01:39:35Z rvosa $
+# $Id: Taxa.pm 4193 2007-07-11 20:26:06Z rvosa $
 package Bio::Phylo::Taxa;
 use strict;
 use Bio::Phylo::Listable;
@@ -97,10 +97,17 @@ A taxa object can link to multiple forest and matrix objects.
 
     sub set_forest {
         my ( $self, $forest ) = @_;
-        Bio::Phylo::Mediators::TaxaMediator->set_link( 
-            '-one'  => $self, 
-            '-many' => $forest, 
-        );
+        $self->debug( "setting forest $forest" );
+        my $type;
+        eval { $type = $forest->_type };
+        if ( not $@ and $type == _FOREST_ ) {
+        	$forest->set_taxa( $self );
+        }
+        else {
+            Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
+                'error' => 'Not a forest object!'
+            );        	
+        }      
         return $self;
     }
 
@@ -121,10 +128,17 @@ A taxa object can link to multiple forest and matrix objects.
 
     sub set_matrix {
         my ( $self, $matrix ) = @_;
-        Bio::Phylo::Mediators::TaxaMediator->set_link( 
-            '-one'  => $self, 
-            '-many' => $matrix, 
-        );
+        $self->debug( "setting matrix $matrix" );
+        my $type;
+        eval { $type = $matrix->_type };
+        if ( not $@ and $type == _MATRIX_ ) {
+        	$matrix->set_taxa( $self );
+        }
+        else {
+            Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
+                'error' => 'Not a matrix object!'
+            );        	
+        }      
         return $self;
     }
 
@@ -143,10 +157,17 @@ A taxa object can link to multiple forest and matrix objects.
 
     sub unset_forest {
         my ( $self, $forest ) = @_;
-        Bio::Phylo::Mediators::TaxaMediator->remove_link( 
-            '-one'  => $self, 
-            '-many' => $forest,
-        );
+        $self->debug( "unsetting forest $forest" );
+        my $type;
+        eval { $type = $forest->_type };
+        if ( not $@ and $type == _FOREST_ ) {
+        	$forest->unset_taxa();
+        }
+        else {
+            Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
+                'error' => 'Not a forest object!'
+            );        	
+        }      
         return $self;
     }
 
@@ -165,10 +186,17 @@ A taxa object can link to multiple forest and matrix objects.
 
     sub unset_matrix {
         my ( $self, $matrix ) = @_;
-        Bio::Phylo::Mediators::TaxaMediator->remove_link( 
-            '-one'  => $self, 
-            '-many' => $matrix,
-        );
+        $self->debug( "unsetting matrix $matrix" );
+        my $type;
+        eval { $type = $matrix->_type };
+        if ( not $@ and $type == _MATRIX_ ) {
+        	$matrix->unset_taxa();
+        }
+        else {
+            Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
+                'error' => 'Not a matrix object!'
+            );        	
+        }      
         return $self;
     }
 
@@ -300,6 +328,32 @@ A taxa object can link to multiple forest and matrix objects.
         }
     }
 
+=item to_nexus()
+
+ Type    : Format convertor
+ Title   : to_nexus
+ Usage   : my $block = $taxa->to_nexus;
+ Function: Converts $taxa into a nexus taxa block.
+ Returns : Nexus taxa block (SCALAR).
+ Args    : -links => 1 (optional, adds 'TITLE' token)
+ Comments:
+
+=cut    
+
+	sub to_nexus {
+		my $self = shift;
+		my %args = @_;
+		my $nexus = "BEGIN TAXA;\n";
+		$nexus .=   "[! Taxa block written by " . ref($self) . " " . $self->VERSION . " on " . localtime() . " ]\n";
+		if ( $args{'-links'} ) {
+			$nexus .= "\tTITLE " . $self->get_internal_name . ";\n";
+		} 
+		$nexus .= "\tDIMENSIONS NTAX=" . $self->get_ntax . ";\n";
+		$nexus .= "\tTAXLABELS\n";
+		$nexus .= "\t\t" . $_->get_internal_name . "\n" for @{ $self->get_entities };
+		$nexus .= "\t;\nEND;\n";
+	}
+
 =back
 
 =head2 DESTRUCTOR
@@ -394,7 +448,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Taxa.pm 3319 2007-03-20 01:39:35Z rvosa $
+$Id: Taxa.pm 4193 2007-07-11 20:26:06Z rvosa $
 
 =head1 AUTHOR
 

@@ -1,4 +1,4 @@
-# $Id: 04-generator.t 2252 2006-09-16 08:18:59Z rvosa $
+# $Id: 04-generator.t 4186 2007-07-11 02:15:56Z rvosa $
 use strict;
 use warnings;
 use Test::More tests => 2;
