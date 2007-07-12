@@ -544,16 +544,16 @@ sub to_nexus {
 		}        
         $string .= $name . ( $sp x ( $length - length( $name ) ) );
         
-        # write states
-		for my $i ( 0 .. ( $self->get_nchar - 1 ) ) {
-			if ( $datum->get_type =~ m/^CONTINUOUS$/ ) {
-				$string .= $datum->get_by_index($i) . " ";
-			}
-			else {
-				$string .= $datum->get_by_index($i);
-			}
-		}
-        $string .= "\n";
+#        # write states
+#		for my $i ( 0 .. ( $self->get_nchar - 1 ) ) {
+#			if ( $datum->get_type =~ m/^CONTINUOUS$/ ) {
+#				$string .= $datum->get_by_index($i) . " ";
+#			}
+#			else {
+#				$string .= $datum->get_by_index($i);
+#			}
+#		}
+        $string .= $datum->get_char . "\n";
     }
     $string .= "\t;\nEND;\n";
     return $string;
@@ -752,7 +752,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Matrix.pm 4193 2007-07-11 20:26:06Z rvosa $
+$Id: Matrix.pm 4197 2007-07-12 06:18:03Z rvosa $
 
 =head1 AUTHOR
 

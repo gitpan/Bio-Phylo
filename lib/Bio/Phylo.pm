@@ -1,4 +1,4 @@
-# $Id: Phylo.pm 4154 2007-07-11 01:33:36Z rvosa $
+# $Id: Phylo.pm 4196 2007-07-12 03:04:01Z rvosa $
 package Bio::Phylo;
 use strict;
 use warnings FATAL => 'all';
@@ -21,9 +21,9 @@ use Bio::Phylo::Util::Exceptions;
 use Bio::Phylo::Mediators::TaxaMediator;
 
 # Include the revision number from CIPRES subversion in $VERSION
-my $rev = '$Id: Phylo.pm 4154 2007-07-11 01:33:36Z rvosa $';
+my $rev = '$Id: Phylo.pm 4196 2007-07-12 03:04:01Z rvosa $';
 $rev =~ s/^[^\d]+(\d+)\b.*$/$1/;
-$VERSION = "0.17_RC1";
+$VERSION = "0.17_RC2";
 $VERSION .= "_$rev";
 
 {
@@ -945,7 +945,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Phylo.pm 4154 2007-07-11 01:33:36Z rvosa $
+$Id: Phylo.pm 4196 2007-07-12 03:04:01Z rvosa $
 
 =head1 AUTHOR
 
