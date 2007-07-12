@@ -1,7 +1,7 @@
 # http://module-build.sourceforge.net/META-spec.html
 #XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
 name:         Bio-Phylo
-version:      0.17_RC2
+version:      0.17_RC3
 version_from: lib/Bio/Phylo.pm
 installdirs:  site
 requires:

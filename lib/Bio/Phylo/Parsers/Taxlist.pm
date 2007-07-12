@@ -97,12 +97,12 @@ sub _from_both {
 
 =item L<Bio::Phylo::IO>
 
-The taxon list parser is called by the L<Bio::Phylo::IO|Bio::Phylo::IO> object.
+The taxon list parser is called by the L<Bio::Phylo::IO> object.
 Look there for examples.
 
 =item L<Bio::Phylo::Manual>
 
-Also see the manual: L<Bio::Phylo::Manual|Bio::Phylo::Manual>.
+Also see the manual: L<Bio::Phylo::Manual>.
 
 =back
 

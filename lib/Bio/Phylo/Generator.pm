@@ -46,6 +46,8 @@ equiprobable model.
 
 =item new()
 
+Generator constructor.
+
  Type    : Constructor
  Title   : new
  Usage   : my $gen = Bio::Phylo::Generator->new;
@@ -87,6 +89,7 @@ object populated with Yule/Hey trees.
  Usage   : my $trees = $gen->gen_rand_pure_birth(
                '-tips'  => 10, 
                '-model' => 'yule',
+               '-trees' => 10,
            );
  Function: Generates markov tree shapes, 
            with branch lengths sampled 
@@ -206,6 +209,7 @@ not sampled from a distribution).
  Usage   : my $trees = $gen->gen_exp_pure_birth(
                '-tips'  => 10, 
                '-model' => 'yule',
+               '-trees' => 10,
            );
  Function: Generates markov tree shapes, 
            with branch lengths following 

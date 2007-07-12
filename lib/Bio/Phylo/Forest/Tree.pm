@@ -55,6 +55,8 @@ for more methods.
 
 =item new()
 
+Tree constructor.
+
  Type    : Constructor
  Title   : new
  Usage   : my $tree = Bio::Phylo::Forest::Tree->new;
@@ -79,6 +81,8 @@ for more methods.
     }
 
 =item new_from_bioperl()
+
+Tree constructor from Bio::Tree::TreeI argument.
 
  Type    : Constructor
  Title   : new_from_bioperl
@@ -209,6 +213,8 @@ for more methods.
 
 =item get_terminals()
 
+Get terminal nodes.
+
  Type    : Query
  Title   : get_terminals
  Usage   : my @terminals = @{ $tree->get_terminals };
@@ -238,6 +244,8 @@ for more methods.
     }
 
 =item get_internals()
+
+Get internal nodes.
 
  Type    : Query
  Title   : get_internals
@@ -269,6 +277,8 @@ for more methods.
 
 =item get_root()
 
+Get root node.
+
  Type    : Query
  Title   : get_root
  Usage   : my $root = $tree->get_root;
@@ -291,6 +301,8 @@ for more methods.
     }
 
 =item get_tallest_tip()
+
+Retrieves the node furthest from the root. 
 
  Type    : Query
  Title   : get_tallest_tip
@@ -333,6 +345,8 @@ for more methods.
 
 =item get_mrca()
 
+Get most recent common ancestor of argument nodes.
+
  Type    : Query
  Title   : get_mrca
  Usage   : my $mrca = $tree->get_mrca(\@nodes);
@@ -363,6 +377,8 @@ for more methods.
 
 =item is_rooted()
 
+Test if tree is rooted.
+
  Type    : Test
  Title   : is_rooted
  Usage   : if ( $tree->is_rooted ) {
@@ -383,6 +399,8 @@ for more methods.
 	}
 
 =item is_binary()
+
+Test if tree is bifurcating.
 
  Type    : Test
  Title   : is_binary
@@ -409,6 +427,8 @@ for more methods.
     }
 
 =item is_ultrametric()
+
+Test if tree is ultrametric.
 
  Type    : Test
  Title   : is_ultrametric
@@ -464,6 +484,9 @@ for more methods.
 
 =item is_monophyletic()
 
+Tests if first argument (node array ref) is monophyletic with respect
+to second argument.
+
  Type    : Test
  Title   : is_monophyletic
  Usage   : if ( $tree->is_monophyletic(\@tips, $node) ) {
@@ -491,6 +514,8 @@ for more methods.
     }
 
 =item is_clade()
+
+Tests if argument (node array ref) forms a clade.
 
  Type    : Test
  Title   : is_clade
@@ -524,6 +549,8 @@ for more methods.
 
 =item calc_tree_length()
 
+Calculates the sum of all branch lengths.
+
  Type    : Calculation
  Title   : calc_tree_length
  Usage   : my $tree_length = 
@@ -547,6 +574,8 @@ for more methods.
     }
 
 =item calc_tree_height()
+
+Calculates the height of the tree.
 
  Type    : Calculation
  Title   : calc_tree_height
@@ -574,6 +603,8 @@ for more methods.
 
 =item calc_number_of_nodes()
 
+Calculates the number of nodes.
+
  Type    : Calculation
  Title   : calc_number_of_nodes
  Usage   : my $number_of_nodes = 
@@ -592,6 +623,8 @@ for more methods.
     }
 
 =item calc_number_of_terminals()
+
+Calculates the number of terminal nodes.
 
  Type    : Calculation
  Title   : calc_number_of_terminals
@@ -612,6 +645,8 @@ for more methods.
 
 =item calc_number_of_internals()
 
+Calculates the number of internal nodes.
+
  Type    : Calculation
  Title   : calc_number_of_internals
  Usage   : my $number_of_internals = 
@@ -630,6 +665,8 @@ for more methods.
     }
 
 =item calc_total_paths()
+
+Calculates the sum of all root-to-tip path lengths.
 
  Type    : Calculation
  Title   : calc_total_paths
@@ -652,6 +689,8 @@ for more methods.
     }
 
 =item calc_redundancy()
+
+Calculates the amount of shared (redundant) history on the total.
 
  Type    : Calculation
  Title   : calc_redundancy
@@ -676,6 +715,8 @@ for more methods.
     }
 
 =item calc_imbalance()
+
+Calculates Colless' coefficient of tree imbalance.
 
  Type    : Calculation
  Title   : calc_imbalance
@@ -728,6 +769,8 @@ for more methods.
     }
 
 =item calc_i2()
+
+Calculates I2 imbalance.
 
  Type    : Calculation
  Title   : calc_i2
@@ -790,6 +833,8 @@ for more methods.
     }
 
 =item calc_gamma()
+
+Calculates the Pybus gamma statistic.
 
  Type    : Calculation
  Title   : calc_gamma
@@ -873,6 +918,8 @@ for more methods.
 
 =item calc_fiala_stemminess()
 
+Calculates stemminess measure of Fiala and Sokal (1985).
+
  Type    : Calculation
  Title   : calc_fiala_stemminess
  Usage   : my $fiala_stemminess = 
@@ -910,6 +957,8 @@ for more methods.
     }
 
 =item calc_rohlf_stemminess()
+
+Calculates stemminess measure from Rohlf et al. (1990).
 
  Type    : Calculation
  Title   : calc_rohlf_stemminess
@@ -960,6 +1009,8 @@ for more methods.
 
 =item calc_resolution()
 
+Calculates tree resolution.
+
  Type    : Calculation
  Title   : calc_resolution
  Usage   : my $resolution = 
@@ -982,6 +1033,8 @@ for more methods.
     }
 
 =item calc_branching_times()
+
+Calculates branching times.
 
  Type    : Calculation
  Title   : calc_branching_times
@@ -1022,6 +1075,8 @@ for more methods.
 
 =item calc_ltt()
 
+Calculates lineage-through-time data points.
+
  Type    : Calculation
  Title   : calc_ltt
  Usage   : my $ltt = $tree->calc_ltt;
@@ -1057,6 +1112,8 @@ for more methods.
     }
 
 =item calc_symdiff()
+
+Calculates the symmetric difference metric between invocant and argument.
 
  Type    : Calculation
  Title   : calc_symdiff
@@ -1103,6 +1160,8 @@ for more methods.
 
 =item calc_fp() 
 
+Calculates the Fair Proportion value for each terminal.
+
  Type    : Calculation
  Title   : calc_fp
  Usage   : my $fp = $tree->calc_fp();
@@ -1141,6 +1200,8 @@ for more methods.
 
 =item calc_es() 
 
+Calculates the Equal Splits value for each terminal
+
  Type    : Calculation
  Title   : calc_es
  Usage   : my $es = $tree->calc_es();
@@ -1174,6 +1235,8 @@ for more methods.
 
 =item calc_pe()
 
+Calculates the Pendant Edge value for each terminal.
+
  Type    : Calculation
  Title   : calc_pe
  Usage   : my $es = $tree->calc_pe();
@@ -1193,6 +1256,8 @@ for more methods.
     }
 
 =item calc_shapley()
+
+Calculates the Shapley value for each terminal.
 
  Type    : Calculation
  Title   : calc_shapley
@@ -1303,6 +1368,8 @@ for more methods.
 
 =item visit_pre_order()
 
+Visits nodes in a pre order traversal.
+
  Type    : Visitor method
  Title   : visit_pre_order
  Usage   : $tree->visit_pre_order( sub{...} );
@@ -1338,6 +1405,8 @@ for more methods.
 
 =item visit_level_order()
 
+Visits nodes in a level order traversal.
+
  Type    : Visitor method
  Title   : visit_level_order
  Usage   : $tree->visit_level_order( sub{...} );
@@ -1370,6 +1439,8 @@ for more methods.
 	}
 
 =item visit_post_order()
+
+Visits nodes in a post order traversal.
 
  Type    : Visitor method
  Title   : visit_post_order
@@ -1412,6 +1483,8 @@ for more methods.
 
 =item ultrametricize()
 
+Sets all root-to-tip path lengths equal.
+
  Type    : Tree manipulator
  Title   : ultrametricize
  Usage   : $tree->ultrametricize;
@@ -1448,6 +1521,8 @@ for more methods.
 
 =item scale()
 
+Scales the tree to the specified height.
+
  Type    : Tree manipulator
  Title   : scale
  Usage   : $tree->scale($height);
@@ -1481,12 +1556,13 @@ for more methods.
 
 =item resolve()
 
+Randomly breaks polytomies.
+
  Type    : Tree manipulator
  Title   : resolve
  Usage   : $tree->resolve;
- Function: Breaks polytomies by inserting 
-           additional internal nodes 
-           orderered from left to right.
+ Function: Randomly breaks polytomies by inserting 
+           additional internal nodes.
  Returns : The modified invocant.
  Args    :
  Comments:
@@ -1519,6 +1595,8 @@ for more methods.
     }
 
 =item prune_tips()
+
+Prunes argument nodes from invocant.
 
  Type    : Tree manipulator
  Title   : prune_tips
@@ -1561,6 +1639,8 @@ for more methods.
 
 =item keep_tips()
 
+Keeps argument nodes from invocant (i.e. prunes all others).
+
  Type    : Tree manipulator
  Title   : keep_tips
  Usage   : $tree->keep_tips(\@taxa);
@@ -1591,6 +1671,8 @@ for more methods.
 
 =item negative_to_zero()
 
+Converts negative branch lengths to zero.
+
  Type    : Tree manipulator
  Title   : negative_to_zero
  Usage   : $tree->negative_to_zero;
@@ -1614,6 +1696,8 @@ for more methods.
     }
 
 =item exponentiate()
+
+Raises branch lengths to argument.
 
  Type    : Tree manipulator
  Title   : exponentiate
@@ -1641,6 +1725,8 @@ for more methods.
     }
 
 =item log_transform()
+
+Log argument base transform branch lengths.
 
  Type    : Tree manipulator
  Title   : log_transform
@@ -1677,6 +1763,8 @@ for more methods.
     }
 
 =item remove_unbranched_internals()
+
+Collapses internal nodes with fewer than 2 children.
 
  Type    : Tree manipulator
  Title   : remove_unbranched_internals
@@ -1717,6 +1805,8 @@ for more methods.
 
 =item to_newick()
 
+Serializes invocant to newick string.
+
  Type    : Stringifier
  Title   : to_newick
  Usage   : my $string = $tree->to_newick;
@@ -1735,6 +1825,8 @@ for more methods.
     }
 
 =item to_cipres()
+
+Converts invocant to CIPRES object.
 
  Type    : Format converter
  Title   : to_cipres
@@ -1850,7 +1942,7 @@ implement the TreeI interface.
 
 =item L<Bio::Phylo::Manual>
 
-Also see the manual: L<Bio::Phylo::Manual|Bio::Phylo::Manual>.
+Also see the manual: L<Bio::Phylo::Manual>.
 
 =back
 

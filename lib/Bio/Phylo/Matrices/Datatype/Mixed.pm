@@ -12,7 +12,7 @@ no serviceable parts inside
 
 =head1 DESCRIPTION
 
-The Bio::Phylo::Matrices::Datatype::* classes are used to validated data
+The Bio::Phylo::Matrices::Datatype::* classes are used to validate data
 contained by L<Bio::Phylo::Matrices::Matrix> and L<Bio::Phylo::Matrices::Datum>
 objects.
 
@@ -58,6 +58,8 @@ objects.
 
 =item set_missing()
 
+Sets the symbol for missing data.
+
  Type    : Mutator
  Title   : set_missing
  Usage   : $obj->set_missing('?');
@@ -75,6 +77,8 @@ objects.
     }
 
 =item set_gap()
+
+Sets the symbol for gaps.
 
  Type    : Mutator
  Title   : set_gap
@@ -100,6 +104,8 @@ objects.
 
 =item get_missing()
 
+Returns the object's missing data symbol.
+
  Type    : Accessor
  Title   : get_missing
  Usage   : my $missing = $obj->get_missing;
@@ -112,6 +118,8 @@ objects.
     sub get_missing { return $missing{ shift->get_id } }
 
 =item get_gap()
+
+Returns the object's gap symbol.
 
  Type    : Accessor
  Title   : get_gap
@@ -127,6 +135,8 @@ objects.
     my $get_ranges = sub { $range{ shift->get_id } };
 
 =item get_type()
+
+Returns the object's datatype as string.
 
  Type    : Accessor
  Title   : get_type
@@ -166,6 +176,8 @@ objects.
 =over
 
 =item is_valid()
+
+Returns true if argument only contains valid characters
 
  Type    : Test
  Title   : is_valid

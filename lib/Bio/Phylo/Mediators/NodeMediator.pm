@@ -27,9 +27,9 @@ Bio::Phylo::Mediators::NodeMediator - Mediator class to manage links between nod
 
 This module manages links between node objects. It is an implementation of the 
 Mediator design pattern (e.g. see 
-L<Relationship Manager Pattern|http://www.atug.com/andypatterns/RM.htm>,
-L<Mediator|http://home.earthlink.net/~huston2/dp/mediator.html>,
-L<Mediator Design Pattern|http://sern.ucalgary.ca/courses/SENG/443/W02/assignments/Mediator/>).
+L<http://www.atug.com/andypatterns/RM.htm>,
+L<http://home.earthlink.net/~huston2/dp/mediator.html>,
+L<http://sern.ucalgary.ca/courses/SENG/443/W02/assignments/Mediator/>).
 
 Methods defined in this module are meant only for internal usage by Bio::Phylo.
 
@@ -40,6 +40,8 @@ Methods defined in this module are meant only for internal usage by Bio::Phylo.
 =over
 
 =item new()
+
+NodeMediator constructor.
 
  Type    : Constructor
  Title   : new
@@ -76,6 +78,8 @@ Methods defined in this module are meant only for internal usage by Bio::Phylo.
 
 =item register()
 
+Stores an object in mediator's cache.
+
  Type    : Method
  Title   : register
  Usage   : $mediator->register( $obj );
@@ -110,6 +114,8 @@ Methods defined in this module are meant only for internal usage by Bio::Phylo.
 	}
 
 =item unregister()
+
+Removes argument from mediator's cache.
 
  Type    : Method
  Title   : unregister
@@ -163,6 +169,8 @@ Methods defined in this module are meant only for internal usage by Bio::Phylo.
 	}
 
 =item set_link()
+
+Creates link between arguments.
 
  Type    : Method
  Title   : set_link
@@ -342,6 +350,8 @@ Methods defined in this module are meant only for internal usage by Bio::Phylo.
 
 =item update_tree()
 
+Updates tree membership.
+
  Type    : Method
  Title   : update_tree
  Usage   : $mediator->update_tree( 
@@ -430,6 +440,8 @@ Methods defined in this module are meant only for internal usage by Bio::Phylo.
 	}
 
 =item get_link()
+
+Retrieves relative of argument.
 
  Type    : Method
  Title   : get_link

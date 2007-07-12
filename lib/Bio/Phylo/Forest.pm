@@ -28,7 +28,11 @@ Bio::Phylo::Forest - The forest object, a set of phylogenetic trees.
 =head1 SYNOPSIS
 
  use Bio::Phylo::Forest;
- my $trees = Bio::Phylo::Forest->new;
+ use Bio::Phylo::Forest::Tree;
+ 
+ my $forest = Bio::Phylo::Forest->new;
+ my $tree = Bio::Phylo::Forest::Tree->new;
+ $forest->insert($tree);
 
 =head1 DESCRIPTION
 
@@ -42,7 +46,9 @@ forest objects.
 
 =over
 
-=item new
+=item new()
+
+Forest constructor.
 
  Type    : Constructor
  Title   : new
@@ -76,7 +82,9 @@ forest objects.
 
 =over
 
-=item check_taxa
+=item check_taxa()
+
+Validates taxon links of nodes in invocant's trees.
 
  Type    : Method
  Title   : check_taxa
@@ -117,6 +125,8 @@ forest objects.
     }
 
 =item to_nexus()
+
+Serializer to nexus format.
 
  Type    : Format convertor
  Title   : to_nexus
@@ -306,6 +316,11 @@ forest objects.
 =item L<Bio::Phylo::Listable>
 
 The forest object inherits from the L<Bio::Phylo::Listable>
+object. The methods defined therein are applicable to forest objects.
+
+=item L<Bio::Phylo::Taxa::TaxaLinker>
+
+The forest object inherits from the L<Bio::Phylo::Taxa::TaxaLinker>
 object. The methods defined therein are applicable to forest objects.
 
 =item L<Bio::Phylo::Manual>

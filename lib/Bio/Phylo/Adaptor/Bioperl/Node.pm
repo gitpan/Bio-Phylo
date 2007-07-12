@@ -37,6 +37,8 @@ compatible with bioperl.
 
 =item add_Descendent()
 
+Adds a descendent to a node.
+
  Title   : add_Descendent
  Usage   : $node->add_Descendant($node);
  Function: Adds a descendent to a node
@@ -54,6 +56,8 @@ sub add_Descendent {
 }
 
 =item each_Descendent()
+
+All the descendents for this Node.
 
  Title   : each_Descendent
  Usage   : my @nodes = $node->each_Descendent;
@@ -73,6 +77,8 @@ sub each_Descendent {
 
 =item get_all_Descendents()
 
+Recursively fetch all the nodes and their descendents.
+
  Title   : get_all_Descendents($sortby)
  Usage   : my @nodes = $node->get_all_Descendents;
  Function: Recursively fetch all the nodes and their descendents
@@ -91,6 +97,8 @@ sub get_all_Descendents {
 
 =item is_Leaf()
 
+Get Leaf status.
+
  Title   : is_Leaf
  Usage   : if( $node->is_Leaf ) 
  Function: Get Leaf status
@@ -106,6 +114,8 @@ sub is_Leaf {
 }
 
 =item descendent_count()
+
+Counts the number of descendents a node has.
 
  Title   : descendent_count
  Usage   : my $count = $node->descendent_count;
@@ -124,6 +134,8 @@ sub descendent_count {
 
 =item to_string()
 
+For debugging, provide a node as a string.
+
  Title   : to_string
  Usage   : my $str = $node->to_string()
  Function: For debugging, provide a node as a string
@@ -139,6 +151,8 @@ sub to_string {
 }
 
 =item height()
+
+Returns the height of the tree starting at this.
 
  Title   : height
  Usage   : my $len = $node->height
@@ -156,6 +170,8 @@ sub height {
 }
 
 =item branch_length()
+
+Get/Set the branch length.
 
  Title   : branch_length
  Usage   : $obj->branch_length()
@@ -176,6 +192,8 @@ sub branch_length {
 }
 
 =item id()
+
+The human readable identifier for the node.
 
  Title   : id
  Usage   : $obj->id($newval)
@@ -198,6 +216,8 @@ sub id {
 
 =item internal_id()
 
+Returns the internal unique id for this Node.
+
  Title   : internal_id
  Usage   : my $internalid = $node->internal_id
  Function: Returns the internal unique id for this Node
@@ -213,6 +233,8 @@ sub internal_id {
 }
 
 =item description()
+
+Get/Set the description string.
 
  Title   : description
  Usage   : $obj->description($newval)
@@ -233,6 +255,8 @@ sub description {
 }
 
 =item bootstrap()
+
+Get/Set the bootstrap value.
 
  Title   : bootstrap
  Usage   : $obj->bootstrap($newval)
@@ -255,6 +279,8 @@ sub bootstrap {
 
 =item ancestor()
 
+Get/Set the ancestor node pointer for a Node.
+
  Title   : ancestor
  Usage   : my $node = $node->ancestor;
  Function: Get/Set the ancestor node pointer for a Node
@@ -275,6 +301,8 @@ sub ancestor {
 
 =item invalidate_height()
 
+Invalidate our cached value of the node height in the tree.
+
  Title   : invalidate_height
  Usage   : private helper method
  Function: Invalidate our cached value of the node height in the tree
@@ -286,6 +314,8 @@ sub ancestor {
 sub invalidate_height {}
 
 =item add_tag_value()
+
+Adds a tag value to a node.
 
  Title   : add_tag_value
  Usage   : $node->add_tag_value($tag,$value)
@@ -306,6 +336,8 @@ sub add_tag_value {
 
 =item remove_tag()
 
+Remove the tag and all values for this tag.
+
  Title   : remove_tag
  Usage   : $node->remove_tag($tag)
  Function: Remove the tag and all values for this tag
@@ -325,6 +357,8 @@ sub remove_tag {
 
 =item remove_all_tags()
 
+Removes all tags.
+
  Title   : remove_all_tags
  Usage   : $node->remove_all_tags()
  Function: Removes all tags 
@@ -340,6 +374,8 @@ sub remove_all_tags {
 }
 
 =item get_all_tags()
+
+Gets all the tag names for this Node.
 
  Title   : get_all_tags
  Usage   : my @tags = $node->get_all_tags()
@@ -357,6 +393,8 @@ sub get_all_tags {
 
 =item get_tag_values()
 
+Gets the values for given tag.
+
  Title   : get_tag_values
  Usage   : my @values = $node->get_tag_value($tag)
  Function: Gets the values for given tag ($tag)
@@ -373,6 +411,8 @@ sub get_tag_values {
 }
 
 =item has_tag()
+
+Boolean test if tag exists in the Node.
 
  Title   : has_tag
  Usage   : $node->has_tag($tag)

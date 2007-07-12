@@ -13,7 +13,7 @@ use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
 
 # classic @ISA manipulation, not using 'base'
 use vars qw($VERSION @ISA);
-@ISA = qw(Bio::Phylo Bio::Phylo::Util::XMLWritable);
+@ISA = qw(Bio::Phylo::Util::XMLWritable);
 {
 
     # inside out class arrays
@@ -47,6 +47,8 @@ Matrix objects, Alignment objects, Taxa, Forest, Tree objects.
 =over
 
 =item new()
+
+Listable object constructor.
 
  Type    : Constructor
  Title   : new
@@ -97,6 +99,8 @@ Matrix objects, Alignment objects, Taxa, Forest, Tree objects.
 
 =item insert()
 
+Pushes an object into its container.
+
  Type    : Object method
  Title   : insert
  Usage   : $obj->insert($other_obj);
@@ -125,6 +129,8 @@ Matrix objects, Alignment objects, Taxa, Forest, Tree objects.
     
 =item insert_at_index()
 
+Inserts argument object in invocant container at argument index.
+
  Type    : Object method
  Title   : insert_at_index
  Usage   : $obj->insert_at_index($other_obj, $i);
@@ -152,6 +158,8 @@ Matrix objects, Alignment objects, Taxa, Forest, Tree objects.
     }    
 
 =item delete()
+
+Deletes argument from invocant object.
 
  Type    : Object method
  Title   : delete
@@ -199,6 +207,8 @@ Matrix objects, Alignment objects, Taxa, Forest, Tree objects.
     }
 
 =item clear()
+
+Empties container object.
 
  Type    : Object method
  Title   : clear
@@ -307,6 +317,8 @@ Returns a reference to an array of objects contained by the listable object.
     }
 
 =item contains()
+
+Tests whether the invocant object contains the argument object.
 
  Type    : Test
  Title   : contains
@@ -509,8 +521,7 @@ Returns the highest valid index of the invocant.
 
 =item get_by_index()
 
-The get_by_index method is used to retrieve the i'th entity contained by a
-listable object.
+Gets element defined by argument index from invocant container.
 
  Type    : Query
  Title   : get_by_index
@@ -522,8 +533,8 @@ listable object.
  Args    : An index or range. This works 
            the way you dereference any perl
            array including through slices, 
-           i.e. C<$obj-E<gt>get_by_index(0 .. 10)>
-           C<$obj-E<gt>get_by_index(0, -1)> 
+           i.e. $obj->get_by_index(0 .. 10)>
+           $obj->get_by_index(0, -1) 
            and so on.
  Comments: Throws if out-of-bounds
 
@@ -563,8 +574,7 @@ listable object.
 
 =item get_by_value()
 
-The get_by_value method can be used to filter out objects contained by the
-listable object that meet a numerical condition.
+Gets elements that meet numerical rule from invocant container.
 
  Type    : Visitor predicate
  Title   : get_by_value
@@ -637,8 +647,7 @@ listable object that meet a numerical condition.
 
 =item get_by_regular_expression()
 
-The get_by_regular_expression method can be used to filter out objects contained
-by the listable object that match a regular expression.
+Gets elements that match regular expression from invocant container.
 
  Type    : Visitor predicate
  Title   : get_by_regular_expression
@@ -682,10 +691,8 @@ by the listable object that match a regular expression.
 
 =item visit()
 
-The visit method can be used to iterate over all objects in the Listable object.
-At every iteration, the CODE reference in the argument is applied to the focal
-object. The object enters the CODE reference as $_[0]. The objects are visited
-in the order in which they were inserted in the Listable object.
+Iterates over objects contained by invocant, executes argument
+code reference on each.
 
  Type    : Visitor predicate
  Title   : visit
@@ -721,6 +728,8 @@ in the order in which they were inserted in the Listable object.
 =over
 
 =item can_contain()
+
+Tests if argument can be inserted in invocant.
 
  Type    : Test
  Title   : can_contain

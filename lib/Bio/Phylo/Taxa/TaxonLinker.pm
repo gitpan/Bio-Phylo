@@ -7,7 +7,7 @@ use strict;
 
 =head1 NAME
 
-Bio::Phylo::Taxa::TaxonLinker - Superclass for objects that link to taxa objects.
+Bio::Phylo::Taxa::TaxonLinker - Superclass for objects that link to taxon objects.
 
 =head1 SYNOPSIS
 
@@ -17,9 +17,13 @@ Bio::Phylo::Taxa::TaxonLinker - Superclass for objects that link to taxa objects
  my $node  = Bio::Phylo::Forest::Node->new;
  my $taxon = Bio::Phylo::Taxa::Taxon->new;
 
- if ( $node->isa('Bio::Phylo::Taxa::TaxonLinker') ) {
-    $node->set_taxa( $taxon );
+ # just to show who's what
+ if ( $node->isa('Bio::Phylo::Taxa::TaxonLinker') ) { 
+    $node->set_taxon( $taxon );
  }
+ 
+ # prints 'Bio::Phylo::Taxa::Taxon'
+ print ref $node->get_taxon 
 
 =head1 DESCRIPTION
 
@@ -33,6 +37,8 @@ objects.
 =over
 
 =item set_taxon()
+
+Links the invocant object to a taxon object.
 
  Type    : Mutator
  Title   : set_taxon
@@ -69,6 +75,8 @@ sub set_taxon {
 
 =item unset_taxon()
 
+Unlinks the invocant object from any taxon object.
+
  Type    : Mutator
  Title   : unset_taxon
  Usage   : $obj->unset_taxon();
@@ -93,6 +101,8 @@ sub unset_taxon {
 =over
 
 =item get_taxon()
+
+Retrieves the Bio::Phylo::Taxa::Taxon object linked to the invocant.
 
  Type    : Accessor
  Title   : get_taxon

@@ -43,6 +43,8 @@ compatible with bioperl.
 
 =item get_nodes()
 
+Return list of Tree::NodeI objects.
+
  Title   : get_nodes
  Usage   : my @nodes = $tree->get_nodes()
  Function: Return list of Tree::NodeI objects
@@ -60,6 +62,8 @@ sub get_nodes {
 
 =item get_root_node()
 
+Get the Top Node in the tree.
+
  Title   : get_root_node
  Usage   : my $node = $tree->get_root_node();
  Function: Get the Top Node in the tree, in this implementation
@@ -76,6 +80,8 @@ sub get_root_node {
 }
 
 =item number_nodes()
+
+Returns the number of nodes.
 
  Title   : number_nodes
  Usage   : my $size = $tree->number_nodes
@@ -95,6 +101,8 @@ sub number_nodes {
 
 =item total_branch_length()
 
+Returns the sum of the length of all branches.
+
  Title   : total_branch_length
  Usage   : my $size = $tree->total_branch_length
  Function: Returns the sum of the length of all branches
@@ -110,6 +118,8 @@ sub total_branch_length {
 }
 
 =item height()
+
+Gets the height of tree.
 
  Title   : height
  Usage   : my $height = $tree->height
@@ -130,6 +140,8 @@ sub height {
 
 =item id()
 
+An id value for the tree.
+
  Title   : id
  Usage   : my $id = $tree->id();
  Function: An id value for the tree
@@ -146,6 +158,8 @@ sub id {
 }
 
 =item score()
+
+Sets the associated score with this tree.
 
  Title   : score
  Usage   : $obj->score($newval)
@@ -168,6 +182,8 @@ sub score {
 }
 
 =item get_leaf_nodes()
+
+Returns the leaves (tips) of the tree.
 
  Title   : get_leaf_nodes
  Usage   : my @leaves = $tree->get_leaf_nodes()
@@ -197,7 +213,7 @@ trees compatible with the L<Bio::Tree::TreeI> interface.
 
 =item L<Bio::Phylo::Manual>
 
-Also see the manual: L<Bio::Phylo::Manual|Bio::Phylo::Manual>.
+Also see the manual: L<Bio::Phylo::Manual>.
 
 =back
 

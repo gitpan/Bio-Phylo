@@ -35,6 +35,8 @@ Methods defined in this module are meant only for internal usage by Bio::Phylo.
 
 =item new()
 
+TaxaMediator constructor.
+
  Type    : Constructor
  Title   : new
  Usage   : my $mediator = Bio::Phylo::Taxa::TaxaMediator->new;
@@ -70,6 +72,8 @@ sub new {
 
 =item register()
 
+Stores argument in invocant's cache.
+
  Type    : Method
  Title   : register
  Usage   : $mediator->register( $obj );
@@ -93,6 +97,8 @@ sub register {
 }
 
 =item unregister()
+
+Removes argument from invocant's cache.
 
  Type    : Method
  Title   : unregister
@@ -141,6 +147,8 @@ sub unregister {
 }
 
 =item set_link()
+
+Creates link between objects.
 
  Type    : Method
  Title   : set_link
@@ -194,6 +202,8 @@ sub set_link {
 }
 
 =item get_link()
+
+Retrieves link between objects.
 
  Type    : Method
  Title   : get_link
@@ -251,10 +261,12 @@ sub get_link {
 
 =item remove_link()
 
+Removes link between objects.
+
  Type    : Method
  Title   : remove_link
  Usage   : $mediator->remove_link( -one => $obj1, -many => $obj2 );
- Function: Creates link between objects
+ Function: Removes link between objects
  Returns : $self
  Args    : -one  => $obj1 (source of a one-to-many relationship)
            -many => $obj2 (target of a one-to-many relationship)

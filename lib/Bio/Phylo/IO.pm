@@ -127,14 +127,7 @@ runtime, depending on the '-format' argument.
 
 =item parse()
 
-The parse method makes assumptions about 
-the capabilities of Bio::Phylo::Parsers::* 
-modules: i) their names match those of the
--format => (blah) arguments, insofar that 
-ucfirst(blah) . '.pm' is an existing module; 
-ii) the modules implement a _from_handle, 
-or a _from_string method. Exceptions are 
-thrown if either assumption is violated.
+Parses a file or string.
 
  Type    : Class method
  Title   : parse
@@ -147,6 +140,14 @@ thrown if either assumption is violated.
            -string  => (scalar),
            -format  => (description format),
            -(other) => (parser specific options)
+ Comments: The parse method makes assumptions about 
+		   the capabilities of Bio::Phylo::Parsers::* 
+		   modules: i) their names match those of the
+		   -format => (blah) arguments, insofar that 
+		   ucfirst(blah) . '.pm' is an existing module; 
+		   ii) the modules implement a _from_handle, 
+		   or a _from_string method. Exceptions are 
+		   thrown if either assumption is violated.           
 
 =cut
 
@@ -213,6 +214,8 @@ sub parse {
 }
 
 =item unparse()
+
+Unparses object(s) to a string.
 
  Type    : Class method
  Title   : unparse
@@ -281,21 +284,23 @@ sub DESTROY {
 
 =item L<Bio::Phylo::Parsers::Newick>
 
-=item L<Bio::Phylo::Parsers::Fastnewick>
-
 =item L<Bio::Phylo::Parsers::Nexus>
 
 =item L<Bio::Phylo::Parsers::Table>
 
 =item L<Bio::Phylo::Parsers::Taxlist>
 
+=item L<Bio::Phylo::Unparsers::Mrp>
+
 =item L<Bio::Phylo::Unparsers::Newick>
+
+=item L<Bio::Phylo::Unparsers::Nexus>
 
 =item L<Bio::Phylo::Unparsers::Pagel>
 
 =item L<Bio::Phylo::Manual>
 
-Also see the manual: L<Bio::Phylo::Manual|Bio::Phylo::Manual>.
+Also see the manual: L<Bio::Phylo::Manual>
 
 =back
 

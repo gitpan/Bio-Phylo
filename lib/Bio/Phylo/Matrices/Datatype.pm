@@ -38,6 +38,8 @@ on single characters for categorical data).
 
 =item new()
 
+Datatype constructor.
+
  Type    : Constructor
  Title   : new
  Usage   : No direct usage, is called by TypeSafaData classes;
@@ -99,10 +101,12 @@ on single characters for categorical data).
 
 =item set_lookup()
 
+Sets state lookup table.
+
  Type    : Mutator
  Title   : set_lookup
- Usage   : $obj->set_gap($hashref);
- Function: Sets the symbol for gaps
+ Usage   : $obj->set_lookup($hashref);
+ Function: Sets the state lookup table.
  Returns : Modified object.
  Args    : Argument must be a hash
            reference that maps allowed
@@ -137,6 +141,8 @@ on single characters for categorical data).
 
 =item set_missing()
 
+Sets missing data symbol.
+
  Type    : Mutator
  Title   : set_missing
  Usage   : $obj->set_missing('?');
@@ -154,6 +160,8 @@ on single characters for categorical data).
     }
 
 =item set_gap()
+
+Sets gap symbol.
 
  Type    : Mutator
  Title   : set_gap
@@ -179,6 +187,8 @@ on single characters for categorical data).
 
 =item get_type()
 
+Gets data type as string.
+
  Type    : Accessor
  Title   : get_type
  Usage   : my $type = $obj->get_type;
@@ -195,6 +205,8 @@ on single characters for categorical data).
     }
 
 =item get_lookup()
+
+Gets state lookup table.
 
  Type    : Accessor
  Title   : get_lookup
@@ -226,6 +238,8 @@ on single characters for categorical data).
 
 =item get_missing()
 
+Gets missing data symbol.
+
  Type    : Accessor
  Title   : get_missing
  Usage   : my $missing = $obj->get_missing;
@@ -240,6 +254,8 @@ on single characters for categorical data).
     }
 
 =item get_gap()
+
+Gets gap symbol.
 
  Type    : Accessor
  Title   : get_gap
@@ -261,6 +277,8 @@ on single characters for categorical data).
 =over
 
 =item is_valid()
+
+Validates argument.
 
  Type    : Test
  Title   : is_valid
@@ -304,6 +322,8 @@ on single characters for categorical data).
     }
 
 =item is_same()
+
+Compares data type objects.
 
  Type    : Test
  Title   : is_same
@@ -381,6 +401,8 @@ on single characters for categorical data).
 
 =item split()
 
+Splits argument string of characters following appropriate rules.
+
  Type    : Utility method
  Title   : split
  Usage   : $obj->split($string)
@@ -397,6 +419,8 @@ on single characters for categorical data).
     }
 
 =item join()
+
+Joins argument array ref of characters following appropriate rules.
 
  Type    : Utility method
  Title   : join

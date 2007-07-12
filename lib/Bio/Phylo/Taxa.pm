@@ -50,6 +50,8 @@ A taxa object can link to multiple forest and matrix objects.
 
 =item new()
 
+Taxa constructor.
+
  Type    : Constructor
  Title   : new
  Usage   : my $taxa = Bio::Phylo::Taxa->new;
@@ -82,6 +84,8 @@ A taxa object can link to multiple forest and matrix objects.
 
 =item set_forest()
 
+Sets associated Bio::Phylo::Forest object.
+
  Type    : Mutator
  Title   : set_forest
  Usage   : $taxa->set_forest( $forest );
@@ -112,6 +116,8 @@ A taxa object can link to multiple forest and matrix objects.
     }
 
 =item set_matrix()
+
+Sets associated Bio::Phylo::Matrices::Matrix object.
 
  Type    : Mutator
  Title   : set_matrix
@@ -144,6 +150,8 @@ A taxa object can link to multiple forest and matrix objects.
 
 =item unset_forest()
 
+Removes association with argument Bio::Phylo::Forest object.
+
  Type    : Mutator
  Title   : unset_forest
  Usage   : $taxa->unset_forest($forest);
@@ -172,6 +180,8 @@ A taxa object can link to multiple forest and matrix objects.
     }
 
 =item unset_matrix()
+
+Removes association with Bio::Phylo::Matrices::Matrix object.
 
  Type    : Mutator
  Title   : unset_matrix
@@ -209,6 +219,8 @@ A taxa object can link to multiple forest and matrix objects.
 
 =item get_forests()
 
+Gets all associated Bio::Phylo::Forest objects.
+
  Type    : Accessor
  Title   : get_forests
  Usage   : @forests = @{ $taxa->get_forests };
@@ -230,6 +242,8 @@ A taxa object can link to multiple forest and matrix objects.
 
 =item get_matrices()
 
+Gets all associated Bio::Phylo::Matrices::Matrix objects.
+
  Type    : Accessor
  Title   : get_matrices
  Usage   : @matrices = @{ $taxa->get_matrices };
@@ -250,6 +264,8 @@ A taxa object can link to multiple forest and matrix objects.
     }
 
 =item get_ntax()
+
+Gets number of contained Bio::Phylo::Taxa::Taxon objects.
 
  Type    : Accessor
  Title   : get_ntax
@@ -273,6 +289,8 @@ A taxa object can link to multiple forest and matrix objects.
 =over
 
 =item merge_by_name()
+
+Merges argument Bio::Phylo::Taxa object with invocant.
 
  Type    : Method
  Title   : merge_by_name
@@ -330,6 +348,8 @@ A taxa object can link to multiple forest and matrix objects.
 
 =item to_nexus()
 
+Serializes invocant to nexus format.
+
  Type    : Format convertor
  Title   : to_nexus
  Usage   : my $block = $taxa->to_nexus;
@@ -361,6 +381,8 @@ A taxa object can link to multiple forest and matrix objects.
 =over
 
 =item DESTROY()
+
+Invocant destructor.
 
  Type    : Destructor
  Title   : DESTROY

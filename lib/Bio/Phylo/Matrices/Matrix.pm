@@ -13,7 +13,6 @@ use Bio::Phylo::Util::XMLWritable;
 use Scalar::Util qw(blessed);
 
 @ISA = qw(
-    Bio::Phylo::Listable 
     Bio::Phylo::Taxa::TaxaLinker 
     Bio::Phylo::Matrices::TypeSafeData
 );
@@ -76,6 +75,8 @@ methods defined there apply here.
 
 =item new()
 
+Matrix constructor.
+
  Type    : Constructor
  Title   : new
  Usage   : my $matrix = Bio::Phylo::Matrices::Matrix->new;
@@ -115,6 +116,8 @@ methods defined there apply here.
 
 =item set_charlabels()
 
+Sets argument character labels.
+
  Type    : Mutator
  Title   : set_charlabels
  Usage   : $matrix->set_charlabels( [ 'char1', 'char2', 'char3' ] );
@@ -152,6 +155,8 @@ sub set_charlabels {
 
 =item set_gapmode()
 
+Defines matrix gapmode.
+
  Type    : Mutator
  Title   : set_gapmode
  Usage   : $matrix->set_gapmode( 1 );
@@ -168,6 +173,8 @@ sub set_gapmode {
 }
 
 =item set_matchchar()
+
+Assigns match symbol.
 
  Type    : Mutator
  Title   : set_matchchar
@@ -186,6 +193,8 @@ sub set_matchchar {
 
 =item set_polymorphism()
 
+Defines matrix 'polymorphism' interpretation.
+
  Type    : Mutator
  Title   : set_polymorphism
  Usage   : $matrix->set_polymorphism( 1 );
@@ -203,6 +212,8 @@ sub set_polymorphism {
 }
 
 =item set_raw()
+
+Set contents using two-dimensional array argument.
 
  Type    : Mutator
  Title   : set_raw
@@ -250,6 +261,8 @@ sub set_raw {
 
 =item set_respectcase()
 
+Defines matrix case sensitivity interpretation.
+
  Type    : Mutator
  Title   : set_respectcase
  Usage   : $matrix->set_respectcase( 1 );
@@ -274,6 +287,8 @@ sub set_respectcase {
 
 =item get_charlabels()
 
+Retrieves character labels.
+
  Type    : Accessor
  Title   : get_charlabels
  Usage   : my @charlabels = @{ $matrix->get_charlabels };
@@ -291,6 +306,8 @@ sub get_charlabels {
 
 =item get_gapmode()
 
+Returns matrix gapmode.
+
  Type    : Accessor
  Title   : get_gapmode
  Usage   : do_something() if $matrix->get_gapmode;
@@ -307,6 +324,8 @@ sub get_gapmode {
 
 =item get_matchchar()
 
+Returns matrix match character.
+
  Type    : Accessor
  Title   : get_matchchar
  Usage   : my $char = $matrix->get_matchchar;
@@ -322,6 +341,8 @@ sub get_matchchar {
 }
 
 =item get_nchar()
+
+Calculates number of characters.
 
  Type    : Accessor
  Title   : get_nchar
@@ -347,6 +368,8 @@ sub get_nchar {
 
 =item get_ntax()
 
+Calculates number of taxa (rows) in matrix.
+
  Type    : Accessor
  Title   : get_ntax
  Usage   : my $ntax = $matrix->get_ntax;
@@ -362,6 +385,8 @@ sub get_ntax {
 }
 
 =item get_polymorphism()
+
+Returns matrix 'polymorphism' interpretation.
 
  Type    : Accessor
  Title   : get_polymorphism
@@ -379,6 +404,8 @@ sub get_polymorphism {
 }
 
 =item get_raw()
+
+Retrieves a 'raw' (two-dimensional array) representation of the matrix's contents.
 
  Type    : Accessor
  Title   : get_raw
@@ -406,6 +433,8 @@ sub get_raw {
 
 =item get_respectcase()
 
+Returns matrix case sensitivity interpretation.
+
  Type    : Accessor
  Title   : get_respectcase
  Usage   : do_something() if $matrix->get_respectcase;
@@ -428,6 +457,8 @@ sub get_respectcase {
 =over
 
 =item to_nexus()
+
+Serializes matrix to nexus format.
 
  Type    : Format convertor
  Title   : to_nexus
@@ -561,10 +592,12 @@ sub to_nexus {
 
 =item insert()
 
+Insert argument in invocant.
+
  Type    : Listable method
  Title   : insert
  Usage   : $matrix->insert($datum);
- Function: Converts matrix object into a nexus data block.
+ Function: Inserts $datum in $matrix.
  Returns : Modified object
  Args    : A datum object
  Comments: This method re-implements the method by the same
@@ -608,6 +641,8 @@ sub insert {
 
 =item validate()
 
+Validates the object's contents.
+
  Type    : Method
  Title   : validate
  Usage   : $obj->validate
@@ -627,6 +662,8 @@ sub validate {
 }
 
 =item check_taxa()
+
+Validates taxa associations.
 
  Type    : Method
  Title   : check_taxa
@@ -684,6 +721,8 @@ sub _container { _MATRICES_ }
 
 =item DESTROY()
 
+Invocant destructor.
+
  Type    : Destructor
  Title   : DESTROY
  Usage   : $phylo->DESTROY
@@ -711,12 +750,6 @@ sub _cleanup {
 =head1 SEE ALSO
 
 =over
-
-=item L<Bio::Phylo::Listable>
-
-This object inherits from L<Bio::Phylo::Listable>, so the
-methods defined therein are also applicable to L<Bio::Phylo::Matrices::Matrix>
-objects.
 
 =item L<Bio::Phylo::Taxa::TaxaLinker>
 

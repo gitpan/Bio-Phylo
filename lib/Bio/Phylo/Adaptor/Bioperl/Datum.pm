@@ -35,6 +35,8 @@ compatible with bioperl.
 
 =item alphabet()
 
+Returns the alphabet of sequence.
+
  Title   : alphabet
  Usage   : if( $obj->alphabet eq 'dna' ) { /Do Something/ }
  Function: Returns the alphabet of sequence, one of
@@ -54,10 +56,12 @@ compatible with bioperl.
 sub alphabet {
     my $adaptor = shift;
     my $self = $$adaptor;
-    return $self->get_type_object->get_type;
+    return lc( $self->get_type_object->get_type );
 }
 
 =item get_nse()
+
+read-only name of form id/start-end
 
  Title   : get_nse
  Usage   :
@@ -79,6 +83,8 @@ sub get_nse {
 }
 
 =item seq()
+
+Returns the sequence as a string of letters. 
 
  Title   : seq()
  Usage   : $string    = $obj->seq()

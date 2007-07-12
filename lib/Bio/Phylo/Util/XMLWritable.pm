@@ -1,5 +1,8 @@
 package Bio::Phylo::Util::XMLWritable;
 use strict;
+use Bio::Phylo;
+use vars '@ISA';
+@ISA=qw(Bio::Phylo);
 
 =head1 NAME
 
@@ -22,6 +25,8 @@ override.
 =over
 
 =item to_xml()
+
+Serializes invocant to XML.
 
  Type    : XML serializer
  Title   : to_xml

@@ -37,7 +37,7 @@ offspring name, parent name, branch length, character state(s).
 During unparsing, the tree is randomly resolved, and branch lengths are
 formatted to %f floats (i.e. integers, decimal point, integers).
 
-The pagel module is called by the L<Bio::Phylo::IO|Bio::Phylo::IO> object, so
+The pagel module is called by the L<Bio::Phylo::IO> object, so
 look there to learn how to create Pagel formatted files.
 
 =begin comment
@@ -127,12 +127,12 @@ sub _to_string {
 
 =item L<Bio::Phylo::IO>
 
-The pagel unparser is called by the L<Bio::Phylo::IO|Bio::Phylo::IO> object.
+The pagel unparser is called by the L<Bio::Phylo::IO> object.
 Look there to learn how to create pagel formatted files.
 
 =item L<Bio::Phylo::Manual>
 
-Also see the manual: L<Bio::Phylo::Manual|Bio::Phylo::Manual>.
+Also see the manual: L<Bio::Phylo::Manual>.
 
 =back
 

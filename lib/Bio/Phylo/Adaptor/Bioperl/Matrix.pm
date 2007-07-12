@@ -37,6 +37,8 @@ compatible with bioperl.
 
 =item add_seq()
 
+Adds another sequence to the alignment. 
+
  Title     : add_seq
  Usage     : $myalign->add_seq($newseq);
  Function  : Adds another sequence to the alignment. *Does not* align
@@ -58,6 +60,8 @@ sub add_seq {
 
 =item remove_seq()
 
+Removes a single sequence from an alignment.
+
  Title     : remove_seq
  Usage     : $aln->remove_seq($seq);
  Function  : Removes a single sequence from an alignment
@@ -74,6 +78,8 @@ sub remove_seq {
 }
 
 =item sort_alphabetically()
+
+Changes the order of the alignemnt to alphabetical on name followed by numerical by number.
 
  Title     : sort_alphabetically
  Usage     : $ali->sort_alphabetically
@@ -98,6 +104,8 @@ sub sort_alphabetically {
 
 =item each_seq()
 
+Gets an array of Seq objects from the alignment.
+
  Title     : each_seq
  Usage     : foreach $seq ( $align->each_seq() ) 
  Function  : Gets an array of Seq objects from the alignment
@@ -113,6 +121,8 @@ sub each_seq {
 }
 
 =item each_alphabetically()
+
+Returns an array of sequence object sorted alphabetically.
 
  Title     : each_alphabetically
  Usage     : foreach $seq ( $ali->each_alphabetically() )
@@ -135,6 +145,8 @@ sub each_alphabetically {
 
 =item each_seq_with_id()
 
+Gets an array of Seq objects from the alignment.
+
  Title     : each_seq_with_id
  Usage     : foreach $seq ( $align->each_seq_with_id() ) 
  Function  : 
@@ -156,6 +168,8 @@ sub each_seq_with_id {
 
 =item get_seq_by_pos()
 
+Gets a sequence based on its position in the alignment.
+
  Title     : get_seq_by_pos
  Usage     : $seq = $aln->get_seq_by_pos(3) # third sequence from the alignment
  Function  : 
@@ -176,6 +190,8 @@ sub get_seq_by_pos {
 }
 
 =item select()
+
+Creates a new alignment from a continuous subset of sequences.
 
  Title     : select
  Usage     : $aln2 = $aln->select(1, 3) # three first sequences
@@ -208,6 +224,8 @@ sub select {
 
 =item select_noncont()
 
+Creates a new alignment from a subset of sequences.
+
  Title     : select_noncont
  Usage     : $aln2 = $aln->select_noncont(1, 3) # first and 3rd sequences
  Function  : 
@@ -231,6 +249,8 @@ sub select_noncont {
 
 =item id()
 
+Gets/sets the id field of the alignment.
+
  Title     : id
  Usage     : $myalign->id("Ig")
  Function  : Gets/sets the id field of the alignment
@@ -247,6 +267,8 @@ sub id {
 }
 
 =item missing_char()
+
+Gets/sets the missing_char attribute of the alignment.
 
  Title     : missing_char
  Usage     : $myalign->missing_char("?")
@@ -267,6 +289,8 @@ sub missing_char {
 
 =item match_char()
 
+Gets/sets the match_char attribute of the alignment.
+
  Title     : match_char
  Usage     : $myalign->match_char('.')
  Function  : Gets/sets the match_char attribute of the alignment
@@ -284,6 +308,8 @@ sub match_char {
 
 =item gap_char()
 
+Gets/sets the gap_char attribute of the alignment.
+
  Title     : gap_char
  Usage     : $myalign->gap_char('-')
  Function  : Gets/sets the gap_char attribute of the alignment
@@ -300,6 +326,8 @@ sub gap_char {
 }
 
 =item symbol_chars()
+
+Returns all the seen symbols (other than gaps).
 
  Title   : symbol_chars
  Usage   : my @symbolchars = $aln->symbol_chars;
@@ -324,6 +352,8 @@ sub symbol_chars {
 
 =item is_flush()
 
+Tells you whether the alignment is flush, ie all of the same length
+
  Title     : is_flush
  Usage     : if( $ali->is_flush() )
            : 
@@ -341,6 +371,8 @@ sub is_flush { 1 } # Bio::Phylo::Matrices::Matrix is always rectangular
 
 =item length()
 
+Returns the maximum length of the alignment.
+
  Title     : length()
  Usage     : $len = $ali->length() 
  Function  : Returns the maximum length of the alignment.
@@ -357,6 +389,8 @@ sub length {
 }
 
 =item maxdisplayname_length()
+
+Gets the maximum length of the displayname in the alignment. 
 
  Title     : maxdisplayname_length
  Usage     : $ali->maxdisplayname_length()
@@ -383,6 +417,8 @@ sub maxdisplayname_length {
 
 =item no_sequences()
 
+Number of sequence in the sequence alignment.
+
  Title     : no_sequences
  Usage     : $depth = $ali->no_sequences
  Function  : number of sequence in the sequence alignment
@@ -398,6 +434,8 @@ sub no_sequences {
 }
 
 =item displayname()
+
+Gets/sets the display name of a sequence in the alignment.
 
  Title     : displayname
  Usage     : $myalign->displayname("Ig", "IgA")
@@ -433,6 +471,8 @@ sub displayname {
 }
 
 =item set_displayname_flat()
+
+Makes all the sequences be displayed as just their name, not name/start-end
 
  Title     : set_displayname_flat
  Usage     : $ali->set_displayname_flat()

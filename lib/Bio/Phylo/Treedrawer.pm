@@ -57,6 +57,8 @@ nodes) and calls the appropriate format-specific drawer.
 
 =item new()
 
+Treedrawer constructor.
+
  Type    : Constructor
  Title   : new
  Usage   : my $treedrawer = Bio::Phylo::Treedrawer->new(
@@ -108,6 +110,8 @@ sub new {
 
 =item set_format()
 
+Sets image format.
+
  Type    : Mutator
  Title   : set_format
  Usage   : $treedrawer->set_format('Svg');
@@ -136,6 +140,8 @@ sub set_format {
 
 =item set_width()
 
+Sets image width.
+
  Type    : Mutator
  Title   : set_width
  Usage   : $treedrawer->set_width(1000);
@@ -160,6 +166,8 @@ sub set_width {
 
 =item set_height()
 
+Sets image height.
+
  Type    : Mutator
  Title   : set_height
  Usage   : $treedrawer->set_height(1000);
@@ -183,6 +191,8 @@ sub set_height {
 }
 
 =item set_mode()
+
+Sets tree drawing mode.
 
  Type    : Mutator
  Title   : set_mode
@@ -209,6 +219,8 @@ sub set_mode {
 
 =item set_shape()
 
+Sets tree drawing shape.
+
  Type    : Mutator
  Title   : set_shape
  Usage   : $treedrawer->set_shape('rect');
@@ -234,6 +246,8 @@ sub set_shape {
 
 =item set_padding()
 
+Sets image padding.
+
  Type    : Mutator
  Title   : set_padding
  Usage   : $treedrawer->set_padding(100);
@@ -258,6 +272,8 @@ sub set_padding {
 
 =item set_node_radius()
 
+Sets node radius.
+
  Type    : Mutator
  Title   : set_node_radius
  Usage   : $treedrawer->set_node_radius(20);
@@ -281,6 +297,8 @@ sub set_node_radius {
 }
 
 =item set_text_horiz_offset()
+
+Sets text horizontal offset.
 
  Type    : Mutator
  Title   : set_text_horiz_offset
@@ -307,6 +325,8 @@ sub set_text_horiz_offset {
 
 =item set_text_vert_offset()
 
+Sets text vertical offset.
+
  Type    : Mutator
  Title   : set_text_vert_offset
  Usage   : $treedrawer->set_text_vert_offset(3);
@@ -332,6 +352,8 @@ sub set_text_vert_offset {
 
 =item set_text_width()
 
+Sets text width.
+
  Type    : Mutator
  Title   : set_text_width
  Usage   : $treedrawer->set_text_width(150);
@@ -356,6 +378,8 @@ sub set_text_width {
 }
 
 =item set_tree()
+
+Sets tree to draw.
 
  Type    : Mutator
  Title   : set_tree
@@ -383,6 +407,8 @@ sub set_tree {
 }
 
 =item set_scale_options()
+
+Sets time scale options.
 
  Type    : Mutator
  Title   : set_scale_options
@@ -452,6 +478,8 @@ sub set_scale_options {
 
 =item get_format()
 
+Gets image format.
+
  Type    : Mutator
  Title   : get_format
  Usage   : my $format = $treedrawer->get_format;
@@ -464,6 +492,8 @@ sub set_scale_options {
 sub get_format { shift->{'FORMAT'} }
 
 =item get_width()
+
+Gets image width.
 
  Type    : Mutator
  Title   : get_width
@@ -478,6 +508,8 @@ sub get_width { shift->{'WIDTH'} }
 
 =item get_height()
 
+Gets image height.
+
  Type    : Accessor
  Title   : get_height
  Usage   : my $height = $treedrawer->get_height;
@@ -491,6 +523,8 @@ sub get_height { shift->{'HEIGHT'} }
 
 =item get_mode()
 
+Gets tree drawing mode.
+
  Type    : Accessor
  Title   : get_mode
  Usage   : my $mode = $treedrawer->get_mode('clado');
@@ -503,6 +537,8 @@ sub get_height { shift->{'HEIGHT'} }
 sub get_mode { shift->{'MODE'} }
 
 =item get_shape()
+
+Gets tree drawing shape.
 
  Type    : Accessor
  Title   : get_shape
@@ -518,6 +554,8 @@ sub get_shape { shift->{'SHAPE'} }
 
 =item get_padding()
 
+Gets image padding.
+
  Type    : Accessor
  Title   : get_padding
  Usage   : my $padding = $treedrawer->get_padding;
@@ -531,6 +569,8 @@ sub get_padding { shift->{'PADDING'} }
 
 =item get_node_radius()
 
+Gets node radius.
+
  Type    : Accessor
  Title   : get_node_radius
  Usage   : my $node_radius = $treedrawer->get_node_radius;
@@ -543,6 +583,8 @@ sub get_padding { shift->{'PADDING'} }
 sub get_node_radius { shift->{'NODE_RADIUS'} }
 
 =item get_text_horiz_offset()
+
+Gets text horizontal offset.
 
  Type    : Accessor
  Title   : get_text_horiz_offset
@@ -559,6 +601,8 @@ sub get_text_horiz_offset { shift->{'TEXT_HORIZ_OFFSET'} }
 
 =item get_text_vert_offset()
 
+Gets text vertical offset.
+
  Type    : Accessor
  Title   : get_text_vert_offset
  Usage   : my $text_vert_offset = 
@@ -573,6 +617,8 @@ sub get_text_horiz_offset { shift->{'TEXT_HORIZ_OFFSET'} }
 sub get_text_vert_offset { shift->{'TEXT_VERT_OFFSET'} }
 
 =item get_text_width()
+
+Gets text width.
 
  Type    : Accessor
  Title   : get_text_width
@@ -589,6 +635,8 @@ sub get_text_width { shift->{'TEXT_WIDTH'} }
 
 =item get_tree()
 
+Gets tree to draw.
+
  Type    : Accessor
  Title   : get_tree
  Usage   : my $tree = $treedrawer->get_tree;
@@ -602,6 +650,8 @@ sub get_text_width { shift->{'TEXT_WIDTH'} }
 sub get_tree { shift->{'TREE'} }
 
 =item get_scale_options()
+
+Gets time scale option.
 
  Type    : Accessor
  Title   : get_scale_options
@@ -678,6 +728,8 @@ sub _get_scaley { shift->{'_SCALEY'} }
 =over
 
 =item draw()
+
+Creates tree drawing.
 
  Type    : Unparsers
  Title   : draw

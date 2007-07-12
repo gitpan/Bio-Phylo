@@ -48,6 +48,8 @@ are available to apply to a set of matrices.
 
 =item new()
 
+Matrices constructor.
+
  Type    : Constructor
  Title   : new
  Usage   : my $matrices = Bio::Phylo::Matrices->new;

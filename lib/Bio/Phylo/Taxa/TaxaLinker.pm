@@ -32,6 +32,8 @@ This module is a superclass for objects that link to L<Bio::Phylo::Taxa> objects
 
 =item set_taxa()
 
+Associates invocant with Bio::Phylo::Taxa argument.
+
  Type    : Mutator
  Title   : set_taxa
  Usage   : $obj->set_taxa( $taxa );
@@ -68,6 +70,8 @@ sub set_taxa {
 
 =item unset_taxa()
 
+Removes association between invocant and Bio::Phylo::Taxa object.
+
  Type    : Mutator
  Title   : unset_taxa
  Usage   : $obj->unset_taxa();
@@ -92,6 +96,8 @@ sub unset_taxa {
 
 =item get_taxa()
 
+Retrieves association between invocant and Bio::Phylo::Taxa object.
+
  Type    : Accessor
  Title   : get_taxa
  Usage   : my $taxa = $obj->get_taxa;
@@ -113,6 +119,8 @@ sub get_taxa {
 }
 
 =item check_taxa()
+
+Performs sanity check on taxon relationships.
 
  Type    : Interface method
  Title   : check_taxa

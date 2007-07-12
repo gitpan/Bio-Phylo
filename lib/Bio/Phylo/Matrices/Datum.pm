@@ -10,9 +10,7 @@ use Bio::Phylo::Adaptor;
 use Bio::Phylo::Util::CONSTANT qw(:objecttypes looks_like_number);
 
 @ISA = qw(
-    Bio::Phylo::Listable 
     Bio::Phylo::Taxa::TaxonLinker 
-    Bio::Phylo::Util::XMLWritable
     Bio::Phylo::Matrices::TypeSafeData 
 );
 
@@ -53,6 +51,7 @@ Bio::Phylo::Matrices::Datum - The character state sequence object.
  # ...and insert datum in matrix
  $matrix->insert($datum);
 
+
 =head1 DESCRIPTION
 
 The datum object models a single observation or a sequence of observations,
@@ -65,6 +64,8 @@ which can be linked to a taxon object.
 =over
 
 =item new()
+
+Datum object constructor.
 
  Type    : Constructor
  Title   : new
@@ -103,6 +104,8 @@ which can be linked to a taxon object.
 
 =item set_weight()
 
+Sets invocant weight.
+
  Type    : Mutator
  Title   : set_weight
  Usage   : $datum->set_weight($weight);
@@ -131,6 +134,8 @@ which can be linked to a taxon object.
     }
 
 =item set_char()
+
+Sets character state(s)
 
  Type    : Mutator
  Title   : set_char
@@ -177,6 +182,8 @@ which can be linked to a taxon object.
 
 =item set_position()
 
+Set invocant starting position.
+
  Type    : Mutator
  Title   : set_position
  Usage   : $datum->set_position($pos);
@@ -199,6 +206,8 @@ which can be linked to a taxon object.
     }
 
 =item set_annotation()
+
+Sets single annotation.
 
  Type    : Mutator
  Title   : set_annotation
@@ -256,6 +265,8 @@ which can be linked to a taxon object.
 
 =item set_annotations()
 
+Sets list of annotations.
+
  Type    : Mutator
  Title   : set_annotations
  Usage   : $datum->set_annotations(
@@ -312,6 +323,8 @@ which can be linked to a taxon object.
 
 =item get_weight()
 
+Gets invocant weight.
+
  Type    : Accessor
  Title   : get_weight
  Usage   : my $weight = $datum->get_weight;
@@ -328,6 +341,8 @@ which can be linked to a taxon object.
     }
 
 =item get_char()
+
+Gets characters.
 
  Type    : Accessor
  Title   : get_char
@@ -356,6 +371,8 @@ which can be linked to a taxon object.
 
 =item get_position()
 
+Gets invocant starting position.
+
  Type    : Accessor
  Title   : get_position
  Usage   : my $pos = $datum->get_position;
@@ -372,6 +389,8 @@ which can be linked to a taxon object.
     }
 
 =item get_annotation()
+
+Retrieves character annotation (hashref).
 
  Type    : Accessor
  Title   : get_annotation
@@ -420,6 +439,8 @@ which can be linked to a taxon object.
 
 =item get_length()
 
+Gets invocant number of characters.
+
  Type    : Accessor
  Title   : get_length
  Usage   : my $length = $datum->get_length;
@@ -448,6 +469,8 @@ which can be linked to a taxon object.
 
 =item get_by_index()
 
+Gets state at argument index.
+
  Type    : Accessor
  Title   : get_by_index
  Usage   : my $val = $datum->get_by_index($i);
@@ -471,6 +494,8 @@ which can be linked to a taxon object.
 
 =item can_contain()
 
+Tests if invocant can contain argument.
+
  Type    : Test
  Title   : can_contain
  Usage   : &do_something if $datum->can_contain( @args );
@@ -493,6 +518,8 @@ which can be linked to a taxon object.
 
 =item reverse()
 
+Reverses contents.
+
  Type    : Method
  Title   : reverse
  Usage   : $datum->reverse;
@@ -510,6 +537,8 @@ which can be linked to a taxon object.
     }
 
 =item concat()
+
+Appends argument to invocant.
 
  Type    : Method
  Title   : reverse
@@ -542,6 +571,8 @@ which can be linked to a taxon object.
     }
 
 =item validate()
+
+Validates invocant data contents.
 
  Type    : Method
  Title   : validate

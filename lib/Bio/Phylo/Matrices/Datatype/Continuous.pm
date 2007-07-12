@@ -1,7 +1,9 @@
 package Bio::Phylo::Matrices::Datatype::Continuous;
 use Bio::Phylo::Util::CONSTANT qw(looks_like_number);
+use Bio::Phylo::Matrices::Datatype;
 use strict;
-use vars qw($LOOKUP @ISA $MISSING $GAP);
+use vars qw( @ISA $LOOKUP $MISSING $GAP);
+
 @ISA = qw(Bio::Phylo::Matrices::Datatype);
 
 =head1 NAME
@@ -22,6 +24,8 @@ objects.
 =over
 
 =item set_lookup()
+
+Sets the lookup table (no-op for continuous data!).
 
  Type    : Mutator
  Title   : set_lookup
@@ -50,6 +54,8 @@ sub set_lookup {
 
 =item get_lookup()
 
+Gets the lookup table (no-op for continuous data!).
+
  Type    : Accessor
  Title   : get_lookup
  Usage   : my $lookup = $obj->get_lookup;
@@ -72,6 +78,8 @@ sub get_lookup {
 
 =item is_valid()
 
+Validates arguments for data validity.
+
  Type    : Test
  Title   : is_valid
  Usage   : if ( $obj->is_valid($datum) ) {
@@ -79,7 +87,9 @@ sub get_lookup {
            }
  Function: Returns true if $datum only contains valid characters
  Returns : BOOLEAN
- Args    : A Bio::Phylo::Matrices::Datum object
+ Args    : A list of Bio::Phylo::Matrices::Datum object, and/or
+           character array references, and/or character strings,
+           and/or single characters
 
 =cut
 
@@ -117,6 +127,8 @@ sub is_valid {
 
 =item split()
 
+Splits string of characters on whitespaces.
+
  Type    : Utility method
  Title   : split
  Usage   : $obj->split($string)
@@ -133,6 +145,8 @@ sub split {
 }
 
 =item join()
+
+Joins array ref of characters to a space-separated string.
 
  Type    : Utility method
  Title   : join

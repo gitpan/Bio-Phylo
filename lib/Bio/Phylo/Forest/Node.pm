@@ -11,7 +11,6 @@ use Scalar::Util qw(weaken);
 # classic @ISA manipulation, not using 'base'
 use vars qw($VERSION @ISA);
 @ISA = qw(
-    Bio::Phylo
     Bio::Phylo::Taxa::TaxonLinker
     Bio::Phylo::Util::XMLWritable
 );
@@ -92,7 +91,8 @@ further ease navigation from node to node. Typical first daughter -> next sister
 traversal and recursion is possible, but there are also shrinkwrapped methods
 that return for example all terminal descendants of the focal node, or all
 internals, etc.
-    Node objects are inserted into tree objects, although technically the tree
+
+Node objects are inserted into tree objects, although technically the tree
 object is only a container holding all the nodes together. Unless there are
 orphans all nodes can be reached without recourse to the tree object.
 
@@ -103,6 +103,8 @@ orphans all nodes can be reached without recourse to the tree object.
 =over
 
 =item new()
+
+Node constructor.
 
  Type    : Constructor
  Title   : new
@@ -146,6 +148,8 @@ orphans all nodes can be reached without recourse to the tree object.
 
 =item new_from_bioperl()
 
+Node constructor from bioperl L<Bio::Tree::NodeI> argument.
+
  Type    : Constructor
  Title   : new_from_bioperl
  Usage   : my $node =
@@ -182,6 +186,8 @@ orphans all nodes can be reached without recourse to the tree object.
 =over
 
 =item set_parent()
+
+Sets argument as invocant's parent.
 
  Type    : Mutator
  Title   : parent
@@ -223,6 +229,8 @@ orphans all nodes can be reached without recourse to the tree object.
 
 =item set_first_daughter()
 
+Sets argument as invocant's first daughter.
+
  Type    : Mutator
  Title   : set_first_daughter
  Usage   : $node->set_first_daughter($f_daughter);
@@ -261,6 +269,8 @@ orphans all nodes can be reached without recourse to the tree object.
     }
 
 =item set_last_daughter()
+
+Sets argument as invocant's last daughter.
 
  Type    : Mutator
  Title   : set_last_daughter
@@ -302,6 +312,8 @@ orphans all nodes can be reached without recourse to the tree object.
 
 =item set_previous_sister()
 
+Sets argument as invocant's previous sister.
+
  Type    : Mutator
  Title   : set_previous_sister
  Usage   : $node->set_previous_sister($p_sister);
@@ -341,6 +353,8 @@ orphans all nodes can be reached without recourse to the tree object.
     }
 
 =item set_next_sister()
+
+Sets argument as invocant's next sister.
 
  Type    : Mutator
  Title   : set_next_sister
@@ -382,6 +396,8 @@ orphans all nodes can be reached without recourse to the tree object.
     }
 
 =item set_child()
+
+Sets argument as invocant's child.
 
  Type    : Mutator
  Title   : set_child
@@ -425,6 +441,8 @@ orphans all nodes can be reached without recourse to the tree object.
 
 =item set_branch_length()
 
+Sets argument as invocant's branch length.
+
  Type    : Mutator
  Title   : set_branch_length
  Usage   : $node->set_branch_length(0.423e+2);
@@ -455,6 +473,8 @@ orphans all nodes can be reached without recourse to the tree object.
     }
     
 =item set_root_below()
+
+Reroots below invocant.
 
  Type    : Mutator
  Title   : set_root_below
@@ -523,6 +543,8 @@ orphans all nodes can be reached without recourse to the tree object.
 
 =item get_parent()
 
+Gets invocant's parent.
+
  Type    : Accessor
  Title   : get_parent
  Usage   : my $parent = $node->get_parent;
@@ -535,6 +557,8 @@ orphans all nodes can be reached without recourse to the tree object.
     sub get_parent { $mediator->get_link( 'parent_of' => shift ) }
 
 =item get_first_daughter()
+
+Gets invocant's first daughter.
 
  Type    : Accessor
  Title   : get_first_daughter
@@ -549,6 +573,8 @@ orphans all nodes can be reached without recourse to the tree object.
 
 =item get_last_daughter()
 
+Gets invocant's last daughter.
+
  Type    : Accessor
  Title   : get_last_daughter
  Usage   : my $l_daughter = $node->get_last_daughter;
@@ -561,6 +587,8 @@ orphans all nodes can be reached without recourse to the tree object.
     sub get_last_daughter { $mediator->get_link( 'last_daughter_of' => shift ) }
 
 =item get_previous_sister()
+
+Gets invocant's previous sister.
 
  Type    : Accessor
  Title   : get_previous_sister
@@ -575,6 +603,8 @@ orphans all nodes can be reached without recourse to the tree object.
 
 =item get_next_sister()
 
+Gets invocant's next sister.
+
  Type    : Accessor
  Title   : get_next_sister
  Usage   : my $n_sister = $node->get_next_sister;
@@ -587,6 +617,8 @@ orphans all nodes can be reached without recourse to the tree object.
     sub get_next_sister { $mediator->get_link( 'next_sister_of' => shift ) }
 
 =item get_branch_length()
+
+Gets invocant's branch length.
 
  Type    : Accessor
  Title   : get_branch_length
@@ -604,6 +636,8 @@ orphans all nodes can be reached without recourse to the tree object.
     sub get_branch_length { $branch_length{ shift->get_id } }
 
 =item get_ancestors()
+
+Gets invocant's ancestors.
 
  Type    : Query
  Title   : get_ancestors
@@ -634,6 +668,8 @@ orphans all nodes can be reached without recourse to the tree object.
 
 =item get_sisters()
 
+Gets invocant's sisters.
+
  Type    : Query
  Title   : get_sisters
  Usage   : my @sisters = @{ $node->get_sisters };
@@ -652,6 +688,8 @@ orphans all nodes can be reached without recourse to the tree object.
     }
 
 =item get_children()
+
+Gets invocant's immediate children.
 
  Type    : Query
  Title   : get_children
@@ -681,6 +719,8 @@ orphans all nodes can be reached without recourse to the tree object.
     }
 
 =item get_descendants()
+
+Gets invocant's descendants.
 
  Type    : Query
  Title   : get_descendants
@@ -742,6 +782,8 @@ orphans all nodes can be reached without recourse to the tree object.
 
 =item get_terminals()
 
+Gets invocant's terminal descendants.
+
  Type    : Query
  Title   : get_terminals
  Usage   : my @terminals = @{ $node->get_terminals };
@@ -768,6 +810,8 @@ orphans all nodes can be reached without recourse to the tree object.
     }
 
 =item get_internals()
+
+Gets invocant's internal descendants.
 
  Type    : Query
  Title   : get_internals
@@ -796,6 +840,8 @@ orphans all nodes can be reached without recourse to the tree object.
 
 =item get_mrca()
 
+Gets invocant's most recent common ancestor shared with argument.
+
  Type    : Query
  Title   : get_mrca
  Usage   : my $mrca = $node->get_mrca($other_node);
@@ -823,6 +869,8 @@ orphans all nodes can be reached without recourse to the tree object.
 
 =item get_leftmost_terminal()
 
+Gets invocant's leftmost terminal descendant.
+
  Type    : Query
  Title   : get_leftmost_terminal
  Usage   : my $leftmost_terminal =
@@ -849,6 +897,8 @@ orphans all nodes can be reached without recourse to the tree object.
     }
 
 =item get_rightmost_terminal()
+
+Gets invocant's rightmost terminal descendant
 
  Type    : Query
  Title   : get_rightmost_terminal
@@ -883,6 +933,8 @@ orphans all nodes can be reached without recourse to the tree object.
 
 =item is_terminal()
 
+Tests if invocant is a terminal node.
+
  Type    : Test
  Title   : is_terminal
  Usage   : if ( $node->is_terminal ) {
@@ -901,6 +953,8 @@ orphans all nodes can be reached without recourse to the tree object.
 
 =item is_internal()
 
+Tests if invocant is an internal node.
+
  Type    : Test
  Title   : is_internal
  Usage   : if ( $node->is_internal ) {
@@ -918,6 +972,8 @@ orphans all nodes can be reached without recourse to the tree object.
     }
 
 =item is_descendant_of()
+
+Tests if invocant is descendant of argument.
 
  Type    : Test
  Title   : is_descendant_of
@@ -949,6 +1005,8 @@ orphans all nodes can be reached without recourse to the tree object.
 
 =item is_ancestor_of()
 
+Tests if invocant is ancestor of argument.
+
  Type    : Test
  Title   : is_ancestor_of
  Usage   : if ( $node->is_ancestor_of($grandchild) ) {
@@ -973,6 +1031,8 @@ orphans all nodes can be reached without recourse to the tree object.
     }
 
 =item is_sister_of()
+
+Tests if invocant is sister of argument.
 
  Type    : Test
  Title   : is_sister_of
@@ -1001,6 +1061,8 @@ orphans all nodes can be reached without recourse to the tree object.
     }
 
 =item is_outgroup_of()
+
+Test if invocant is outgroup of argument nodes.
 
  Type    : Test
  Title   : is_outgroup_of
@@ -1037,6 +1099,8 @@ orphans all nodes can be reached without recourse to the tree object.
 
 =item calc_path_to_root()
 
+Calculates path to root.
+
  Type    : Calculation
  Title   : calc_path_to_root
  Usage   : my $path_to_root =
@@ -1068,6 +1132,8 @@ orphans all nodes can be reached without recourse to the tree object.
 
 =item calc_nodes_to_root()
 
+Calculates number of nodes to root.
+
  Type    : Calculation
  Title   : calc_nodes_to_root
  Usage   : my $nodes_to_root =
@@ -1096,6 +1162,8 @@ orphans all nodes can be reached without recourse to the tree object.
     }
 
 =item calc_max_nodes_to_tips()
+
+Calculates maximum number of nodes to tips.
 
  Type    : Calculation
  Title   : calc_max_nodes_to_tips
@@ -1126,6 +1194,8 @@ orphans all nodes can be reached without recourse to the tree object.
 
 =item calc_min_nodes_to_tips()
 
+Calculates minimum number of nodes to tips.
+
  Type    : Calculation
  Title   : calc_min_nodes_to_tips
  Usage   : my $min_nodes_to_tips =
@@ -1154,6 +1224,8 @@ orphans all nodes can be reached without recourse to the tree object.
     }
 
 =item calc_max_path_to_tips()
+
+Calculates longest path to tips.
 
  Type    : Calculation
  Title   : calc_max_path_to_tips
@@ -1187,6 +1259,8 @@ orphans all nodes can be reached without recourse to the tree object.
     }
 
 =item calc_min_path_to_tips()
+
+Calculates shortest path to tips.
 
  Type    : Calculation
  Title   : calc_min_path_to_tips
@@ -1224,6 +1298,8 @@ orphans all nodes can be reached without recourse to the tree object.
 
 =item calc_patristic_distance()
 
+Calculates patristic distance between invocant and argument.
+
  Type    : Calculation
  Title   : calc_patristic_distance
  Usage   : my $patristic_distance =
@@ -1258,6 +1334,8 @@ orphans all nodes can be reached without recourse to the tree object.
     }
 
 =item to_xml()
+
+Serializes invocant to xml.
 
  Type    : Serializer
  Title   : to_xml
@@ -1295,12 +1373,15 @@ orphans all nodes can be reached without recourse to the tree object.
     
 =item to_newick()
 
+Serializes subtree subtended by invocant to newick string.
+
  Type    : Serializer
  Title   : to_newick
  Usage   : my $newick = $obj->to_newick;
  Function: Turns the invocant object into a newick string.
  Returns : SCALAR
- Args    : NONE
+ Args    : takes same arguments as Bio::Phylo::Unparsers::Newick
+ Comments: takes same arguments as Bio::Phylo::Unparsers::Newick
 
 =cut    
     
@@ -1458,11 +1539,6 @@ orphans all nodes can be reached without recourse to the tree object.
 =head1 SEE ALSO
 
 =over
-
-=item L<Bio::Phylo>
-
-This object inherits from L<Bio::Phylo>, so the methods defined
-therein are also applicable to L<Bio::Phylo::Forest::Node> objects.
 
 =item L<Bio::Phylo::Taxa::TaxonLinker>
 

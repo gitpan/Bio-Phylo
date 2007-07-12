@@ -4,6 +4,7 @@ package Bio::Phylo::Taxa::Taxon;
 use strict;
 use Bio::Phylo::Util::IDPool;
 use Scalar::Util qw(weaken blessed);
+use Bio::Phylo::Util::XMLWritable;
 use Bio::Phylo::Util::CONSTANT qw(_DATUM_ _NODE_ _TAXON_ _TAXA_);
 use Bio::Phylo::Mediators::TaxaMediator;
 
@@ -12,7 +13,7 @@ use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
 
 # classic @ISA manipulation, not using 'base'
 use vars qw($VERSION @ISA);
-@ISA = qw(Bio::Phylo);
+@ISA = qw(Bio::Phylo::Util::XMLWritable);
 {
 
 =head1 NAME
@@ -81,6 +82,8 @@ cross-referencing datum objects and tree nodes.
 
 =item new()
 
+Taxon constructor.
+
  Type    : Constructor
  Title   : new
  Usage   : my $taxon = Bio::Phylo::Taxa::Taxon->new;
@@ -109,6 +112,8 @@ cross-referencing datum objects and tree nodes.
 =over
 
 =item set_data()
+
+Associates argument data with invocant.
 
  Type    : Mutator
  Title   : set_data
@@ -141,6 +146,8 @@ cross-referencing datum objects and tree nodes.
 
 =item set_nodes()
 
+Associates argument node with invocant.
+
  Type    : Mutator
  Title   : set_nodes
  Usage   : $taxon->set_nodes($node);
@@ -171,6 +178,8 @@ cross-referencing datum objects and tree nodes.
 
 =item unset_datum()
 
+Removes association between argument data and invocant.
+
  Type    : Mutator
  Title   : unset_datum
  Usage   : $taxon->unset_datum($node);
@@ -192,6 +201,8 @@ cross-referencing datum objects and tree nodes.
     }
 
 =item unset_node()
+
+Removes association between argument node and invocant.
 
  Type    : Mutator
  Title   : unset_node
@@ -221,6 +232,8 @@ cross-referencing datum objects and tree nodes.
 
 =item get_data()
 
+Retrieves associated datum objects.
+
  Type    : Accessor
  Title   : get_data
  Usage   : @data = @{ $taxon->get_data };
@@ -242,6 +255,8 @@ cross-referencing datum objects and tree nodes.
     }
 
 =item get_nodes()
+
+Retrieves associated node objects.
 
  Type    : Accessor
  Title   : get_nodes
@@ -269,6 +284,8 @@ cross-referencing datum objects and tree nodes.
 =over
 
 =item DESTROY()
+
+Taxon destructor.
 
  Type    : Destructor
  Title   : DESTROY

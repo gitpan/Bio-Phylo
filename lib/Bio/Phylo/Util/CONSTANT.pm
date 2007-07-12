@@ -525,6 +525,8 @@ are called internally by the other packages. There is no direct usage.
 
 =item AA_DATATYPE()
 
+Constant for amino acid data type.
+
  Type    : Constant
  Title   : AA_DATATYPE
  Usage   : my $datatype = AA_DATATYPE;
@@ -533,6 +535,8 @@ are called internally by the other packages. There is no direct usage.
  Args    : NONE
 
 =item CATEGORICAL_DATATYPE()
+
+Constant for categorical data type.
 
  Type    : Constant
  Title   : CATEGORICAL_DATATYPE
@@ -543,6 +547,8 @@ are called internally by the other packages. There is no direct usage.
 
 =item CONTINUOUS_DATATYPE()
 
+Constant for continuous data type.
+
  Type    : Constant
  Title   : CONTINUOUS_DATATYPE
  Usage   : my $datatype = CONTINUOUS_DATATYPE;
@@ -551,6 +557,8 @@ are called internally by the other packages. There is no direct usage.
  Args    : NONE
 
 =item DNA_DATATYPE()
+
+Constant for dna data type.
 
  Type    : Constant
  Title   : DNA_DATATYPE
@@ -561,6 +569,8 @@ are called internally by the other packages. There is no direct usage.
 
 =item RNA_DATATYPE()
 
+Constant for rna data type.
+
  Type    : Constant
  Title   : RNA_DATATYPE
  Usage   : my $datatype = RNA_DATATYPE;
@@ -569,6 +579,8 @@ are called internally by the other packages. There is no direct usage.
  Args    : NONE
 
 =item CUSTOM_DATATYPE()
+
+Constant for custom data type.
 
  Type    : Constant
  Title   : CUSTOM_DATATYPE
@@ -581,6 +593,8 @@ are called internally by the other packages. There is no direct usage.
 
 =item INT_SCORE_TYPE()
 
+Constant for integer tree score.
+
  Type    : CIPRES constant
  Title   : INT_SCORE_TYPE
  Usage   : my $scoretype = INT_SCORE_TYPE;
@@ -589,6 +603,8 @@ are called internally by the other packages. There is no direct usage.
  Args    : NONE
 
 =item DOUBLE_SCORE_TYPE()
+
+Constant for double tree score.
 
  Type    : CIPRES constant
  Title   : DOUBLE_SCORE_TYPE
@@ -599,6 +615,8 @@ are called internally by the other packages. There is no direct usage.
 
 =item NO_SCORE_TYPE()
 
+Constant for no tree score.
+
  Type    : CIPRES constant
  Title   : NO_SCORE_TYPE
  Usage   : my $scoretype = NO_SCORE_TYPE;
@@ -607,6 +625,8 @@ are called internally by the other packages. There is no direct usage.
  Args    : NONE
 
 =item IUPAC ()
+
+IUPAC constants.
 
  Type    : constant
  Title   : IUPAC
@@ -617,8 +637,10 @@ are called internally by the other packages. There is no direct usage.
 
 =item AMBIG ()
 
+IUPAC ambiguity codes.
+
  Type    : constant
- Title   : IUPAC
+ Title   : AMBIG
  Usage   : no direct usage
  Function: no direct usage
  Returns : INT
@@ -632,6 +654,8 @@ are called internally by the other packages. There is no direct usage.
 
 =item symbol_ok()
 
+Checks symbol (deprecated).
+
  Type    : Type checker
  Title   : symbol_ok
  Usage   : if ( symbol_ok( -type => $type, -char => $sym ) ) {
@@ -644,6 +668,8 @@ are called internally by the other packages. There is no direct usage.
 
 =item type_ok()
 
+Checks data type (deprecated)
+
  Type    : Type checker
  Title   : type_ok
  Usage   : if ( type_ok( $type ) ) {
@@ -655,6 +681,8 @@ are called internally by the other packages. There is no direct usage.
 
 =item infer_type()
 
+Infers data type (deprecated)
+
  Type    : Type checker
  Title   : infer_type
  Usage   : my $type = infer_type( $chars );
@@ -663,6 +691,8 @@ are called internally by the other packages. There is no direct usage.
  Args    : A string of characters.
 
 =item cipres_type()
+
+Converts to CIPRES data type constant.
 
  Type    : Type convertor
  Title   : cipres_type
@@ -674,6 +704,8 @@ are called internally by the other packages. There is no direct usage.
 
 =item sym2ambig()
 
+Returns the set of symbols defined by the ambiguity symbol (deprecated)
+
  Type    : Type convertor
  Title   : sym2ambig
  Usage   : my @ambig = @{ sym2ambig( -type => 'DNA', -char => 'N' ) };
@@ -683,6 +715,8 @@ are called internally by the other packages. There is no direct usage.
            -char => an IUPAC ambiguity symbol
 
 =item ambig2sym()
+
+Returns the iupac ambiguity symbol for a set of symbols (deprecated)
 
  Type    : Type convertor
  Title   : ambig2sym
@@ -694,6 +728,8 @@ are called internally by the other packages. There is no direct usage.
 
 =item nuc_symbols()
 
+Returns the iupac ambiguity symbols for nucleotide data (deprecated)
+
  Type    : Constant
  Title   : nuc_symbols
  Usage   : my @symbols = @{ nuc_symbols };
@@ -703,6 +739,8 @@ are called internally by the other packages. There is no direct usage.
 
 =item prot_symbols()
 
+Returns the iupac ambiguity symbols for protein data (deprecated)
+
  Type    : Constant
  Title   : prot_symbols
  Usage   : my @symbols = @{ prot_symbols };
@@ -711,6 +749,8 @@ are called internally by the other packages. There is no direct usage.
  Args    : NONE
 
 =item looks_like_number()
+
+Tests if argument looks like a number.
 
  Type    : Constant
  Title   : looks_like_number

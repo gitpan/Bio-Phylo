@@ -5,6 +5,8 @@ Revision history for Bio::Phylo
                        Added set_root_below method for node objects
                        Added NodeMediator class to manage node relations
                        Added to_nexus method for taxa objects
+                       Added visit_pre_order, visit_level_order, 
+                       		visit_post_order methods for trees
 0.14 7/Sep/2006 14:23
                        Removed dependency on XML::Simple
 0.13 7/Sep/2006 0:08

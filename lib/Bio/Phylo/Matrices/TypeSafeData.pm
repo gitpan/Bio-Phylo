@@ -1,10 +1,10 @@
 package Bio::Phylo::Matrices::TypeSafeData;
-use Bio::Phylo;
+use Bio::Phylo::Listable;
 use Bio::Phylo::Util::Exceptions;
 use Bio::Phylo::Matrices::Datatype;
 use strict;
 use vars '@ISA';
-@ISA = qw(Bio::Phylo);
+@ISA = qw(Bio::Phylo::Listable);
 
 
 {
@@ -33,6 +33,8 @@ continuous data etc.
 =over
 
 =item new()
+
+TypeSafeData constructor.
 
  Type    : Constructor
  Title   : new
@@ -66,6 +68,8 @@ continuous data etc.
 
 =item set_type()
 
+Set data type.
+
  Type    : Mutator
  Title   : set_type
  Usage   : $obj->set_type($type);
@@ -85,6 +89,8 @@ continuous data etc.
     }
 
 =item set_missing()
+
+Set missing data symbol.
 
  Type    : Mutator
  Title   : set_missing
@@ -106,6 +112,8 @@ continuous data etc.
 
 =item set_gap()
 
+Set gap data symbol.
+
  Type    : Mutator
  Title   : set_gap
  Usage   : $obj->set_gap('-');
@@ -125,6 +133,8 @@ continuous data etc.
     }
 
 =item set_lookup()
+
+Set ambiguity lookup table.
 
  Type    : Mutator
  Title   : set_lookup
@@ -149,6 +159,8 @@ continuous data etc.
     }
 
 =item set_type_object()
+
+Set data type object.
 
  Type    : Mutator
  Title   : set_type_object
@@ -183,6 +195,8 @@ continuous data etc.
 
 =item get_type()
 
+Get data type.
+
  Type    : Accessor
  Title   : get_type
  Usage   : my $type = $obj->get_type;
@@ -195,6 +209,8 @@ continuous data etc.
     sub get_type {    shift->get_type_object->get_type    }
 
 =item get_missing()
+
+Get missing data symbol.
 
  Type    : Accessor
  Title   : get_missing
@@ -209,6 +225,8 @@ continuous data etc.
 
 =item get_gap()
 
+Get gap symbol.
+
  Type    : Accessor
  Title   : get_gap
  Usage   : my $gap = $obj->get_gap;
@@ -222,6 +240,8 @@ continuous data etc.
 
 =item get_lookup()
 
+Get ambiguity lookup table.
+
  Type    : Accessor
  Title   : get_lookup
  Usage   : my $lookup = $obj->get_lookup;
@@ -234,6 +254,8 @@ continuous data etc.
     sub get_lookup {  shift->get_type_object->get_lookup  }
 
 =item get_type_object()
+
+Get data type object.
 
  Type    : Accessor
  Title   : get_type_object
@@ -253,6 +275,8 @@ continuous data etc.
 =over
 
 =item validate()
+
+Validates the object's contents
 
  Type    : Interface method
  Title   : validate
