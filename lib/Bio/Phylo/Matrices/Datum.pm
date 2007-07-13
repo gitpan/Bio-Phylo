@@ -170,7 +170,8 @@ Sets character state(s)
         	}
         }
         if ( $self->can_contain( @data ) ) {
-        	$self->insert( $_ ) for @data;
+        	$self->clear();
+        	$self->insert( $_, 1 ) for @data;
         }
         else {
         	Bio::Phylo::Util::Exceptions::InvalidData->throw(
@@ -615,7 +616,6 @@ Validates invocant data contents.
 =cut
 
     sub slice {}    
-
         
     sub _type { _DATUM_ }
         
@@ -696,7 +696,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Datum.pm 4158 2007-07-11 01:34:44Z rvosa $
+$Id: Datum.pm 4204 2007-07-13 05:40:14Z rvosa $
 
 =head1 AUTHOR
 

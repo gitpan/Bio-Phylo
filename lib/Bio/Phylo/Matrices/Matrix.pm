@@ -785,7 +785,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Matrix.pm 4197 2007-07-12 06:18:03Z rvosa $
+$Id: Matrix.pm 4198 2007-07-12 16:45:08Z rvosa $
 
 =head1 AUTHOR
 

@@ -1,4 +1,4 @@
-# $Id: Listable.pm 4153 2007-07-11 01:33:20Z rvosa $
+# $Id: Listable.pm 4204 2007-07-13 05:40:14Z rvosa $
 package Bio::Phylo::Listable;
 use strict;
 use warnings FATAL => 'all';
@@ -111,8 +111,8 @@ Pushes an object into its container.
 =cut
 
     sub insert {
-        my ( $self, $obj ) = @_;              
-        if ( defined $obj and $self->can_contain( $obj ) ) {
+        my ( $self, $obj, $no_check ) = @_;              
+        if ( defined $obj and ( $no_check or $self->can_contain( $obj ) ) )  {
             $self->info("inserting '$obj' in '$self'");
             push @{ $entities{ $self->get_id } }, $obj;
             if ( UNIVERSAL::can( $obj, '_set_container' ) ) {
@@ -141,9 +141,9 @@ Inserts argument object in invocant container at argument index.
 =cut    
 
     sub insert_at_index {
-        my ( $self, $obj, $index ) = @_;
-        $self->info("inserting in '$self'");        
-        if ( $self->can_contain( $obj ) ) {
+        my ( $self, $obj, $index, $no_check ) = @_;
+        $self->debug("inserting '$obj' in '$self' at index $index");        
+        if ( $no_check or $self->can_contain( $obj ) ) {
             $entities{ $self->get_id }->[$index] = $obj;
             if ( UNIVERSAL::can( $obj, '_set_container' ) ) {
                 $obj->_set_container($self);
@@ -946,7 +946,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Listable.pm 4153 2007-07-11 01:33:20Z rvosa $
+$Id: Listable.pm 4204 2007-07-13 05:40:14Z rvosa $
 
 =head1 AUTHOR
 

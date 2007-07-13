@@ -1,4 +1,4 @@
-# $Id: Matrices.pm 4153 2007-07-11 01:33:20Z rvosa $
+# $Id: Matrices.pm 4198 2007-07-12 16:45:08Z rvosa $
 # Subversion: $Rev: 186 $
 package Bio::Phylo::Matrices;
 use strict;
@@ -10,7 +10,7 @@ use vars qw($VERSION @ISA);
 
 # set version based on svn rev
 my $version = $Bio::Phylo::VERSION;
-my $rev     = '$Id: Matrices.pm 4153 2007-07-11 01:33:20Z rvosa $';
+my $rev     = '$Id: Matrices.pm 4198 2007-07-12 16:45:08Z rvosa $';
 $rev        =~ s/^[^\d]+(\d+)\b.*$/$1/;
 $version    =~ s/_.+$/_$rev/;
 $VERSION    = $version;
@@ -155,7 +155,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Matrices.pm 4153 2007-07-11 01:33:20Z rvosa $
+$Id: Matrices.pm 4198 2007-07-12 16:45:08Z rvosa $
 
 =head1 AUTHOR
 

@@ -302,15 +302,19 @@ Validates argument.
         		push @data, @{ $arg };
         	}
         	else {
-        		push @data, @{ $self->split( $arg ) };
+        		if ( length($arg) > 1 ) {
+        			push @data, @{ $self->split( $arg ) };
+        		}
+        		else {
+        			push @data, $arg;
+        		}
         	}
-        }        
-        my $type = $self->get_type;
+        }
         my $lookup = $self->get_lookup;
         my ( $missing, $gap ) = ( $self->get_missing, $self->get_gap );
-        CHAR_CHECK: for my $char ( @data ) {
-            my $uc = uc $char;
+        CHAR_CHECK: for my $char ( @data ) {            
             next CHAR_CHECK if not defined $char;
+            my $uc = uc $char;
             if ( exists $lookup->{$uc} || ( defined $missing && $uc eq $missing ) || ( defined $gap && $uc eq $gap ) ) {
                 next CHAR_CHECK;
             }
@@ -478,7 +482,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Datatype.pm 4158 2007-07-11 01:34:44Z rvosa $
+$Id: Datatype.pm 4204 2007-07-13 05:40:14Z rvosa $
 
 =head1 AUTHOR
 

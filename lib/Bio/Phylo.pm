@@ -1,4 +1,4 @@
-# $Id: Phylo.pm 4196 2007-07-12 03:04:01Z rvosa $
+# $Id: Phylo.pm 4204 2007-07-13 05:40:14Z rvosa $
 package Bio::Phylo;
 use strict;
 use warnings FATAL => 'all';
@@ -21,9 +21,9 @@ use Bio::Phylo::Util::Exceptions;
 use Bio::Phylo::Mediators::TaxaMediator;
 
 # Include the revision number from CIPRES subversion in $VERSION
-my $rev = '$Id: Phylo.pm 4196 2007-07-12 03:04:01Z rvosa $';
+my $rev = '$Id: Phylo.pm 4204 2007-07-13 05:40:14Z rvosa $';
 $rev =~ s/^[^\d]+(\d+)\b.*$/$1/;
-$VERSION = "0.17_RC3";
+$VERSION = "0.17_RC4";
 $VERSION .= "_$rev";
 
 {
@@ -394,7 +394,6 @@ Gets invocant's name.
 
 	sub get_name {
 		my $self = shift;
-		$self->debug("getting name");
 		return $name{ $self->get_id };
 	}
 
@@ -533,8 +532,6 @@ Gets invocant's UID.
 		# then dereference that for the id
 		my $self = shift;
 
-		$self->debug("getting ID for '$self'");
-
 		# $self was a 'normal' object, not tied
 		if ( UNIVERSAL::isa( $self, 'SCALAR' ) ) {
 			return $$self;
@@ -551,13 +548,13 @@ Gets invocant's UID.
 
 			# this might happen if the tied object is destroyed before the array
 			elsif ( not $tied ) {
-				$self->warn("no tie'd object - are we destroying?");
+				$self->warn("no tie'd object for '$self' - are we destroying?");
 			}
 		}
 
 		# so far never seen this one...
 		else {
-			$self->fatal("object neither array nor scalar");
+			$self->error("object neither array nor scalar");
 		}
 	}
 
@@ -978,7 +975,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Phylo.pm 4196 2007-07-12 03:04:01Z rvosa $
+$Id: Phylo.pm 4204 2007-07-13 05:40:14Z rvosa $
 
 =head1 AUTHOR
 

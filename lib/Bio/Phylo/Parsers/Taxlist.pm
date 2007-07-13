@@ -1,4 +1,4 @@
-# $Id: Taxlist.pm 4167 2007-07-11 01:36:38Z rvosa $
+# $Id: Taxlist.pm 4198 2007-07-12 16:45:08Z rvosa $
 # Subversion: $Rev: 193 $
 package Bio::Phylo::Parsers::Taxlist;
 use strict;
@@ -122,7 +122,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Taxlist.pm 4167 2007-07-11 01:36:38Z rvosa $
+$Id: Taxlist.pm 4198 2007-07-12 16:45:08Z rvosa $
 
 =head1 AUTHOR
 

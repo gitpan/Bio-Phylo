@@ -1,4 +1,4 @@
-# $Id: Node.pm 4193 2007-07-11 20:26:06Z rvosa $
+# $Id: Node.pm 4204 2007-07-13 05:40:14Z rvosa $
 package Bio::Phylo::Forest::Node;
 use strict;
 use Bio::Phylo::Taxa::TaxonLinker;
@@ -17,7 +17,7 @@ use vars qw($VERSION @ISA);
 
 # set version based on svn rev
 my $version = $Bio::Phylo::VERSION;
-my $rev     = '$Id: Node.pm 4193 2007-07-11 20:26:06Z rvosa $';
+my $rev     = '$Id: Node.pm 4204 2007-07-13 05:40:14Z rvosa $';
 $rev        =~ s/^[^\d]+(\d+)\b.*$/$1/;
 $version    =~ s/_.+$/_$rev/;
 $VERSION    = $version;
@@ -25,6 +25,9 @@ $VERSION    = $version;
 {
 	# node mediator singleton
 	my $mediator = Bio::Phylo::Mediators::NodeMediator->new;
+	
+	# store type constant
+	my ( $TYPE_CONSTANT, $CONTAINER_CONSTANT ) = ( _NODE_, _TREE_ ); 
 
     # inside out class arrays
     my %parent;
@@ -207,7 +210,7 @@ Sets argument as invocant's parent.
         if ( $parent ) {
             my $type;
             eval { $type = $parent->_type };
-            if ( $@ || $type != _NODE_ ) {
+            if ( $@ || $type != $TYPE_CONSTANT ) {
                 Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
                     error => "\"$parent\" is not a valid node object" 
                 );
@@ -248,7 +251,7 @@ Sets argument as invocant's first daughter.
         if ( $first_daughter ) {
             my $type;
             eval { $type = $first_daughter->_type };
-            if ( $@ || $type != _NODE_ ) {
+            if ( $@ || $type != $TYPE_CONSTANT ) {
                 Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
                     error => "\"$first_daughter\" is not a valid node object" 
                 );
@@ -290,7 +293,7 @@ Sets argument as invocant's last daughter.
         if ( $last_daughter ) {
             my $type;
             eval { $type = $last_daughter->_type };
-            if ( $@ || $type != _NODE_ ) {
+            if ( $@ || $type != $TYPE_CONSTANT ) {
                 Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
                     error => "\"$last_daughter\" is not a valid node object" 
                 );
@@ -332,7 +335,7 @@ Sets argument as invocant's previous sister.
         if ( $previous_sister ) {
             my $type;
             eval { $type = $previous_sister->_type };
-            if ( $@ || $type != _NODE_ ) {
+            if ( $@ || $type != $TYPE_CONSTANT ) {
                 Bio::Phylo::Util::Exceptions::ObjectMismatch->throw( 
                 	error => "\"$previous_sister\" is not a valid node object" 
                 );
@@ -375,7 +378,7 @@ Sets argument as invocant's next sister.
         if ( $next_sister ) {
             my $type;
             eval { $type = $next_sister->_type };
-            if ( $@ || $type != _NODE_ ) {
+            if ( $@ || $type != $TYPE_CONSTANT ) {
                 Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
                     error => "\"$next_sister\" is not a valid node object" 
                 );
@@ -414,25 +417,25 @@ Sets argument as invocant's child.
         if ( $child ) {
             my $type;
             eval { $type = $child->_type };
-            if ( $@ || $type != _NODE_ ) {
+            if ( $@ || $type != $TYPE_CONSTANT ) {
                 Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
                     error => "\"$child\" is not a valid node object" 
                 );
             }
             else {
-                if ( my $ld = $self->get_last_daughter ) {
-                    $ld->set_next_sister($child);
-                    $child->set_previous_sister($ld);
-                    $self->set_last_daughter($child);
-                }
-                elsif ( my $fd = $self->get_first_daughter ) {
-                    $fd->set_next_sister($child);
-                    $child->set_previous_sister($fd);
-                    $self->set_last_daughter($child);
-                }
-                else {
-                    $self->set_first_daughter($child);
-                }
+#                if ( my $ld = $self->get_last_daughter ) {
+#                    $ld->set_next_sister($child);
+#                    $child->set_previous_sister($ld);
+#                    $self->set_last_daughter($child);
+#                }
+#                elsif ( my $fd = $self->get_first_daughter ) {
+#                    $fd->set_next_sister($child);
+#                    $child->set_previous_sister($fd);
+#                    $self->set_last_daughter($child);
+#                }
+#                else {
+#                    $self->set_first_daughter($child);
+#                }
                 $child->set_parent($self);
             }
         }
@@ -885,12 +888,13 @@ Gets invocant's leftmost terminal descendant.
     sub get_leftmost_terminal {
         my $self = shift;
         my $daughter = $self;
-        while ( $daughter ) {
-            if ( $daughter->get_first_daughter ) {
-                $daughter = $daughter->get_first_daughter;
+        FIRST_DAUGHTER: while ( $daughter ) {
+            if ( my $grand_daughter = $daughter->get_first_daughter ) {
+                $daughter = $grand_daughter;
+                next FIRST_DAUGHTER;
             }
             else {
-                last;
+                last FIRST_DAUGHTER;
             }
         }
         return $daughter;
@@ -914,12 +918,13 @@ Gets invocant's rightmost terminal descendant
     sub get_rightmost_terminal {
         my $self = shift;
         my $daughter = $self;
-        while ( $daughter ) {
-            if ( $daughter->get_last_daughter ) {
-                $daughter = $daughter->get_last_daughter;
+        LAST_DAUGHTER: while ( $daughter ) {
+            if ( my $grand_daughter = $daughter->get_last_daughter ) {
+                $daughter = $grand_daughter;
+                next LAST_DAUGHTER;
             }
             else {
-                last;
+                last LAST_DAUGHTER;
             }
         }
         return $daughter;
@@ -989,15 +994,16 @@ Tests if invocant is descendant of argument.
 =cut
 
     sub is_descendant_of {
-        my ( $self, $parent ) = @_;
+        my ( $self, $ancestor ) = @_;
+        my $ancestor_id = $ancestor->get_id;
         while ($self) {
-            if ( $self->get_parent ) {
-                $self = $self->get_parent;
+            if ( my $parent = $self->get_parent ) {
+                $self = $parent;
             }
             else {
                 return;
             }
-            if ( $self->get_id == $parent->get_id ) {
+            if ( $self->get_id == $ancestor_id ) {
                 return 1;
             }
         }
@@ -1048,11 +1054,9 @@ Tests if invocant is sister of argument.
 =cut
 
     sub is_sister_of {
-        my ( $self, $sis ) = @_;
-        if (   $self->get_parent
-            && $sis->get_parent
-            && $self->get_parent == $sis->get_parent )
-        {
+        my ( $self, $sister ) = @_;
+        my ( $self_parent, $sister_parent ) = ( $self->get_parent, $sister->get_parent );
+        if ( $self_parent && $sister_parent && $self_parent->get_id == $sister_parent->get_id ) {
             return 1;
         }
         else {
@@ -1117,11 +1121,12 @@ Calculates path to root.
         my $node = $self;
         my $path = 0;
         while ( $node ) {
-            if ( defined $node->get_branch_length ) {
-                $path += $node->get_branch_length;
+            my $branch_length = $node->get_branch_length;
+            if ( defined $branch_length ) {
+                $path += $branch_length;
             }
-            if ( $node->get_parent ) {
-                $node = $node->get_parent;
+            if ( my $parent = $node->get_parent ) {
+                $node = $parent;
             }
             else {
                 last;
@@ -1177,11 +1182,12 @@ Calculates maximum number of nodes to tips.
 =cut
 
     sub calc_max_nodes_to_tips {
-        my $self = shift;
+        my $self    = shift;
+        my $self_id = $self->get_id;
         my ( $nodes, $maxnodes ) = ( 0, 0 );
         foreach my $child ( @{ $self->get_terminals } ) {
             $nodes = 0;
-            while ( $child && $child->get_id != $self->get_id ) {
+            while ( $child && $child->get_id != $self_id ) {
                 $nodes++;
                 $child = $child->get_parent;
             }
@@ -1208,11 +1214,12 @@ Calculates minimum number of nodes to tips.
 =cut
 
     sub calc_min_nodes_to_tips {
-        my $self = shift;
+        my $self    = shift;
+        my $self_id = $self->get_id;
         my ( $nodes, $minnodes );
         foreach my $child ( @{ $self->get_terminals } ) {
             $nodes = 0;
-            while ( $child && $child->get_id != $self->get_id ) {
+            while ( $child && $child->get_id != $self_id ) {
                 $nodes++;
                 $child = $child->get_parent;
             }
@@ -1517,7 +1524,7 @@ Serializes subtree subtended by invocant to newick string.
 
 =cut
 
-    sub _type { _NODE_ }
+    sub _type { $TYPE_CONSTANT }
 
 =begin comment
 
@@ -1532,7 +1539,7 @@ Serializes subtree subtended by invocant to newick string.
 
 =cut
 
-    sub _container { _TREE_ }
+    sub _container { $CONTAINER_CONSTANT }
 
 =back
 
@@ -1572,7 +1579,7 @@ and then you'll automatically be notified of progress on your bug as I make
 changes. Be sure to include the following in your request or comment, so that
 I know what version you're using:
 
-$Id: Node.pm 4193 2007-07-11 20:26:06Z rvosa $
+$Id: Node.pm 4204 2007-07-13 05:40:14Z rvosa $
 
 =head1 AUTHOR
 
