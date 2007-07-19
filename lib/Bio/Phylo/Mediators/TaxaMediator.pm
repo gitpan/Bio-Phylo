@@ -1,13 +1,17 @@
+# $Id: TaxaMediator.pm 4234 2007-07-17 13:41:02Z rvosa $
 package Bio::Phylo::Mediators::TaxaMediator;
 use strict;
 use warnings;
 use Scalar::Util qw(weaken);
 use Bio::Phylo;
 use Bio::Phylo::Util::Exceptions;
+use Bio::Phylo::Util::Logger;
 
-my $logger = 'Bio::Phylo';
-my $self;
-my ( @object, @relationship );
+{
+
+	my $logger = Bio::Phylo::Util::Logger->new;
+	my $self;
+	my ( @object, @relationship );
 
 =head1 NAME
 
@@ -47,22 +51,23 @@ TaxaMediator constructor.
 
 =cut
 
-sub new {
-    # could be child class
-    my $class  = shift;
-    
-    # notify user
-    $logger->info("constructor called for '$class'");
-    
-    # singleton class
-    if ( not $self ) {
-        $logger->debug("first time instantiation of singleton");
-        $self = \$class;
-        bless $self, $class;
-    }
-    
-    return $self;
-}
+	sub new {
+
+		# could be child class
+		my $class = shift;
+
+		# notify user
+		$logger->info("constructor called for '$class'");
+
+		# singleton class
+		if ( not $self ) {
+			$logger->debug("first time instantiation of singleton");
+			$self = \$class;
+			bless $self, $class;
+		}
+
+		return $self;
+	}
 
 =back
 
@@ -84,17 +89,17 @@ Stores argument in invocant's cache.
 
 =cut
 
-sub register {
-    my ( $self, $obj ) = @_;
-    
-    # notify user
-    $logger->info("registering object '$obj'");
+	sub register {
+		my ( $self, $obj ) = @_;
 
-    my $id = $obj->get_id;
-    $object[ $id ] = $obj;
-    weaken $object[ $id ];
-    return $self;
-}
+		# notify user
+		$logger->info("registering object '$obj'");
+
+		my $id = $obj->get_id;
+		$object[$id] = $obj;
+		weaken $object[$id];
+		return $self;
+	}
 
 =item unregister()
 
@@ -110,41 +115,42 @@ Removes argument from invocant's cache.
 
 =cut
 
-sub unregister {
-    my ( $self, $obj ) = @_;
-    
-    # notify user
-    $logger->info("unregistering object '$obj'");
-    
-    my $id = $obj->get_id;
-    if ( exists $object[ $id ] ) {
-        if ( exists $relationship[ $id ] ) {
-            
-            # notify user
-            $logger->info("deleting one-to-many relationship for '$obj'");
-            
-            delete $relationship[ $id ];
-        }
-        else {
-            LINK_SEARCH: for my $relation ( @relationship ) {
-                if ( exists $relation->{$id} ) {
-                    
-                    # notify user
-                    $logger->info("deleting one-to-one relationship for '$obj'");
-                    
-                    delete $relation->{$id};
-                    last LINK_SEARCH;
-                }
-            }
-        }
-        
-        # notify user
-        $logger->info("deleting '$id' from mediator cache");
-        
-        delete $object[ $id ];
-    }
-    return $self;
-}
+	sub unregister {
+		my ( $self, $obj ) = @_;
+
+		# notify user
+		$logger->info("unregistering object '$obj'");
+
+		my $id = $obj->get_id;
+		if ( exists $object[$id] ) {
+			if ( exists $relationship[$id] ) {
+
+				# notify user
+				$logger->info("deleting one-to-many relationship for '$obj'");
+
+				delete $relationship[$id];
+			}
+			else {
+			  LINK_SEARCH: for my $relation (@relationship) {
+					if ( exists $relation->{$id} ) {
+
+						# notify user
+						$logger->info(
+							"deleting one-to-one relationship for '$obj'");
+
+						delete $relation->{$id};
+						last LINK_SEARCH;
+					}
+				}
+			}
+
+			# notify user
+			$logger->info("deleting '$id' from mediator cache");
+
+			delete $object[$id];
+		}
+		return $self;
+	}
 
 =item set_link()
 
@@ -169,37 +175,37 @@ Creates link between objects.
 
 =cut
 
-sub set_link {
-    my $self = shift;
-    my %opt = @_;
-    my ( $one, $many ) = ( $opt{'-one'}, $opt{'-many'} );
-    my ( $one_id, $many_id ) = ( $one->get_id, $many->get_id );
-    
-    # notify user
-    $logger->info("setting link between '$one' and '$many'");
-    
-    # delete any previously existing link
-    LINK_SEARCH: for my $relation ( @relationship ) {
-        if ( exists $relation->{$many_id} ) {
-            delete $relation->{$many_id};
-            
-            # notify user
-            $logger->info("deleting previous link");
-            
-            last LINK_SEARCH;
-        }
-    }
-    
-    # initialize new hash if not exist
-    $relationship[$one_id] = {} if not $relationship[$one_id];
-    my $relation = $relationship[$one_id];
-    
-    # value is type so that can retrieve in get_link
-    $relation->{$many_id} = $many->_type;
-    
-    return $self;
+	sub set_link {
+		my $self = shift;
+		my %opt  = @_;
+		my ( $one, $many ) = ( $opt{'-one'}, $opt{'-many'} );
+		my ( $one_id, $many_id ) = ( $one->get_id, $many->get_id );
 
-}
+		# notify user
+		$logger->info("setting link between '$one' and '$many'");
+
+		# delete any previously existing link
+	  LINK_SEARCH: for my $relation (@relationship) {
+			if ( exists $relation->{$many_id} ) {
+				delete $relation->{$many_id};
+
+				# notify user
+				$logger->info("deleting previous link");
+
+				last LINK_SEARCH;
+			}
+		}
+
+		# initialize new hash if not exist
+		$relationship[$one_id] = {} if not $relationship[$one_id];
+		my $relation = $relationship[$one_id];
+
+		# value is type so that can retrieve in get_link
+		$relation->{$many_id} = $many->_type;
+
+		return $self;
+
+	}
 
 =item get_link()
 
@@ -234,30 +240,31 @@ Retrieves link between objects.
 
 =cut
 
-sub get_link {
-    my $self = shift;
-    my %opt = @_;
-    my $id = $opt{'-source'}->get_id;
-    
-    # have to get many objects
-    if ( defined $opt{'-type'} ) {
-        my $relation = $relationship[ $id ];
-        return if not $relation;
-        my @result;
-        for my $key ( keys %{ $relation } ) {
-            push @result, $object[ $key ] if $relation->{$key} == $opt{'-type'};
-        }
-        return \@result;
-    }
-    else {
-        LINK_SEARCH: for my $i ( 0 .. $#relationship ) {
-            my $relation = $relationship[ $i ];
-            if ( exists $relation->{$id} ) {
-                return $object[ $i ];
-            }
-        }
-    }
-}
+	sub get_link {
+		my $self = shift;
+		my %opt  = @_;
+		my $id   = $opt{'-source'}->get_id;
+
+		# have to get many objects
+		if ( defined $opt{'-type'} ) {
+			my $relation = $relationship[$id];
+			return if not $relation;
+			my @result;
+			for my $key ( keys %{$relation} ) {
+				push @result, $object[$key]
+				  if $relation->{$key} == $opt{'-type'};
+			}
+			return \@result;
+		}
+		else {
+		  LINK_SEARCH: for my $i ( 0 .. $#relationship ) {
+				my $relation = $relationship[$i];
+				if ( exists $relation->{$id} ) {
+					return $object[$i];
+				}
+			}
+		}
+	}
 
 =item remove_link()
 
@@ -286,26 +293,26 @@ Removes link between objects.
 
 =cut
 
-sub remove_link {
-    my $self = shift;
-    my %opt = @_;
-    my ( $one, $many ) = ( $opt{'-one'}, $opt{'-many'} );
-    if ( $one ) {
-        my $id = $one->get_id;
-        my $relation = $relationship[ $id ];
-        return if not $relation;
-        delete $relation->{ $opt{'-many'}->get_id };
-    }
-    else {
-        my $id = $many->get_id;
-        LINK_SEARCH: for my $relation ( @relationship ) {
-            if ( exists $relation->{$id} ) {
-                delete $relation->{$id};
-                last LINK_SEARCH;
-            }
-        }
-    }
-}
+	sub remove_link {
+		my $self = shift;
+		my %opt  = @_;
+		my ( $one, $many ) = ( $opt{'-one'}, $opt{'-many'} );
+		if ($one) {
+			my $id       = $one->get_id;
+			my $relation = $relationship[$id];
+			return if not $relation;
+			delete $relation->{ $opt{'-many'}->get_id };
+		}
+		else {
+			my $id = $many->get_id;
+		  LINK_SEARCH: for my $relation (@relationship) {
+				if ( exists $relation->{$id} ) {
+					delete $relation->{$id};
+					last LINK_SEARCH;
+				}
+			}
+		}
+	}
 
 =back
 
@@ -319,49 +326,12 @@ Also see the manual: L<Bio::Phylo::Manual>.
 
 =back
 
-=head1 FORUM
+=head1 REVISION
 
-CPAN hosts a discussion forum for Bio::Phylo. If you have trouble
-using this module the discussion forum is a good place to start
-posting questions (NOT bug reports, see below):
-L<http://www.cpanforum.com/dist/Bio-Phylo>
-
-=head1 BUGS
-
-Please report any bugs or feature requests to C<< bug-bio-phylo@rt.cpan.org >>,
-or through the web interface at
-L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Bio-Phylo>. I will be notified,
-and then you'll automatically be notified of progress on your bug as I make
-changes. Be sure to include the following in your request or comment, so that
-I know what version you're using:
-
-$Id: TaxaMediator.pm 4198 2007-07-12 16:45:08Z rvosa $
-
-=head1 AUTHOR
-
-Rutger A. Vos,
-
-=over
-
-=item email: C<< rvosa@sfu.ca >>
-
-=item web page: L<http://www.sfu.ca/~rvosa/>
-
-=back
-
-=head1 ACKNOWLEDGEMENTS
-
-The author would like to thank Jason Stajich for many ideas borrowed
-from BioPerl L<http://www.bioperl.org>, and CIPRES
-L<http://www.phylo.org> and FAB* L<http://www.sfu.ca/~fabstar>
-for comments and requests.
-
-=head1 COPYRIGHT & LICENSE
-
-Copyright 2005 Rutger A. Vos, All Rights Reserved. This program is free
-software; you can redistribute it and/or modify it under the same terms as Perl
-itself.
+ $Id: TaxaMediator.pm 4234 2007-07-17 13:41:02Z rvosa $
 
 =cut
+
+}
 
 1;

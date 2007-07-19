@@ -1,4 +1,4 @@
-# $Id: Taxa.pm 4198 2007-07-12 16:45:08Z rvosa $
+# $Id: Taxa.pm 4234 2007-07-17 13:41:02Z rvosa $
 package Bio::Phylo::Taxa;
 use strict;
 use Bio::Phylo::Listable;
@@ -6,6 +6,7 @@ use Bio::Phylo::Util::IDPool;
 use Bio::Phylo::Util::CONSTANT qw(_NONE_ _TAXA_ _FOREST_ _MATRIX_);
 use Scalar::Util qw(weaken blessed);
 use Bio::Phylo::Mediators::TaxaMediator;
+use Bio::Phylo::Util::Logger;
 
 # One line so MakeMaker sees it.
 use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
@@ -14,6 +15,8 @@ use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
 use vars qw($VERSION @ISA);
 @ISA = qw(Bio::Phylo::Listable);
 {
+
+	my $logger = Bio::Phylo::Util::Logger->new;
 
 =head1 NAME
 
@@ -66,7 +69,7 @@ Taxa constructor.
         my $class = shift;
         
         # notify user
-        $class->info("constructor called for '$class'");
+        $logger->info("constructor called for '$class'");
         
         # recurse up inheritance tree, get ID
         my $self = $class->SUPER::new( @_ );
@@ -101,7 +104,7 @@ Sets associated Bio::Phylo::Forest object.
 
     sub set_forest {
         my ( $self, $forest ) = @_;
-        $self->debug( "setting forest $forest" );
+        $logger->debug( "setting forest $forest" );
         my $type;
         eval { $type = $forest->_type };
         if ( not $@ and $type == _FOREST_ ) {
@@ -134,7 +137,7 @@ Sets associated Bio::Phylo::Matrices::Matrix object.
 
     sub set_matrix {
         my ( $self, $matrix ) = @_;
-        $self->debug( "setting matrix $matrix" );
+        $logger->debug( "setting matrix $matrix" );
         my $type;
         eval { $type = $matrix->_type };
         if ( not $@ and $type == _MATRIX_ ) {
@@ -165,7 +168,7 @@ Removes association with argument Bio::Phylo::Forest object.
 
     sub unset_forest {
         my ( $self, $forest ) = @_;
-        $self->debug( "unsetting forest $forest" );
+        $logger->debug( "unsetting forest $forest" );
         my $type;
         eval { $type = $forest->_type };
         if ( not $@ and $type == _FOREST_ ) {
@@ -196,7 +199,7 @@ Removes association with Bio::Phylo::Matrices::Matrix object.
 
     sub unset_matrix {
         my ( $self, $matrix ) = @_;
-        $self->debug( "unsetting matrix $matrix" );
+        $logger->debug( "unsetting matrix $matrix" );
         my $type;
         eval { $type = $matrix->_type };
         if ( not $@ and $type == _MATRIX_ ) {
@@ -401,7 +404,7 @@ Invocant destructor.
         my $self = shift;
         
         # notify user
-        $self->info("destructor called for '$self'");
+        $logger->info("destructor called for '$self'");
         
         # recurse up inheritance tree for cleanup
         $self->SUPER::DESTROY;
@@ -454,48 +457,9 @@ Also see the manual: L<Bio::Phylo::Manual>.
 
 =back
 
-=head1 FORUM
+=head1 REVISION
 
-CPAN hosts a discussion forum for Bio::Phylo. If you have trouble
-using this module the discussion forum is a good place to start
-posting questions (NOT bug reports, see below):
-L<http://www.cpanforum.com/dist/Bio-Phylo>
-
-=head1 BUGS
-
-Please report any bugs or feature requests to C<< bug-bio-phylo@rt.cpan.org >>,
-or through the web interface at
-L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Bio-Phylo>. I will be notified,
-and then you'll automatically be notified of progress on your bug as I make
-changes. Be sure to include the following in your request or comment, so that
-I know what version you're using:
-
-$Id: Taxa.pm 4198 2007-07-12 16:45:08Z rvosa $
-
-=head1 AUTHOR
-
-Rutger Vos,
-
-=over
-
-=item email: C<< rvosa@sfu.ca >>
-
-=item web page: L<http://www.sfu.ca/~rvosa/>
-
-=back
-
-=head1 ACKNOWLEDGEMENTS
-
-The author would like to thank Jason Stajich for many ideas borrowed
-from BioPerl L<http://www.bioperl.org>, and CIPRES
-L<http://www.phylo.org> and FAB* L<http://www.sfu.ca/~fabstar>
-for comments and requests.
-
-=head1 COPYRIGHT & LICENSE
-
-Copyright 2005 Rutger Vos, All Rights Reserved.
-This program is free software; you can redistribute it and/or
-modify it under the same terms as Perl itself.
+ $Id: Taxa.pm 4234 2007-07-17 13:41:02Z rvosa $
 
 =cut
 

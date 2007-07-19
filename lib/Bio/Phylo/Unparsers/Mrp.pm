@@ -1,5 +1,4 @@
-# $Id: Mrp.pm 4198 2007-07-12 16:45:08Z rvosa $
-# Subversion: $Rev: 190 $
+# $Id: Mrp.pm 4213 2007-07-15 03:11:27Z rvosa $
 package Bio::Phylo::Unparsers::Mrp;
 use strict;
 use Bio::Phylo::IO;
@@ -143,48 +142,9 @@ Also see the manual: L<Bio::Phylo::Manual>.
 
 =back
 
-=head1 FORUM
+=head1 REVISION
 
-CPAN hosts a discussion forum for Bio::Phylo. If you have trouble
-using this module the discussion forum is a good place to start
-posting questions (NOT bug reports, see below):
-L<http://www.cpanforum.com/dist/Bio-Phylo>
-
-=head1 BUGS
-
-Please report any bugs or feature requests to C<< bug-bio-phylo@rt.cpan.org >>,
-or through the web interface at
-L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Bio-Phylo>. I will be notified,
-and then you'll automatically be notified of progress on your bug as I make
-changes. Be sure to include the following in your request or comment, so that
-I know what version you're using:
-
-$Id: Mrp.pm 4198 2007-07-12 16:45:08Z rvosa $
-
-=head1 AUTHOR
-
-Rutger A. Vos,
-
-=over
-
-=item email: C<< rvosa@sfu.ca >>
-
-=item web page: L<http://www.sfu.ca/~rvosa/>
-
-=back
-
-=head1 ACKNOWLEDGEMENTS
-
-The author would like to thank Jason Stajich for many ideas borrowed
-from BioPerl L<http://www.bioperl.org>, and CIPRES
-L<http://www.phylo.org> and FAB* L<http://www.sfu.ca/~fabstar>
-for comments and requests.
-
-=head1 COPYRIGHT & LICENSE
-
-Copyright 2005 Rutger A. Vos, All Rights Reserved. This program is free
-software; you can redistribute it and/or modify it under the same terms as Perl
-itself.
+ $Id: Mrp.pm 4213 2007-07-15 03:11:27Z rvosa $
 
 =cut
 

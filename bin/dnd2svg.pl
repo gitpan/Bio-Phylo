@@ -1,8 +1,7 @@
 #!/usr/bin/perl
-# $Id: dnd2svg.pl 4183 2007-07-11 02:15:03Z rvosa $
-# Subversion: $Rev: 145 $
-# This script draws the newick tree description in the input file as a
-# scalable vector drawing.
+# $Id: dnd2svg.pl 4226 2007-07-16 03:16:54Z rvosa $
+# This script draws the newick tree description in the input file 
+# or $ENV{'QUERY_STRING'} as a scalable vector drawing.
 #
 # usage:
 # perl dnd2svg.pl <tree file>
@@ -10,12 +9,12 @@
 use strict;
 use warnings;
 use CGI 'Vars';
+use CGI::Carp 'fatalsToBrowser';
 use Pod::Usage;
 use Pod::Text;
 use Getopt::Long;
 use Bio::Phylo::IO 'parse';
 use Bio::Phylo::Treedrawer;
-use CGI::Carp 'fatalsToBrowser';
 use Data::Dumper;
 
 # we will collect all possible tree drawer arguments and pass them to
@@ -92,7 +91,7 @@ elsif ( defined $args->{'-string'} ) {
     )->first;    
 }
 if ( not $args->{'-tree'} ) {
-    die "you didn't provide a (correct) tree source!\n Args:", Dumper( $args, $cgi->param );
+    die "you didn't provide a (correct) tree source!\n Args:", Dumper( $args, $cgi->param ), "\nTry help=1 as a CGI parameter";
 }
 else {
     delete $args->{'-string'};

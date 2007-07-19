@@ -1,9 +1,17 @@
+# $Id: TaxonLinker.pm 4251 2007-07-19 14:21:33Z rvosa $
 package Bio::Phylo::Taxa::TaxonLinker;
 use Bio::Phylo::Mediators::TaxaMediator;
 use Bio::Phylo::Util::Exceptions;
 use Bio::Phylo::Util::CONSTANT qw(_TAXON_);
+use Bio::Phylo::Util::Logger;
 use Scalar::Util qw(blessed);
 use strict;
+
+{
+
+	my $TAXON_CONSTANT = _TAXON_;
+
+	my $logger = Bio::Phylo::Util::Logger->new;
 
 =head1 NAME
 
@@ -50,28 +58,30 @@ Links the invocant object to a taxon object.
 
 =cut
 
-sub set_taxon {
-    my ( $self, $taxon ) = @_;
-    if ( defined $taxon ) {
-        if ( UNIVERSAL::can( $taxon, '_type' ) && $taxon->_type == _TAXON_ ) {
-            $self->info("setting taxon '$taxon'");
-            Bio::Phylo::Mediators::TaxaMediator->set_link( 
-                '-one'  => $taxon, 
-                '-many' => $self,
-            );
-        }
-        else {
-            Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-                'error' => 'Not a taxon!'
-            );
-        }
-    }
-    else {
-        $self->info("re-setting taxon link");
-        Bio::Phylo::Mediators::TaxaMediator->remove_link( '-many' => $self );
-    }
-    return $self;
-}
+	sub set_taxon {
+		my ( $self, $taxon ) = @_;
+		if ( defined $taxon ) {
+			if ( UNIVERSAL::can( $taxon, '_type' )
+				&& $taxon->_type == $TAXON_CONSTANT )
+			{
+				$logger->info("setting taxon '$taxon'");
+				Bio::Phylo::Mediators::TaxaMediator->set_link(
+					'-one'  => $taxon,
+					'-many' => $self,
+				);
+			}
+			else {
+				Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
+					'error' => 'Not a taxon!' );
+			}
+		}
+		else {
+			$logger->info("re-setting taxon link");
+			Bio::Phylo::Mediators::TaxaMediator->remove_link(
+				'-many' => $self );
+		}
+		return $self;
+	}
 
 =item unset_taxon()
 
@@ -87,12 +97,12 @@ Unlinks the invocant object from any taxon object.
 
 =cut
 
-sub unset_taxon {
-	my $self = shift;
-	$self->debug( "unsetting taxon" );
-	$self->set_taxon();
-	return $self;
-}
+	sub unset_taxon {
+		my $self = shift;
+		$logger->debug("unsetting taxon");
+		$self->set_taxon();
+		return $self;
+	}
 
 =back
 
@@ -115,16 +125,17 @@ Retrieves the Bio::Phylo::Taxa::Taxon object linked to the invocant.
 
 =cut
 
-sub get_taxon {
-    my $self = shift;
-    $self->debug("getting taxon");
-    return Bio::Phylo::Mediators::TaxaMediator->get_link( '-source' => $self );
-}
+	sub get_taxon {
+		my $self = shift;
+		$logger->info("getting taxon");
+		return Bio::Phylo::Mediators::TaxaMediator->get_link(
+			'-source' => $self );
+	}
 
-sub _cleanup { 
-    my $self = shift;
-    $self->info("cleaning up '$self'"); 
-}
+	sub _cleanup {
+		my $self = shift;
+		$logger->debug("cleaning up '$self'");
+	}
 
 =back
 
@@ -146,49 +157,12 @@ Also see the manual: L<Bio::Phylo::Manual>.
 
 =back
 
-=head1 FORUM
+=head1 REVISION
 
-CPAN hosts a discussion forum for Bio::Phylo. If you have trouble
-using this module the discussion forum is a good place to start
-posting questions (NOT bug reports, see below):
-L<http://www.cpanforum.com/dist/Bio-Phylo>
-
-=head1 BUGS
-
-Please report any bugs or feature requests to C<< bug-bio-phylo@rt.cpan.org >>,
-or through the web interface at
-L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Bio-Phylo>. I will be notified,
-and then you'll automatically be notified of progress on your bug as I make
-changes. Be sure to include the following in your request or comment, so that
-I know what version you're using:
-
-$Id: TaxonLinker.pm 4198 2007-07-12 16:45:08Z rvosa $
-
-=head1 AUTHOR
-
-Rutger A. Vos,
-
-=over
-
-=item email: C<< rvosa@sfu.ca >>
-
-=item web page: L<http://www.sfu.ca/~rvosa/>
-
-=back
-
-=head1 ACKNOWLEDGEMENTS
-
-The author would like to thank Jason Stajich for many ideas borrowed
-from BioPerl L<http://www.bioperl.org>, and CIPRES
-L<http://www.phylo.org> and FAB* L<http://www.sfu.ca/~fabstar>
-for comments and requests.
-
-=head1 COPYRIGHT & LICENSE
-
-Copyright 2005 Rutger A. Vos, All Rights Reserved. This program is free
-software; you can redistribute it and/or modify it under the same terms as Perl
-itself.
+ $Id: TaxonLinker.pm 4251 2007-07-19 14:21:33Z rvosa $
 
 =cut
+
+}
 
 1;

@@ -1,12 +1,12 @@
-# $Id: Phylo.pm 4204 2007-07-13 05:40:14Z rvosa $
+# $Id: Phylo.pm 4251 2007-07-19 14:21:33Z rvosa $
 package Bio::Phylo;
 use strict;
 use warnings FATAL => 'all';
-use vars qw($VERSION $VERBOSE $COMPAT);
+use vars qw($VERSION $COMPAT);
 
 # default value for verbosity: 0 only logs fatal messages,
 # 1=error, 2=warn, 3=info, 4=debug
-$VERBOSE = 0;
+# $VERBOSE = 0;
 
 # Because we use a roll-your-own looks_like_number from
 # Bio::Phylo::Util::CONSTANT, here we don't have to worry
@@ -18,19 +18,22 @@ use Scalar::Util qw(weaken blessed);
 use Bio::Phylo::Util::CONSTANT qw(looks_like_number);
 use Bio::Phylo::Util::IDPool;
 use Bio::Phylo::Util::Exceptions;
+use Bio::Phylo::Util::Logger;
 use Bio::Phylo::Mediators::TaxaMediator;
 
 # Include the revision number from CIPRES subversion in $VERSION
-my $rev = '$Id: Phylo.pm 4204 2007-07-13 05:40:14Z rvosa $';
+my $rev = '$Id: Phylo.pm 4251 2007-07-19 14:21:33Z rvosa $';
 $rev =~ s/^[^\d]+(\d+)\b.*$/$1/;
-$VERSION = "0.17_RC4";
+$VERSION = "0.17_RC5";
 $VERSION .= "_$rev";
 
 {
 
+	my $logger = Bio::Phylo::Util::Logger->new;
+
 	# The following allows for semantics like:
 	# 'use Bio::Phylo verbose => 1;' to increase verbosity,
-	sub import {
+	sub Bio::Phylo::import {
 		my $class = shift;
 		if (@_) {
 			my %opt;
@@ -41,14 +44,14 @@ $VERSION .= "_$rev";
 			else {
 				while ( my ( $key, $value ) = each %opt ) {
 					if ( $key =~ qr/^VERBOSE$/i ) {
-						if ( $value > 4 || $value < 0 ) {
-							Bio::Phylo::Util::Exceptions::OutOfBounds->throw(
-								'error' =>
-								  "verbosity must be >= 0 && <= 4 inclusive", );
-						}
-						else {
-							$VERBOSE = $value;
-						}
+#						if ( $value > 4 || $value < 0 ) {
+#							Bio::Phylo::Util::Exceptions::OutOfBounds->throw(
+#								'error' =>
+#								  "verbosity must be >= 0 && <= 4 inclusive", );
+#						}
+#						else {
+							$logger->VERBOSE( '-level' => $value );
+#						}
 					}
 					elsif ( $key =~ qr/^COMPAT$/i ) {
 						$COMPAT = ucfirst( lc($value) );
@@ -143,7 +146,7 @@ for the methods, but "set_" has been replaced with a dash "-", e.g. the method
 		my $class = shift;
 
 		# notify user
-		$class->info("constructor called for '$class'");
+		$logger->info("constructor called for '$class'");
 
 		# happens only once because root class is visited from every constructor
 		my $self = Bio::Phylo::Util::IDPool->_initialize();
@@ -155,7 +158,7 @@ for the methods, but "set_" has been replaced with a dash "-", e.g. the method
 		if (@_) {
 
 			# notify user
-			$self->debug("root constructor called with args");
+			$logger->debug("root constructor called with args");
 
 			# something's wrong
 			if ( ( scalar(@_) % 2 ) != 0 ) {
@@ -167,7 +170,7 @@ for the methods, but "set_" has been replaced with a dash "-", e.g. the method
 			else {
 
 				# notify user
-				$self->debug("going to process constructor args");
+				$logger->debug("going to process constructor args");
 
 				# process all arguments
 				while (@_) {
@@ -175,7 +178,7 @@ for the methods, but "set_" has been replaced with a dash "-", e.g. the method
 					my $value = shift @_;
 
 					# notify user
-					$self->debug("processing arg '$key'");
+					$logger->debug("processing arg '$key'");
 
 					# don't access data structures directly, call mutators
 					# in child classes or __PACKAGE__
@@ -230,7 +233,7 @@ Sets invocant name.
 
 			# had bad characters, but in quotes
 			if ( $name =~ m/^(['"])/ && $name =~ m/$1$/ ) {
-				$self->info("$name had bad characters, but was quoted");
+				$logger->info("$name had bad characters, but was quoted");
 			}
 
 			# had unquoted bad characters
@@ -241,7 +244,7 @@ Sets invocant name.
 		}
 
 		# notify user
-		$self->info("setting name '$name'");
+		$logger->info("setting name '$name'");
 
 		$name{ $self->get_id } = $name;
 		return $self;
@@ -264,7 +267,7 @@ Sets invocant description.
 		my ( $self, $desc ) = @_;
 
 		# notify user
-		$self->info("setting description '$desc'");
+		$logger->info("setting description '$desc'");
 
 		$desc{ $self->get_id } = $desc;
 		return $self;
@@ -297,7 +300,7 @@ Sets invocant score.
 		}
 
 		# notify user
-		$self->info("setting score '$score'");
+		$logger->info("setting score '$score'");
 
 		# this resets the score of $score was undefined
 		$score{ $self->get_id } = $score;
@@ -361,7 +364,7 @@ Sets generic key/value pair(s).
 			else {
 
 				# notify user
-				$self->info("setting generic key/value pairs '%args'");
+				$logger->info("setting generic key/value pairs '%args'");
 
 				# fill up the hash
 				foreach my $key ( keys %args ) {
@@ -439,7 +442,7 @@ Gets invocant description.
 
 	sub get_desc {
 		my $self = shift;
-		$self->debug("getting description");
+		$logger->debug("getting description");
 		return $desc{ $self->get_id };
 	}
 
@@ -458,7 +461,7 @@ Gets invocant's score.
 
 	sub get_score {
 		my $self = shift;
-		$self->debug("getting score");
+		$logger->debug("getting score");
 		return $score{ $self->get_id };
 	}
 
@@ -496,7 +499,7 @@ Gets generic hashref or hash value(s).
 		if ( defined $key ) {
 
 			# notify user
-			$self->debug("getting value for key '$key'");
+			$logger->debug("getting value for key '$key'");
 
 			return $generic{$id}->{$key};
 		}
@@ -505,7 +508,7 @@ Gets generic hashref or hash value(s).
 		else {
 
 			# notify user
-			$self->debug("retrieving generic hash");
+			$logger->debug("retrieving generic hash");
 
 			return $generic{$id};
 		}
@@ -548,13 +551,14 @@ Gets invocant's UID.
 
 			# this might happen if the tied object is destroyed before the array
 			elsif ( not $tied ) {
-				$self->warn("no tie'd object for '$self' - are we destroying?");
+				$logger->warn(
+					"no tie'd object for '$self' - are we destroying?");
 			}
 		}
 
 		# so far never seen this one...
 		else {
-			$self->error("object neither array nor scalar");
+			$logger->error("object neither array nor scalar");
 		}
 	}
 
@@ -584,7 +588,7 @@ Attempts to execute argument string as method on invocant.
 		if ( $self->can($var) ) {
 
 			# notify user
-			$self->debug("retrieving return value for method '$var'");
+			$logger->debug("retrieving return value for method '$var'");
 
 			return $self->$var;
 		}
@@ -594,126 +598,130 @@ Attempts to execute argument string as method on invocant.
 				'error' => "sorry, a '$ref' can't '$var'", );
 		}
 	}
+	
+# logger methods have been re-factored into Bio::Phylo::Util::Logger - this has
+# changed the API for non-standard use (that is, the user calling messages on objects
+# rather than just listening to them)
 
-=item debug()
+#=item debug()
+#
+#Prints argument debugging message, depending on verbosity.
+#
+# Type    : logging method
+# Title   : debug
+# Usage   : $object->debug( "debugging message" );
+# Function: prints debugging message, depending on verbosity
+# Returns : invocant
+# Args    : logging message
+#
+#=cut
 
-Prints argument debugging message, depending on verbosity.
+#	sub debug {
+#		my ( $self, $msg ) = @_;
+#		if ( $VERBOSE >= 4 ) {
+#			my ( $package, $file1up,  $line1up, $subroutine ) = caller(1);
+#			my ( $pack0up, $filename, $line,    $sub0up )     = caller(0);
+#			printf( "%s %s [%s, %s] - %s\n",
+#				'DEBUG', $subroutine, $filename, $line, $msg );
+#		}
+#		return $self;
+#	}
 
- Type    : logging method
- Title   : debug
- Usage   : $object->debug( "debugging message" );
- Function: prints debugging message, depending on verbosity
- Returns : invocant
- Args    : logging message
+#=item info()
+#
+#Prints argument informational message, depending on verbosity.
+#
+# Type    : logging method
+# Title   : info
+# Usage   : $object->info( "info message" );
+# Function: prints info message, depending on verbosity
+# Returns : invocant
+# Args    : logging message
+#
+#=cut
 
-=cut
+#	sub info {
+#		my ( $self, $msg ) = @_;
+#		if ( $VERBOSE >= 3 ) {
+#			my ( $package, $file1up,  $line1up, $subroutine ) = caller(1);
+#			my ( $pack0up, $filename, $line,    $sub0up )     = caller(0);
+#			printf( "%s %s [%s, %s] - %s\n",
+#				'INFO', $subroutine, $filename, $line, $msg );
+#		}
+#		return $self;
+#	}
 
-	sub debug {
-		my ( $self, $msg ) = @_;
-		if ( $VERBOSE >= 4 ) {
-			my ( $package, $file1up,  $line1up, $subroutine ) = caller(1);
-			my ( $pack0up, $filename, $line,    $sub0up )     = caller(0);
-			printf( "%s %s [%s, %s] - %s\n",
-				'DEBUG', $subroutine, $filename, $line, $msg );
-		}
-		return $self;
-	}
+#=item warn()
+#
+#Prints argument warning message, depending on verbosity.
+#
+# Type    : logging method
+# Title   : warn
+# Usage   : $object->warn( "warning message" );
+# Function: prints warning message, depending on verbosity
+# Returns : invocant
+# Args    : logging message
+#
+#=cut
 
-=item info()
+#	sub warn {
+#		my ( $self, $msg ) = @_;
+#		if ( $VERBOSE >= 2 ) {
+#			my ( $package, $file1up,  $line1up, $subroutine ) = caller(1);
+#			my ( $pack0up, $filename, $line,    $sub0up )     = caller(0);
+#			printf( "%s %s [%s, %s] - %s\n",
+#				'WARN', $subroutine, $filename, $line, $msg );
+#		}
+#		return $self;
+#	}
 
-Prints argument informational message, depending on verbosity.
+#=item error()
+#
+#Prints argument error message, depending on verbosity.
+#
+# Type    : logging method
+# Title   : error
+# Usage   : $object->error( "error message" );
+# Function: prints error message, depending on verbosity
+# Returns : invocant
+# Args    : logging message
+#
+#=cut
 
- Type    : logging method
- Title   : info
- Usage   : $object->info( "info message" );
- Function: prints info message, depending on verbosity
- Returns : invocant
- Args    : logging message
+#	sub error {
+#		my ( $self, $msg ) = @_;
+#		if ( $VERBOSE >= 1 ) {
+#			my ( $package, $file1up,  $line1up, $subroutine ) = caller(1);
+#			my ( $pack0up, $filename, $line,    $sub0up )     = caller(0);
+#			printf( "%s %s [%s, %s] - %s\n",
+#				'ERROR', $subroutine, $filename, $line, $msg );
+#		}
+#		return $self;
+#	}
 
-=cut
+#=item fatal()
+#
+#Prints argument fatal message, depending on verbosity.
+#
+# Type    : logging method
+# Title   : fatal
+# Usage   : $object->fatal( "fatal message" );
+# Function: prints fatal message, depending on verbosity
+# Returns : invocant
+# Args    : logging message
+#
+#=cut
 
-	sub info {
-		my ( $self, $msg ) = @_;
-		if ( $VERBOSE >= 3 ) {
-			my ( $package, $file1up,  $line1up, $subroutine ) = caller(1);
-			my ( $pack0up, $filename, $line,    $sub0up )     = caller(0);
-			printf( "%s %s [%s, %s] - %s\n",
-				'INFO', $subroutine, $filename, $line, $msg );
-		}
-		return $self;
-	}
-
-=item warn()
-
-Prints argument warning message, depending on verbosity.
-
- Type    : logging method
- Title   : warn
- Usage   : $object->warn( "warning message" );
- Function: prints warning message, depending on verbosity
- Returns : invocant
- Args    : logging message
-
-=cut
-
-	sub warn {
-		my ( $self, $msg ) = @_;
-		if ( $VERBOSE >= 2 ) {
-			my ( $package, $file1up,  $line1up, $subroutine ) = caller(1);
-			my ( $pack0up, $filename, $line,    $sub0up )     = caller(0);
-			printf( "%s %s [%s, %s] - %s\n",
-				'WARN', $subroutine, $filename, $line, $msg );
-		}
-		return $self;
-	}
-
-=item error()
-
-Prints argument error message, depending on verbosity.
-
- Type    : logging method
- Title   : error
- Usage   : $object->error( "error message" );
- Function: prints error message, depending on verbosity
- Returns : invocant
- Args    : logging message
-
-=cut
-
-	sub error {
-		my ( $self, $msg ) = @_;
-		if ( $VERBOSE >= 1 ) {
-			my ( $package, $file1up,  $line1up, $subroutine ) = caller(1);
-			my ( $pack0up, $filename, $line,    $sub0up )     = caller(0);
-			printf( "%s %s [%s, %s] - %s\n",
-				'ERROR', $subroutine, $filename, $line, $msg );
-		}
-		return $self;
-	}
-
-=item fatal()
-
-Prints argument fatal message, depending on verbosity.
-
- Type    : logging method
- Title   : fatal
- Usage   : $object->fatal( "fatal message" );
- Function: prints fatal message, depending on verbosity
- Returns : invocant
- Args    : logging message
-
-=cut
-
-	sub fatal {
-		my ( $self, $msg ) = @_;
-		if ( $VERBOSE >= 0 ) {
-			my ( $package, $file1up,  $line1up, $subroutine ) = caller(1);
-			my ( $pack0up, $filename, $line,    $sub0up )     = caller(0);
-			printf( "%s %s [%s, %s] - %s\n",
-				'FATAL', $subroutine, $filename, $line, $msg );
-		}
-		return $self;
-	}
+#	sub fatal {
+#		my ( $self, $msg ) = @_;
+#		if ( $VERBOSE >= 0 ) {
+#			my ( $package, $file1up,  $line1up, $subroutine ) = caller(1);
+#			my ( $pack0up, $filename, $line,    $sub0up )     = caller(0);
+#			printf( "%s %s [%s, %s] - %s\n",
+#				'FATAL', $subroutine, $filename, $line, $msg );
+#		}
+#		return $self;
+#	}
 
 =item clone()
 
@@ -731,7 +739,7 @@ Clones invocant.
 
 	sub clone {
 		my $self = shift;
-		$self->error("cloning not (yet) implemented!");
+		$logger->error("cloning not (yet) implemented!");
 		return $self;
 	}
 
@@ -760,12 +768,12 @@ an exception object), 1 = errors (hopefully recoverable), 2 = warnings
 			if ($@) {
 				Bio::Phylo::Util::Exceptions::OddHash->throw( 'error' => $@ );
 			}
-			$VERBOSE = $opt{'-level'};
+			$logger->VERBOSE(%opt);
 
 			# notify user
-			$class->info("Changed verbosity level to '$VERBOSE'");
+			$logger->info("Changed verbosity level to '$opt{-level}'");
 		}
-		return $VERBOSE;
+		return $Bio::Phylo::Util::Logger::VERBOSE;
 	}
 
 =item CITATION()
@@ -836,7 +844,7 @@ Invocant destructor.
 		my $self = shift;
 
 		# notify user
-		$self->info("destructor called for '$self'");
+		$logger->debug("destructor called for '$self'");
 
 		# build full @ISA from child to here
 		my ( $class, $isa, $seen ) = ( ref($self), [], {} );
@@ -844,7 +852,7 @@ Invocant destructor.
 
 		# call *all* _cleanup methods, wouldn't work if simply SUPER::_cleanup
 		# given multiple inheritance
-		$self->info("going to clean up '$self'");
+		$logger->debug("going to clean up '$self'");
 		{
 			no strict 'refs';
 			for my $SUPER ( @{$isa} ) {
@@ -853,7 +861,7 @@ Invocant destructor.
 			}
 			use strict;
 		}
-		$self->info("done cleaning up '$self'");
+		$logger->debug("done cleaning up '$self'");
 
 		# cleanup from mediator
 		Bio::Phylo::Mediators::TaxaMediator->unregister($self);
@@ -880,7 +888,7 @@ Invocant destructor.
 
 	sub _cleanup {
 		my $self = shift;
-		$self->info("cleaning up '$self'");
+		$logger->debug("cleaning up '$self'");
 		my $id = $self->get_id;
 
 		# cleanup local fields
@@ -960,46 +968,9 @@ Invocant destructor.
 
 Also see the manual: L<Bio::Phylo::Manual>.
 
-=head1 FORUM
+=head1 REVISION
 
-CPAN hosts a discussion forum for Bio::Phylo. If you have trouble using this
-module the discussion forum is a good place to start posting questions (NOT bug
-reports, see below): L<http://www.cpanforum.com/dist/Bio-Phylo>
-
-=head1 BUGS
-
-Please report any bugs or feature requests to C<< bug-bio-phylo@rt.cpan.org >>,
-or through the web interface at
-L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Bio-Phylo>. I will be notified,
-and then you'll automatically be notified of progress on your bug as I make
-changes. Be sure to include the following in your request or comment, so that
-I know what version you're using:
-
-$Id: Phylo.pm 4204 2007-07-13 05:40:14Z rvosa $
-
-=head1 AUTHOR
-
-Rutger Vos,
-
-=over
-
-=item email: L<mailto://rvosa@sfu.ca>
-
-=item web page: L<http://www.sfu.ca/~rvosa/>
-
-=back
-
-=head1 ACKNOWLEDGEMENTS
-
-The author would like to thank Jason Stajich for many ideas borrowed from
-BioPerl L<http://www.bioperl.org>, and CIPRES L<http://www.phylo.org> and
-FAB* L<http://www.sfu.ca/~fabstar> for comments and requests.
-
-=head1 COPYRIGHT & LICENSE
-
-Copyright 2005 Rutger Vos, All Rights Reserved.
-This program is free software; you can redistribute it and/or
-modify it under the same terms as Perl itself.
+ $Id: Phylo.pm 4251 2007-07-19 14:21:33Z rvosa $
 
 =cut
 

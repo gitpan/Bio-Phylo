@@ -1,4 +1,4 @@
-# $Id: Generator.pm 4198 2007-07-12 16:45:08Z rvosa $
+# $Id: Generator.pm 4234 2007-07-17 13:41:02Z rvosa $
 package Bio::Phylo::Generator;
 use strict;
 use Bio::Phylo;
@@ -6,6 +6,7 @@ use Bio::Phylo::Util::IDPool;
 use Bio::Phylo::Forest;
 use Bio::Phylo::Forest::Tree;
 use Bio::Phylo::Forest::Node;
+use Bio::Phylo::Util::Logger;
 use Math::Random qw(random_exponential);
 
 # One line so MakeMaker sees it.
@@ -15,6 +16,8 @@ use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
 use vars qw($VERSION @ISA);
 @ISA = qw(Bio::Phylo);
 {
+
+	my $logger = Bio::Phylo::Util::Logger->new;
 
 =head1 NAME
 
@@ -63,7 +66,7 @@ Generator constructor.
 		my $class = shift;
 
 		# notify user
-		$class->info("constructor called for '$class'");
+		$logger->info("constructor called for '$class'");
 
 		# recurse up inheritance tree, get ID
 		my $self = $class->SUPER::new(@_);
@@ -391,7 +394,7 @@ such that all shapes are equally probable.
 
 	sub _cleanup {
 		my $self = shift;
-		$self->info("cleaning up '$self'");
+		$logger->info("cleaning up '$self'");
 	}
 
 =back
@@ -406,48 +409,9 @@ Also see the manual: L<Bio::Phylo::Manual>.
 
 =back
 
-=head1 FORUM
+=head1 REVISION
 
-CPAN hosts a discussion forum for Bio::Phylo. If you have trouble
-using this module the discussion forum is a good place to start
-posting questions (NOT bug reports, see below):
-L<http://www.cpanforum.com/dist/Bio-Phylo>
-
-=head1 BUGS
-
-Please report any bugs or feature requests to C<< bug-bio-phylo@rt.cpan.org >>,
-or through the web interface at
-L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Bio-Phylo>. I will be notified,
-and then you'll automatically be notified of progress on your bug as I make
-changes. Be sure to include the following in your request or comment, so that
-I know what version you're using:
-
-$Id: Generator.pm 4198 2007-07-12 16:45:08Z rvosa $
-
-=head1 AUTHOR
-
-Rutger A. Vos,
-
-=over
-
-=item email: C<< rvosa@sfu.ca >>
-
-=item web page: L<http://www.sfu.ca/~rvosa/>
-
-=back
-
-=head1 ACKNOWLEDGEMENTS
-
-The author would like to thank Jason Stajich for many ideas borrowed
-from BioPerl L<http://www.bioperl.org>, and CIPRES
-L<http://www.phylo.org> and FAB* L<http://www.sfu.ca/~fabstar>
-for comments and requests.
-
-=head1 COPYRIGHT & LICENSE
-
-Copyright 2005 Rutger A. Vos, All Rights Reserved. This program is free
-software; you can redistribute it and/or modify it under the same terms as Perl
-itself.
+ $Id: Generator.pm 4234 2007-07-17 13:41:02Z rvosa $
 
 =cut
 

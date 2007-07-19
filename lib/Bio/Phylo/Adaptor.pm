@@ -1,8 +1,11 @@
 package Bio::Phylo::Adaptor;
 use strict;
 use Bio::Phylo::Util::Exceptions;
+use Bio::Phylo::Util::Logger;
 use Bio::Phylo;
 use vars '$AUTOLOAD';
+
+my $logger = Bio::Phylo::Util::Logger->new;
 
 =head1 NAME
 
@@ -67,54 +70,15 @@ Also see the manual: L<Bio::Phylo::Manual>.
 
 =back
 
-=head1 FORUM
+=head1 REVISION
 
-CPAN hosts a discussion forum for Bio::Phylo. If you have trouble
-using this module the discussion forum is a good place to start
-posting questions (NOT bug reports, see below):
-L<http://www.cpanforum.com/dist/Bio-Phylo>
-
-=head1 BUGS
-
-Please report any bugs or feature requests to C<< bug-bio-phylo@rt.cpan.org >>,
-or through the web interface at
-L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Bio-Phylo>. I will be notified,
-and then you'll automatically be notified of progress on your bug as I make
-changes. Be sure to include the following in your request or comment, so that
-I know what version you're using:
-
-$Id: Adaptor.pm 4153 2007-07-11 01:33:20Z rvosa $
-
-=head1 AUTHOR
-
-Rutger A. Vos,
-
-=over
-
-=item email: C<< rvosa@sfu.ca >>
-
-=item web page: L<http://www.sfu.ca/~rvosa/>
-
-=back
-
-=head1 ACKNOWLEDGEMENTS
-
-The author would like to thank Jason Stajich for many ideas borrowed
-from BioPerl L<http://www.bioperl.org>, and CIPRES
-L<http://www.phylo.org> and FAB* L<http://www.sfu.ca/~fabstar>
-for comments and requests.
-
-=head1 COPYRIGHT & LICENSE
-
-Copyright 2005 Rutger A. Vos, All Rights Reserved. This program is free
-software; you can redistribute it and/or modify it under the same terms as Perl
-itself.
+ $Id: Adaptor.pm 4234 2007-07-17 13:41:02Z rvosa $
 
 =cut
 
 sub _adaptor_build_isa {
     my ( $class, $isa ) = @_;
-    Bio::Phylo->debug( "recursing through class '$class'" );
+    $logger->debug( "recursing through class '$class'" );
     my @isa;
     {
         no strict 'refs';
@@ -139,7 +103,7 @@ sub _adaptor_find_methods {
                 next if $key =~ qr/^_/;
                 next if $key =~ qr/^:/;
                 $methods{$key} = $symtable{$key};
-                Bio::Phylo->debug( "found method to implement: $key" );
+                $logger->debug( "found method to implement: $key" );
             }
         }
         use strict;
@@ -209,12 +173,12 @@ sub new {
     );
     for my $obj_method ( sort { $a cmp $b } keys %obj_methods ) {
         if ( not exists $adapt_methods{$obj_method} ) {
-            Bio::Phylo->warn( "method '$obj_method' not implemented in $adaptor_class" );
+            $logger->warn( "method '$obj_method' not implemented in $adaptor_class" );
         }
     }
     
     # done
-    Bio::Phylo->info( "setting up adaptor class '$adaptor_class' to wrap '$class_to_adapt_to'" );
+    $logger->info( "setting up adaptor class '$adaptor_class' to wrap '$class_to_adapt_to'" );
     return bless \$self, $adaptor_class;
 }
 

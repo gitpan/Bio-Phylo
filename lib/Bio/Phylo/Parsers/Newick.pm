@@ -1,12 +1,13 @@
-# $Id: Newick.pm 4167 2007-07-11 01:36:38Z rvosa $
+# $Id: Newick.pm 4251 2007-07-19 14:21:33Z rvosa $
 package Bio::Phylo::Parsers::Newick;
 use strict;
 use Bio::Phylo::IO;
 use Bio::Phylo;
 use vars '@ISA';
+use Bio::Phylo::Util::Logger;
 @ISA=qw(Bio::Phylo::IO);
 
-my $logger = 'Bio::Phylo';
+my $logger = Bio::Phylo::Util::Logger->new;
 
 # One line so MakeMaker sees it.
 use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
@@ -38,7 +39,7 @@ don't call it directly.
 
 sub _new {
     my $class = $_[0];
-    $logger->info("instantiating newick parser");
+    $logger->debug("instantiating newick parser");
     my $self  = {};
     bless( $self, $class );
     return $self;
@@ -164,7 +165,7 @@ sub _split {
 
 sub _parse_string {
     my ( $self, $string ) = @_;
-    $logger->info("going to parse tree string '$string'");
+    $logger->debug("going to parse tree string '$string'");
     require Bio::Phylo::Forest::Tree;
     require Bio::Phylo::Forest::Node;
     my $tree = Bio::Phylo::Forest::Tree->new;
@@ -173,7 +174,7 @@ sub _parse_string {
     my @tokens;
     while ( ( $token, $remainder ) = $self->_next_token( $remainder ) ) {
         last if ( ! defined $token || ! defined $remainder );
-        $logger->info("fetched token '$token'");
+        $logger->debug("fetched token '$token'");
         push @tokens, $token;
     }
     my $i;
@@ -188,7 +189,7 @@ sub _parse_string {
 }
 sub _parse_clade {
     my ( $self, $tree, $root, @tokens ) = @_;
-    $logger->info("recursively parsing clade '@tokens'");
+    $logger->debug("recursively parsing clade '@tokens'");
     my ( @clade, $depth, @remainder );
     TOKEN: for my $i ( 0 .. $#tokens ) {
         if ( $tokens[$i] eq '(' ) {
@@ -226,7 +227,7 @@ sub _parse_clade {
 }
 sub _parse_node_data {
     my ( $self, $node, @clade ) = @_;
-    $logger->info("parsing name and branch length for node");
+    $logger->debug("parsing name and branch length for node");
     my @tail;
     PARSE_TAIL: for ( my $i = $#clade; $i >= 0; $i-- ) {
         if ( $clade[$i] eq ')' ) {
@@ -251,21 +252,21 @@ sub _parse_node_data {
 }
 sub _next_token {
     my ( $self, $string ) = @_;
-    $logger->info("tokenizing string '$string'");
+    $logger->debug("tokenizing string '$string'");
     my $QUOTED = 0;
     my $token = '';
     my $TOKEN_DELIMITER = qr/[():,;]/;
     TOKEN: for my $i ( 0 .. length( $string ) ) {
         $token .= substr($string,$i,1);
-        $logger->info("growing token: '$token'");
+        $logger->debug("growing token: '$token'");
         if ( ! $QUOTED && $token =~ $TOKEN_DELIMITER ) {
             my $length = length( $token );
             if ( $length == 1 ) {
-                $logger->info("single char token: '$token'");
+                $logger->debug("single char token: '$token'");
                 return $token, substr($string,($i+1));
             }
             else {
-                $logger->info(sprintf("range token: %s", substr($token,0,$length-1)));
+                $logger->debug(sprintf("range token: %s", substr($token,0,$length-1)));
                 return substr($token,0,$length-1),substr($token,$length-1,1).substr($string,($i+1));
             }
         }
@@ -409,48 +410,9 @@ Also see the manual: L<Bio::Phylo::Manual>.
 
 =back
 
-=head1 FORUM
+=head1 REVISION
 
-CPAN hosts a discussion forum for Bio::Phylo. If you have trouble
-using this module the discussion forum is a good place to start
-posting questions (NOT bug reports, see below):
-L<http://www.cpanforum.com/dist/Bio-Phylo>
-
-=head1 BUGS
-
-Please report any bugs or feature requests to C<< bug-bio-phylo@rt.cpan.org >>,
-or through the web interface at
-L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Bio-Phylo>. I will be notified,
-and then you'll automatically be notified of progress on your bug as I make
-changes. Be sure to include the following in your request or comment, so that
-I know what version you're using:
-
-$Id: Newick.pm 4167 2007-07-11 01:36:38Z rvosa $
-
-=head1 AUTHOR
-
-Rutger A. Vos,
-
-=over
-
-=item email: C<< rvosa@sfu.ca >>
-
-=item web page: L<http://www.sfu.ca/~rvosa/>
-
-=back
-
-=head1 ACKNOWLEDGEMENTS
-
-The author would like to thank Jason Stajich for many ideas borrowed
-from BioPerl L<http://www.bioperl.org>, and CIPRES
-L<http://www.phylo.org> and FAB* L<http://www.sfu.ca/~fabstar>
-for comments and requests.
-
-=head1 COPYRIGHT & LICENSE
-
-Copyright 2005 Rutger A. Vos, All Rights Reserved. This program is free
-software; you can redistribute it and/or modify it under the same terms as Perl
-itself.
+ $Id: Newick.pm 4251 2007-07-19 14:21:33Z rvosa $
 
 =cut
 

@@ -1,13 +1,16 @@
+# $Id: TypeSafeData.pm 4251 2007-07-19 14:21:33Z rvosa $
 package Bio::Phylo::Matrices::TypeSafeData;
 use Bio::Phylo::Listable;
 use Bio::Phylo::Util::Exceptions;
 use Bio::Phylo::Matrices::Datatype;
+use Bio::Phylo::Util::Logger;
 use strict;
 use vars '@ISA';
 @ISA = qw(Bio::Phylo::Listable);
 
 
 {
+	my $logger = Bio::Phylo::Util::Logger->new;
     my %type;
     
 =head1 NAME
@@ -52,9 +55,17 @@ TypeSafeData constructor.
     sub new {
         # is child class
         my $class = shift;
-
+        
+        # process args
+        my %args = @_;
+        
         # notify user
-        __PACKAGE__->info("constructor called for '$class'");
+        if ( not $args{'-type'} and not $args{'-type_object'} ) {
+        	$logger->warn("No data type provided, will use 'standard'");
+        	unshift @_, '-type', 'standard';
+        } 
+        # notify user
+        $logger->debug("constructor called for '$class'");
 
         # go up inheritance tree, eventually get an ID
         return $class->SUPER::new( @_ );
@@ -82,9 +93,19 @@ Set data type.
 =cut
 
     sub set_type {
-        my ( $self, $type ) = @_;
-        $self->info("setting type '$type'");
-        $self->set_type_object( Bio::Phylo::Matrices::Datatype->new( $type ) );
+        my $self = shift;
+        my $arg  = shift;
+        my ( $type, @args );
+        if ( UNIVERSAL::isa( $arg, 'ARRAY' ) ) {
+        	@args = @{ $arg };
+        	$type = shift @args;
+        }
+        else {
+        	@args = @_;
+        	$type = $arg;
+        }
+        $logger->info("setting type '$type'");
+        $self->set_type_object( Bio::Phylo::Matrices::Datatype->new( $type, @args ) );     
         return $self;
     }
 
@@ -104,7 +125,7 @@ Set missing data symbol.
 
     sub set_missing {
         my ( $self, $missing ) = @_;
-        $self->info("setting missing '$missing'");
+        $logger->info("setting missing '$missing'");
         $self->get_type_object->set_missing( $missing );
         $self->validate;
         return $self;
@@ -126,7 +147,7 @@ Set gap data symbol.
 
     sub set_gap {
         my ( $self, $gap ) = @_;
-        $self->info("setting gap '$gap'");
+        $logger->info("setting gap '$gap'");
         $self->get_type_object->set_gap( $gap );
         $self->validate;
         return $self;
@@ -152,7 +173,7 @@ Set ambiguity lookup table.
 
     sub set_lookup {
         my ( $self, $lookup ) = @_;
-        $self->info("setting character state lookup hash");
+        $logger->info("setting character state lookup hash");
         $self->get_type_object->set_lookup( $lookup );
         $self->validate;
         return $self;
@@ -174,15 +195,17 @@ Set data type object.
 
     sub set_type_object {
         my ( $self, $obj ) = @_;
-        $self->info("setting character type object");
+        $logger->info("setting character type object");
         $type{ $self->get_id } = $obj;
         eval {
             $self->validate
         };
         if ( $@ ) {
-            $self->clear;
             undef($@);
-            $self->warn("new type invalidates data (which has been removed)");
+            if ( my @char = $self->get_char ) {
+            	$self->clear;
+            	$logger->warn("Data contents of $self were invalidated by new type object.");
+            }
         }
         return $self;
     }
@@ -297,7 +320,7 @@ Validates the object's contents
     
     sub _cleanup {
         my $self = shift;
-        $self->info("cleaning up '$self'");
+        $logger->debug("cleaning up '$self'");
         delete $type{ $self->get_id };
     }
 
@@ -320,48 +343,9 @@ Also see the manual: L<Bio::Phylo::Manual>.
 
 =back
 
-=head1 FORUM
+=head1 REVISION
 
-CPAN hosts a discussion forum for Bio::Phylo. If you have trouble
-using this module the discussion forum is a good place to start
-posting questions (NOT bug reports, see below):
-L<http://www.cpanforum.com/dist/Bio-Phylo>
-
-=head1 BUGS
-
-Please report any bugs or feature requests to C<< bug-bio-phylo@rt.cpan.org >>,
-or through the web interface at
-L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Bio-Phylo>. I will be notified,
-and then you'll automatically be notified of progress on your bug as I make
-changes. Be sure to include the following in your request or comment, so that
-I know what version you're using:
-
-$Id: TypeSafeData.pm 4198 2007-07-12 16:45:08Z rvosa $
-
-=head1 AUTHOR
-
-Rutger A. Vos,
-
-=over
-
-=item email: C<< rvosa@sfu.ca >>
-
-=item web page: L<http://www.sfu.ca/~rvosa/>
-
-=back
-
-=head1 ACKNOWLEDGEMENTS
-
-The author would like to thank Jason Stajich for many ideas borrowed
-from BioPerl L<http://www.bioperl.org>, and CIPRES
-L<http://www.phylo.org> and FAB* L<http://www.sfu.ca/~fabstar>
-for comments and requests.
-
-=head1 COPYRIGHT & LICENSE
-
-Copyright 2005 Rutger A. Vos, All Rights Reserved. This program is free
-software; you can redistribute it and/or modify it under the same terms as Perl
-itself.
+ $Id: TypeSafeData.pm 4251 2007-07-19 14:21:33Z rvosa $
 
 =cut
 

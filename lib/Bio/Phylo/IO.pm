@@ -1,4 +1,4 @@
-# $Id: IO.pm 4198 2007-07-12 16:45:08Z rvosa $
+# $Id: IO.pm 4253 2007-07-19 15:04:52Z rvosa $
 # Subversion: $Rev: 170 $
 package Bio::Phylo::IO;
 use strict;
@@ -147,7 +147,12 @@ Parses a file or string.
 		   ucfirst(blah) . '.pm' is an existing module; 
 		   ii) the modules implement a _from_handle, 
 		   or a _from_string method. Exceptions are 
-		   thrown if either assumption is violated.           
+		   thrown if either assumption is violated. 
+		   
+		   If @ARGV contains even key/value pairs such
+		   as "format newick file <filename>" (note: no
+		   dashes) these will be prepended to @_, for
+		   one-liners.          
 
 =cut
 
@@ -156,12 +161,21 @@ sub parse {
         shift;
     }
     my %opts;
+    if ( @ARGV and not scalar @ARGV % 2 ) {
+    	my $i = 0;
+    	while ( $i < scalar @ARGV ) {
+    		my ( $key, $value ) = ( $ARGV[$i], $ARGV[ $i + 1 ] );
+    		$key = "-$key" if $key !~ /^-/;
+    		unshift @_, $key, $value;
+    		$i += 2;
+    	}
+    }    
     if ( ! @_ || scalar @_ % 2 ) {
         Bio::Phylo::Util::Exceptions::OddHash->throw(
             error => 'Odd number of elements in hash assignment'
         );
     }
-    eval { %opts = @_; };
+    eval { %opts = @_ };
     if ( $@ ) {
         Bio::Phylo::Util::Exceptions::OddHash->throw( error => $@ );
     }
@@ -304,48 +318,9 @@ Also see the manual: L<Bio::Phylo::Manual>
 
 =back
 
-=head1 FORUM
+=head1 REVISION
 
-CPAN hosts a discussion forum for Bio::Phylo. If you have trouble
-using this module the discussion forum is a good place to start
-posting questions (NOT bug reports, see below):
-L<http://www.cpanforum.com/dist/Bio-Phylo>
-
-=head1 BUGS
-
-Please report any bugs or feature requests to C<< bug-bio-phylo@rt.cpan.org >>,
-or through the web interface at
-L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Bio-Phylo>. I will be notified,
-and then you'll automatically be notified of progress on your bug as I make
-changes. Be sure to include the following in your request or comment, so that
-I know what version you're using:
-
-$Id: IO.pm 4198 2007-07-12 16:45:08Z rvosa $
-
-=head1 AUTHOR
-
-Rutger A. Vos,
-
-=over
-
-=item email: C<< rvosa@sfu.ca >>
-
-=item web page: L<http://www.sfu.ca/~rvosa/>
-
-=back
-
-=head1 ACKNOWLEDGEMENTS
-
-The author would like to thank Jason Stajich for many ideas borrowed
-from BioPerl L<http://www.bioperl.org>, and CIPRES
-L<http://www.phylo.org> and FAB* L<http://www.sfu.ca/~fabstar>
-for comments and requests.
-
-=head1 COPYRIGHT & LICENSE
-
-Copyright 2005 Rutger A. Vos, All Rights Reserved. This program is free
-software; you can redistribute it and/or modify it under the same terms as Perl
-itself.
+ $Id: IO.pm 4253 2007-07-19 15:04:52Z rvosa $
 
 =cut
 

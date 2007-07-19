@@ -1,4 +1,4 @@
-# $Id: 15-table.t 4186 2007-07-11 02:15:56Z rvosa $
+# $Id: 15-table.t 4225 2007-07-16 03:16:38Z rvosa $
 use strict;
 use warnings;
 use Test::More tests => 2;
@@ -15,7 +15,7 @@ my $string = do { local $/; <DATA> };
 ok(
     parse(
         -format    => 'table',
-        -type      => 'STANDARD',
+        -type      => 'standard',
         -separator => '\t',
         -string    => $string,
     ),

@@ -1,57 +1,112 @@
-# $Id: Exceptions.pm 4169 2007-07-11 01:36:59Z rvosa $
+# $Id: Exceptions.pm 4224 2007-07-16 03:16:05Z rvosa $
 # Subversion: $Rev: 170 $
 package Bio::Phylo::Util::Exceptions;
 use strict;
+use Devel::StackTrace;
+
+sub throw {
+	my $class = shift;	
+	my %args = @_;
+	my @frames = map { "STACK: $_" } split '\n', Devel::StackTrace->new->as_string;
+	shift(@frames);
+	shift(@frames);
+	my $trace = join "\n", @frames;
+	my $error = $args{'error'} || '';
+	my $description = $class->description;
+	$args{'error'} = <<"ERROR_HERE_DOC";
+-------------------------- EXCEPTION ----------------------------
+Message: $error
+
+An exception of type $class
+was thrown.
+
+$description
+
+------------------------- STACK TRACE ---------------------------
+$trace	
+-----------------------------------------------------------------
+ERROR_HERE_DOC
+	$class->SUPER::throw(%args);
+}
 
 # One line so MakeMaker sees it.
 use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
 use Exception::Class (
+	# root classes
     'Bio::Phylo::Util::Exceptions',
-    'Bio::Phylo::Util::Exceptions::BadNumber' => {
-        'isa' => 'Bio::Phylo::Util::Exceptions'
+    'Bio::Phylo::Util::Exceptions::Generic' => {
+        'isa'         => 'Bio::Phylo::Util::Exceptions',
+        'description' => "No further details about this type of error are available." 
     },
-    'Bio::Phylo::Util::Exceptions::BadString' => {
-        'isa' => 'Bio::Phylo::Util::Exceptions'
-    },
-    'Bio::Phylo::Util::Exceptions::BadFormat' => {
-        'isa' => 'Bio::Phylo::Util::Exceptions'
-    },
-    'Bio::Phylo::Util::Exceptions::OddHash' => {
-        'isa' => 'Bio::Phylo::Util::Exceptions'
-    },
-    'Bio::Phylo::Util::Exceptions::ObjectMismatch' => {
-        'isa' => 'Bio::Phylo::Util::Exceptions'
-    },
+    
+    # exceptions on method calls
+    'Bio::Phylo::Util::Exceptions::API' => {
+        'isa'         => 'Bio::Phylo::Util::Exceptions::Generic',
+        'description' => "No more details about this type of error are available." 
+    },    
     'Bio::Phylo::Util::Exceptions::UnknownMethod' => {
-        'isa' => 'Bio::Phylo::Util::Exceptions'
-    },
-    'Bio::Phylo::Util::Exceptions::BadArgs' => {
-        'isa' => 'Bio::Phylo::Util::Exceptions'
-    },
-    'Bio::Phylo::Util::Exceptions::FileError' => {
-        'isa' => 'Bio::Phylo::Util::Exceptions'
-    },
-    'Bio::Phylo::Util::Exceptions::ExtensionError' => {
-        'isa' => 'Bio::Phylo::Util::Exceptions'
-    },
-    'Bio::Phylo::Util::Exceptions::OutOfBounds' => {
-        'isa' => 'Bio::Phylo::Util::Exceptions'
+        'isa'         => 'Bio::Phylo::Util::Exceptions::API',
+        'description' => "This kind of error happens when a non-existent method is called.",
     },
     'Bio::Phylo::Util::Exceptions::NotImplemented' => {
-        'isa' => 'Bio::Phylo::Util::Exceptions'
-    },
+        'isa'         => 'Bio::Phylo::Util::Exceptions::API',
+        'description' => "This kind of error happens when a non-implemented\n(interface) method is called.",
+    },    
     'Bio::Phylo::Util::Exceptions::Deprecated' => {
-        'isa' => 'Bio::Phylo::Util::Exceptions'
+        'isa'         => 'Bio::Phylo::Util::Exceptions::API',
+        'description' => "This kind of error happens when a deprecated method is called.", 
+    },
+
+	# exceptions on arguments
+    'Bio::Phylo::Util::Exceptions::BadArgs' => {
+        'isa'         => 'Bio::Phylo::Util::Exceptions::Generic',
+        'description' => "This kind of error happens when bad or incomplete arguments\nare provided.",
+    },    
+    'Bio::Phylo::Util::Exceptions::BadString' => {
+        'isa'         => 'Bio::Phylo::Util::Exceptions::BadArgs',
+        'description' => "This kind of error happens when an unsafe string argument is\nprovided.",
+    },
+    'Bio::Phylo::Util::Exceptions::OddHash' => {
+        'isa'         => 'Bio::Phylo::Util::Exceptions::BadArgs',
+        'description' => "This kind of error happens when an uneven number\nof arguments (so no key/value pairs) was provided.",
+    },
+    'Bio::Phylo::Util::Exceptions::ObjectMismatch' => {
+        'isa'         => 'Bio::Phylo::Util::Exceptions::BadArgs',
+        'description' => "This kind of error happens when an invalid object\nargument is provided.",
     },
     'Bio::Phylo::Util::Exceptions::InvalidData' => {
         'isa' => [
             'Bio::Phylo::Util::Exceptions::BadString',
             'Bio::Phylo::Util::Exceptions::BadFormat',
         ],
-    },      
-    'Bio::Phylo::Util::Exceptions::Generic' => {
-        'isa' => 'Bio::Phylo::Util::Exceptions'
-    },      
+        'description' => "This kind of error happens when invalid character data is\nprovided."
+    },
+    'Bio::Phylo::Util::Exceptions::OutOfBounds' => {
+        'isa'         => 'Bio::Phylo::Util::Exceptions::BadArgs',
+        'description' => "This kind of error happens when an index is outside of its range.",
+    },
+    'Bio::Phylo::Util::Exceptions::BadNumber' => {
+        'isa'         => 'Bio::Phylo::Util::Exceptions::Generic',
+        'description' => "This kind of error happens when an invalid numerical argument\nis provided.",
+    },    
+
+	# system exceptions
+    'Bio::Phylo::Util::Exceptions::System' => {
+        'isa'         => 'Bio::Phylo::Util::Exceptions::Generic',
+        'description' => "This kind of error happens when there is a system misconfiguration.",
+    },    
+    'Bio::Phylo::Util::Exceptions::FileError' => {
+        'isa'         => 'Bio::Phylo::Util::Exceptions::System',
+        'description' => "This kind of error happens when a file can not be accessed.",
+    },
+    'Bio::Phylo::Util::Exceptions::ExtensionError' => {
+        'isa'         => 'Bio::Phylo::Util::Exceptions::System',
+        'description' => "This kind of error happens when an extension module can not be\nloaded.",
+    },
+    'Bio::Phylo::Util::Exceptions::BadFormat' => {
+        'isa'         => 'Bio::Phylo::Util::Exceptions::System',
+        'description' => "This kind of error happens when a bad\nparse or unparse format was specified.",
+    },    
 );
 1;
 __END__
@@ -89,7 +144,7 @@ This package defines the exceptions that can be thrown by Bio::Phylo. There are
 no serviceable parts inside. Refer to the L<Exception::Class>
 perldoc for more examples on how to catch exceptions and show traces.
 
-=head1 EXCEPTION TYPES
+=head1 EXCEPTION CLASSES
 
 =over
 
@@ -155,6 +210,23 @@ Thrown when a deprecated method is called.
 
 =back
 
+=head1 METHODS
+
+=over
+
+=item throw()
+
+Serializes invocant to XML.
+
+ Type    : Exception
+ Title   : throw
+ Usage   : $class->throw( error => 'An exception was thrown!' );
+ Function: Throws exception
+ Returns : A Bio::Phylo::Util::Exceptions object
+ Args    : None
+
+=back
+
 =head1 SEE ALSO
 
 =over
@@ -165,48 +237,9 @@ Also see the manual: L<Bio::Phylo::Manual|Bio::Phylo::Manual>.
 
 =back
 
-=head1 FORUM
+=head1 REVISION
 
-CPAN hosts a discussion forum for Bio::Phylo. If you have trouble
-using this module the discussion forum is a good place to start
-posting questions (NOT bug reports, see below):
-L<http://www.cpanforum.com/dist/Bio-Phylo>
-
-=head1 BUGS
-
-Please report any bugs or feature requests to C<< bug-bio-phylo@rt.cpan.org >>,
-or through the web interface at
-L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Bio-Phylo>. I will be notified,
-and then you'll automatically be notified of progress on your bug as I make
-changes. Be sure to include the following in your request or comment, so that
-I know what version you're using:
-
-$Id: Exceptions.pm 4169 2007-07-11 01:36:59Z rvosa $
-
-=head1 AUTHOR
-
-Rutger A. Vos,
-
-=over
-
-=item email: C<< rvosa@sfu.ca >>
-
-=item web page: L<http://www.sfu.ca/~rvosa/>
-
-=back
-
-=head1 ACKNOWLEDGEMENTS
-
-The author would like to thank Jason Stajich for many ideas borrowed
-from BioPerl L<http://www.bioperl.org>, and CIPRES
-L<http://www.phylo.org> and FAB* L<http://www.sfu.ca/~fabstar>
-for comments and requests.
-
-=head1 COPYRIGHT & LICENSE
-
-Copyright 2005 Rutger A. Vos, All Rights Reserved. This program is free
-software; you can redistribute it and/or modify it under the same terms as Perl
-itself.
+ $Id: Exceptions.pm 4224 2007-07-16 03:16:05Z rvosa $
 
 =cut
 

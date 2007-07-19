@@ -1,7 +1,8 @@
+# $Id: Mixed.pm 4251 2007-07-19 14:21:33Z rvosa $
 package Bio::Phylo::Matrices::Datatype::Mixed;
 use strict;
-use vars '@ISA';
-@ISA = qw(Bio::Phylo::Matrices::Datatype);
+use Bio::Phylo::Util::Exceptions;
+use base 'Bio::Phylo::Matrices::Datatype';
 
 {
 
@@ -24,12 +25,14 @@ objects.
     sub _new { 
         my ( $package, $self, $ranges ) = @_;
         if ( not UNIVERSAL::isa( $ranges, 'ARRAY' ) ) {
-            die "No ranges specified!";
+            Bio::Phylo::Util::Exceptions::BadArgs->throw(
+            	'error' => "No type ranges specified for 'mixed' data type!"
+            );
         }
         my $id = $self->get_id;
-        $range{$id}   = [];
-        $missing{$id} = '?';
-        $gap{$id}     = '-';
+        $range{   $id } = [];
+        $missing{ $id } = '?';
+        $gap{     $id } = '-';
         my $start = 0;
         for ( my $i = 0; $i <= ( $#{ $ranges } - 1 ); $i += 2 ) {
             my $type = $ranges->[ $i     ];
@@ -175,6 +178,29 @@ Returns the object's datatype as string.
 
 =over
 
+=item is_same()
+
+Compares data type objects.
+
+ Type    : Test
+ Title   : is_same
+ Usage   : if ( $obj->is_same($obj1) ) {
+              # do something
+           }
+ Function: Returns true if $obj1 contains the same validation rules
+ Returns : BOOLEAN
+ Args    : A Bio::Phylo::Matrices::Datatype::* object
+
+=cut
+
+	sub is_same {
+		my ( $self, $obj ) = @_;
+		return 1 if $self->get_id      == $obj->get_id;
+		return 0 if $self->get_type    ne $obj->get_type;
+		return 0 if $self->get_gap     ne $obj->get_gap;
+		return 0 if $self->get_missing ne $obj->get_missing;
+	}
+
 =item is_valid()
 
 Returns true if argument only contains valid characters
@@ -192,7 +218,10 @@ Returns true if argument only contains valid characters
 
     sub is_valid { 
         my ( $self, $datum ) = @_;
-        my ( $start, $end ) = ( $datum->get_position - 1, $datum->get_length - 1 );
+        my ( $start, $end );
+        if ( UNIVERSAL::can( $datum, 'get_position') and UNIVERSAL::can( $datum, 'get_position' ) ) {
+        	( $start, $end ) = ( $datum->get_position - 1, $datum->get_length - 1 );
+        }        
         my $ranges = $self->$get_ranges;
         my $type;
         MODEL_RANGE_CHECK: for my $i ( $start .. $end ) {
@@ -237,48 +266,9 @@ Also see the manual: L<Bio::Phylo::Manual>.
 
 =back
 
-=head1 FORUM
+=head1 REVISION
 
-CPAN hosts a discussion forum for Bio::Phylo. If you have trouble
-using this module the discussion forum is a good place to start
-posting questions (NOT bug reports, see below):
-L<http://www.cpanforum.com/dist/Bio-Phylo>
-
-=head1 BUGS
-
-Please report any bugs or feature requests to C<< bug-bio-phylo@rt.cpan.org >>,
-or through the web interface at
-L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Bio-Phylo>. I will be notified,
-and then you'll automatically be notified of progress on your bug as I make
-changes. Be sure to include the following in your request or comment, so that
-I know what version you're using:
-
-$Id: Mixed.pm 4198 2007-07-12 16:45:08Z rvosa $
-
-=head1 AUTHOR
-
-Rutger A. Vos,
-
-=over
-
-=item email: C<< rvosa@sfu.ca >>
-
-=item web page: L<http://www.sfu.ca/~rvosa/>
-
-=back
-
-=head1 ACKNOWLEDGEMENTS
-
-The author would like to thank Jason Stajich for many ideas borrowed
-from BioPerl L<http://www.bioperl.org>, and CIPRES
-L<http://www.phylo.org> and FAB* L<http://www.sfu.ca/~fabstar>
-for comments and requests.
-
-=head1 COPYRIGHT & LICENSE
-
-Copyright 2005 Rutger A. Vos, All Rights Reserved. This program is free
-software; you can redistribute it and/or modify it under the same terms as Perl
-itself.
+ $Id: Mixed.pm 4251 2007-07-19 14:21:33Z rvosa $
 
 =cut
 

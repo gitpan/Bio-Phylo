@@ -10,21 +10,29 @@ use Bio::Phylo::Util::Exceptions;
 use Bio::Phylo::Matrices::TypeSafeData;
 use Bio::Phylo::Matrices::Datum;
 use Bio::Phylo::Util::XMLWritable;
+use Bio::Phylo::Util::Logger;
 use Scalar::Util qw(blessed);
 
 @ISA = qw(
-    Bio::Phylo::Taxa::TaxaLinker 
-    Bio::Phylo::Matrices::TypeSafeData
+  Bio::Phylo::Matrices::TypeSafeData
+  Bio::Phylo::Taxa::TaxaLinker
 );
 
-my @inside_out_arrays = \(
-    my %type,
-    my %charlabels,
-    my %gapmode,
-    my %matchchar,
-    my %polymorphism,
-    my %case_sensitivity,
-);
+{
+
+	my $CONSTANT_TYPE      = _MATRIX_;
+	my $CONSTANT_CONTAINER = _MATRICES_;
+	
+	my $logger = Bio::Phylo::Util::Logger->new;
+
+	my @inside_out_arrays = \(
+		my %type, 
+		my %charlabels,
+		my %gapmode,
+		my %matchchar,
+		my %polymorphism,
+		my %case_sensitivity,
+	);
 
 =head1 NAME
 
@@ -42,10 +50,12 @@ Bio::Phylo::Matrices::Matrix - Character state matrix.
      $taxa->insert( Bio::Phylo::Taxa::Taxon->new( '-name' => $_ ) );
  }
 
- # instantiate matrix object
- my $matrix = Bio::Phylo::Matrices::Matrix->new(
-     '-taxa'   => $taxa,
+ # instantiate matrix object, 'standard' data type. All categorical
+ # data types follow semantics like this, though with different
+ # symbols in lookup table and matrix
+ my $standard_matrix = Bio::Phylo::Matrices::Matrix->new(
      '-type'   => 'STANDARD',
+     '-taxa'   => $taxa,
      '-lookup' => { 
          '-' => [],
          '0' => [ '0' ],
@@ -59,6 +69,59 @@ Bio::Phylo::Matrices::Matrix - Character state matrix.
          [ 'Pan troglodytes' => '1', '1', '1' ],
      ],
  );
+ 
+ # note: complicated constructor for mixed data!
+ my $mixed_matrix = Bio::Phylo::Matrices::Matrix->new( 
+	
+	# if you want to create 'mixed', value for '-type' is array ref...
+	'-type' =>  [ 
+	
+		# ...with first field 'mixed'...				
+		'mixed',
+		
+		# ...second field is an array ref...
+		[
+			
+			# ...with _ordered_ key/value pairs...
+			'dna'      => 10, # value is length of type range
+			'standard' => 10, # value is length of type range
+			
+			# ... or, more complicated, value is a hash ref...
+			'rna'      => {
+				'-length' => 10, # value is length of type range
+				
+				# ...value for '-args' is an array ref with args 
+				# as can be passed to 'unmixed' datatype constructors,
+				# for example, here we modify the lookup table for
+				# rna to allow both 'U' (default) and 'T'
+				'-args'   => [
+					'-lookup' => {
+						'A' => [ 'A'                     ],
+						'C' => [ 'C'                     ],
+						'G' => [ 'G'                     ],
+						'U' => [ 'U'                     ],
+						'T' => [ 'T'                     ],
+						'M' => [ 'A', 'C'                ],
+						'R' => [ 'A', 'G'                ],
+						'S' => [ 'C', 'G'                ],
+						'W' => [ 'A', 'U', 'T'           ],						
+						'Y' => [ 'C', 'U', 'T'           ],
+						'K' => [ 'G', 'U', 'T'           ],
+						'V' => [ 'A', 'C', 'G'           ],
+						'H' => [ 'A', 'C', 'U', 'T'      ],
+						'D' => [ 'A', 'G', 'U', 'T'      ],
+						'B' => [ 'C', 'G', 'U', 'T'      ],
+						'X' => [ 'G', 'A', 'U', 'T', 'C' ],
+						'N' => [ 'G', 'A', 'U', 'T', 'C' ],
+					},
+				],
+			},
+		],
+	],
+ );
+ 
+ # prints 'mixed(Dna:1-10, Standard:11-20, Rna:21-30)'
+ print $mixed_matrix->get_type;
 
 =head1 DESCRIPTION
 
@@ -83,8 +146,9 @@ Matrix constructor.
  Function: Instantiates a Bio::Phylo::Matrices::Matrix
            object.
  Returns : A Bio::Phylo::Matrices::Matrix object.
- Args    : -type   => required, datatype, one of dna|rna|protein|
-                      continuous|standard|restriction|mixed => {}
+ Args    : -type   => optional, but if used must be FIRST argument, 
+                      defines datatype, one of dna|rna|protein|
+                      continuous|standard|restriction|[ mixed => [] ]
 
            -taxa   => optional, link to taxa object
            -lookup => character state lookup hash ref
@@ -94,19 +158,20 @@ Matrix constructor.
 
 =cut
 
-    sub new {
-        # could be child class
-        my $class = shift;
-        
-        # notify user
-        $class->info("constructor called for '$class'");
-        
-        # go up inheritance tree, eventually get an ID
-        my $self = $class->SUPER::new( '-type' => 'standard', @_ );
-        
-        # adapt (or not, if $Bio::Phylo::COMPAT is not set)
-        return Bio::Phylo::Adaptor->new( $self );        
-    }
+	sub new {
+
+		# could be child class
+		my $class = shift;
+
+		# notify user
+		$logger->info("constructor called for '$class'");
+
+		# go up inheritance tree, eventually get an ID
+		my $self = $class->SUPER::new(@_);
+
+		# adapt (or not, if $Bio::Phylo::COMPAT is not set)
+		return Bio::Phylo::Adaptor->new($self);
+	}
 
 =back
 
@@ -127,31 +192,30 @@ Sets argument character labels.
 
 =cut
 
-sub set_charlabels {
-    my ( $self, $charlabels ) = @_;
-    
-    # it's an array ref, but what about its contents?
-    if ( UNIVERSAL::isa( $charlabels, 'ARRAY' ) ) {
-    	for my $label ( @{ $charlabels } ) {
-    	    if ( ref $label ) {
-    		Bio::Phylo::Util::Exceptions::BadArgs->throw(
-    		    'error' => "charlabels must be an array ref of scalars"
-    		);
-    	    }
-    	}
-    }
-    
-    # it's defined but not an array ref
-    elsif ( defined $charlabels && ! UNIVERSAL::isa( $charlabels, 'ARRAY' ) ) {
-	Bio::Phylo::Util::Exceptions::BadArgs->throw(
-	    'error' => "charlabels must be an array ref of scalars"
-	);
-    }
-    
-    # it's either a valid array ref, or nothing, i.e. a reset
-    $charlabels{ $self->get_id } = defined $charlabels ? $charlabels : [];
-    return $self;
-}
+	sub set_charlabels {
+		my ( $self, $charlabels ) = @_;
+
+		# it's an array ref, but what about its contents?
+		if ( UNIVERSAL::isa( $charlabels, 'ARRAY' ) ) {
+			for my $label ( @{$charlabels} ) {
+				if ( ref $label ) {
+					Bio::Phylo::Util::Exceptions::BadArgs->throw( 'error' =>
+						  "charlabels must be an array ref of scalars" );
+				}
+			}
+		}
+
+		# it's defined but not an array ref
+		elsif ( defined $charlabels && !UNIVERSAL::isa( $charlabels, 'ARRAY' ) )
+		{
+			Bio::Phylo::Util::Exceptions::BadArgs->throw(
+				'error' => "charlabels must be an array ref of scalars" );
+		}
+
+		# it's either a valid array ref, or nothing, i.e. a reset
+		$charlabels{ $self->get_id } = defined $charlabels ? $charlabels : [];
+		return $self;
+	}
 
 =item set_gapmode()
 
@@ -166,11 +230,11 @@ Defines matrix gapmode.
 
 =cut
 
-sub set_gapmode {
-    my ( $self, $gapmode ) = @_;
-    $gapmode{ $self->get_id } = !!$gapmode;
-    return $self;
-}
+	sub set_gapmode {
+		my ( $self, $gapmode ) = @_;
+		$gapmode{ $self->get_id } = !!$gapmode;
+		return $self;
+	}
 
 =item set_matchchar()
 
@@ -185,11 +249,11 @@ Assigns match symbol.
 
 =cut
 
-sub set_matchchar {
-    my ( $self, $char ) = @_;
-    $matchchar{ $self->get_id } = $char;
-    return $self;
-}
+	sub set_matchchar {
+		my ( $self, $char ) = @_;
+		$matchchar{ $self->get_id } = $char;
+		return $self;
+	}
 
 =item set_polymorphism()
 
@@ -205,11 +269,11 @@ Defines matrix 'polymorphism' interpretation.
 
 =cut
 
-sub set_polymorphism {
-    my ( $self, $poly ) = @_;
-    $polymorphism{ $self->get_id } = !!$poly;
-    return $self;
-}
+	sub set_polymorphism {
+		my ( $self, $poly ) = @_;
+		$polymorphism{ $self->get_id } = !!$poly;
+		return $self;
+	}
 
 =item set_raw()
 
@@ -225,39 +289,38 @@ Set contents using two-dimensional array argument.
 
 =cut
 
-sub set_raw {
-    my ( $self, $raw ) = @_;
-    if ( defined $raw ) {
-    	if ( UNIVERSAL::isa( $raw, 'ARRAY' ) ) {
-    	    my @rows;
-    	    for my $row ( @{ $raw } ) {
-    		if ( defined $row ) {
-    		    if ( UNIVERSAL::isa( $row, 'ARRAY' ) ) {
-			my $matrixrow = Bio::Phylo::Matrices::Datum->new(
-			    '-name'        => $row->[0],
-			    '-type_object' => $self->get_type_object,
-			    '-char'        => join(' ', @$row[ 1 .. $#{$row} ]),
-			);
-			push @rows, $matrixrow;
-    		    }
-    		    else {
-    			Bio::Phylo::Util::Exceptions::BadArgs->throw(
-    			    'error' => "Raw matrix row must be an array reference"
-    			);
-    		    }
-    		}
-    	    }
-    	    $self->clear;
-    	    $self->insert( $_ ) for @rows;
-    	}
-    	else {
-    	    Bio::Phylo::Util::Exceptions::BadArgs->throw(
-    		'error' => "Raw matrix must be an array reference"
-    	    );
-    	}
-    }
-    return $self;
-}
+	sub set_raw {
+		my ( $self, $raw ) = @_;
+		if ( defined $raw ) {
+			if ( UNIVERSAL::isa( $raw, 'ARRAY' ) ) {
+				my @rows;
+				for my $row ( @{$raw} ) {
+					if ( defined $row ) {
+						if ( UNIVERSAL::isa( $row, 'ARRAY' ) ) {
+							my $matrixrow = Bio::Phylo::Matrices::Datum->new(
+								'-type_object' => $self->get_type_object,
+								'-name'        => $row->[0],
+								'-char' => join( ' ', @$row[ 1 .. $#{$row} ] ),
+							);
+							push @rows, $matrixrow;
+						}
+						else {
+							Bio::Phylo::Util::Exceptions::BadArgs->throw(
+								'error' =>
+								  "Raw matrix row must be an array reference" );
+						}
+					}
+				}
+				$self->clear;
+				$self->insert($_) for @rows;
+			}
+			else {
+				Bio::Phylo::Util::Exceptions::BadArgs->throw(
+					'error' => "Raw matrix must be an array reference" );
+			}
+		}
+		return $self;
+	}
 
 =item set_respectcase()
 
@@ -273,11 +336,11 @@ Defines matrix case sensitivity interpretation.
 
 =cut
 
-sub set_respectcase {
-    my ( $self, $case_sensitivity ) = @_;
-    $case_sensitivity{ $self->get_id } = !!$case_sensitivity;
-    return $self;
-}
+	sub set_respectcase {
+		my ( $self, $case_sensitivity ) = @_;
+		$case_sensitivity{ $self->get_id } = !!$case_sensitivity;
+		return $self;
+	}
 
 =back
 
@@ -298,11 +361,11 @@ Retrieves character labels.
 
 =cut
 
-sub get_charlabels {
-    my $self = shift;
-    my $id = $self->get_id;
-    return defined $charlabels{$id} ? $charlabels{$id} : [];
-}
+	sub get_charlabels {
+		my $self = shift;
+		my $id   = $self->get_id;
+		return defined $charlabels{$id} ? $charlabels{$id} : [];
+	}
 
 =item get_gapmode()
 
@@ -317,10 +380,10 @@ Returns matrix gapmode.
 
 =cut
 
-sub get_gapmode {
-    my $self = shift;
-    return $gapmode{ $self->get_id };
-}
+	sub get_gapmode {
+		my $self = shift;
+		return $gapmode{ $self->get_id };
+	}
 
 =item get_matchchar()
 
@@ -335,10 +398,10 @@ Returns matrix match character.
 
 =cut
 
-sub get_matchchar {
-    my $self = shift;
-    return $matchchar{ $self->get_id };
-}
+	sub get_matchchar {
+		my $self = shift;
+		return $matchchar{ $self->get_id };
+	}
 
 =item get_nchar()
 
@@ -354,17 +417,18 @@ Calculates number of characters.
 
 =cut
 
-sub get_nchar {
-    my $self = shift;
-    my $nchar = 0;
-    my $i = 1;
-    for my $row ( @{ $self->get_entities } ) {
-		my $rowlength = $row->get_length;
-		$self->debug( sprintf("counted %s chars in row %s", $rowlength, $i++) );
-		$nchar = $rowlength if $rowlength > $nchar;
-    }
-    return $nchar;
-}
+	sub get_nchar {
+		my $self  = shift;
+		my $nchar = 0;
+		my $i     = 1;
+		for my $row ( @{ $self->get_entities } ) {
+			my $rowlength = $row->get_length;
+			$logger->debug(
+				sprintf( "counted %s chars in row %s", $rowlength, $i++ ) );
+			$nchar = $rowlength if $rowlength > $nchar;
+		}
+		return $nchar;
+	}
 
 =item get_ntax()
 
@@ -379,10 +443,10 @@ Calculates number of taxa (rows) in matrix.
 
 =cut
 
-sub get_ntax {
-    my $self = shift;
-    return scalar @{ $self->get_entities };
-}
+	sub get_ntax {
+		my $self = shift;
+		return scalar @{ $self->get_entities };
+	}
 
 =item get_polymorphism()
 
@@ -398,10 +462,10 @@ Returns matrix 'polymorphism' interpretation.
 
 =cut
 
-sub get_polymorphism {
-    my $self = shift;
-    return $polymorphism{ $self->get_id };
-}
+	sub get_polymorphism {
+		my $self = shift;
+		return $polymorphism{ $self->get_id };
+	}
 
 =item get_raw()
 
@@ -418,18 +482,18 @@ Retrieves a 'raw' (two-dimensional array) representation of the matrix's content
 
 =cut
 
-sub get_raw {
-    my $self = shift;
-    my @raw;
-    for my $row ( @{ $self->get_entities } ) {
-        my @row;
-        push @row, $row->get_name;
-        my @char = $row->get_char;
-        push @row, @char;
-        push @raw, \@row;
-    }
-    return \@raw;
-}
+	sub get_raw {
+		my $self = shift;
+		my @raw;
+		for my $row ( @{ $self->get_entities } ) {
+			my @row;
+			push @row, $row->get_name;
+			my @char = $row->get_char;
+			push @row, @char;
+			push @raw, \@row;
+		}
+		return \@raw;
+	}
 
 =item get_respectcase()
 
@@ -445,10 +509,10 @@ Returns matrix case sensitivity interpretation.
 
 =cut
 
-sub get_respectcase {
-    my $self = shift;
-    return $case_sensitivity{ $self->get_id };
-}
+	sub get_respectcase {
+		my $self = shift;
+		return $case_sensitivity{ $self->get_id };
+	}
 
 =back
 
@@ -494,101 +558,114 @@ Serializes matrix to nexus format.
 
 =cut
 
-sub to_nexus {
-    my $self = shift;
-    my %args = @_;
-    my $string = sprintf "BEGIN %s;\n", $args{'-data_block'} ? 'DATA' : 'CHARACTERS';
-    $string .=   "[! Characters block written by " . ref($self) . " " . $self->VERSION . " on " . localtime() . " ]\n";
-    
-    # write links
-    if ( $args{'-links'} ) {
-    	$string .= sprintf "\tTITLE %s;\n", $self->get_internal_name;
-    	$string .= sprintf "\tLINK TAXA=%s;\n", $self->get_taxa->get_internal_name if $self->get_taxa;
-    }
-    
-    # dimensions token line - data block defines NTAX, characters block doesn't
-    if ( $args{'-data_block'} ) {
-    	$string .= "\tDIMENSIONS NTAX=" . $self->get_ntax() . ' ';
-    	$string .= 'NCHAR=' . $self->get_nchar() . ";\n";
-    }
-    else {
-    	$string .= "\tDIMENSIONS NCHAR=" . $self->get_nchar() . ";\n";    
-    }
-    
-    # format token line 
-    $string .= "\tFORMAT DATATYPE=" . $self->get_type();
-    $string .= ( $self->get_respectcase ? " RESPECTCASE" : "" ) if $args{'-respectcase'}; # mrbayes no like
-    $string .= " MATCHCHAR=" . $self->get_matchchar if $self->get_matchchar;
-    $string .= " MISSING=" . $self->get_missing();
-    $string .= " GAP=" . $self->get_gap() if $self->get_gap();
-    $string .= ";\n";
-    
-    # options token line (mrbayes no like)
-    if ( $args{'-gapmode'} or $args{'-polymorphism'} ) {
-    	$string .= "\tOPTIONS ";
-    	$string .= "GAPMODE=" . ( $self->get_gapmode      ? "NEWSTATE "  : "MISSING "   ) if $args{'-gapmode'};
-    	$string .= "MSTAXA="  . ( $self->get_polymorphism ? "POLYMORPH " : "UNCERTAIN " ) if $args{'-polymorphism'};
-    	$string .= ";\n";
-    }
+	sub to_nexus {
+		my $self   = shift;
+		my %args   = @_;
+		my $string = sprintf "BEGIN %s;\n",
+		  $args{'-data_block'} ? 'DATA' : 'CHARACTERS';
+		$string .=
+		    "[! Characters block written by "
+		  . ref($self) . " "
+		  . $self->VERSION . " on "
+		  . localtime() . " ]\n";
 
-	# charlabels token line
-	if ( $args{'-charlabels'} ) {
-    	my $charlabels;
-	    if ( my @labels = @{ $self->get_charlabels } ) {
-    		for my $label ( @labels ) {
-    			$charlabels .= $label =~ /\s/ ? " '$label'" : " $label";
-	    	}
-			$string .= "\tCHARLABELS$charlabels;\n";
-    	}
-	}
-	
-	# ...and write matrix!
-    $string .= "\tMATRIX\n";
-    my $length = 0;
-    foreach my $datum ( @{ $self->get_entities } ) {
-        $length = length( $datum->get_name )
-          if length( $datum->get_name ) > $length;
-    }
-    $length += 4;
-    my $sp = ' ';
-    foreach my $datum ( @{ $self->get_entities } ) {
-        $string .= "\t\t";
-		
-		# construct name
-		my $name;
-		if ( not $args{'-seqnames'} ) {		
-			$name = $datum->get_name;
+		# write links
+		if ( $args{'-links'} ) {
+			$string .= sprintf "\tTITLE %s;\n", $self->get_internal_name;
+			$string .= sprintf "\tLINK TAXA=%s;\n",
+			  $self->get_taxa->get_internal_name
+			  if $self->get_taxa;
 		}
-		elsif ( $args{'-seqnames'} =~ /^internal$/i ) {					
-			$name = $datum->get_internal_name;
-		}
-		elsif ( $args{'-seqnames'} =~ /^taxon/i and $datum->get_taxon ) {
-			if ( $args{'-seqnames'} =~ /^taxon_internal$/i ) {
-				$name = $datum->get_taxon->get_internal_name;
-			}
-			elsif ( $args{'-seqnames'} =~ /^taxon$/i ) {
-				$name = $datum->get_taxon->get_name;
-			}
+
+	 # dimensions token line - data block defines NTAX, characters block doesn't
+		if ( $args{'-data_block'} ) {
+			$string .= "\tDIMENSIONS NTAX=" . $self->get_ntax() . ' ';
+			$string .= 'NCHAR=' . $self->get_nchar() . ";\n";
 		}
 		else {
-			$name = $datum->get_generic( $args{'-seqnames'} );
-		}        
-        $string .= $name . ( $sp x ( $length - length( $name ) ) );
-        
-#        # write states
-#		for my $i ( 0 .. ( $self->get_nchar - 1 ) ) {
-#			if ( $datum->get_type =~ m/^CONTINUOUS$/ ) {
-#				$string .= $datum->get_by_index($i) . " ";
-#			}
-#			else {
-#				$string .= $datum->get_by_index($i);
-#			}
-#		}
-        $string .= $datum->get_char . "\n";
-    }
-    $string .= "\t;\nEND;\n";
-    return $string;
-}
+			$string .= "\tDIMENSIONS NCHAR=" . $self->get_nchar() . ";\n";
+		}
+
+		# format token line
+		$string .= "\tFORMAT DATATYPE=" . $self->get_type();
+		$string .= ( $self->get_respectcase ? " RESPECTCASE" : "" )
+		  if $args{'-respectcase'};    # mrbayes no like
+		$string .= " MATCHCHAR=" . $self->get_matchchar if $self->get_matchchar;
+		$string .= " MISSING=" . $self->get_missing();
+		$string .= " GAP=" . $self->get_gap()           if $self->get_gap();
+		$string .= ";\n";
+
+		# options token line (mrbayes no like)
+		if ( $args{'-gapmode'} or $args{'-polymorphism'} ) {
+			$string .= "\tOPTIONS ";
+			$string .=
+			  "GAPMODE=" . ( $self->get_gapmode ? "NEWSTATE " : "MISSING " )
+			  if $args{'-gapmode'};
+			$string .= "MSTAXA="
+			  . ( $self->get_polymorphism ? "POLYMORPH " : "UNCERTAIN " )
+			  if $args{'-polymorphism'};
+			$string .= ";\n";
+		}
+
+		# charlabels token line
+		if ( $args{'-charlabels'} ) {
+			my $charlabels;
+			if ( my @labels = @{ $self->get_charlabels } ) {
+				for my $label (@labels) {
+					$charlabels .= $label =~ /\s/ ? " '$label'" : " $label";
+				}
+				$string .= "\tCHARLABELS$charlabels;\n";
+			}
+		}
+
+		# ...and write matrix!
+		$string .= "\tMATRIX\n";
+		my $length = 0;
+		foreach my $datum ( @{ $self->get_entities } ) {
+			$length = length( $datum->get_name )
+			  if length( $datum->get_name ) > $length;
+		}
+		$length += 4;
+		my $sp = ' ';
+		foreach my $datum ( @{ $self->get_entities } ) {
+			$string .= "\t\t";
+
+			# construct name
+			my $name;
+			if ( not $args{'-seqnames'} ) {
+				$name = $datum->get_name;
+			}
+			elsif ( $args{'-seqnames'} =~ /^internal$/i ) {
+				$name = $datum->get_internal_name;
+			}
+			elsif ( $args{'-seqnames'} =~ /^taxon/i and $datum->get_taxon ) {
+				if ( $args{'-seqnames'} =~ /^taxon_internal$/i ) {
+					$name = $datum->get_taxon->get_internal_name;
+				}
+				elsif ( $args{'-seqnames'} =~ /^taxon$/i ) {
+					$name = $datum->get_taxon->get_name;
+				}
+			}
+			else {
+				$name = $datum->get_generic( $args{'-seqnames'} );
+			}
+			$name = $datum->get_internal_name if not $name;
+			$string .= $name . ( $sp x ( $length - length($name) ) );
+
+			#        # write states
+			#		for my $i ( 0 .. ( $self->get_nchar - 1 ) ) {
+			#			if ( $datum->get_type =~ m/^CONTINUOUS$/ ) {
+			#				$string .= $datum->get_by_index($i) . " ";
+			#			}
+			#			else {
+			#				$string .= $datum->get_by_index($i);
+			#			}
+			#		}
+			$string .= $datum->get_char . "\n";
+		}
+		$string .= "\t;\nEND;\n";
+		return $string;
+	}
 
 =item insert()
 
@@ -605,39 +682,38 @@ Insert argument in invocant.
 
 =cut
 
-sub insert {
-    my ( $self, $obj ) = @_;
-    my $obj_container;
-    eval { $obj_container = $obj->_container };
-    if ( $@ || $obj_container != $self->_type ) {
-        Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-	    'error' => 'object not a datum object!'
-	);
-    }
-    $self->info("inserting '$obj' in '$self'");
-    if ( ! $self->get_type_object->is_same( $obj->get_type_object ) ) {
-	Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-	    'error' => 'object is of wrong data type'
-	);	
-    }
-    my $taxon1 = $obj->get_taxon;
-    for my $ents ( @{ $self->get_entities } ) {
-	if ( $obj->get_id == $ents->get_id ) {
-	    Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-		'error' => 'row already inserted'
-	    );
+	sub insert {
+		my ( $self, $obj ) = @_;
+		my $obj_container;
+		eval { $obj_container = $obj->_container };
+		if ( $@ || $obj_container != $self->_type ) {
+			Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
+				'error' => 'object not a datum object!' );
+		}
+		$logger->info("inserting '$obj' in '$self'");
+		if ( !$self->get_type_object->is_same( $obj->get_type_object ) ) {
+			Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
+				'error' => 'object is of wrong data type' );
+		}
+		my $taxon1 = $obj->get_taxon;
+		for my $ents ( @{ $self->get_entities } ) {
+			if ( $obj->get_id == $ents->get_id ) {
+				Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
+					'error' => 'row already inserted' );
+			}
+			if ($taxon1) {
+				my $taxon2 = $ents->get_taxon;
+				if ( $taxon2 && $taxon1->get_id == $taxon2->get_id ) {
+					$logger->warn(
+'datum linking to same taxon already existed, concatenating instead'
+					);
+					$ents->concat($obj);
+					return $self;
+				}
+			}
+		}
+		$self->SUPER::insert($obj);
 	}
-        if ( $taxon1 ) {
-            my $taxon2 = $ents->get_taxon;
-            if ( $taxon2 && $taxon1->get_id == $taxon2->get_id ) {
-                $self->warn('datum linking to same taxon already existed, concatenating instead');
-                $ents->concat( $obj );
-                return $self;
-            }
-        }
-    }
-    $self->SUPER::insert( $obj );
-}
 
 =item validate()
 
@@ -654,12 +730,12 @@ Validates the object's contents.
 
 =cut
 
-sub validate {
-    my $self = shift;
-    for my $row ( @{ $self->get_entities } ) {
-        $row->validate;
-    }
-}
+	sub validate {
+		my $self = shift;
+		for my $row ( @{ $self->get_entities } ) {
+			$row->validate;
+		}
+	}
 
 =item check_taxa()
 
@@ -676,42 +752,43 @@ Validates taxa associations.
 
 =cut
 
-sub check_taxa {
-    my $self = shift;
-    
-    # is linked to taxa
-    if ( my $taxa = $self->get_taxa ) {
-        my %taxa = map { $_->get_internal_name => $_ } @{ $taxa->get_entities };
-        ROW_CHECK: for my $row ( @{ $self->get_entities } ) {
-            if ( my $taxon = $row->get_taxon ) {
-                next ROW_CHECK if exists $taxa{$taxon->get_name}; 
-            }
-            my $name = $row->get_name;
-            if ( exists $taxa{$name} ) {
-                $row->set_taxon( $taxa{$name} );
-            }
-            else {
-                my $taxon = Bio::Phylo::Taxa::Taxon->new( -name => $name );
-                $taxa{$name} = $taxon;
-                $taxa->insert( $taxon );
-                $row->set_taxon( $taxon );
-            }
-        }
-        
-    }
-    
-    # not linked
-    else {
-        for my $row ( @{ $self->get_entities } ) {
-            $row->set_taxon();
-        }
-    }
-    return $self;
-}
+	sub check_taxa {
+		my $self = shift;
 
-sub _type { _MATRIX_ }
+		# is linked to taxa
+		if ( my $taxa = $self->get_taxa ) {
+			my %taxa =
+			  map { $_->get_internal_name => $_ } @{ $taxa->get_entities };
+		  ROW_CHECK: for my $row ( @{ $self->get_entities } ) {
+				if ( my $taxon = $row->get_taxon ) {
+					next ROW_CHECK if exists $taxa{ $taxon->get_name };
+				}
+				my $name = $row->get_name;
+				if ( exists $taxa{$name} ) {
+					$row->set_taxon( $taxa{$name} );
+				}
+				else {
+					my $taxon = Bio::Phylo::Taxa::Taxon->new( -name => $name );
+					$taxa{$name} = $taxon;
+					$taxa->insert($taxon);
+					$row->set_taxon($taxon);
+				}
+			}
 
-sub _container { _MATRICES_ }
+		}
+
+		# not linked
+		else {
+			for my $row ( @{ $self->get_entities } ) {
+				$row->set_taxon();
+			}
+		}
+		return $self;
+	}
+
+	sub _type { $CONSTANT_TYPE }
+
+	sub _container { $CONSTANT_CONTAINER }
 
 =back
 
@@ -736,14 +813,14 @@ Invocant destructor.
 
 =cut
 
-sub _cleanup {
-    my $self = shift;
-    $self->info("cleaning up '$self'");
-    my $id = $self->get_id;
-    for ( @inside_out_arrays ) {
-        delete $_->{$id} if defined $id and exists $_->{$id};
-    }
-}
+	sub _cleanup {
+		my $self = shift;
+		$logger->info("cleaning up '$self'");
+		my $id = $self->get_id;
+		for (@inside_out_arrays) {
+			delete $_->{$id} if defined $id and exists $_->{$id};
+		}
+	}
 
 =back
 
@@ -769,49 +846,12 @@ Also see the manual: L<Bio::Phylo::Manual>.
 
 =back
 
-=head1 FORUM
+=head1 REVISION
 
-CPAN hosts a discussion forum for Bio::Phylo. If you have trouble
-using this module the discussion forum is a good place to start
-posting questions (NOT bug reports, see below):
-L<http://www.cpanforum.com/dist/Bio-Phylo>
-
-=head1 BUGS
-
-Please report any bugs or feature requests to C<< bug-bio-phylo@rt.cpan.org >>,
-or through the web interface at
-L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Bio-Phylo>. I will be notified,
-and then you'll automatically be notified of progress on your bug as I make
-changes. Be sure to include the following in your request or comment, so that
-I know what version you're using:
-
-$Id: Matrix.pm 4198 2007-07-12 16:45:08Z rvosa $
-
-=head1 AUTHOR
-
-Rutger A. Vos,
-
-=over
-
-=item email: C<< rvosa@sfu.ca >>
-
-=item web page: L<http://www.sfu.ca/~rvosa/>
-
-=back
-
-=head1 ACKNOWLEDGEMENTS
-
-The author would like to thank Jason Stajich for many ideas borrowed
-from BioPerl L<http://www.bioperl.org>, and CIPRES
-L<http://www.phylo.org> and FAB* L<http://www.sfu.ca/~fabstar>
-for comments and requests.
-
-=head1 COPYRIGHT & LICENSE
-
-Copyright 2005 Rutger A. Vos, All Rights Reserved. This program is free
-software; you can redistribute it and/or modify it under the same terms as Perl
-itself.
+ $Id: Matrix.pm 4251 2007-07-19 14:21:33Z rvosa $
 
 =cut
+
+}
 
 1;

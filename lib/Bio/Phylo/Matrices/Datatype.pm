@@ -1,16 +1,16 @@
+# $Id: Datatype.pm 4251 2007-07-19 14:21:33Z rvosa $
 package Bio::Phylo::Matrices::Datatype;
 use Bio::Phylo;
+use Bio::Phylo::Util::Logger;
 use strict;
 use vars '@ISA';
 @ISA = qw(Bio::Phylo);
 
 {
-
-    my %lookup;
-    my %missing;
-    my %gap;
+ 
+ 	my $logger = Bio::Phylo::Util::Logger->new;
     
-    my @fields = ( \%lookup, \%missing, \%gap );
+    my @fields = \( my %lookup, my %missing, my %gap );
 
 =head1 NAME
 
@@ -59,7 +59,7 @@ Datatype constructor.
             );
         }
         if ( $type eq 'Nucleotide' ) {
-            $package->warn("'nucleotide' datatype requested, using 'dna'");
+            $logger->warn("'nucleotide' datatype requested, using 'dna'");
             $type = 'Dna';
         }
         my $typeclass = __PACKAGE__ . '::' . $type;
@@ -78,6 +78,7 @@ Datatype constructor.
     sub _new { 
         my $class = shift;
         my $self  = shift;
+        my @args  = @_;
         my ( $lookup, $missing, $gap );
         {
             no strict 'refs';
@@ -90,6 +91,55 @@ Datatype constructor.
         $self->set_lookup(  $lookup  ) if defined $lookup;
         $self->set_missing( $missing ) if defined $missing;
         $self->set_gap(     $gap     ) if defined $gap;
+        
+		# process further args
+		if ( @args ) {
+			
+			# something's wrong
+			if ( ( scalar(@args) % 2 ) != 0 ) {
+				Bio::Phylo::Util::Exceptions::OddHash->throw(
+					'error' => "No even key/value pairs in constructor '@args'" );
+			}
+
+			# looks like an ok hash
+			else {
+
+				# notify user
+				$logger->debug("going to process constructor args");
+
+				# process all arguments
+				while (@args) {
+					my $key   = shift @args;
+					my $value = shift @args;
+
+					# notify user
+					$logger->debug("processing arg '$key'");
+
+					# don't access data structures directly, call mutators
+					# in child classes or __PACKAGE__
+					my $mutator = $key;
+					$mutator =~ s/^-/set_/;
+
+					# backward compat fixes:
+					$mutator =~ s/^set_pos$/set_position/;
+					$mutator =~ s/^set_matrix$/set_raw/;
+					
+					# bad argument?
+					eval {
+						$self->$mutator($value);
+					};
+					if ( $@ and not ref $@ and $@ =~ m/^Can't locate object method/ ) {
+						Bio::Phylo::Util::Exceptions::UnknownMethod->throw(
+							'error' => "Processing argument '$key' as method '$mutator' failed: $@"
+						);
+					}
+					elsif ( UNIVERSAL::isa( $@, 'Bio::Phylo::Util::Exceptions') ) {
+						$@->rethrow;
+					}
+				}
+			}  
+		}         
+        
         return $self;
     }
 
@@ -342,6 +392,8 @@ Compares data type objects.
 
     sub is_same {
         my ( $self, $model ) = @_;
+        $logger->info("Comparing datatype '$self' to '$model'");
+        return 1 if $self->get_id == $model->get_id;
         
         # check strings
         for my $prop ( qw(get_type get_missing get_gap) ) {
@@ -442,7 +494,7 @@ Joins argument array ref of characters following appropriate rules.
     
     sub _cleanup {
         my $self = shift;
-        $self->info("cleaning up '$self'");
+        $logger->debug("cleaning up '$self'");
         my $id = $self->get_id;
         for my $field ( @fields ) {
             delete $field->{$id};
@@ -466,48 +518,9 @@ Also see the manual: L<Bio::Phylo::Manual>.
 
 =back
 
-=head1 FORUM
+=head1 REVISION
 
-CPAN hosts a discussion forum for Bio::Phylo. If you have trouble
-using this module the discussion forum is a good place to start
-posting questions (NOT bug reports, see below):
-L<http://www.cpanforum.com/dist/Bio-Phylo>
-
-=head1 BUGS
-
-Please report any bugs or feature requests to C<< bug-bio-phylo@rt.cpan.org >>,
-or through the web interface at
-L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Bio-Phylo>. I will be notified,
-and then you'll automatically be notified of progress on your bug as I make
-changes. Be sure to include the following in your request or comment, so that
-I know what version you're using:
-
-$Id: Datatype.pm 4204 2007-07-13 05:40:14Z rvosa $
-
-=head1 AUTHOR
-
-Rutger A. Vos,
-
-=over
-
-=item email: C<< rvosa@sfu.ca >>
-
-=item web page: L<http://www.sfu.ca/~rvosa/>
-
-=back
-
-=head1 ACKNOWLEDGEMENTS
-
-The author would like to thank Jason Stajich for many ideas borrowed
-from BioPerl L<http://www.bioperl.org>, and CIPRES
-L<http://www.phylo.org> and FAB* L<http://www.sfu.ca/~fabstar>
-for comments and requests.
-
-=head1 COPYRIGHT & LICENSE
-
-Copyright 2005 Rutger A. Vos, All Rights Reserved. This program is free
-software; you can redistribute it and/or modify it under the same terms as Perl
-itself.
+ $Id: Datatype.pm 4251 2007-07-19 14:21:33Z rvosa $
 
 =cut
 

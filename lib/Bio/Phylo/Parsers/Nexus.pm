@@ -1,4 +1,4 @@
-# $Id: Nexus.pm 4167 2007-07-11 01:36:38Z rvosa $
+# $Id: Nexus.pm 4234 2007-07-17 13:41:02Z rvosa $
 # Subversion: $Rev: 195 $
 package Bio::Phylo::Parsers::Nexus;
 use strict;
@@ -10,6 +10,7 @@ use Bio::Phylo::Matrices::Matrix;
 use Bio::Phylo::IO qw(parse);
 use Bio::Phylo::Util::CONSTANT qw(:objecttypes :datatypes);
 use Bio::Phylo::Util::Exceptions;
+use Bio::Phylo::Util::Logger;
 use Scalar::Util qw(blessed);
 use List::Util qw(first);
 use IO::String;
@@ -29,6 +30,9 @@ use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
 # classic @ISA manipulation, not using 'base'
 use vars qw($VERSION @ISA);
 @ISA = qw(Bio::Phylo::IO);
+
+# create logger
+my $logger = Bio::Phylo::Util::Logger->new;
 
 =head1 NAME
 
@@ -141,13 +145,13 @@ sub _new {
 
 sub _from_handle {
     my $self = shift;
-    $self->info( "going to parse nexus data" );
+    $logger->info( "going to parse nexus data" );
     $self->{'_lines' } = $self->_stringify( @_ );
     $self->{'_tokens'} = $self->_tokenize( $self->{'_lines'} );
 
     # iterate over tokens, dispatch methods from %{ $self } table
     # This is the meat of the parsing, from here everything else is called.
-    $self->info( "tokenized and split data, going to parse blocks" );
+    $logger->info( "tokenized and split data, going to parse blocks" );
     my $i = 0;
     my $private_block;
     my $token_queue = [ undef, undef, undef ];
@@ -192,7 +196,7 @@ sub _from_handle {
                 # jump over private block content
                 if ( $private_block and $token_queue->[-2] eq 'end' and $token_queue->[-1] eq ';' ) {
                     $private_block = 0;
-                    $self->info( "Skipped private $private_block block" );
+                    $logger->info( "Skipped private $private_block block" );
                     next RAW_TOKEN;
                 }
                 else {
@@ -216,17 +220,17 @@ sub _from_handle {
 # file handle or string;
 sub _stringify {
     my $self = shift;
-    $self->info( "going to split nexus data on lines" );
+    $logger->info( "going to split nexus data on lines" );
     my %opts = @_;
     my @lines;
     if ( $opts{'-string'} ) {
         $opts{'-handle'} = IO::String->new( $opts{'-string'} );
-        $self->info( "nexus data was a string, faking handle access" );
+        $logger->info( "nexus data was a string, faking handle access" );
     }
     while ( my $line = readline( $opts{'-handle'} ) ) {
         push @lines, $line;
         chomp( $line );
-        $self->debug( "read line: $line" );
+        $logger->debug( "read line: $line" );
     }
     return \@lines;
 }
@@ -286,7 +290,7 @@ sub _stringify {
 
 sub _tokenize {
     my ( $self, $lines ) = @_;
-    $self->info( "going to split lines on tokens" );
+    $logger->info( "going to split lines on tokens" );
     my ( $extract, $INSIDE_QUOTE, $continue ) = ( '', 0, 0 );
     my ( @tokens, @split );
 
@@ -329,7 +333,7 @@ sub _tokenize {
                 }
                 my $logline = join( ' ', @{ $tokens[-1] } );
                 chomp( $logline );
-                $self->debug( "Tokenized line $LineCount: $logline" );
+                $logger->debug( "Tokenized line $LineCount: $logline" );
                 next LINE;
             }
 
@@ -344,7 +348,7 @@ sub _tokenize {
                 $INSIDE_QUOTE++;
                 $continue = 1;
                 $QuoteContext = substr($quoted,0,1);
-                $self->debug( "Line $LineCount contains $QuoteContext" );
+                $logger->debug( "Line $LineCount contains $QuoteContext" );
                 $QuoteStartLine = $LineCount;
                 $CONTEXT_QB_AT_START = qr/^(\Q$QuoteContext\E)(.*)$/;
                 my $context_closer = $CLOSE_CHAR{$QuoteContext};
@@ -356,7 +360,7 @@ sub _tokenize {
             # is an extension of a quoted/bracketed fragment starting
             # on a previous line
             elsif ( $line !~ $CONTEXT_CLOSER && $INSIDE_QUOTE ) {
-                $self->debug( "Line $LineCount extends quote or comment" );
+                $logger->debug( "Line $LineCount extends quote or comment" );
                 $extract .= $line;
                 next LINE;
             }
@@ -364,7 +368,7 @@ sub _tokenize {
                 my ( $q, $remainder ) = ( $1, $1 . $2 );              
                 if ( $q eq '"' || $q eq "'" ) {
                     if ( $remainder =~ m/^($q[^$q]*?$q)(.*)$/ ) {
-                        $self->debug( "Line $LineCount closes $INVERSE_CLOSE_CHAR{$q} with $q" );
+                        $logger->debug( "Line $LineCount closes $INVERSE_CLOSE_CHAR{$q} with $q" );
                         push @{ $tokens[-1] }, ( $1 );
                         $line = $2;
                         $INSIDE_QUOTE--;
@@ -382,7 +386,7 @@ sub _tokenize {
                         if ( $i and ! $INSIDE_QUOTE ) {
                             push @{ $tokens[-1] }, substr($line,0,$i);
                             my $logqc = substr($line,($i-1),1);
-                            $self->debug( "Line $LineCount closes $INVERSE_CLOSE_CHAR{$logqc} with $logqc" );
+                            $logger->debug( "Line $LineCount closes $INVERSE_CLOSE_CHAR{$logqc} with $logqc" );
                             $line = substr($line,$i);														                            
                             next TOKEN;
                         }
@@ -395,7 +399,7 @@ sub _tokenize {
             }
             elsif ( $line =~ $CONTEXT_CLOSER && $INSIDE_QUOTE ) {
                 my ( $start, $q, $remainder ) = ( $1, $2, $3 );
-                $self->debug( "Line $LineCount closes $INVERSE_CLOSE_CHAR{$q} with $q" );
+                $logger->debug( "Line $LineCount closes $INVERSE_CLOSE_CHAR{$q} with $q" );
                 $start = $extract . $start if $continue;
                 if ( $q eq '"' or $q eq "'" ) {
                     push @{ $tokens[-1] }, $start;
@@ -443,7 +447,7 @@ sub _tokenize {
 
     # final split: non-quoted/bracketed fragments are split on whitespace,
     # others are preserved verbatim
-    $self->info( "going to split non-quoted/commented fragments on whitespace" );
+    $logger->info( "going to split non-quoted/commented fragments on whitespace" );
     foreach my $line (@tokens) {
         my @line;
         foreach my $word (@$line) {
@@ -542,7 +546,7 @@ their respective tokens are encountered.
 sub _nexus {
     my $self = shift;
     if ( uc( $_[0] ) eq '#NEXUS' ) {
-    	$self->info( "found nexus token" );
+    	$logger->info( "found nexus token" );
     }
 }
 
@@ -559,7 +563,7 @@ sub _taxa {
         $name =~ s/::/./g;
         $taxa->set_name( $name . '.' . $taxa->get_id );
         push @{ $self->{'_context'} }, $taxa;
-        $self->info( "starting taxa block" );
+        $logger->info( "starting taxa block" );
         $self->{'_begin'} = 0;
     }
     else {
@@ -574,7 +578,7 @@ sub _title {
         my $title = $token;
         if ( not $self->{'_context'}->[-1]->get_name ) {
             $self->{'_context'}->[-1]->set_name($title);
-            $self->info( "block has title '$title'" );
+            $logger->info( "block has title '$title'" );
         }
     }
 }
@@ -591,7 +595,7 @@ sub _link {
                     last;
                 }
             }
-            $self->info( "block links to taxa block with title '$link'" );
+            $logger->info( "block links to taxa block with title '$link'" );
         }
     }
 }
@@ -605,7 +609,7 @@ sub _ntax {
     if ( defined $_[0] and $_[0] =~ m/^\d+$/ ) {
         $self->{'_ntax'} = shift;
         my $ntax = $self->{'_ntax'};
-        $self->info( "number of taxa: $ntax" );
+        $logger->info( "number of taxa: $ntax" );
     }
 }
 
@@ -613,7 +617,7 @@ sub _taxlabels {
     my $self = shift;
     if ( defined $_[0] and uc( $_[0] ) ne 'TAXLABELS' ) {
         my $taxon = shift;
-        $self->debug( "taxon: $taxon" );
+        $logger->debug( "taxon: $taxon" );
         push @{ $self->{'_taxlabels'} }, $taxon;
     }
     elsif ( defined $_[0] and uc( $_[0] ) eq 'TAXLABELS' ) {
@@ -621,7 +625,7 @@ sub _taxlabels {
             'nexus_comments' => $self->{'_comments'}
         );
         $self->{'_comments'} = [];
-        $self->info( "starting taxlabels" );
+        $logger->info( "starting taxlabels" );
     }
 }
 
@@ -629,7 +633,7 @@ sub _data {
     my $self = shift;
     if ( $self->{'_begin'} ) {
         $self->{'_begin'} = 0;
-        $self->info( "starting data block" );
+        $logger->info( "starting data block" );
     }
 }
 
@@ -637,7 +641,7 @@ sub _characters {
     my $self = shift;
     if ( $self->{'_begin'} ) {
         $self->{'_begin'} = 0;
-        $self->info( "starting characters block" );
+        $logger->info( "starting characters block" );
     }
 }
 
@@ -646,7 +650,7 @@ sub _nchar {
     if ( defined $_[0] and $_[0] =~ m/^\d+$/ ) {
         $self->{'_nchar'} = shift;
         my $nchar = $self->{'_nchar'};
-        $self->info( "number of characters: $nchar" );
+        $logger->info( "number of characters: $nchar" );
     }
 }
 
@@ -665,7 +669,7 @@ sub _datatype {
         $name =~ s/::/./g;
         $matrix->set_name( $name . '.' . $matrix->get_id );
         push @{ $self->{'_context'} }, $matrix;
-        $self->info( "datatype: $datatype" );
+        $logger->info( "datatype: $datatype" );
     }
 }
 
@@ -679,7 +683,7 @@ sub _gap {
         $self->{'_gap'} = shift;
         my $gap = $self->{'_gap'};
         $self->{'_context'}->[-1]->set_gap( $gap );
-        $self->info( "gap character: $gap" );
+        $logger->info( "gap character: $gap" );
         undef $self->{'_gap'};
     }
 }
@@ -690,7 +694,7 @@ sub _missing {
         $self->{'_missing'} = shift;
         my $missing = $self->{'_missing'};
         $self->{'_context'}->[-1]->set_missing( $missing );
-        $self->info( "missing character: $missing" );
+        $logger->info( "missing character: $missing" );
         undef $self->{'_missing'};
     }
 }
@@ -724,7 +728,7 @@ sub _matrix {
     # first token: 'MATRIX'
     if ( not UNIVERSAL::isa($token, 'ARRAY') and uc($token) eq 'MATRIX' ) {
         $self->{'_linemode'} = 1;
-        $self->info( "starting matrix" );
+        $logger->info( "starting matrix" );
         return;
     }
     elsif ( UNIVERSAL::isa($token, 'ARRAY') and not grep { /^;$/ } @{ $token } ) {
@@ -826,7 +830,7 @@ sub _matrix {
             # create new datum
             my @logarray = @{ $self->{'_matrix'}->{ $row } };
             my $logstring = join ' ', @logarray;
-            $self->info("Setting seq: $logstring");
+            $logger->info("Setting seq: $logstring");
             my $datum = Bio::Phylo::Matrices::Datum->new(
                 '-name'  => $row,
                 '-taxon' => $taxon,
@@ -838,14 +842,14 @@ sub _matrix {
             # insert new datum in matrix
             $self->{'_context'}->[-1]->insert( $datum );
             if ( $self->VERBOSE ) {
-                $self->info( sprintf("parsed %s characters for taxon '$row'", $datum->get_length ) );
+                $logger->info( sprintf("parsed %s characters for taxon '$row'", $datum->get_length ) );
                 if ( $self->{'_matrixtype'} =~ qr/^continuous$/i ) {
                     my $logchars = join( ' ', @{ $self->{'_matrix'}->{$row} } );
-                    $self->info( "characters: $logchars" );
+                    $logger->info( "characters: $logchars" );
                 }
                 else {
                     my $logchars = join( '', @{ $self->{'_matrix'}->{$row} } );
-                    $self->info( "characters: $logchars" );
+                    $logger->info( "characters: $logchars" );
                 }
             }
         }
@@ -857,7 +861,7 @@ sub _matrix {
             #Bio::Phylo::Util::Exceptions::BadFormat->throw(
             #    error => "Observed and expected nchar mismatch: $obs vs. $exp",
             #);
-            warn "Observed and expected nchar mismatch: $obs vs. $exp";
+            $logger->warn("Observed and expected nchar mismatch: $obs vs. $exp");
         }
         elsif ( $self->{'_context'}->[-1]->get_ntax != $self->{'_ntax'} ) {
             my ( $obs, $exp ) = ( $self->{'_context'}->[-1]->get_ntax, $self->{'_ntax'} );
@@ -876,7 +880,7 @@ sub _trees {
         $self->{'_begin'}     = 0;
         $self->{'_trees'}     = '';
         $self->{'_treenames'} = [];
-        $self->info( "starting trees block" );
+        $logger->info( "starting trees block" );
     }
 }
 
@@ -885,7 +889,7 @@ sub _translate {
     if ( defined $_[0] and $_[0] =~ m/^\d+$/ ) {
         $self->{'_i'} = shift;
         if ( $self->{'_i'} == 1 ) {
-            $self->info( "starting translation table" );
+            $logger->info( "starting translation table" );
         }
         elsif ( $self->{'_i'} > 1 ) {
         }
@@ -893,7 +897,7 @@ sub _translate {
     elsif ( defined $self->{'_i'} and defined $_[0] and $_[0] ne ';' ) {
         my $i = $self->{'_i'};
         $self->{'_translate'}->[$i] = $_[0];
-        $self->debug( "Translation: $i => $_[0]" );
+        $logger->debug( "Translation: $i => $_[0]" );
         $self->{'_i'} = undef;
     }
 }
@@ -922,7 +926,7 @@ sub _tree {
             $translated =~ s/(\(|,)$i(,|\)|:)/$1$translate->[$i]$2/;
         }
         my ( $logtreename, $logtree ) = ( $self->{'_treename'}, $self->{'_tree'} );
-        $self->info( "tree: $logtreename string: $logtree" );
+        $logger->info( "tree: $logtreename string: $logtree" );
         $self->{'_trees'} .= $translated . ';';
         push @{ $self->{'_treenames'} }, $self->{'_treename'};
         $self->{'_treestart'} = 0;
@@ -1007,48 +1011,9 @@ Also see the manual: L<Bio::Phylo::Manual>.
 
 =back
 
-=head1 FORUM
+=head1 REVISION
 
-CPAN hosts a discussion forum for Bio::Phylo. If you have trouble
-using this module the discussion forum is a good place to start
-posting questions (NOT bug reports, see below):
-L<http://www.cpanforum.com/dist/Bio-Phylo>
-
-=head1 BUGS
-
-Please report any bugs or feature requests to C<< bug-bio-phylo@rt.cpan.org >>,
-or through the web interface at
-L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Bio-Phylo>. I will be notified,
-and then you'll automatically be notified of progress on your bug as I make
-changes. Be sure to include the following in your request or comment, so that
-I know what version you're using:
-
-$Id: Nexus.pm 4167 2007-07-11 01:36:38Z rvosa $
-
-=head1 AUTHOR
-
-Rutger A. Vos,
-
-=over
-
-=item email: C<< rvosa@sfu.ca >>
-
-=item web page: L<http://www.sfu.ca/~rvosa/>
-
-=back
-
-=head1 ACKNOWLEDGEMENTS
-
-The author would like to thank Jason Stajich for many ideas borrowed
-from BioPerl L<http://www.bioperl.org>, and CIPRES
-L<http://www.phylo.org> and FAB* L<http://www.sfu.ca/~fabstar>
-for comments and requests.
-
-=head1 COPYRIGHT & LICENSE
-
-Copyright 2005 Rutger A. Vos, All Rights Reserved. This program is free
-software; you can redistribute it and/or modify it under the same terms as Perl
-itself.
+ $Id: Nexus.pm 4234 2007-07-17 13:41:02Z rvosa $
 
 =cut
 

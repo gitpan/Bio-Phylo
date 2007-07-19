@@ -944,14 +944,15 @@ Please report any bugs or feature requests to C<< bug-bio-phylo@rt.cpan.org >>,
 or through the web interface at
 L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Bio-Phylo>. I will be notified,
 and then you'll automatically be notified of progress on your bug as I make
-changes. Be sure to include the following in your request or comment, so that
-I know what version you're using:
+changes. If you can localize the bug to particular package file (i.e. a *.pm file
+from this release), please include the REVISION tag for that file in your bug
+report. It is a string such as this one:
 
- $Id: Manual.pod 4153 2007-07-11 01:33:20Z rvosa $
+  $Id: Manual.pod 4213 2007-07-15 03:11:27Z rvosa $
 
-=head1 AUTHOR
+=head1 AUTHORS
 
-Rutger A. Vos,
+Rutger Vos, Aki Mimoto, Klaas Hartmann, Jason Caravas
 
 =over
 
@@ -963,7 +964,7 @@ Rutger A. Vos,
 
 =head1 ACKNOWLEDGEMENTS
 
-The author would like to thank Jason Stajich for many ideas borrowed
+We would like to thank Jason Stajich for many ideas borrowed
 from BioPerl L<http://www.bioperl.org>, and CIPRES
 L<http://www.phylo.org> and FAB* L<http://www.sfu.ca/~fabstar>
 for comments and requests.

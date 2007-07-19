@@ -5,6 +5,7 @@ use warnings;
 use Scalar::Util qw(weaken);
 use Bio::Phylo;
 use Bio::Phylo::Util::Exceptions;
+use Bio::Phylo::Util::Logger;
 use Data::Dumper;
 use vars '@ISA';
 
@@ -14,6 +15,7 @@ use vars '@ISA';
 
 	my $self;
 	my ( %tree_id_for_node, %ancestor_function, %node_object_for_id );
+	my $logger = Bio::Phylo::Util::Logger->new;
 
 =head1 NAME
 
@@ -59,11 +61,11 @@ NodeMediator constructor.
 		my $class = shift;
 
 		# notify user
-		$class->error("constructor called for '$class'");
+		$logger->info("constructor called for '$class'");
 
 		# singleton class
 		if ( not $self ) {
-			$class->error("first time instantiation of singleton");
+			$logger->info("first time instantiation of singleton");
 			$self = \$class;
 			bless $self, $class;
 		}
@@ -93,7 +95,7 @@ Stores an object in mediator's cache.
 	sub register {
 		my ( $self, $node ) = @_;
 		my $id = $node->get_id;
-		$self->info( "registering node $id" );
+		$logger->info( "registering node $id" );
 
 		# to retrieve nodes by id
 		$node_object_for_id{$id} = $node;
@@ -131,7 +133,7 @@ Removes argument from mediator's cache.
 	sub unregister {
 		my ( $self, $node ) = @_;
 		my $id = $node->get_id;
-		$self->debug("unregistering node $id");
+		$logger->debug("unregistering node $id");
 
 		# no need to retrieve from here after this
 		delete $node_object_for_id{$id};
@@ -203,7 +205,7 @@ Creates link between arguments.
 		my $function;
 		my $index_of_updated;
 		my $id_of_updated;
-		$self->debug( "setting link between nodes" );
+		$logger->debug( "setting link between nodes" );
 
 		# set parent
 		if ( exists $args{'parent'} ) {
@@ -374,7 +376,7 @@ Updates tree membership.
 		my %args      = @_;
 		my $keep_id   = $args{'keep'}->get_id;
 		my $update_id = $args{'update'}->get_id;
-		$self->debug( "updating tree" );
+		$logger->debug( "updating tree" );
 
 		# not in the same tree
 		if ( $tree_id_for_node{$keep_id} != $tree_id_for_node{$update_id} ) {
@@ -459,7 +461,7 @@ Retrieves relative of argument.
 	sub get_link {
 		my $self = shift;
 		my %args = @_;
-		$self->debug( "getting link between nodes" );
+		$logger->debug( "getting link between nodes" );
 		my $node;
 
 		# get_parent
@@ -545,7 +547,8 @@ Retrieves relative of argument.
 		}
 	}
 
-	sub DESTROY { shift->debug( "calling empty destructor" ) }
+	# $logger is apparently already cleaned up when we reach the destructor, so call as static
+	sub DESTROY { Bio::Phylo::Util::Logger->debug( "calling empty destructor for '@_'" ) }
 
 }
 

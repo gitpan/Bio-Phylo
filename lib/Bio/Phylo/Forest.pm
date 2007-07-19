@@ -1,4 +1,4 @@
-# $Id: Forest.pm 4198 2007-07-12 16:45:08Z rvosa $
+# $Id: Forest.pm 4251 2007-07-19 14:21:33Z rvosa $
 package Bio::Phylo::Forest;
 use strict;
 use warnings FATAL => 'all';
@@ -6,13 +6,14 @@ use Bio::Phylo;
 use Bio::Phylo::Listable;
 use Bio::Phylo::Taxa::TaxaLinker;
 use Bio::Phylo::Taxa::Taxon;
+use Bio::Phylo::Util::Logger;
 use Bio::Phylo::Util::CONSTANT qw(_NONE_ _FOREST_);
 use vars qw($VERSION @ISA);
 
 # set version based on svn rev
 my $version = $Bio::Phylo::VERSION;
-my $rev = '$Id: Forest.pm 4198 2007-07-12 16:45:08Z rvosa $';
-$rev =~ s/^[^\d]+(\d+)\b.*$/$1/;
+my $rev     = '$Id: Forest.pm 4251 2007-07-19 14:21:33Z rvosa $';
+$rev     =~ s/^[^\d]+(\d+)\b.*$/$1/;
 $version =~ s/_.+$/_$rev/;
 $VERSION = $version;
 
@@ -20,6 +21,10 @@ $VERSION = $version;
 @ISA = qw(Bio::Phylo::Listable Bio::Phylo::Taxa::TaxaLinker);
 
 {
+
+	my $logger             = Bio::Phylo::Util::Logger->new;
+	my $CONSTANT_TYPE      = _FOREST_;
+	my $CONTAINER_CONSTANT = _NONE_;
 
 =head1 NAME
 
@@ -61,20 +66,21 @@ Forest constructor.
 
 =cut
 
-    sub new {
-        # could be child class
-        my $class = shift;
-        
-        # notify user
-        $class->info("constructor called for '$class'");
-        
-        # recurse up inheritance tree, get ID
-        my $self = $class->SUPER::new( @_ );
-        
-        # local fields would be set here
-        
-        return $self;
-    }
+	sub new {
+
+		# could be child class
+		my $class = shift;
+
+		# notify user
+		$logger->info("constructor called for '$class'");
+
+		# recurse up inheritance tree, get ID
+		my $self = $class->SUPER::new(@_);
+
+		# local fields would be set here
+
+		return $self;
+	}
 
 =back
 
@@ -96,33 +102,38 @@ Validates taxon links of nodes in invocant's trees.
 
 =cut
 
-    sub check_taxa {
-        my $self = shift;
-        
-        # is linked
-        if ( my $taxa = $self->get_taxa ) {
-            my %tips = map { $_->get_internal_name => $_ } map { @{ $_->get_terminals } } @{ $self->get_entities };
-            my %taxa = map { $_->get_internal_name => $_ } @{ $taxa->get_entities };
+	sub check_taxa {
+		my $self = shift;
+
+		# is linked
+		if ( my $taxa = $self->get_taxa ) {
+			my %tips =
+			  map { $_->get_internal_name => $_ }
+			  map { @{ $_->get_terminals } } @{ $self->get_entities };
+			my %taxa =
+			  map { $_->get_internal_name => $_ } @{ $taxa->get_entities };
 			for my $tip ( keys %tips ) {
-				$self->debug( "linking tip $tip" );
+				$logger->debug("linking tip $tip");
 				if ( not exists $taxa{$tip} ) {
-					$self->debug( "no taxon object for $tip yet, instantiating" );
-					$taxa->insert( $taxa{$tip} = Bio::Phylo::Taxa::Taxon->new( '-name' => $tip ) );					
+					$logger->debug(
+						"no taxon object for $tip yet, instantiating");
+					$taxa->insert( $taxa{$tip} =
+						  Bio::Phylo::Taxa::Taxon->new( '-name' => $tip ) );
 				}
 				$tips{$tip}->set_taxon( $taxa{$tip} );
 			}
-        }
-        
-        # not linked
-        else {
-            for my $tree ( @{ $self->get_entities } ) {
-                for my $node ( @{ $tree->get_entities } ) {
-                    $node->set_taxon();
-                }
-            }
-        }
-        return $self;
-    }
+		}
+
+		# not linked
+		else {
+			for my $tree ( @{ $self->get_entities } ) {
+				for my $node ( @{ $tree->get_entities } ) {
+					$node->set_taxon();
+				}
+			}
+		}
+		return $self;
+	}
 
 =item to_nexus()
 
@@ -156,20 +167,22 @@ Serializer to nexus format.
 		my %args = ( '-rooting' => 'comment', @_ );
 		my %translate;
 		my $nexus;
-		
+
 		# make translation table
-		if ( $args{'-make_translate'} ) {			
+		if ( $args{'-make_translate'} ) {
 			my $i = 0;
 			for my $tree ( @{ $self->get_entities } ) {
 				for my $node ( @{ $tree->get_terminals } ) {
 					my $name;
-					if ( not $args{'-tipnames'} ) {		
+					if ( not $args{'-tipnames'} ) {
 						$name = $node->get_name;
 					}
 					elsif ( $args{'-tipnames'} =~ /^internal$/i ) {
 						$name = $node->get_internal_name;
 					}
-					elsif ( $args{'-tipnames'} =~ /^taxon/i and $node->get_taxon ) {
+					elsif ( $args{'-tipnames'} =~ /^taxon/i
+						and $node->get_taxon )
+					{
 						if ( $args{'-tipnames'} =~ /^taxon_internal$/i ) {
 							$name = $node->get_taxon->get_internal_name;
 						}
@@ -180,29 +193,34 @@ Serializer to nexus format.
 					else {
 						$name = $node->get_generic( $args{'-tipnames'} );
 					}
-					$translate{$name} = ( 1 + $i++ ) if not exists $translate{$name};
+					$translate{$name} = ( 1 + $i++ )
+					  if not exists $translate{$name};
 				}
-			}			
+			}
 			$args{'-translate'} = \%translate;
-		}	
-		
+		}
+
 		# create header
-		$nexus  = "BEGIN TREES;\n";
-		$nexus .= "[! Trees block written by " . ref($self) . " " . $self->VERSION . " on " . localtime() . " ]\n";
+		$nexus = "BEGIN TREES;\n";
+		$nexus .=
+		    "[! Trees block written by "
+		  . ref($self) . " "
+		  . $self->VERSION . " on "
+		  . localtime() . " ]\n";
 		if ( $args{'-links'} ) {
 			delete $args{'-links'};
 			$nexus .= "\tTITLE " . $self->get_internal_name . ";\n";
 			if ( my $taxa = $self->get_taxa ) {
-				$nexus .= "\tLINK TAXA=" . $taxa->get_internal_name . ";\n"
+				$nexus .= "\tLINK TAXA=" . $taxa->get_internal_name . ";\n";
 			}
 		}
-				
+
 		# stringify translate table
 		if ( $args{'-make_translate'} ) {
 			delete $args{'-make_translate'};
 			$nexus .= "\tTRANSLATE\n";
 			my @translate;
-			for ( keys %translate ) { $translate[$translate{$_}-1] = $_ }
+			for ( keys %translate ) { $translate[ $translate{$_} - 1 ] = $_ }
 			for my $i ( 0 .. $#translate ) {
 				$nexus .= "\t\t" . ( $i + 1 ) . " " . $translate[$i];
 				if ( $i == $#translate ) {
@@ -211,17 +229,22 @@ Serializer to nexus format.
 				else {
 					$nexus .= ",\n";
 				}
-			}	
+			}
 		}
-		
+
 		# stringify trees
 		for my $tree ( @{ $self->get_entities } ) {
 			if ( $tree->is_rooted ) {
 				if ( $args{'-rooting'} =~ /^token$/i ) {
-					$nexus .= "\tTREE " . $tree->get_internal_name . ' = ' . $tree->to_newick(%args) . "\n"; 
+					$nexus .= "\tTREE "
+					  . $tree->get_internal_name . ' = '
+					  . $tree->to_newick(%args) . "\n";
 				}
 				elsif ( $args{'-rooting'} =~ /^comment$/i ) {
-					$nexus .= "\tTREE " . $tree->get_internal_name . ' = [&R] ' . $tree->to_newick(%args) . "\n"; 
+					$nexus .= "\tTREE "
+					  . $tree->get_internal_name
+					  . ' = [&R] '
+					  . $tree->to_newick(%args) . "\n";
 				}
 				elsif ( $args{'-rooting'} =~ /^nhx/i ) {
 					$tree->get_root->set_generic( 'unrooted' => 'off' );
@@ -229,17 +252,24 @@ Serializer to nexus format.
 						push @{ $args{'-nhxkeys'} }, 'unrooted';
 					}
 					else {
-						$args{'-nhxkeys'} = [ 'unrooted' ];
+						$args{'-nhxkeys'} = ['unrooted'];
 					}
-					$nexus .= "\tTREE " . $tree->get_internal_name . ' = ' . $tree->to_newick(%args) . "\n"; 
-				}				
+					$nexus .= "\tTREE "
+					  . $tree->get_internal_name . ' = '
+					  . $tree->to_newick(%args) . "\n";
+				}
 			}
 			else {
 				if ( $args{'-rooting'} =~ /^token$/i ) {
-					$nexus .= "\tUTREE " . $tree->get_internal_name . ' = ' . $tree->to_newick(%args) . "\n"; 
+					$nexus .= "\tUTREE "
+					  . $tree->get_internal_name . ' = '
+					  . $tree->to_newick(%args) . "\n";
 				}
 				elsif ( $args{'-rooting'} =~ /^comment$/i ) {
-					$nexus .= "\tTREE " . $tree->get_internal_name . ' = [&U] ' . $tree->to_newick(%args) . "\n"; 
+					$nexus .= "\tTREE "
+					  . $tree->get_internal_name
+					  . ' = [&U] '
+					  . $tree->to_newick(%args) . "\n";
 				}
 				elsif ( $args{'-rooting'} =~ /^nhx/i ) {
 					$tree->get_root->set_generic( 'unrooted' => 'on' );
@@ -247,13 +277,15 @@ Serializer to nexus format.
 						push @{ $args{'-nhxkeys'} }, 'unrooted';
 					}
 					else {
-						$args{'-nhxkeys'} = [ 'unrooted' ];
+						$args{'-nhxkeys'} = ['unrooted'];
 					}
-					$nexus .= "\tTREE " . $tree->get_internal_name . ' = ' . $tree->to_newick(%args) . "\n"; 
-				}				
-			}			
+					$nexus .= "\tTREE "
+					  . $tree->get_internal_name . ' = '
+					  . $tree->to_newick(%args) . "\n";
+				}
+			}
 		}
-		
+
 		# done!
 		$nexus .= "END;\n";
 		return $nexus;
@@ -272,10 +304,10 @@ Serializer to nexus format.
 
 =cut
 
-    sub _cleanup {
-        my $self = shift;
-        $self->info("cleaning up '$self'");
-    }
+	sub _cleanup {
+		my $self = shift;
+		$logger->debug("cleaning up '$self'");
+	}
 
 =begin comment
 
@@ -290,7 +322,7 @@ Serializer to nexus format.
 
 =cut
 
-    sub _container { _NONE_ }
+	sub _container { $CONTAINER_CONSTANT }
 
 =begin comment
 
@@ -305,7 +337,7 @@ Serializer to nexus format.
 
 =cut
 
-    sub _type { _FOREST_ }
+	sub _type { $CONSTANT_TYPE }
 
 =back
 
@@ -329,48 +361,9 @@ Also see the manual: L<Bio::Phylo::Manual>.
 
 =back
 
-=head1 FORUM
+=head1 REVISION
 
-CPAN hosts a discussion forum for Bio::Phylo. If you have trouble
-using this module the discussion forum is a good place to start
-posting questions (NOT bug reports, see below):
-L<http://www.cpanforum.com/dist/Bio-Phylo>
-
-=head1 BUGS
-
-Please report any bugs or feature requests to C<< bug-bio-phylo@rt.cpan.org >>,
-or through the web interface at
-L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Bio-Phylo>. I will be notified,
-and then you'll automatically be notified of progress on your bug as I make
-changes. Be sure to include the following in your request or comment, so that
-I know what version you're using:
-
-$Id: Forest.pm 4198 2007-07-12 16:45:08Z rvosa $
-
-=head1 AUTHOR
-
-Rutger A. Vos,
-
-=over
-
-=item email: C<< rvosa@sfu.ca >>
-
-=item web page: L<http://www.sfu.ca/~rvosa/>
-
-=back
-
-=head1 ACKNOWLEDGEMENTS
-
-The author would like to thank Jason Stajich for many ideas borrowed
-from BioPerl L<http://www.bioperl.org>, and CIPRES
-L<http://www.phylo.org> and FAB* L<http://www.sfu.ca/~fabstar>
-for comments and requests.
-
-=head1 COPYRIGHT & LICENSE
-
-Copyright 2005 Rutger A. Vos, All Rights Reserved. This program is free
-software; you can redistribute it and/or modify it under the same terms as Perl
-itself.
+ $Id: Forest.pm 4251 2007-07-19 14:21:33Z rvosa $
 
 =cut
 

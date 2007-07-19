@@ -1,3 +1,4 @@
+# $Id: Datum.pm 4251 2007-07-19 14:21:33Z rvosa $
 package Bio::Phylo::Matrices::Datum;
 use vars '@ISA';
 use strict;
@@ -8,16 +9,26 @@ use Bio::Phylo::Util::Exceptions;
 use Bio::Phylo::Matrices::TypeSafeData;
 use Bio::Phylo::Adaptor;
 use Bio::Phylo::Util::CONSTANT qw(:objecttypes looks_like_number);
+use Bio::Phylo::Util::Logger;
 
 @ISA = qw(
-    Bio::Phylo::Taxa::TaxonLinker 
     Bio::Phylo::Matrices::TypeSafeData 
+    Bio::Phylo::Taxa::TaxonLinker 
 );
 
 {
 
-    my ( %weight, %char, %position, %annotations );
-    my @fields = ( \%weight, \%char, \%position, \%annotations );
+	my $logger = Bio::Phylo::Util::Logger->new;
+	
+	my $TYPE_CONSTANT      = _DATUM_;
+	my $CONTAINER_CONSTANT = _MATRIX_;
+
+    my @fields = \( 
+    	my %weight, 
+    	my %char, 
+    	my %position, 
+    	my %annotations, 
+    );
 
 =head1 NAME
 
@@ -87,7 +98,7 @@ Datum object constructor.
         my $class = shift;
         
         # notify user
-        $class->info("constructor called for '$class'");
+        $logger->info("constructor called for '$class'");
         
         # go up inheritance tree, eventually get an ID
         my $self = $class->SUPER::new( '-type' => 'standard', @_ );
@@ -454,7 +465,7 @@ Gets invocant number of characters.
     sub get_length {
         my $self = shift;
         my @char = $self->get_char;
-        $self->info( "Chars: @char" );
+        $logger->info( "Chars: @char" );
         my $length = 0;
         if ( my $matrix = $self->_get_container ) {
         	for my $datum ( @{ $matrix->get_entities } ) {
@@ -508,7 +519,12 @@ Tests if invocant can contain argument.
 
 	sub can_contain {
 		my $self = shift;
-		return $self->get_type_object->is_valid( @_ );	
+		if ( my $obj = $self->get_type_object ) {
+			return $obj->is_valid( @_ );
+		}	
+		else {
+			Bio::Phylo::Util::Exceptions::Generic->throw
+		}
 	}
 
 =back
@@ -552,7 +568,7 @@ Appends argument to invocant.
 
     sub concat {
         my ( $self, @data ) = @_;
-        $self->info("concatenating objects");
+        $logger->info("concatenating objects");
         my @newchars;
         my @self_chars = $self->get_char;
         my $self_i = $self->get_position - 1;
@@ -615,15 +631,22 @@ Validates invocant data contents.
 
 =cut
 
-    sub slice {}    
+    sub slice {
+    	my $self  = shift;
+    	my $start = int $_[0];
+    	my $end   = int $_[1];
+    	my @chars = $self->get_char;
+    	my $pos   = $self->get_position;
+    	my $slice - $self->copy_atts;
+    }    
         
-    sub _type { _DATUM_ }
+    sub _type { $TYPE_CONSTANT }
         
-    sub _container { _MATRIX_ }
+    sub _container { $CONTAINER_CONSTANT }
         
     sub _cleanup {
         my $self = shift;
-        $self->info("cleaning up '$self'");
+        $logger->info("cleaning up '$self'");
         my $id = $self->get_id;
         for my $field ( @fields ) {
             delete $field->{$id};
@@ -680,48 +703,9 @@ Also see the manual: L<Bio::Phylo::Manual>.
 
 =back
 
-=head1 FORUM
+=head1 REVISION
 
-CPAN hosts a discussion forum for Bio::Phylo. If you have trouble
-using this module the discussion forum is a good place to start
-posting questions (NOT bug reports, see below):
-L<http://www.cpanforum.com/dist/Bio-Phylo>
-
-=head1 BUGS
-
-Please report any bugs or feature requests to C<< bug-bio-phylo@rt.cpan.org >>,
-or through the web interface at
-L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Bio-Phylo>. I will be notified,
-and then you'll automatically be notified of progress on your bug as I make
-changes. Be sure to include the following in your request or comment, so that
-I know what version you're using:
-
-$Id: Datum.pm 4204 2007-07-13 05:40:14Z rvosa $
-
-=head1 AUTHOR
-
-Rutger A. Vos,
-
-=over
-
-=item email: C<< rvosa@sfu.ca >>
-
-=item web page: L<http://www.sfu.ca/~rvosa/>
-
-=back
-
-=head1 ACKNOWLEDGEMENTS
-
-The author would like to thank Jason Stajich for many ideas borrowed
-from BioPerl L<http://www.bioperl.org>, and CIPRES
-L<http://www.phylo.org> and FAB* L<http://www.sfu.ca/~fabstar>
-for comments and requests.
-
-=head1 COPYRIGHT & LICENSE
-
-Copyright 2005 Rutger A. Vos, All Rights Reserved. This program is free
-software; you can redistribute it and/or modify it under the same terms as Perl
-itself.
+ $Id: Datum.pm 4251 2007-07-19 14:21:33Z rvosa $
 
 =cut
 

@@ -1,10 +1,15 @@
+# $Id: Continuous.pm 4234 2007-07-17 13:41:02Z rvosa $
 package Bio::Phylo::Matrices::Datatype::Continuous;
 use Bio::Phylo::Util::CONSTANT qw(looks_like_number);
 use Bio::Phylo::Matrices::Datatype;
 use strict;
-use vars qw( @ISA $LOOKUP $MISSING $GAP);
+use base 'Bio::Phylo::Matrices::Datatype';
+use Bio::Phylo::Util::Logger;
+use vars qw($LOOKUP $MISSING $GAP);
 
-@ISA = qw(Bio::Phylo::Matrices::Datatype);
+{
+
+	my $logger = Bio::Phylo::Util::Logger->new;
 
 =head1 NAME
 
@@ -41,10 +46,10 @@ Sets the lookup table (no-op for continuous data!).
 
 =cut
 
-sub set_lookup {
-	shift->warn("Can't set lookup table for continuous characters");
-	return;
-}
+	sub set_lookup {
+		$logger->warn("Can't set lookup table for continuous characters");
+		return;
+	}
 
 =back
 
@@ -65,10 +70,10 @@ Gets the lookup table (no-op for continuous data!).
 
 =cut
 
-sub get_lookup {
-	shift->warn("Can't get lookup table for continuous characters");
-	return;
-}
+	sub get_lookup {
+		$logger->warn("Can't get lookup table for continuous characters");
+		return;
+	}
 
 =back
 
@@ -93,31 +98,31 @@ Validates arguments for data validity.
 
 =cut
 
-sub is_valid {
-	my $self = shift;
-	my @data;
-	for my $arg (@_) {
-		if ( UNIVERSAL::can( $arg, 'get_char' ) ) {
-			push @data, $arg->get_char;
+	sub is_valid {
+		my $self = shift;
+		my @data;
+		for my $arg (@_) {
+			if ( UNIVERSAL::can( $arg, 'get_char' ) ) {
+				push @data, $arg->get_char;
+			}
+			elsif ( UNIVERSAL::isa( $arg, 'ARRAY' ) ) {
+				push @data, @{$arg};
+			}
+			else {
+				push @data, @{ $self->split($arg) };
+			}
 		}
-		elsif ( UNIVERSAL::isa( $arg, 'ARRAY' ) ) {
-			push @data, @{$arg};
+		my $missing = $self->get_missing;
+	  CHAR_CHECK: for my $char (@data) {
+			if ( looks_like_number $char || $char eq $missing ) {
+				next CHAR_CHECK;
+			}
+			else {
+				return 0;
+			}
 		}
-		else {
-			push @data, @{ $self->split($arg) };
-		}
+		return 1;
 	}
-	my $missing = $self->get_missing;
-  CHAR_CHECK: for my $char ( @data ) {
-		if ( looks_like_number $char || $char eq $missing ) {
-			next CHAR_CHECK;
-		}
-		else {
-			return 0;
-		}
-	}
-	return 1;
-}
 
 =back
 
@@ -138,11 +143,11 @@ Splits string of characters on whitespaces.
 
 =cut
 
-sub split {
-	my ( $self, $string ) = @_;
-	my @array = CORE::split /\s+/, $string;
-	return \@array;
-}
+	sub split {
+		my ( $self, $string ) = @_;
+		my @array = CORE::split /\s+/, $string;
+		return \@array;
+	}
 
 =item join()
 
@@ -157,12 +162,12 @@ Joins array ref of characters to a space-separated string.
 
 =cut
 
-sub join {
-	my ( $self, $array ) = @_;
-	return CORE::join ' ', @{$array};
-}
+	sub join {
+		my ( $self, $array ) = @_;
+		return CORE::join ' ', @{$array};
+	}
 
-$MISSING = '?';
+	$MISSING = '?';
 
 =back
 
@@ -182,49 +187,12 @@ Also see the manual: L<Bio::Phylo::Manual>.
 
 =back
 
-=head1 FORUM
+=head1 REVISION
 
-CPAN hosts a discussion forum for Bio::Phylo. If you have trouble
-using this module the discussion forum is a good place to start
-posting questions (NOT bug reports, see below):
-L<http://www.cpanforum.com/dist/Bio-Phylo>
-
-=head1 BUGS
-
-Please report any bugs or feature requests to C<< bug-bio-phylo@rt.cpan.org >>,
-or through the web interface at
-L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Bio-Phylo>. I will be notified,
-and then you'll automatically be notified of progress on your bug as I make
-changes. Be sure to include the following in your request or comment, so that
-I know what version you're using:
-
-$Id: Continuous.pm 4198 2007-07-12 16:45:08Z rvosa $
-
-=head1 AUTHOR
-
-Rutger A. Vos,
-
-=over
-
-=item email: C<< rvosa@sfu.ca >>
-
-=item web page: L<http://www.sfu.ca/~rvosa/>
-
-=back
-
-=head1 ACKNOWLEDGEMENTS
-
-The author would like to thank Jason Stajich for many ideas borrowed
-from BioPerl L<http://www.bioperl.org>, and CIPRES
-L<http://www.phylo.org> and FAB* L<http://www.sfu.ca/~fabstar>
-for comments and requests.
-
-=head1 COPYRIGHT & LICENSE
-
-Copyright 2005 Rutger A. Vos, All Rights Reserved. This program is free
-software; you can redistribute it and/or modify it under the same terms as Perl
-itself.
+ $Id: Continuous.pm 4234 2007-07-17 13:41:02Z rvosa $
 
 =cut
+
+}
 
 1;
