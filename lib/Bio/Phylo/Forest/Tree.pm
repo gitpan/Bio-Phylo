@@ -1,4 +1,4 @@
-# $Id: Tree.pm 4252 2007-07-19 14:39:42Z rvosa $
+# $Id: Tree.pm 4265 2007-07-20 14:14:44Z rvosa $
 package Bio::Phylo::Forest::Tree;
 use strict;
 use Bio::Phylo::Listable;
@@ -1389,14 +1389,32 @@ Visits nodes depth first
  Usage   : $tree->visit_depth_first( -pre => sub{ ... }, -post => sub { ... } );
  Function: Visits nodes in a depth first traversal, executes subs
  Returns : $tree
- Args    : Optional:
+  Args    : Optional handlers in the order in which they would be executed on an internal node:
+			
+			# first event handler, is executed when node is reached in recursion
 			-pre            => sub { print "pre: ",            shift->get_name, "\n" },
-			-pre_daughter   => sub { print "pre_daughter: ",   shift->get_name, "\n" },	
-			-post_daughter  => sub { print "post_daughter: ",  shift->get_name, "\n" },		
+
+			# is executed if node has a daughter, but before that daughter is processed
+			-pre_daughter   => sub { print "pre_daughter: ",   shift->get_name, "\n" },
+			
+			# is executed if node has a daughter, after daughter has been processed	
+			-post_daughter  => sub { print "post_daughter: ",  shift->get_name, "\n" },
+
+			# is executed whether or not node has sisters, if it does have sisters
+			# they're processed first	
 			-in             => sub { print "in: ",             shift->get_name, "\n" },
+			
+			# is executed if node has a sister, before sister is processed
 			-pre_sister     => sub { print "pre_sister: ",     shift->get_name, "\n" },	
-			-post_sister    => sub { print "post_sister: ",    shift->get_name, "\n" },			
+			
+			# is executed if node has a sister, after sister is processed
+			-post_sister    => sub { print "post_sister: ",    shift->get_name, "\n" },							
+			
+			# is executed last			
 			-post           => sub { print "post: ",           shift->get_name, "\n" },
+			
+			# specifies traversal order, default 'ltr' means first_daugher -> next_sister
+			# traversal, alternate value 'rtl' means last_daughter -> previous_sister traversal
 			-order          => 'ltr', # ltr = left-to-right, 'rtl' = right-to-left
  Comments: 
 
@@ -1933,11 +1951,6 @@ The L<Bio::Phylo::Forest::Tree|Bio::Phylo::Forest::Tree> object inherits from
 the L<Bio::Phylo::Listable|Bio::Phylo::Listable> object, so the methods defined
 therein also apply to trees.
 
-=item L<Bio::Tree::TreeI>
-
-If you have BioPerl installed, the L<Bio::Phylo::Forest::Tree> will
-implement the TreeI interface.
-
 =item L<Bio::Phylo::Manual>
 
 Also see the manual: L<Bio::Phylo::Manual>.
@@ -1946,7 +1959,7 @@ Also see the manual: L<Bio::Phylo::Manual>.
 
 =head1 REVISION
 
- $Id: Tree.pm 4252 2007-07-19 14:39:42Z rvosa $
+ $Id: Tree.pm 4265 2007-07-20 14:14:44Z rvosa $
 
 =cut
 

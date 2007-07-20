@@ -1,4 +1,4 @@
-# $Id: TaxaLinker.pm 4234 2007-07-17 13:41:02Z rvosa $
+# $Id: TaxaLinker.pm 4265 2007-07-20 14:14:44Z rvosa $
 package Bio::Phylo::Taxa::TaxaLinker;
 use Bio::Phylo::Mediators::TaxaMediator;
 use Bio::Phylo::Util::Exceptions;
@@ -7,6 +7,7 @@ use Bio::Phylo::Util::Logger;
 use strict;
 
 my $logger = Bio::Phylo::Util::Logger->new;
+my $TYPE_CONSTANT = _TAXA_;
 
 =head1 NAME
 
@@ -90,7 +91,7 @@ Associates invocant with Bio::Phylo::Taxa argument.
 sub set_taxa {
     my ( $self, $taxa ) = @_;
     if ( defined $taxa ) {
-        if ( UNIVERSAL::can( $taxa, '_type' ) && $taxa->_type == _TAXA_ ) {
+        if ( UNIVERSAL::can( $taxa, '_type' ) && $taxa->_type == $TYPE_CONSTANT ) {
             $logger->info("setting taxa '$taxa'");
             Bio::Phylo::Mediators::TaxaMediator->set_link( 
                 '-one'  => $taxa, 
@@ -207,7 +208,7 @@ Also see the manual: L<Bio::Phylo::Manual>.
 
 =head1 REVISION
 
- $Id: TaxaLinker.pm 4234 2007-07-17 13:41:02Z rvosa $
+ $Id: TaxaLinker.pm 4265 2007-07-20 14:14:44Z rvosa $
 
 =cut
 

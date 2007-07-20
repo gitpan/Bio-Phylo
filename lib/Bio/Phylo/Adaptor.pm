@@ -30,8 +30,9 @@ Bio::Phylo::Adaptor - Object adaptor for compatibility
 =head1 DESCRIPTION
 
 The adaptor architecture is used to make Bio::Phylo objects compatible with
-other software (currently only bioperl). The compatibility mode can be
-defined globally at compile time by specifying:
+other software (currently only bioperl) using the Adaptor design pattern (e.g.
+see the page on the Portland Pattern Repository: L<http://www.c2.com/cgi/wiki?AdapterPattern>). 
+The compatibility mode can be defined globally at compile time by specifying:
 
  use Bio::Phylo compat => 'Bioperl';
 
@@ -72,7 +73,7 @@ Also see the manual: L<Bio::Phylo::Manual>.
 
 =head1 REVISION
 
- $Id: Adaptor.pm 4234 2007-07-17 13:41:02Z rvosa $
+ $Id: Adaptor.pm 4265 2007-07-20 14:14:44Z rvosa $
 
 =cut
 

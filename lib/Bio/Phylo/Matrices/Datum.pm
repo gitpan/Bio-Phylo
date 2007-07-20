@@ -1,4 +1,4 @@
-# $Id: Datum.pm 4251 2007-07-19 14:21:33Z rvosa $
+# $Id: Datum.pm 4265 2007-07-20 14:14:44Z rvosa $
 package Bio::Phylo::Matrices::Datum;
 use vars '@ISA';
 use strict;
@@ -677,19 +677,9 @@ Validates invocant data contents.
 
 =over
 
-=item L<Bio::Phylo>
-
-This object inherits from L<Bio::Phylo>, so the methods defined
-therein are also applicable to L<Bio::Phylo::Matrices::Datum> objects.
-
 =item L<Bio::Phylo::Taxa::TaxonLinker>
 
 This object inherits from L<Bio::Phylo::Taxa::TaxonLinker>, so the methods
-defined therein are also applicable to L<Bio::Phylo::Matrices::Datum> objects.
-
-=item L<Bio::Phylo::Util::XMLWritable>
-
-This object inherits from L<Bio::Phylo::Util::XMLWritable>, so the methods
 defined therein are also applicable to L<Bio::Phylo::Matrices::Datum> objects.
 
 =item L<Bio::Phylo::Matrices::TypeSafeData>
@@ -705,7 +695,7 @@ Also see the manual: L<Bio::Phylo::Manual>.
 
 =head1 REVISION
 
- $Id: Datum.pm 4251 2007-07-19 14:21:33Z rvosa $
+ $Id: Datum.pm 4265 2007-07-20 14:14:44Z rvosa $
 
 =cut
 

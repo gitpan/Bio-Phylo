@@ -1,4 +1,4 @@
-# $Id: Mixed.pm 4251 2007-07-19 14:21:33Z rvosa $
+# $Id: Mixed.pm 4265 2007-07-20 14:14:44Z rvosa $
 package Bio::Phylo::Matrices::Datatype::Mixed;
 use strict;
 use Bio::Phylo::Util::Exceptions;
@@ -172,6 +172,24 @@ Returns the object's datatype as string.
         return $string;
     }
 
+=item get_type_for_site()
+
+Returns type object for site number.
+
+ Type    : Accessor
+ Title   : get_type_for_site
+ Usage   : my $type = $obj->get_type_for_site(1);
+ Function: Returns data type object for site
+ Returns : A Bio::Phylo::Matrices::Datatype object
+ Args    : None
+
+=cut
+
+    sub get_type_for_site {
+        my ( $self, $i ) = @_;     
+        return $range{ $self->get_id }->[$i];
+    }    
+
 =back
 
 =head2 TESTS
@@ -195,10 +213,17 @@ Compares data type objects.
 
 	sub is_same {
 		my ( $self, $obj ) = @_;
-		return 1 if $self->get_id      == $obj->get_id;
+		my $id = $self->get_id;
+		return 1 if $id == $obj->get_id;
 		return 0 if $self->get_type    ne $obj->get_type;
 		return 0 if $self->get_gap     ne $obj->get_gap;
 		return 0 if $self->get_missing ne $obj->get_missing;
+		for my $i ( 0 .. $#{ $range{ $self->get_id } } ) {
+			if ( my $subtype = $range{ $self->get_id }->[$i] ) {
+				return 0 if not $subtype->is_same( $obj->get_type_for_site($i) );
+			}
+		}
+		return 1;		
 	}
 
 =item is_valid()
@@ -268,7 +293,7 @@ Also see the manual: L<Bio::Phylo::Manual>.
 
 =head1 REVISION
 
- $Id: Mixed.pm 4251 2007-07-19 14:21:33Z rvosa $
+ $Id: Mixed.pm 4265 2007-07-20 14:14:44Z rvosa $
 
 =cut
 

@@ -1,4 +1,4 @@
-# $Id: Datatype.pm 4251 2007-07-19 14:21:33Z rvosa $
+# $Id: Datatype.pm 4265 2007-07-20 14:14:44Z rvosa $
 package Bio::Phylo::Matrices::Datatype;
 use Bio::Phylo;
 use Bio::Phylo::Util::Logger;
@@ -28,7 +28,10 @@ inherit from this class (typically those in the
 Bio::Phylo::Matrices::Datatype::* namespace) can check strings and arrays of
 character data for invalid symbols, and split and join strings and arrays
 in a way appropriate for the type (i.e. on whitespace for continuous data,
-on single characters for categorical data).
+on single characters for categorical data). The datatype objects are used by
+L<Bio::Phylo::Matrices::Matrix> objects and L<Bio::Phylo::Matrices::Datum>
+objects in an arrangement akin to the Delegation design pattern
+(e.g. see L<http://www.c2.com/cgi/wiki?DelegationPattern>).
 
 =head1 METHODS
 
@@ -393,7 +396,8 @@ Compares data type objects.
     sub is_same {
         my ( $self, $model ) = @_;
         $logger->info("Comparing datatype '$self' to '$model'");
-        return 1 if $self->get_id == $model->get_id;
+        return 1 if $self->get_id   == $model->get_id;
+        return 0 if $self->get_type ne $model->get_type;
         
         # check strings
         for my $prop ( qw(get_type get_missing get_gap) ) {
@@ -520,7 +524,7 @@ Also see the manual: L<Bio::Phylo::Manual>.
 
 =head1 REVISION
 
- $Id: Datatype.pm 4251 2007-07-19 14:21:33Z rvosa $
+ $Id: Datatype.pm 4265 2007-07-20 14:14:44Z rvosa $
 
 =cut
 

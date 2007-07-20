@@ -1,4 +1,4 @@
-# $Id: Node.pm 4252 2007-07-19 14:39:42Z rvosa $
+# $Id: Node.pm 4265 2007-07-20 14:14:44Z rvosa $
 package Bio::Phylo::Forest::Node;
 use strict;
 use Bio::Phylo::Taxa::TaxonLinker;
@@ -18,7 +18,7 @@ use vars qw($VERSION @ISA);
 
 # set version based on svn rev
 my $version = $Bio::Phylo::VERSION;
-my $rev     = '$Id: Node.pm 4252 2007-07-19 14:39:42Z rvosa $';
+my $rev     = '$Id: Node.pm 4265 2007-07-20 14:14:44Z rvosa $';
 $rev     =~ s/^[^\d]+(\d+)\b.*$/$1/;
 $version =~ s/_.+$/_$rev/;
 $VERSION = $version;
@@ -962,6 +962,46 @@ Tests if invocant is an internal node.
 	sub is_internal {
 		return !!shift->get_first_daughter;
 	}
+	
+=item is_first()
+
+Tests if invocant is first sibling in left-to-right order.
+
+ Type    : Test
+ Title   : is_first
+ Usage   : if ( $node->is_first ) {
+              # do something
+           }
+ Function: Returns true if first sibling 
+           in left-to-right order.
+ Returns : BOOLEAN
+ Args    : NONE
+
+=cut
+
+	sub is_first {
+		return !shift->get_previous_sister;
+	}
+
+=item is_last()
+
+Tests if invocant is last sibling in left-to-right order.
+
+ Type    : Test
+ Title   : is_last
+ Usage   : if ( $node->is_last ) {
+              # do something
+           }
+ Function: Returns true if last sibling 
+           in left-to-right order.
+ Returns : BOOLEAN
+ Args    : NONE
+
+=cut
+
+	sub is_last {
+		return !shift->get_next_sister;
+	}	
 
 =item is_root()
 
@@ -1370,13 +1410,36 @@ Visits nodes depth first
  Function: Visits nodes in a depth first traversal, executes subs
  Returns : $tree
  Args    : Optional:
+			# first event handler, is executed when node is reached in recursion
 			-pre            => sub { print "pre: ",            shift->get_name, "\n" },
-			-pre_daughter   => sub { print "pre_daughter: ",   shift->get_name, "\n" },	
-			-post_daughter  => sub { print "post_daughter: ",  shift->get_name, "\n" },		
+						
+			# is executed if node has a daughter, but before that daughter is processed
+			-pre_daughter   => sub { print "pre_daughter: ",   shift->get_name, "\n" },
+			
+			# is executed if node has a daughter, after daughter has been processed	
+			-post_daughter  => sub { print "post_daughter: ",  shift->get_name, "\n" },
+			
+			# is executed if node has no daughter
+			-no_daughter    => sub { print "no_daughter: ",    shift->get_name, "\n" },							
+
+			# is executed whether or not node has sisters, if it does have sisters
+			# they're processed first	
 			-in             => sub { print "in: ",             shift->get_name, "\n" },
+
+			# is executed if node has a sister, before sister is processed
 			-pre_sister     => sub { print "pre_sister: ",     shift->get_name, "\n" },	
+			
+			# is executed if node has a sister, after sister is processed
 			-post_sister    => sub { print "post_sister: ",    shift->get_name, "\n" },			
+			
+			# is executed if node has no sister
+			-no_sister      => sub { print "no_sister: ",      shift->get_name, "\n" },	
+			
+			# is executed last			
 			-post           => sub { print "post: ",           shift->get_name, "\n" },
+			
+			# specifies traversal order, default 'ltr' means first_daugher -> next_sister
+			# traversal, alternate value 'rtl' means last_daughter -> previous_sister traversal
 			-order          => 'ltr', # ltr = left-to-right, 'rtl' = right-to-left
  Comments: 
 
@@ -1422,6 +1485,9 @@ Visits nodes depth first
 			$daughter->_visit_depth_first(%args);
 			$args{'-post_daughter'}->($node) if $args{'-post_daughter'};
 		}
+		else {
+			$args{'-no_daughter'}->($node) if $args{'-no_daughter'};
+		}
 
 		$args{'-in'}->($node) if $args{'-in'};
 
@@ -1429,6 +1495,9 @@ Visits nodes depth first
 			$args{'-pre_sister'}->($node) if $args{'-pre_sister'};
 			$sister->_visit_depth_first(%args);
 			$args{'-post_sister'}->($node) if $args{'-post_sister'};
+		}
+		else {
+			$args{'-no_sister'}->($node) if $args{'-no_sister'};
 		}
 
 		$args{'-post'}->($node) if $args{'-post'};
@@ -1454,6 +1523,9 @@ Visits nodes breadth first
 			# is executed if node has a sister, after sister is processed
 			-post_sister    => sub { print "post_sister: ",    shift->get_name, "\n" },			
 			
+			# is executed if node has no sister
+			-no_sister      => sub { print "no_sister: ",      shift->get_name, "\n" },				
+			
 			# is executed whether or not node has sisters, if it does have sisters
 			# they're processed first	
 			-in             => sub { print "in: ",             shift->get_name, "\n" },			
@@ -1462,7 +1534,10 @@ Visits nodes breadth first
 			-pre_daughter   => sub { print "pre_daughter: ",   shift->get_name, "\n" },
 			
 			# is executed if node has a daughter, after daughter has been processed	
-			-post_daughter  => sub { print "post_daughter: ",  shift->get_name, "\n" },				
+			-post_daughter  => sub { print "post_daughter: ",  shift->get_name, "\n" },
+			
+			# is executed if node has no daughter
+			-no_daughter    => sub { print "no_daughter: ",    shift->get_name, "\n" },							
 			
 			# is executed last			
 			-post           => sub { print "post: ",           shift->get_name, "\n" },
@@ -1503,6 +1578,9 @@ Visits nodes breadth first
 			$sister->_visit_breadth_first(%args);
 			$args{'-post_sister'}->($node) if $args{'-post_sister'};
 		}
+		else {
+			$args{'-no_sister'}->($node) if $args{'-no_sister'};
+		}		
 
 		$args{'-in'}->($node) if $args{'-in'};
 
@@ -1511,6 +1589,9 @@ Visits nodes breadth first
 			$daughter->_visit_breadth_first(%args);
 			$args{'-post_daughter'}->($node) if $args{'-post_daughter'};
 		}
+		else {
+			$args{'-no_daughter'}->($node) if $args{'-no_daughter'};
+		}		
 
 		$args{'-post'}->($node) if $args{'-post'};
 	}
@@ -1784,7 +1865,7 @@ Also see the manual: L<Bio::Phylo::Manual>.
 
 =head1 REVISION
 
- $Id: Node.pm 4252 2007-07-19 14:39:42Z rvosa $
+ $Id: Node.pm 4265 2007-07-20 14:14:44Z rvosa $
 
 =cut
 

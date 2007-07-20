@@ -1,4 +1,4 @@
-# $Id: Forest.pm 4251 2007-07-19 14:21:33Z rvosa $
+# $Id: Forest.pm 4265 2007-07-20 14:14:44Z rvosa $
 package Bio::Phylo::Forest;
 use strict;
 use warnings FATAL => 'all';
@@ -12,7 +12,7 @@ use vars qw($VERSION @ISA);
 
 # set version based on svn rev
 my $version = $Bio::Phylo::VERSION;
-my $rev     = '$Id: Forest.pm 4251 2007-07-19 14:21:33Z rvosa $';
+my $rev     = '$Id: Forest.pm 4265 2007-07-20 14:14:44Z rvosa $';
 $rev     =~ s/^[^\d]+(\d+)\b.*$/$1/;
 $version =~ s/_.+$/_$rev/;
 $VERSION = $version;
@@ -38,6 +38,7 @@ Bio::Phylo::Forest - The forest object, a set of phylogenetic trees.
  my $forest = Bio::Phylo::Forest->new;
  my $tree = Bio::Phylo::Forest::Tree->new;
  $forest->insert($tree);
+ print $forest->to_nexus;
 
 =head1 DESCRIPTION
 
@@ -363,7 +364,7 @@ Also see the manual: L<Bio::Phylo::Manual>.
 
 =head1 REVISION
 
- $Id: Forest.pm 4251 2007-07-19 14:21:33Z rvosa $
+ $Id: Forest.pm 4265 2007-07-20 14:14:44Z rvosa $
 
 =cut
 

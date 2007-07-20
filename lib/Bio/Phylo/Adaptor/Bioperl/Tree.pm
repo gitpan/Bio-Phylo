@@ -1,4 +1,4 @@
-# $Id: Tree.pm 4213 2007-07-15 03:11:27Z rvosa $
+# $Id: Tree.pm 4265 2007-07-20 14:14:44Z rvosa $
 package Bio::Phylo::Adaptor::Bioperl::Tree;
 use Bio::Phylo::Adaptor;
 use vars '@ISA';
@@ -34,7 +34,7 @@ Bio::Phylo::Adaptor::Bioperl::Tree - Adaptor class for bioperl compatibility
 
 =head1 DESCRIPTION
 
-This class wraps Bio::Phylo tree objects to give them an interface
+This class wraps L<Bio::Phylo::Forest::Tree> objects to give them an interface
 compatible with bioperl.
 
 =head1 METHODS
@@ -206,6 +206,11 @@ sub get_leaf_nodes {
 
 =over
 
+=item L<Bio::Phylo::Adaptor>
+
+The base class for the adaptor architecture, instantiates the appropriate
+wrapper depending on $Bio::Phylo::COMPAT
+
 =item L<Bio::Tree::TreeI>
 
 Bio::Phylo::Adaptor::Bioperl::Tree is an adaptor that makes Bio::Phylo
@@ -219,7 +224,7 @@ Also see the manual: L<Bio::Phylo::Manual>.
 
 =head1 REVISION
 
- $Id: Tree.pm 4213 2007-07-15 03:11:27Z rvosa $
+ $Id: Tree.pm 4265 2007-07-20 14:14:44Z rvosa $
 
 =cut
 

@@ -1,4 +1,4 @@
-# $Id: IO.pm 4253 2007-07-19 15:04:52Z rvosa $
+# $Id: IO.pm 4265 2007-07-20 14:14:44Z rvosa $
 # Subversion: $Rev: 170 $
 package Bio::Phylo::IO;
 use strict;
@@ -36,18 +36,6 @@ Bio::Phylo::IO - Input and output of phylogenetic data.
     # old parser, always adds node labels
     '-format' => 'newick',
  )->first;
-
- # OR:
-
- $tree = Bio::Phylo::IO->parse(
-     '-string' => $tree_string,
-
-     # faster, new parser, node labels optional
-     '-format' => 'fastnewick', 
-
-     # with node labels
-     '-label'  => 1,            
-  )->first; 
 
  # note: newick parsers return 
  # 'Bio::Phylo::Forest'! Call 
@@ -320,7 +308,7 @@ Also see the manual: L<Bio::Phylo::Manual>
 
 =head1 REVISION
 
- $Id: IO.pm 4253 2007-07-19 15:04:52Z rvosa $
+ $Id: IO.pm 4265 2007-07-20 14:14:44Z rvosa $
 
 =cut
 

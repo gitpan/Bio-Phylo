@@ -790,29 +790,6 @@ Validates taxa associations.
 
 	sub _container { $CONSTANT_CONTAINER }
 
-=back
-
-=head2 DESTRUCTOR
-
-=over
-
-=item DESTROY()
-
-Invocant destructor.
-
- Type    : Destructor
- Title   : DESTROY
- Usage   : $phylo->DESTROY
- Function: Destroys Phylo object
- Alias   :
- Returns : TRUE
- Args    : none
- Comments: You don't really need this,
-           it is called automatically when
-           the object goes out of scope.
-
-=cut
-
 	sub _cleanup {
 		my $self = shift;
 		$logger->info("cleaning up '$self'");
@@ -848,7 +825,7 @@ Also see the manual: L<Bio::Phylo::Manual>.
 
 =head1 REVISION
 
- $Id: Matrix.pm 4251 2007-07-19 14:21:33Z rvosa $
+ $Id: Matrix.pm 4265 2007-07-20 14:14:44Z rvosa $
 
 =cut
 

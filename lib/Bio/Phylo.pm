@@ -1,4 +1,4 @@
-# $Id: Phylo.pm 4251 2007-07-19 14:21:33Z rvosa $
+# $Id: Phylo.pm 4265 2007-07-20 14:14:44Z rvosa $
 package Bio::Phylo;
 use strict;
 use warnings FATAL => 'all';
@@ -22,9 +22,9 @@ use Bio::Phylo::Util::Logger;
 use Bio::Phylo::Mediators::TaxaMediator;
 
 # Include the revision number from CIPRES subversion in $VERSION
-my $rev = '$Id: Phylo.pm 4251 2007-07-19 14:21:33Z rvosa $';
+my $rev = '$Id: Phylo.pm 4265 2007-07-20 14:14:44Z rvosa $';
 $rev =~ s/^[^\d]+(\d+)\b.*$/$1/;
-$VERSION = "0.17_RC5";
+$VERSION = "0.17_RC6";
 $VERSION .= "_$rev";
 
 {
@@ -44,14 +44,7 @@ $VERSION .= "_$rev";
 			else {
 				while ( my ( $key, $value ) = each %opt ) {
 					if ( $key =~ qr/^VERBOSE$/i ) {
-#						if ( $value > 4 || $value < 0 ) {
-#							Bio::Phylo::Util::Exceptions::OutOfBounds->throw(
-#								'error' =>
-#								  "verbosity must be >= 0 && <= 4 inclusive", );
-#						}
-#						else {
-							$logger->VERBOSE( '-level' => $value );
-#						}
+						$logger->VERBOSE( '-level' => $value );
 					}
 					elsif ( $key =~ qr/^COMPAT$/i ) {
 						$COMPAT = ucfirst( lc($value) );
@@ -86,12 +79,25 @@ Bio::Phylo - Phylogenetic analysis using perl.
  # verbosity goes from 0, only fatal messages, to 4: everything from
  # fatal -> error -> warning -> info -> debug (which is a lot)
  use Bio::Phylo verbose => 1;
+ 
+ # or:
+ Bio::Phylo->VERBOSE( -level => 1 ); # sets global verbosity to 'error'
+ 
+ # sets verbosity for forest ojects to 'debug'
+ Bio::Phylo->VERBOSE( -level => 4, -class => 'Bio::Phylo::Forest' );
+ 
+ # prints version, including SVN revision number
+ print Bio::Phylo->VERSION;
+ 
+ # prints suggested citation
+ print Bio::Phylo->CITATION;
 
 =head1 DESCRIPTION
 
-This is the base class for the Bio::Phylo OO package. In this file, methods
-are defined that are performed by other objects in the Bio::Phylo release,
-i.e. objects that inherit from this class.
+This is the base class for the Bio::Phylo package for phylogenetic analysis using 
+object-oriented perl5. In this file, methods are defined that are performed by other 
+objects in the Bio::Phylo release that inherit from this base class (which you normally
+wouldn't use directly).
 
 For general information on how to use Bio::Phylo, consult the manual
 (L<Bio::Phylo::Manual>); for information on using Bio::Phylo in combination with
@@ -102,7 +108,7 @@ compatibility document (L<Bio::ObjectCompat>).
 If you come here because you are trying to debug a problem you run into in
 using Bio::Phylo, you may be interested in the "exceptions" system as discussed
 in L<Bio::Phylo::Util::Exceptions>. In addition, you may find the logging system
-that is discussed in this base class of use.
+in L<Bio::Phylo::Util::Logger> of use to localize problems.
 
 Documentation on the various scripts included in this release is embedded in
 their respective source files, which, like all L<perldoc> can be viewed in
@@ -120,7 +126,7 @@ option.
 =item new()
 
 The Bio::Phylo root object itself, and thus its constructor, is rarely, if ever,
-used directly. Rather, all other objects in this package inherit its methods,
+used directly. Rather, many other objects in Bio::Phylo inherit its methods,
 and call its constructor internally. The arguments shown here can thus also be
 passed to any of the child classes' constructors, which will pass them on up the 
 inheritance tree. Generally, constructors in Bio::Phylo subclasses can process
@@ -817,13 +823,7 @@ Gets version number (including revision number).
 
 	sub VERSION { $VERSION; }
 
-=back
-
-=head2 DESTRUCTOR
-
-=over
-
-=item DESTROY()
+=begin comment
 
 Invocant destructor.
 
@@ -837,6 +837,8 @@ Invocant destructor.
  Comments: You don't really need this,
            it is called automatically when
            the object goes out of scope.
+
+=end comment
 
 =cut
 
@@ -970,7 +972,7 @@ Also see the manual: L<Bio::Phylo::Manual>.
 
 =head1 REVISION
 
- $Id: Phylo.pm 4251 2007-07-19 14:21:33Z rvosa $
+ $Id: Phylo.pm 4265 2007-07-20 14:14:44Z rvosa $
 
 =cut
 

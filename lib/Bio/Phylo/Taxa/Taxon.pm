@@ -1,4 +1,4 @@
-# $Id: Taxon.pm 4234 2007-07-17 13:41:02Z rvosa $
+# $Id: Taxon.pm 4265 2007-07-20 14:14:44Z rvosa $
 # Subversion: $Rev: 177 $
 package Bio::Phylo::Taxa::Taxon;
 use strict;
@@ -19,8 +19,10 @@ use vars qw($VERSION @ISA);
 	
 	my $TYPE_CONSTANT      = _TAXON_;
 	my $CONTAINER_CONSTANT = _TAXA_;
+	my $DATUM_CONSTANT     = _DATUM_;
+	my $NODE_CONSTANT      = _NODE_;
 
-my $logger = Bio::Phylo::Util::Logger->new;
+	my $logger = Bio::Phylo::Util::Logger->new;
 
 =head1 NAME
 
@@ -136,7 +138,7 @@ Associates argument data with invocant.
         my ( $self, $datum ) = @_;
         my $type;
         eval { $type = $datum->_type };
-        if ( ! $@ && $type == _DATUM_ ) {
+        if ( ! $@ && $type == $DATUM_CONSTANT ) {
             Bio::Phylo::Mediators::TaxaMediator->set_link( 
                     '-one'  => $self, 
                     '-many' => $datum, 
@@ -168,7 +170,7 @@ Associates argument node with invocant.
         my ( $self, $node ) = @_;
         my $type;
         eval { $type = $node->_type };
-        if ( ! $@ && $type == _NODE_ ) {        
+        if ( ! $@ && $type == $NODE_CONSTANT ) {        
             Bio::Phylo::Mediators::TaxaMediator->set_link( 
                 '-one'  => $self, 
                 '-many' => $node, 
@@ -256,7 +258,7 @@ Retrieves associated datum objects.
         my $self = shift;
         return Bio::Phylo::Mediators::TaxaMediator->get_link( 
             '-source' => $self, 
-            '-type'   => _DATUM_,
+            '-type'   => $DATUM_CONSTANT,
         );
     }
 
@@ -279,17 +281,11 @@ Retrieves associated node objects.
         my $self = shift;
         return Bio::Phylo::Mediators::TaxaMediator->get_link( 
             '-source' => $self, 
-            '-type'   => _NODE_,
+            '-type'   => $NODE_CONSTANT,
         );
     }
 
-=back
-
-=head2 DESTRUCTOR
-
-=over
-
-=item DESTROY()
+=begin comment
 
 Taxon destructor.
 
@@ -303,6 +299,8 @@ Taxon destructor.
  Comments: You don't really need this,
            it is called automatically when
            the object goes out of scope.
+
+=end comment
 
 =cut
 
@@ -365,7 +363,7 @@ Also see the manual: L<Bio::Phylo::Manual>.
 
 =head1 REVISION
 
- $Id: Taxon.pm 4234 2007-07-17 13:41:02Z rvosa $
+ $Id: Taxon.pm 4265 2007-07-20 14:14:44Z rvosa $
 
 =cut
 

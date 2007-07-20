@@ -1,4 +1,4 @@
-# $Id: Listable.pm 4251 2007-07-19 14:21:33Z rvosa $
+# $Id: Listable.pm 4265 2007-07-20 14:14:44Z rvosa $
 package Bio::Phylo::Listable;
 use strict;
 use warnings FATAL => 'all';
@@ -881,6 +881,8 @@ do just that. For more info, read perldoc perltie
 
 =head1 SEE ALSO
 
+Also see the manual: L<Bio::Phylo::Manual>.
+
 =head2 Objects inheriting from Bio::Phylo::Listable
 
 =over
@@ -901,6 +903,10 @@ Iterate over a set of matrices.
 
 Iterate over the datum objects in a matrix.
 
+=item L<Bio::Phylo::Matrices::Datum>
+
+Iterate over the characters in a datum.
+
 =item L<Bio::Phylo::Taxa>
 
 Iterate over a set of taxa.
@@ -911,11 +917,6 @@ Iterate over a set of taxa.
 
 =over
 
-=item L<Bio::Phylo>
-
-The listable class inherits from L<Bio::Phylo>, so look there for more methods
-applicable to L<Bio::Phylo::Listable> objects and subclasses.
-
 =item L<Bio::Phylo::Util::XMLWritable>
 
 This object inherits from L<Bio::Phylo::Util::XMLWritable>, so methods
@@ -923,11 +924,9 @@ defined there are also applicable here.
 
 =back
 
-Also see the manual: L<Bio::Phylo::Manual>.
-
 =head1 REVISION
 
- $Id: Listable.pm 4251 2007-07-19 14:21:33Z rvosa $
+ $Id: Listable.pm 4265 2007-07-20 14:14:44Z rvosa $
 
 =cut
 

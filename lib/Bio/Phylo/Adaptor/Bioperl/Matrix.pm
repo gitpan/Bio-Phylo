@@ -1,4 +1,4 @@
-# $Id: Matrix.pm 4213 2007-07-15 03:11:27Z rvosa $
+# $Id: Matrix.pm 4265 2007-07-20 14:14:44Z rvosa $
 package Bio::Phylo::Adaptor::Bioperl::Matrix;
 use Bio::Phylo::Adaptor;
 use strict;
@@ -29,8 +29,8 @@ Bio::Phylo::Adaptor::Bioperl::Matrix - Adaptor class for bioperl compatibility
 
 =head1 DESCRIPTION
 
-This class wraps Bio::Phylo matrix objects to give them an interface
-compatible with bioperl.
+This class wraps L<Bio::Phylo::Matrices::Matrix> objects to give them an 
+interface compatible with bioperl.
 
 =head1 METHODS
 
@@ -494,6 +494,11 @@ sub set_displayname_flat {
 
 =over
 
+=item L<Bio::Phylo::Adaptor>
+
+The base class for the adaptor architecture, instantiates the appropriate
+wrapper depending on $Bio::Phylo::COMPAT
+
 =item L<Bio::Align::AlignI>
 
 Bio::Phylo::Adaptor::Bioperl::Matrix is an adaptor that makes Bio::Phylo
@@ -507,7 +512,7 @@ Also see the manual: L<Bio::Phylo::Manual|Bio::Phylo::Manual>.
 
 =head1 REVISION
 
- $Id: Matrix.pm 4213 2007-07-15 03:11:27Z rvosa $
+ $Id: Matrix.pm 4265 2007-07-20 14:14:44Z rvosa $
 
 =cut
 

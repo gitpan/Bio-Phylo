@@ -1,4 +1,4 @@
-# $Id: Taxa.pm 4234 2007-07-17 13:41:02Z rvosa $
+# $Id: Taxa.pm 4265 2007-07-20 14:14:44Z rvosa $
 package Bio::Phylo::Taxa;
 use strict;
 use Bio::Phylo::Listable;
@@ -377,13 +377,7 @@ Serializes invocant to nexus format.
 		$nexus .= "\t;\nEND;\n";
 	}
 
-=back
-
-=head2 DESTRUCTOR
-
-=over
-
-=item DESTROY()
+=begin comment
 
 Invocant destructor.
 
@@ -397,6 +391,8 @@ Invocant destructor.
  Comments: You don't really need this, 
            it is called automatically when
            the object goes out of scope.
+
+=end comment
 
 =cut
 
@@ -459,7 +455,7 @@ Also see the manual: L<Bio::Phylo::Manual>.
 
 =head1 REVISION
 
- $Id: Taxa.pm 4234 2007-07-17 13:41:02Z rvosa $
+ $Id: Taxa.pm 4265 2007-07-20 14:14:44Z rvosa $
 
 =cut
 

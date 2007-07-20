@@ -1,4 +1,4 @@
-# $Id: TypeSafeData.pm 4251 2007-07-19 14:21:33Z rvosa $
+# $Id: TypeSafeData.pm 4265 2007-07-20 14:14:44Z rvosa $
 package Bio::Phylo::Matrices::TypeSafeData;
 use Bio::Phylo::Listable;
 use Bio::Phylo::Util::Exceptions;
@@ -332,10 +332,10 @@ Validates the object's contents
 
 =over
 
-=item L<Bio::Phylo>
+=item L<Bio::Phylo::Listable>
 
-This object inherits from L<Bio::Phylo>, so the methods defined therein are
-also applicable to L<Bio::Phylo::Matrices::TypeSafeData> objects.
+This object inherits from L<Bio::Phylo::Listable>, so the methods defined 
+therein are also applicable to L<Bio::Phylo::Matrices::TypeSafeData> objects.
 
 =item L<Bio::Phylo::Manual>
 
@@ -345,7 +345,7 @@ Also see the manual: L<Bio::Phylo::Manual>.
 
 =head1 REVISION
 
- $Id: TypeSafeData.pm 4251 2007-07-19 14:21:33Z rvosa $
+ $Id: TypeSafeData.pm 4265 2007-07-20 14:14:44Z rvosa $
 
 =cut
 
