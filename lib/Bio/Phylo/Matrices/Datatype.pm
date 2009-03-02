@@ -1,16 +1,17 @@
-# $Id: Datatype.pm 4265 2007-07-20 14:14:44Z rvosa $
+# $Id: Datatype.pm 643 2008-09-18 01:50:34Z rvos $
 package Bio::Phylo::Matrices::Datatype;
-use Bio::Phylo;
-use Bio::Phylo::Util::Logger;
+use Bio::Phylo::Util::XMLWritable;
+use Bio::Phylo::Util::Exceptions 'throw';
+use Bio::Phylo::Util::CONSTANT 'looks_like_hash';
 use strict;
 use vars '@ISA';
-@ISA = qw(Bio::Phylo);
+@ISA = qw(Bio::Phylo::Util::XMLWritable);
 
 {
  
- 	my $logger = Bio::Phylo::Util::Logger->new;
+ 	my $logger = __PACKAGE__->get_logger;
     
-    my @fields = \( my %lookup, my %missing, my %gap );
+    my @fields = \( my ( %lookup, %missing, %gap ) );
 
 =head1 NAME
 
@@ -31,7 +32,8 @@ in a way appropriate for the type (i.e. on whitespace for continuous data,
 on single characters for categorical data). The datatype objects are used by
 L<Bio::Phylo::Matrices::Matrix> objects and L<Bio::Phylo::Matrices::Datum>
 objects in an arrangement akin to the Delegation design pattern
-(e.g. see L<http://www.c2.com/cgi/wiki?DelegationPattern>).
+(e.g. see L<http://www.c2.com/cgi/wiki?DelegationPattern>). There is really no
+normal usage in which you'd have to deal with this object directly.
 
 =head1 METHODS
 
@@ -57,21 +59,17 @@ Datatype constructor.
         my $package = shift;
         my $type = ucfirst( lc( shift ) );
         if ( not $type ) {
-            Bio::Phylo::Util::Exceptions::BadArgs->throw(
-                'error' => "No subtype specified!"
-            );
+        	throw 'BadArgs' => "No subtype specified!";
         }
         if ( $type eq 'Nucleotide' ) {
             $logger->warn("'nucleotide' datatype requested, using 'dna'");
             $type = 'Dna';
         }
         my $typeclass = __PACKAGE__ . '::' . $type;
-        my $self      = __PACKAGE__->SUPER::new; 
+        my $self      = __PACKAGE__->SUPER::new( '-tag' => 'states' ); 
         eval "require $typeclass";
         if ( $@ ) {
-            Bio::Phylo::Util::Exceptions::BadFormat->throw(
-                'error' => sprintf( "'%s' is not a valid datatype", $type )
-            );
+        	throw 'BadFormat' => "'$type' is not a valid datatype";
         }
         else {
             return $typeclass->_new( $self, @_ );
@@ -81,7 +79,6 @@ Datatype constructor.
     sub _new { 
         my $class = shift;
         my $self  = shift;
-        my @args  = @_;
         my ( $lookup, $missing, $gap );
         {
             no strict 'refs';
@@ -96,51 +93,33 @@ Datatype constructor.
         $self->set_gap(     $gap     ) if defined $gap;
         
 		# process further args
-		if ( @args ) {
+		while ( my @args = looks_like_hash @_ ) {
+
+			my $key   = shift @args;
+			my $value = shift @args;
+
+			# notify user
+			$logger->debug("processing arg '$key'");
+
+			# don't access data structures directly, call mutators
+			# in child classes or __PACKAGE__
+			my $mutator = $key;
+			$mutator =~ s/^-/set_/;
+
+			# backward compat fixes:
+			$mutator =~ s/^set_pos$/set_position/;
+			$mutator =~ s/^set_matrix$/set_raw/;
 			
-			# something's wrong
-			if ( ( scalar(@args) % 2 ) != 0 ) {
-				Bio::Phylo::Util::Exceptions::OddHash->throw(
-					'error' => "No even key/value pairs in constructor '@args'" );
+			# bad argument?
+			eval {
+				$self->$mutator($value);
+			};
+			if ( $@ and not ref $@ and $@ =~ m/^Can't locate object method/ ) {
+				throw 'UnknownMethod' => "Processing argument '$key' as method '$mutator' failed: $@";
 			}
-
-			# looks like an ok hash
-			else {
-
-				# notify user
-				$logger->debug("going to process constructor args");
-
-				# process all arguments
-				while (@args) {
-					my $key   = shift @args;
-					my $value = shift @args;
-
-					# notify user
-					$logger->debug("processing arg '$key'");
-
-					# don't access data structures directly, call mutators
-					# in child classes or __PACKAGE__
-					my $mutator = $key;
-					$mutator =~ s/^-/set_/;
-
-					# backward compat fixes:
-					$mutator =~ s/^set_pos$/set_position/;
-					$mutator =~ s/^set_matrix$/set_raw/;
-					
-					# bad argument?
-					eval {
-						$self->$mutator($value);
-					};
-					if ( $@ and not ref $@ and $@ =~ m/^Can't locate object method/ ) {
-						Bio::Phylo::Util::Exceptions::UnknownMethod->throw(
-							'error' => "Processing argument '$key' as method '$mutator' failed: $@"
-						);
-					}
-					elsif ( UNIVERSAL::isa( $@, 'Bio::Phylo::Util::Exceptions') ) {
-						$@->rethrow;
-					}
-				}
-			}  
+			elsif ( UNIVERSAL::isa( $@, 'Bio::Phylo::Util::Exceptions') ) {
+				$@->rethrow;
+			}
 		}         
         
         return $self;
@@ -172,22 +151,21 @@ Sets state lookup table.
 
     sub set_lookup {
         my ( $self, $lookup ) = @_;
+        my $id = $$self;
         
         # we have a value
         if ( defined $lookup ) {
             if ( UNIVERSAL::isa( $lookup, 'HASH' ) ) {
-                $lookup{ $self->get_id } = $lookup;
+                $lookup{$id} = $lookup;
             }
             else {
-                Bio::Phylo::Util::Exceptions::BadArgs->throw(
-                    'error' => "lookup must be a hash reference"
-                );
+            	throw 'BadArgs' => "lookup must be a hash reference";
             }
         }
         
         # no value, so must be a reset
         else {
-            $lookup{ $self->get_id } = $self->get_lookup;
+            $lookup{$id} = $self->get_lookup;
         }
         return $self;
     }
@@ -207,8 +185,14 @@ Sets missing data symbol.
 =cut
 
     sub set_missing {
-        my $self = shift;
-        $missing{ $self->get_id } = shift;
+        my ( $self, $missing ) = @_;
+        my $id = $$self;
+        if ( $missing ne $self->get_gap ) {
+        	$missing{$id} = $missing;
+        }
+        else {
+        	throw 'BadArgs' => "Missing character '$missing' already in use as gap character";
+        }
         return $self;
     }
 
@@ -227,8 +211,13 @@ Sets gap symbol.
 =cut
 
     sub set_gap {
-        my $self = shift;
-        $gap{ $self->get_id } = shift;
+        my ( $self, $gap ) = @_;
+        if ( not $gap eq $self->get_missing ) {
+        	$gap{ $self->get_id } = $gap;
+        }
+        else {
+        	throw 'BadArgs' => "Gap character '$gap' already in use as missing character";
+        }
         return $self;
     }
 
@@ -256,6 +245,121 @@ Gets data type as string.
         $type =~ s/.*:://;
         return $type;
     }
+
+=item get_ids_for_states()
+
+Gets state-to-id mapping
+
+ Type    : Accessor
+ Title   : get_ids_for_states
+ Usage   : my %ids = %{ $obj->get_ids_for_states };
+ Function: Returns the object's datatype
+ Returns : A hash reference, keyed on state, with UID values
+ Args    : None
+
+=cut
+    
+    sub get_ids_for_states {
+    	my $self = shift;
+    	if ( my $lookup = $self->get_lookup ) {
+    		my $i = 1;
+    		my $ids_for_states = {};
+    		my ( @states, @tmp_cats ); 
+    		my @tmp = sort { $a->[1] <=> $b->[1] } 
+    		           map { [ $_, scalar @{ $lookup->{$_} } ] } 
+    		         keys %{ $lookup };
+    		for my $state ( @tmp ) {
+    			my $count = $state->[1];
+    			my $sym   = $state->[0];
+    			if ( not $tmp_cats[$count] ) {
+    				$tmp_cats[$count] = [];
+    			}
+    			push @{ $tmp_cats[$count] }, $sym;
+    		}
+    		for my $cat ( @tmp_cats ) {
+    			if ( $cat ) {
+    				my @sorted = sort { $a cmp $b } @{ $cat };
+    				push @states, @sorted;
+    			}
+    		}
+    		for my $state ( @states ) {
+    			my $id = $i++;
+    			$ids_for_states->{$state} = $_[0] ? "s${id}" : $id;
+    		}
+    		return $ids_for_states;
+    	}
+    	else {
+    		return {};
+    	}
+    }
+
+=item get_symbol_for_states()
+
+Gets ambiguity symbol for a set of states
+
+ Type    : Accessor
+ Title   : get_symbol_for_states
+ Usage   : my $state = $obj->get_symbol_for_states('A','C');
+ Function: Returns the ambiguity symbol for a set of states
+ Returns : A symbol (SCALAR)
+ Args    : A set of symbols
+ Comments: If no symbol exists in the lookup
+           table for the given set of states,
+           a new - numerical - one is created
+
+=cut
+
+	sub get_symbol_for_states {
+		my $self = shift;
+		my @syms = @_;
+		my $lookup = $self->get_lookup;
+		if ( $lookup ) {
+			my @lookup_syms = keys %{ $lookup };
+			SYM: for my $sym ( @lookup_syms ) {
+				my @states = @{ $lookup->{$sym} };
+				if ( scalar @syms == scalar @states ) {
+					my $seen_all = 0;
+					for my $i ( 0 .. $#syms ) {
+						my $seen = 0;
+						for my $j ( 0 .. $#states ) {
+							if ( $syms[$i] eq $states[$j] ) {
+								$seen++;
+								$seen_all++;
+							}
+						}
+						next SYM if not $seen;
+					}
+					# found existing symbol
+					return $sym if $seen_all == scalar @syms;
+				}
+			}
+			# create new symbol
+			my $sym;
+			
+			if ( $self->get_type !~ /standard/i ) {
+				my $sym = 0;
+				while ( exists $lookup->{$sym} ) {
+					$sym++;
+				}
+			}
+			else {
+				LETTER: for my $char ( 'A' .. 'Z' ) {
+					if ( not exists $lookup->{$char} ) {
+						$sym = $char;
+						last LETTER;
+					}
+				}
+			}
+			
+			$lookup->{$sym} = \@syms;
+			$self->set_lookup($lookup);
+			return $sym;
+		}
+		else {
+			$logger->info("No lookup table!");
+			return;
+		}
+	}
 
 =item get_lookup()
 
@@ -303,7 +407,9 @@ Gets missing data symbol.
 =cut
 
     sub get_missing {
-        return $missing{ shift->get_id };
+    	my $self = shift;
+        my $missing = $missing{$$self};
+        return defined $missing ? $missing : '?';
     }
 
 =item get_gap()
@@ -320,7 +426,9 @@ Gets gap symbol.
 =cut
 
     sub get_gap {
-        return $gap{ shift->get_id };
+    	my $self = shift;    	
+        my $gap = $gap{$$self};
+        return defined $gap ? $gap : '-';
     }
 
 =back
@@ -345,7 +453,7 @@ Validates argument.
 =cut
 
     sub is_valid {
-        my $self = shift;
+        my $self = shift;        
         my @data;
         for my $arg ( @_ ) {
         	if ( UNIVERSAL::can( $arg, 'get_char') ) {
@@ -363,6 +471,7 @@ Validates argument.
         		}
         	}
         }
+        return 1 if not @data;
         my $lookup = $self->get_lookup;
         my ( $missing, $gap ) = ( $self->get_missing, $self->get_gap );
         CHAR_CHECK: for my $char ( @data ) {            
@@ -474,7 +583,7 @@ Splits argument string of characters following appropriate rules.
 
     sub split {
         my ( $self, $string ) = @_;
-        my @array = CORE::split /\s*/, $string;
+        my @array = CORE::split( /\s*/, $string );
         return \@array;
     }
 
@@ -493,7 +602,7 @@ Joins argument array ref of characters following appropriate rules.
 
     sub join {
         my ( $self, $array ) = @_;
-        return CORE::join '', @{ $array };
+        return CORE::join( '', @{ $array } );
     }
     
     sub _cleanup {
@@ -504,6 +613,62 @@ Joins argument array ref of characters following appropriate rules.
             delete $field->{$id};
         }
     }
+
+=back
+
+=head2 SERIALIZERS
+
+=over
+
+=item to_xml()
+
+Writes data type definitions to xml
+
+ Type    : Serializer
+ Title   : to_xml
+ Usage   : my $xml = $obj->to_xml
+ Function: Writes data type definitions to xml
+ Returns : An xml string representation of data type definition
+ Args    : None
+
+=cut
+
+	sub to_xml {
+		my $self = shift;	
+		my $xml = '';
+		my $normalized = {};
+		$normalized = shift if @_;
+		if ( my $lookup = $self->get_lookup ) {
+			$xml .= "\n" . $self->get_xml_tag;
+			my $id_for_state = $self->get_ids_for_states;
+			my @states = sort { $id_for_state->{$a} <=> $id_for_state->{$b} } keys %{ $id_for_state };
+			for my $state ( @states ) {
+				my $state_id = $id_for_state->{ $state };
+				$id_for_state->{ $state } = 's' . $state_id;
+			}
+			for my $state ( @states ) {
+				my $state_id = $id_for_state->{ $state };
+				my @mapping = @{ $lookup->{$state} };
+				my $symbol = exists $normalized->{$state} ? $normalized->{$state} : $state;
+				
+				# has ambiguity mappings
+				if ( scalar @mapping > 1 ) {
+					$xml .= "\n" . sprintf('<state id="%s" symbol="%s">', $state_id, $symbol);
+					for my $map ( @mapping ) {
+						$xml .= "\n" . sprintf( '<mapping state="%s" mstaxa="uncertainty"/>', $id_for_state->{ $map } );
+					}
+					$xml .= "\n</state>";
+				}
+				
+				# no ambiguity
+				else {
+					$xml .= "\n" . sprintf('<state id="%s" symbol="%s"/>', $state_id, $symbol);
+				}
+			}
+			$xml .= "\n</states>";
+		}	
+		return $xml;	
+	}
 
 =back
 
@@ -518,13 +683,13 @@ therein are also applicable to L<Bio::Phylo::Matrices::Datatype> objects.
 
 =item L<Bio::Phylo::Manual>
 
-Also see the manual: L<Bio::Phylo::Manual>.
+Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =back
 
 =head1 REVISION
 
- $Id: Datatype.pm 4265 2007-07-20 14:14:44Z rvosa $
+ $Id: Datatype.pm 643 2008-09-18 01:50:34Z rvos $
 
 =cut
 

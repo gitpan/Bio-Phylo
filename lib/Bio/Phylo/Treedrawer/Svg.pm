@@ -1,17 +1,22 @@
-# $Id: Svg.pm 4213 2007-07-15 03:11:27Z rvosa $
-# Subversion: $Rev: 192 $
+# $Id: Svg.pm 604 2008-09-05 17:32:28Z rvos $
 package Bio::Phylo::Treedrawer::Svg;
 use strict;
-use constant PI => '3.14159265358979323846';
-use SVG (
+use Bio::Phylo::Util::CONSTANT 'looks_like_hash';
+use Bio::Phylo::Util::Exceptions 'throw';
+
+eval { require SVG };
+if ( $@ ) {
+	throw 'ExtensionError' => "Error loading the SVG extension: $@";
+}
+SVG->import(
     '-nocredits' => 1,
     '-inline'    => 1,
     '-indent'    => '    ',
 );
-my @fields = qw(TREE SVG DRAWER);
 
-# One line so MakeMaker sees it.
-use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
+my @fields = qw(TREE SVG DRAWER);
+my $PI = '3.14159265358979323846';
+
 my %colors;
 
 =head1 NAME
@@ -46,11 +51,7 @@ the node, and branch leading up to it, in red.)
 sub _new {
     my $class = shift;
     my $self = {};
-    my %opt;
-    eval { %opt = @_; };
-    if ($@) {
-        Bio::Phylo::Util::Exceptions::OddHash->throw( error => $@ );
-    }
+    my %opt = looks_like_hash @_;
     $self->{'TREE'}   = $opt{'-tree'};
     $self->{'DRAWER'} = $opt{'-drawer'};
     return bless $self, $class;
@@ -88,9 +89,23 @@ sub _draw {
           . "\tline.scale_major    {}\n"
           . "\tline.scale_minor    {}\n" );
     foreach my $node ( @{ $self->{'TREE'}->get_entities } ) {
+        my $name = $node->get_name || ' ';
+        $name =~ s/_/ /g;
+        $name =~ s/^'(.*)'$/$1/;
+        $name =~ s/^"(.*)"$/$1/;        
+        my ( %class, $r );
+        if ( $node->is_terminal ) {
+        	$class{'circle'} = 'taxon_circle';
+        	$class{'text'}   = 'taxon_text';
+        	$r = int $self->{'DRAWER'}->get_tip_radius;
+        }
+        else {
+        	$class{'circle'} = 'node_circle';
+        	$class{'text'}   = 'node_text';
+        	$r = int $self->{'DRAWER'}->get_node_radius;
+        }
         my $cx = int $node->get_generic('x');
         my $cy = int $node->get_generic('y');
-        my $r  = int $self->{'DRAWER'}->get_node_radius;
         my $x  =
           int( $node->get_generic('x') +
               $self->{'DRAWER'}->get_text_horiz_offset );
@@ -104,15 +119,15 @@ sub _draw {
                 'cy'    => $cy,
                 'r'     => $r,
                 'style' => $style,
-                'class' => $node->is_terminal ? 'taxon_circle' : 'node_circle',
+                'class' => $class{'circle'},
             );
             $self->{'SVG'}->tag(
                 'text',
                 'x'     => $x,
                 'y'     => $y,
                 'style' => $style,
-                'class' => $node->is_terminal ? 'taxon_text' : 'node_text',
-            )->cdata( $node->get_name ? $node->get_name : ' ' );
+                'class' => $class{'text'},
+            )->cdata( $name );
         }
         else {
             $self->{'SVG'}->tag(
@@ -120,14 +135,14 @@ sub _draw {
                 'cx'    => $cx,
                 'cy'    => $cy,
                 'r'     => $r,
-                'class' => $node->is_terminal ? 'taxon_circle' : 'node_circle',
+                'class' => $class{'circle'},
             );
             $self->{'SVG'}->tag(
                 'text',
                 'x'     => $x,
                 'y'     => $y,
-                'class' => $node->is_terminal ? 'taxon_text' : 'node_text',
-            )->cdata( $node->get_name ? $node->get_name : ' ' );
+                'class' => $class{'text'},
+            )->cdata( $name );
         }
         if ( $node->get_parent ) {
             $self->_draw_line($node);
@@ -183,12 +198,12 @@ sub _draw_pies {
                 my $slice = $pievalues->{ $keys[$i] } / $total * 360;
                 my $color = $colors{ $keys[$i] };
                 if ( not $color ) {
-                    my $gray = int( ( ( $i + 1 ) / scalar @keys ) * 256 );
+                    my $gray = int( ( $i / $#keys ) * 256 );
                     $color = sprintf 'rgb(%d,%d,%d)', $gray, $gray, $gray;
                     $colors{ $keys[$i] } = $color;
                 }
                 my $do_arc  = 0;
-                my $radians = $slice * PI / 180;
+                my $radians = $slice * $PI / 180;
                 $do_arc++ if $slice > 180;
                 my $radius = $r - 2;
                 my $ry     = ( $radius * sin($radians) );
@@ -418,13 +433,13 @@ to learn how to create tree drawings.
 
 =item L<Bio::Phylo::Manual>
 
-Also see the manual: L<Bio::Phylo::Manual>.
+Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =back
 
 =head1 REVISION
 
- $Id: Svg.pm 4213 2007-07-15 03:11:27Z rvosa $
+ $Id: Svg.pm 604 2008-09-05 17:32:28Z rvos $
 
 =cut
 

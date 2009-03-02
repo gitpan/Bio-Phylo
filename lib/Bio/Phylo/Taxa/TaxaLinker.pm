@@ -1,12 +1,13 @@
-# $Id: TaxaLinker.pm 4265 2007-07-20 14:14:44Z rvosa $
+# $Id: TaxaLinker.pm 604 2008-09-05 17:32:28Z rvos $
 package Bio::Phylo::Taxa::TaxaLinker;
+use Bio::Phylo;
 use Bio::Phylo::Mediators::TaxaMediator;
-use Bio::Phylo::Util::Exceptions;
-use Bio::Phylo::Util::CONSTANT '_TAXA_';
-use Bio::Phylo::Util::Logger;
+use Bio::Phylo::Util::Exceptions 'throw';
+use Bio::Phylo::Util::CONSTANT qw(_TAXA_ looks_like_object);
 use strict;
 
-my $logger = Bio::Phylo::Util::Logger->new;
+my $logger   = Bio::Phylo->get_logger;
+my $mediator = 'Bio::Phylo::Mediators::TaxaMediator';
 my $TYPE_CONSTANT = _TAXA_;
 
 =head1 NAME
@@ -31,45 +32,6 @@ This module is a superclass for objects that link to L<Bio::Phylo::Taxa> objects
 
 =head1 METHODS
 
-=head2 CONSTRUCTOR
-
-=over
-
-=item new()
-
-TaxaLinker constructor.
-
- Type    : Constructor
- Title   : new
- Usage   : # no direct usage
- Function: 
- Returns :
- Args    :
-
-=cut
-
-#    sub new {
-#        # could be child class
-#        my $class = shift;       
-#        
-#        # notify user
-#        $class->info("constructor called for '$class'");           
-#        
-#        # go up inheritance tree, eventually get an ID
-#        my $self = $class->SUPER::new( @_ );
-#
-#		# register with mediator
-#		Bio::Phylo::Mediators::TaxaMediator->register($self);
-#		
-#		# done
-#		return $self;        
-#      
-#    }
-
-=back
-
-
-
 =head2 MUTATORS
 
 =over
@@ -90,23 +52,16 @@ Associates invocant with Bio::Phylo::Taxa argument.
 
 sub set_taxa {
     my ( $self, $taxa ) = @_;
-    if ( defined $taxa ) {
-        if ( UNIVERSAL::can( $taxa, '_type' ) && $taxa->_type == $TYPE_CONSTANT ) {
-            $logger->info("setting taxa '$taxa'");
-            Bio::Phylo::Mediators::TaxaMediator->set_link( 
-                '-one'  => $taxa, 
-                '-many' => $self,
-            );
-        }
-        else {
-            Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-                'error' => 'Not a taxa object!'
-            );
-        }
-    }
+	if ( $taxa and looks_like_object $taxa, $TYPE_CONSTANT ) {
+		$logger->info("setting taxa '$taxa'");
+		$mediator->set_link( 
+			'-one'  => $taxa, 
+			'-many' => $self,
+		);
+	}
     else {
         $logger->info("re-setting taxa link");
-        Bio::Phylo::Mediators::TaxaMediator->remove_link( '-many' => $self );
+        $mediator->remove_link( '-many' => $self );
     }
     $self->check_taxa;
     return $self;
@@ -159,7 +114,7 @@ Retrieves association between invocant and Bio::Phylo::Taxa object.
 sub get_taxa {
     my $self = shift;
     $logger->debug("getting taxa");
-    return Bio::Phylo::Mediators::TaxaMediator->get_link( '-source' => $self );
+    return $mediator->get_link( '-source' => $self );
 }
 
 =item check_taxa()
@@ -176,9 +131,30 @@ Performs sanity check on taxon relationships.
 =cut
 
 sub check_taxa {
-    Bio::Phylo::Util::Exceptions::NotImplemented->throw(
-        'error' => 'Not implemented!'
-    );
+	throw 'NotImplemented' => 'Not implemented!';
+}
+
+=item make_taxa()
+
+Creates a taxa block from the objects contents if none exists yet.
+
+ Type    : Decorated interface method
+ Title   : make_taxa
+ Usage   : my $taxa = $obj->make_taxa
+ Function: Creates a taxa block from the objects contents if none exists yet.
+ Returns : $taxa
+ Args    : NONE
+
+=cut
+
+sub make_taxa {
+	my $self = shift;
+	if ( my $taxa = $self->get_taxa ) {
+		return $taxa;
+	}
+	else {
+		throw 'NotImplemented' => 'Not implemented!';
+	}
 }
 
 sub _cleanup { 
@@ -202,13 +178,13 @@ The forest object subclasses L<Bio::Phylo::Taxa::TaxaLinker>.
 
 =item L<Bio::Phylo::Manual>
 
-Also see the manual: L<Bio::Phylo::Manual>.
+Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =back
 
 =head1 REVISION
 
- $Id: TaxaLinker.pm 4265 2007-07-20 14:14:44Z rvosa $
+ $Id: TaxaLinker.pm 604 2008-09-05 17:32:28Z rvos $
 
 =cut
 

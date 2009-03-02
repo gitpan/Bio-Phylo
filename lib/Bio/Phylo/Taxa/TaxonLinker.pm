@@ -1,17 +1,15 @@
-# $Id: TaxonLinker.pm 4251 2007-07-19 14:21:33Z rvosa $
+# $Id: TaxonLinker.pm 604 2008-09-05 17:32:28Z rvos $
 package Bio::Phylo::Taxa::TaxonLinker;
 use Bio::Phylo::Mediators::TaxaMediator;
 use Bio::Phylo::Util::Exceptions;
-use Bio::Phylo::Util::CONSTANT qw(_TAXON_);
-use Bio::Phylo::Util::Logger;
-use Scalar::Util qw(blessed);
+use Bio::Phylo::Util::CONSTANT qw(_TAXON_ looks_like_object);
 use strict;
 
 {
 
 	my $TAXON_CONSTANT = _TAXON_;
 
-	my $logger = Bio::Phylo::Util::Logger->new;
+	my $logger = Bio::Phylo->get_logger;
 
 =head1 NAME
 
@@ -60,20 +58,12 @@ Links the invocant object to a taxon object.
 
 	sub set_taxon {
 		my ( $self, $taxon ) = @_;
-		if ( defined $taxon ) {
-			if ( UNIVERSAL::can( $taxon, '_type' )
-				&& $taxon->_type == $TAXON_CONSTANT )
-			{
-				$logger->info("setting taxon '$taxon'");
-				Bio::Phylo::Mediators::TaxaMediator->set_link(
-					'-one'  => $taxon,
-					'-many' => $self,
-				);
-			}
-			else {
-				Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-					'error' => 'Not a taxon!' );
-			}
+		if ( $taxon and looks_like_object $taxon, $TAXON_CONSTANT ) {
+			$logger->info("setting taxon '$taxon'");
+			Bio::Phylo::Mediators::TaxaMediator->set_link(
+				'-one'  => $taxon,
+				'-many' => $self,
+			);
 		}
 		else {
 			$logger->info("re-setting taxon link");
@@ -134,7 +124,7 @@ Retrieves the Bio::Phylo::Taxa::Taxon object linked to the invocant.
 
 	sub _cleanup {
 		my $self = shift;
-		$logger->debug("cleaning up '$self'");
+		#$logger->debug("cleaning up '$self'");
 	}
 
 =back
@@ -153,13 +143,13 @@ The node object subclasses L<Bio::Phylo::Taxa::TaxonLinker>.
 
 =item L<Bio::Phylo::Manual>
 
-Also see the manual: L<Bio::Phylo::Manual>.
+Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =back
 
 =head1 REVISION
 
- $Id: TaxonLinker.pm 4251 2007-07-19 14:21:33Z rvosa $
+ $Id: TaxonLinker.pm 604 2008-09-05 17:32:28Z rvos $
 
 =cut
 

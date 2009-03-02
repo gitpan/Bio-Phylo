@@ -1,4 +1,4 @@
-# $Id: Custom.pm 4213 2007-07-15 03:11:27Z rvosa $
+# $Id: Custom.pm 604 2008-09-05 17:32:28Z rvos $
 package Bio::Phylo::Matrices::Datatype::Custom;
 use strict;
 use vars qw(@ISA);
@@ -25,13 +25,13 @@ This class subclasses L<Bio::Phylo::Matrices::Datatype>.
 
 =item L<Bio::Phylo::Manual>
 
-Also see the manual: L<Bio::Phylo::Manual>.
+Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =back
 
 =head1 REVISION
 
- $Id: Custom.pm 4213 2007-07-15 03:11:27Z rvosa $
+ $Id: Custom.pm 604 2008-09-05 17:32:28Z rvos $
 
 =cut
 

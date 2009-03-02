@@ -1,6 +1,6 @@
-# $Id: 08-datum.t 4186 2007-07-11 02:15:56Z rvosa $
+# $Id: 08-datum.t 4444 2007-08-21 13:04:36Z rvosa $
 use strict;
-use warnings;
+#use warnings;
 use Test::More tests => 37;
 use Bio::Phylo::Matrices::Datum;
 use Bio::Phylo::Taxa::Taxon;
@@ -13,7 +13,7 @@ $datum->VERBOSE( -level => 0 );
 
 # the name method
 eval { $datum->set_name(':') };
-ok( $@->isa('Bio::Phylo::Util::Exceptions::BadString'),                   '2 bad name' );
+ok( $datum->get_name eq ':',                   '2 bad name' );
 ok( $datum->set_name('OK'),                                               '3 good name' );
 ok( $datum->get_name,                                                     '4 retrieve name' );
 

@@ -1,17 +1,19 @@
-# $Id: TypeSafeData.pm 4265 2007-07-20 14:14:44Z rvosa $
+# $Id: TypeSafeData.pm 604 2008-09-05 17:32:28Z rvos $
 package Bio::Phylo::Matrices::TypeSafeData;
 use Bio::Phylo::Listable;
-use Bio::Phylo::Util::Exceptions;
+use Bio::Phylo::Util::Exceptions 'throw';
+use Bio::Phylo::Util::CONSTANT qw(_MATRIX_ looks_like_hash looks_like_object);
 use Bio::Phylo::Matrices::Datatype;
-use Bio::Phylo::Util::Logger;
+use UNIVERSAL 'isa';
 use strict;
 use vars '@ISA';
 @ISA = qw(Bio::Phylo::Listable);
 
 
 {
-	my $logger = Bio::Phylo::Util::Logger->new;
+    my $logger = __PACKAGE__->get_logger;
     my %type;
+    my $MATRIX_CONSTANT = _MATRIX_;
     
 =head1 NAME
 
@@ -44,12 +46,13 @@ TypeSafeData constructor.
  Usage   : No direct usage, is called by child class;
  Function: Instantiates a Bio::Phylo::Matrices::TypeSafeData
  Returns : a Bio::Phylo::Matrices::TypeSafeData child class
- Args    : -type    => (data type - required)
+ Args    : -type        => (data type - required)
            Optional:
-           -missing => (the symbol for missing data)
-           -gap     => (the symbol for gaps)
-           -lookup  => (a character state lookup hash)
+           -missing     => (the symbol for missing data)
+           -gap         => (the symbol for gaps)
+           -lookup      => (a character state lookup hash)
            -type_object => (a datatype object)
+
 =cut    
 
     sub new {
@@ -57,11 +60,11 @@ TypeSafeData constructor.
         my $class = shift;
         
         # process args
-        my %args = @_;
+        my %args = looks_like_hash @_;
         
         # notify user
         if ( not $args{'-type'} and not $args{'-type_object'} ) {
-        	$logger->warn("No data type provided, will use 'standard'");
+        	$logger->info("No data type provided, will use 'standard'");
         	unshift @_, '-type', 'standard';
         } 
         # notify user
@@ -96,7 +99,7 @@ Set data type.
         my $self = shift;
         my $arg  = shift;
         my ( $type, @args );
-        if ( UNIVERSAL::isa( $arg, 'ARRAY' ) ) {
+        if ( isa( $arg, 'ARRAY' ) ) {
         	@args = @{ $arg };
         	$type = shift @args;
         }
@@ -105,7 +108,17 @@ Set data type.
         	$type = $arg;
         }
         $logger->info("setting type '$type'");
-        $self->set_type_object( Bio::Phylo::Matrices::Datatype->new( $type, @args ) );     
+        my $obj = Bio::Phylo::Matrices::Datatype->new( $type, @args );
+        $self->set_type_object( $obj );
+        eval { looks_like_object $self, $MATRIX_CONSTANT };
+        if ( not $@ ) {
+        	for my $row ( @{ $self->get_entities } ) {
+        		$row->set_type_object( $obj );
+        	}
+        }
+        else {
+        	undef($@);
+        }
         return $self;
     }
 
@@ -125,6 +138,9 @@ Set missing data symbol.
 
     sub set_missing {
         my ( $self, $missing ) = @_;
+        if ( $self->can('get_matchchar') and $missing eq $self->get_matchchar ) {
+        	throw 'BadArgs' => "Missing character '$missing' already in use as match character";
+        }
         $logger->info("setting missing '$missing'");
         $self->get_type_object->set_missing( $missing );
         $self->validate;
@@ -147,6 +163,9 @@ Set gap data symbol.
 
     sub set_gap {
         my ( $self, $gap ) = @_;
+        if ( $self->can('get_matchchar') and $gap eq $self->get_matchchar ) {
+            throw 'BadArgs' => "Gap character '$gap' already in use as match character";
+        }        
         $logger->info("setting gap '$gap'");
         $self->get_type_object->set_gap( $gap );
         $self->validate;
@@ -196,7 +215,7 @@ Set data type object.
     sub set_type_object {
         my ( $self, $obj ) = @_;
         $logger->info("setting character type object");
-        $type{ $self->get_id } = $obj;
+        $type{$$self} = $obj;
         eval {
             $self->validate
         };
@@ -229,7 +248,7 @@ Get data type.
 
 =cut
 
-    sub get_type {    shift->get_type_object->get_type    }
+    sub get_type { shift->get_type_object->get_type }
 
 =item get_missing()
 
@@ -259,7 +278,7 @@ Get gap symbol.
 
 =cut
 
-    sub get_gap {     shift->get_type_object->get_gap     }
+    sub get_gap { shift->get_type_object->get_gap }
 
 =item get_lookup()
 
@@ -274,7 +293,7 @@ Get ambiguity lookup table.
 
 =cut
 
-    sub get_lookup {  shift->get_type_object->get_lookup  }
+    sub get_lookup { shift->get_type_object->get_lookup }
 
 =item get_type_object()
 
@@ -289,7 +308,52 @@ Get data type object.
 
 =cut
 
-    sub get_type_object { $type{ shift->get_id } }
+    sub get_type_object { $type{ ${ $_[0] } } }
+
+=back
+
+=head2 UTILITY METHODS
+
+=over
+
+=item clone()
+
+Clones invocant.
+
+ Type    : Utility method
+ Title   : clone
+ Usage   : my $clone = $object->clone;
+ Function: Creates a copy of the invocant object.
+ Returns : A copy of the invocant.
+ Args    : NONE
+
+=cut
+
+	sub clone {
+		my $self = shift;
+		$logger->info("cloning $self");
+		my %subs = @_;
+		
+		# we'll create type object during construction
+		$subs{'set_type'}    = 0;
+		$subs{'set_missing'} = 0;
+		$subs{'set_gap'}     = 0;
+		$subs{'set_lookup'}  = 0;
+		
+		# we'll override this, the type object is created from scratch
+		$subs{'set_type_object'} = 0;
+		
+		# this will create type object during construction
+		$subs{'new'} = [ 
+			'-type'    => $self->get_type,
+			'-missing' => $self->get_missing,
+			'-gap'     => $self->get_gap,
+			'-lookup'  => $self->get_lookup,
+		];		
+		
+		return $self->SUPER::clone(%subs);
+	
+	} 
 
 =back
 
@@ -313,15 +377,15 @@ Validates the object's contents
 =cut
 
     sub validate {
-        Bio::Phylo::Util::Exceptions::NotImplemented->throw(
-            'error' => 'Not implemented!',
-        );
+    	throw 'NotImplemented' => 'Not implemented!';
     }
     
     sub _cleanup {
         my $self = shift;
-        $logger->debug("cleaning up '$self'");
-        delete $type{ $self->get_id };
+        if ( $self and defined( my $id = $$self ) ) {
+	        $logger->debug("cleaning up '$self'");
+	        delete $type{ $self->get_id };
+        }
     }
 
 }
@@ -339,13 +403,13 @@ therein are also applicable to L<Bio::Phylo::Matrices::TypeSafeData> objects.
 
 =item L<Bio::Phylo::Manual>
 
-Also see the manual: L<Bio::Phylo::Manual>.
+Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =back
 
 =head1 REVISION
 
- $Id: TypeSafeData.pm 4265 2007-07-20 14:14:44Z rvosa $
+ $Id: TypeSafeData.pm 604 2008-09-05 17:32:28Z rvos $
 
 =cut
 

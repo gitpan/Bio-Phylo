@@ -1,19 +1,12 @@
-# $Id: Taxon.pm 4265 2007-07-20 14:14:44Z rvosa $
-# Subversion: $Rev: 177 $
+# $Id: Taxon.pm 604 2008-09-05 17:32:28Z rvos $
 package Bio::Phylo::Taxa::Taxon;
 use strict;
-use Bio::Phylo::Util::IDPool;
-use Scalar::Util qw(weaken blessed);
 use Bio::Phylo::Util::XMLWritable;
-use Bio::Phylo::Util::CONSTANT qw(_DATUM_ _NODE_ _TAXON_ _TAXA_);
+use Bio::Phylo::Util::CONSTANT qw(_DATUM_ _NODE_ _TAXON_ _TAXA_ looks_like_object);
 use Bio::Phylo::Mediators::TaxaMediator;
-use Bio::Phylo::Util::Logger;
-
-# One line so MakeMaker sees it.
-use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
+use vars qw(@ISA);
 
 # classic @ISA manipulation, not using 'base'
-use vars qw($VERSION @ISA);
 @ISA = qw(Bio::Phylo::Util::XMLWritable);
 {
 	
@@ -22,7 +15,8 @@ use vars qw($VERSION @ISA);
 	my $DATUM_CONSTANT     = _DATUM_;
 	my $NODE_CONSTANT      = _NODE_;
 
-	my $logger = Bio::Phylo::Util::Logger->new;
+	my $logger   = __PACKAGE__->get_logger;
+	my $mediator = 'Bio::Phylo::Mediators::TaxaMediator';
 
 =head1 NAME
 
@@ -110,7 +104,7 @@ Taxon constructor.
         $logger->info("constructor called for '$class'");
         
         # go up inheritance tree, eventually get an ID
-        return $class->SUPER::new( @_ );
+        return $class->SUPER::new( '-tag' => 'otu', @_ );
     }
 
 =back
@@ -136,17 +130,10 @@ Associates argument data with invocant.
 
     sub set_data {
         my ( $self, $datum ) = @_;
-        my $type;
-        eval { $type = $datum->_type };
-        if ( ! $@ && $type == $DATUM_CONSTANT ) {
-            Bio::Phylo::Mediators::TaxaMediator->set_link( 
+        if ( looks_like_object $datum, $DATUM_CONSTANT ) {
+            $mediator->set_link( 
                     '-one'  => $self, 
                     '-many' => $datum, 
-            );
-        }
-        else {
-            Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-                'error' => 'Not a datum!',                                                  
             );
         }
         return $self;
@@ -168,19 +155,12 @@ Associates argument node with invocant.
 
     sub set_nodes {
         my ( $self, $node ) = @_;
-        my $type;
-        eval { $type = $node->_type };
-        if ( ! $@ && $type == $NODE_CONSTANT ) {        
-            Bio::Phylo::Mediators::TaxaMediator->set_link( 
+        if ( looks_like_object $node, $NODE_CONSTANT ) {        
+            $mediator->set_link( 
                 '-one'  => $self, 
                 '-many' => $node, 
             );
-        }
-        else {
-            Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-                'error' => 'Not a node!',                                                  
-            );
-        }        
+        }       
         return $self;
     }
 
@@ -201,7 +181,7 @@ Removes association between argument data and invocant.
 
     sub unset_datum {
         my ( $self, $datum ) = @_;
-        Bio::Phylo::Mediators::TaxaMediator->remove_link( 
+        $mediator->remove_link( 
             '-one'  => $self, 
             '-many' => $datum,
         );
@@ -225,7 +205,7 @@ Removes association between argument node and invocant.
 
     sub unset_node {
         my ( $self, $node ) = @_;
-        Bio::Phylo::Mediators::TaxaMediator->remove_link( 
+        $mediator->remove_link( 
             '-one'  => $self, 
             '-many' => $node,
         );
@@ -256,7 +236,7 @@ Retrieves associated datum objects.
 
     sub get_data {
         my $self = shift;
-        return Bio::Phylo::Mediators::TaxaMediator->get_link( 
+        return $mediator->get_link( 
             '-source' => $self, 
             '-type'   => $DATUM_CONSTANT,
         );
@@ -279,7 +259,7 @@ Retrieves associated node objects.
 
     sub get_nodes {
         my $self = shift;
-        return Bio::Phylo::Mediators::TaxaMediator->get_link( 
+        return $mediator->get_link( 
             '-source' => $self, 
             '-type'   => $NODE_CONSTANT,
         );
@@ -308,7 +288,7 @@ Taxon destructor.
         my $self = shift;
         
         # notify user
-        $logger->debug("destructor called for '$self'");
+        #$logger->debug("destructor called for '$self'");
         
         # recurse up inheritance tree for cleanup
         $self->SUPER::DESTROY;
@@ -357,13 +337,13 @@ there are also applicable to the taxon object.
 
 =item L<Bio::Phylo::Manual>
 
-Also see the manual: L<Bio::Phylo::Manual>.
+Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =back
 
 =head1 REVISION
 
- $Id: Taxon.pm 4265 2007-07-20 14:14:44Z rvosa $
+ $Id: Taxon.pm 604 2008-09-05 17:32:28Z rvos $
 
 =cut
 

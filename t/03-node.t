@@ -1,6 +1,6 @@
-# $Id: 03-node.t 4186 2007-07-11 02:15:56Z rvosa $
+# $Id: 03-node.t 4444 2007-08-21 13:04:36Z rvosa $
 use strict;
-use warnings;
+#use warnings;
 use Test::More tests => 73;
 use Bio::Phylo::IO qw(parse unparse);
 use Bio::Phylo::Forest::Node;
@@ -29,7 +29,7 @@ eval { $node->get('BAD!') };
 ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Util::Exceptions::UnknownMethod' ),'13 ! get ' );
 
 eval { $node->set_name(':();,') };
-ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Util::Exceptions::BadString' ),    '14 ! name ' );
+ok( $node->get_name eq ':();,',    '14 ! name ' );
 
 eval { $node->set_branch_length('BAD!') };
 ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Util::Exceptions::BadNumber' ),    '15 ! branch_length ' );
@@ -94,7 +94,7 @@ my $node1 = new Bio::Phylo::Forest::Node;
 my $node2 = new Bio::Phylo::Forest::Node;
 my $node3 = new Bio::Phylo::Forest::Node;
 $node1->set_parent($node2);
-ok( !$node1->get_mrca($node3),                    '60 is descendant of' );
+ok( $node1->get_mrca($node3)->get_id == $node2->get_id, '60 is descendant of' );
 ok( !$node1->get_taxon,                           '61 get no taxon' );
 
 eval { $node1->set_taxon('BAD!') };

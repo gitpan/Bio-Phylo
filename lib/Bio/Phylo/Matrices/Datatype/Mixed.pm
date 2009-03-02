@@ -1,8 +1,10 @@
-# $Id: Mixed.pm 4265 2007-07-20 14:14:44Z rvosa $
+# $Id: Mixed.pm 604 2008-09-05 17:32:28Z rvos $
 package Bio::Phylo::Matrices::Datatype::Mixed;
 use strict;
-use Bio::Phylo::Util::Exceptions;
-use base 'Bio::Phylo::Matrices::Datatype';
+use Bio::Phylo::Matrices::Datatype;
+use Bio::Phylo::Util::Exceptions 'throw';
+use vars '@ISA';
+@ISA = qw(Bio::Phylo::Matrices::Datatype);
 
 {
 
@@ -19,15 +21,12 @@ objects.
 
 =cut   
 
-    my ( %range, %missing, %gap );
-    my @fields = ( \%range, \%missing, \%gap );
+    my @fields = \( my ( %range, %missing, %gap ) );
     
     sub _new { 
         my ( $package, $self, $ranges ) = @_;
         if ( not UNIVERSAL::isa( $ranges, 'ARRAY' ) ) {
-            Bio::Phylo::Util::Exceptions::BadArgs->throw(
-            	'error' => "No type ranges specified for 'mixed' data type!"
-            );
+            throw 'BadArgs' => "No type ranges specified for 'mixed' data type!"; 
         }
         my $id = $self->get_id;
         $range{   $id } = [];
@@ -75,7 +74,12 @@ Sets the symbol for missing data.
 
     sub set_missing {
         my ( $self, $missing ) = @_;
-        $missing{ $self->get_id } = $missing;
+        if ( not $missing eq $self->get_gap ) {
+        	$missing{ $self->get_id } = $missing;
+        }
+        else {
+        	throw 'BadArgs' => "Missing character '$missing' already in use as gap character";
+        }        
         return $self;
     }
 
@@ -95,7 +99,12 @@ Sets the symbol for gaps.
 
     sub set_gap {
         my ( $self, $gap ) = @_;
-        $gap{ $self->get_id } = $gap;
+        if ( not $gap eq $self->get_missing ) {
+        	$gap{ $self->get_id } = $gap;
+        }
+        else {
+        	throw 'BadArgs' => "Gap character '$gap' already in use as missing character";
+        }
         return $self;
     }
 
@@ -187,7 +196,12 @@ Returns type object for site number.
 
     sub get_type_for_site {
         my ( $self, $i ) = @_;     
-        return $range{ $self->get_id }->[$i];
+        if ( exists $range{ $self->get_id }->[$i] ) {
+        	return $range{ $self->get_id }->[$i];
+        }
+        else {
+        	return $range{ $self->get_id }->[-1];
+        }
     }    
 
 =back
@@ -242,25 +256,38 @@ Returns true if argument only contains valid characters
 =cut
 
     sub is_valid { 
-        my ( $self, $datum ) = @_;
+        my $self = shift;
+        my $datum = $_[0];
+        my $is_datum_object;
         my ( $start, $end );
-        if ( UNIVERSAL::can( $datum, 'get_position') and UNIVERSAL::can( $datum, 'get_position' ) ) {
+        if ( UNIVERSAL::can( $datum, 'get_position') and UNIVERSAL::can( $datum, 'get_length' ) ) {
         	( $start, $end ) = ( $datum->get_position - 1, $datum->get_length - 1 );
-        }        
+        	$is_datum_object = 1;
+        }
+        else {
+        	$start = 0;
+        	$end = $#_;
+        }     
         my $ranges = $self->$get_ranges;
         my $type;
-        MODEL_RANGE_CHECK: for my $i ( $start .. $end ) {
-            if ( not $type ) {
-                $type = $ranges->[$i];
+		MODEL_RANGE_CHECK: for my $i ( $start .. $end ) {
+    		if ( not $type ) {
+        		$type = $ranges->[$i];
             }
-            elsif ( $type != $ranges->[$i] ) {
-                die; # needs to slice
-            }
+		    elsif ( $type != $ranges->[$i] ) {
+    		    #die; # needs to slice
+    		    return 1; # TODO
+        	}
             else {
-                next MODEL_RANGE_CHECK;
-            }
-        }
-        return $type->is_valid( $datum );
+	            next MODEL_RANGE_CHECK;
+	    	   }
+    	}
+    	if ( $is_datum_object ) {
+        	return $type->is_valid( $datum );
+    	}
+    	else {
+    		return 1; # FIXME
+    	}
     }
     
     sub DESTROY {
@@ -287,13 +314,13 @@ objects.
 
 =item L<Bio::Phylo::Manual>
 
-Also see the manual: L<Bio::Phylo::Manual>.
+Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =back
 
 =head1 REVISION
 
- $Id: Mixed.pm 4265 2007-07-20 14:14:44Z rvosa $
+ $Id: Mixed.pm 604 2008-09-05 17:32:28Z rvos $
 
 =cut
 

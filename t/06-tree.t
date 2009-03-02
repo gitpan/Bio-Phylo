@@ -1,6 +1,6 @@
-# $Id: 06-tree.t 4186 2007-07-11 02:15:56Z rvosa $
+# $Id: 06-tree.t 4587 2007-09-27 21:16:10Z rvosa $
 use strict;
-use warnings;
+#use warnings;
 use Test::More tests => 48;
 use Bio::Phylo::IO qw(parse unparse);
 use Bio::Phylo::Forest::Node;
@@ -135,7 +135,7 @@ eval { $undef->get('BAD!') };
 ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Util::Exceptions::UnknownMethod' ), '45 bad arg get' );
 ok( $undef->calc_imbalance,         '46 calc imbalance' );
 
-# creating a cyclical tree
+# trying to create a cyclical tree, no mas!
 my $node1    = new Bio::Phylo::Forest::Node;
 my $node2    = new Bio::Phylo::Forest::Node;
 my $cyclical = new Bio::Phylo::Forest::Tree;
@@ -143,7 +143,7 @@ $node1->set_parent($node2);
 $node2->set_parent($node1);
 $cyclical->insert($node1);
 $cyclical->insert($node2);
-ok( !$cyclical->get_root, '47 no root in cycle' );
+ok( $cyclical->get_root, '47 no root in cycle' );
 ok( $tree->DESTROY, '48 destroy' );
 __DATA__
 ((H:1,I:1):1,(G:1,(F:0.01,(E:0.3,(D:2,(C:0.1,(A:1,B:1)cherry:1):1):1):1):1):1):0;

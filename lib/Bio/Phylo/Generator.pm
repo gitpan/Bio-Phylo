@@ -1,23 +1,22 @@
-# $Id: Generator.pm 4234 2007-07-17 13:41:02Z rvosa $
+# $Id: Generator.pm 604 2008-09-05 17:32:28Z rvos $
 package Bio::Phylo::Generator;
 use strict;
-use Bio::Phylo;
 use Bio::Phylo::Util::IDPool;
+use Bio::Phylo::Util::CONSTANT 'looks_like_hash';
 use Bio::Phylo::Forest;
 use Bio::Phylo::Forest::Tree;
 use Bio::Phylo::Forest::Node;
-use Bio::Phylo::Util::Logger;
-use Math::Random qw(random_exponential);
+use Bio::Phylo::Util::Exceptions 'throw';
 
-# One line so MakeMaker sees it.
-use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
+eval { require Math::Random };
+if ( $@ ) {
+	throw 'ExtensionError' => "Error loading the Math::Random extension: $@";
+}
+Math::Random->import('random_exponential');
 
-# classic @ISA manipulation, not using 'base'
-use vars qw($VERSION @ISA);
-@ISA = qw(Bio::Phylo);
 {
 
-	my $logger = Bio::Phylo::Util::Logger->new;
+	my $logger = Bio::Phylo::Forest->get_logger;
 
 =head1 NAME
 
@@ -68,10 +67,8 @@ Generator constructor.
 		# notify user
 		$logger->info("constructor called for '$class'");
 
-		# recurse up inheritance tree, get ID
-		my $self = $class->SUPER::new(@_);
-
-		# local fields would be set here
+		# the object turns out to be stateless
+		my $self = bless \$class, $class;
 
 		return $self;
 	}
@@ -108,7 +105,7 @@ object populated with Yule/Hey trees.
 
 	sub gen_rand_pure_birth {
 		my $random  = shift;
-		my %options = @_;
+		my %options = looks_like_hash @_;
 		my ( $yule, $hey );
 		if ( $options{'-model'} =~ m/yule/i ) {
 			$yule = 1;
@@ -117,8 +114,7 @@ object populated with Yule/Hey trees.
 			$hey = 1;
 		}
 		else {
-			Bio::Phylo::Util::Exceptions::BadFormat->throw(
-				error => "model \"$options{'-model'}\" not implemented" );
+			throw 'BadFormat' => "model \"$options{'-model'}\" not implemented";
 		}
 		my $forest = Bio::Phylo::Forest->new;
 		for ( 0 .. $options{'-trees'} ) {
@@ -228,7 +224,7 @@ not sampled from a distribution).
 
 	sub gen_exp_pure_birth {
 		my $random  = shift;
-		my %options = @_;
+		my %options = looks_like_hash @_;
 		my ( $yule, $hey );
 		if ( $options{'-model'} =~ m/yule/i ) {
 			$yule = 1;
@@ -237,8 +233,7 @@ not sampled from a distribution).
 			$hey = 1;
 		}
 		else {
-			Bio::Phylo::Util::Exceptions::BadFormat->throw(
-				error => "model \"$options{'-model'}\" not implemented" );
+			throw 'BadFormat' => "model \"$options{'-model'}\" not implemented";
 		}
 		my $forest = Bio::Phylo::Forest->new;
 		for ( 0 .. $options{'-trees'} ) {
@@ -343,7 +338,7 @@ such that all shapes are equally probable.
 
 	sub gen_equiprobable {
 		my $random  = shift;
-		my %options = @_;
+		my %options = looks_like_hash @_;
 		my $forest  = Bio::Phylo::Forest->new( '-name' => 'Equiprobable' );
 		for ( 0 .. $options{'-trees'} ) {
 			my $tree = Bio::Phylo::Forest::Tree->new( '-name' => 'Tree' . $_ );
@@ -379,24 +374,6 @@ such that all shapes are equally probable.
 		return $forest;
 	}
 
-=begin comment
-
- Type    : Internal method
- Title   : _cleanup
- Usage   : $trees->_cleanup;
- Function: Called during object destruction, for cleanup of instance data
- Returns : 
- Args    :
-
-=end comment
-
-=cut
-
-	sub _cleanup {
-		my $self = shift;
-		$logger->info("cleaning up '$self'");
-	}
-
 =back
 
 =head1 SEE ALSO
@@ -405,13 +382,13 @@ such that all shapes are equally probable.
 
 =item L<Bio::Phylo::Manual>
 
-Also see the manual: L<Bio::Phylo::Manual>.
+Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =back
 
 =head1 REVISION
 
- $Id: Generator.pm 4234 2007-07-17 13:41:02Z rvosa $
+ $Id: Generator.pm 604 2008-09-05 17:32:28Z rvos $
 
 =cut
 

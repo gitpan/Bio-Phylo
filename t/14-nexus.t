@@ -1,10 +1,10 @@
-# $Id: 14-nexus.t 4186 2007-07-11 02:15:56Z rvosa $
+# $Id: 14-nexus.t 4444 2007-08-21 13:04:36Z rvosa $
 use strict;
-use warnings;
+#use warnings;
 use Test::More tests => 5;
 use Bio::Phylo::IO qw(parse);
 
-Bio::Phylo::IO->VERBOSE( -level => 1 );
+#Bio::Phylo::IO->VERBOSE( -level => 1 );
 
 # Up until the next big block of comment tokens, a number of nexus strings is
 # defined.

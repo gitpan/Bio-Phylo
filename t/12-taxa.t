@@ -1,6 +1,6 @@
-# $Id: 12-taxa.t 4186 2007-07-11 02:15:56Z rvosa $
+# $Id: 12-taxa.t 4444 2007-08-21 13:04:36Z rvosa $
 use strict;
-use warnings;
+#use warnings;
 use Test::More tests => 4;
 use Bio::Phylo::Taxa;
 ok( my $taxa = new Bio::Phylo::Taxa, '1 initialize object' );

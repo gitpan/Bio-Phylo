@@ -1,28 +1,26 @@
-# $Id: Matrices.pm 4234 2007-07-17 13:41:02Z rvosa $
-# Subversion: $Rev: 186 $
+# $Id: Matrices.pm 604 2008-09-05 17:32:28Z rvos $
 package Bio::Phylo::Matrices;
 use strict;
-use warnings FATAL => 'all';
-use Bio::Phylo;
+#use warnings FATAL => 'all';
 use Bio::Phylo::Listable;
 use Bio::Phylo::Util::CONSTANT qw(_NONE_ _MATRICES_);
-use Bio::Phylo::Util::Logger;
-use vars qw($VERSION @ISA);
+use vars qw(@ISA);
 
-# set version based on svn rev
-my $version = $Bio::Phylo::VERSION;
-my $rev     = '$Id: Matrices.pm 4234 2007-07-17 13:41:02Z rvosa $';
-$rev        =~ s/^[^\d]+(\d+)\b.*$/$1/;
-$version    =~ s/_.+$/_$rev/;
-$VERSION    = $version;
+=begin comment
+
+This class has no internal state, no cleanup is necessary.
+
+=end comment
+
+=cut
 
 # classic @ISA manipulation, not using 'base'
 @ISA = qw(Bio::Phylo::Listable);
 
 {
-	my $CONSTANT_TYPE = _MATRICES_;
-	my $CONSTANT_CONTAINER = _NONE_;
-	my $logger = Bio::Phylo::Util::Logger->new;
+	my $TYPE      = _MATRICES_;
+	my $CONTAINER = _NONE_;
+	my $logger    = __PACKAGE__->get_logger;
 
 =head1 NAME
 
@@ -63,38 +61,20 @@ Matrices constructor.
 
 =cut
 
-    sub new {
-        # could be child class
-        my $class = shift;
-        
-        # notify user
-        $logger->info("constructor called for '$class'");
-        
-        # recurse up inheritance tree, get ID
-        my $self = $class->SUPER::new( @_ );
-        
-        # local fields would be set here
-        
-        return $self;
-    }
-
-=begin comment
-
- Type    : Internal method
- Title   : _cleanup
- Usage   : $trees->_cleanup;
- Function: Called during object destruction, for cleanup of instance data
- Returns : 
- Args    :
-
-=end comment
-
-=cut
-
-    sub _cleanup {
-        my $self = shift;
-        $logger->debug("cleaning up '$self'");
-    }
+#    sub new {
+#        # could be child class
+#        my $class = shift;
+#        
+#        # notify user
+#        $logger->info("constructor called for '$class'");
+#        
+#        # recurse up inheritance tree, get ID
+#        my $self = $class->SUPER::new( @_ );
+#        
+#        # local fields would be set here
+#        
+#        return $self;
+#    }
 
 =begin comment
 
@@ -109,7 +89,7 @@ Matrices constructor.
 
 =cut
 
-    sub _container { $CONSTANT_CONTAINER }
+    sub _container { $CONTAINER }
 
 =begin comment
 
@@ -124,7 +104,7 @@ Matrices constructor.
 
 =cut
 
-    sub _type { $CONSTANT_TYPE }
+    sub _type { $TYPE }
 
 =back
 
@@ -139,13 +119,13 @@ object. Look there for more methods applicable to the matrices object.
 
 =item L<Bio::Phylo::Manual>
 
-Also see the manual: L<Bio::Phylo::Manual>.
+Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =back
 
 =head1 REVISION
 
- $Id: Matrices.pm 4234 2007-07-17 13:41:02Z rvosa $
+ $Id: Matrices.pm 604 2008-09-05 17:32:28Z rvos $
 
 =cut
 

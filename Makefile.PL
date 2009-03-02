@@ -1,31 +1,30 @@
-# $Id: Makefile.PL 4185 2007-07-11 02:15:42Z rvosa $
+# $Id: Makefile.PL 416 2008-02-07 04:52:30Z rvos $
 use strict;
 use warnings;
 use ExtUtils::MakeMaker;
+use File::Find;
+
+check_prereq( 'SVG', 'Math::Random', 'XML::Twig' );
 
 WriteMakefile(
-    NAME                => 'Bio::Phylo',
-    AUTHOR              => 'Rutger Vos <rvos@interchange.ubc.ca>',
-    VERSION_FROM        => 'lib/Bio/Phylo.pm',
-    ABSTRACT_FROM       => 'lib/Bio/Phylo.pm',
-    EXE_FILES           => [
-                            'bin/age2bl.pl',
-                            'bin/bremer.pl',
-                            'bin/dnd2svg.pl',
-                            'bin/dndtag.pl',
-                            'bin/droptip.pl',
-                            'bin/LRmb.pl',
-                            'bin/postmb.pl'
-                            ],
-    PL_FILES            => {},
-    PREREQ_PM => {
-        'Scalar::Util'     => 0,
-        'Exception::Class' => 1.23,
-        'Test::More'       => 0.47,
-        'Math::Random'     => 0.67,
-        'IO::String'       => 1.05,
-        'SVG'              => 1.07,
-    },
-    dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
-    clean               => { FILES => 'Bio-Phylo-*' },
+    'NAME'         => 'Bio-Phylo',
+    'AUTHOR'       => 'Rutger Vos <rvosa@interchange.ubc.ca>',
+    'PL_FILES'     => {},
+    'EXE_FILES'    => [],
+    'VERSION_FROM' => 'lib/Bio/Phylo.pm',    
+    'clean'        => {},    
+    'dist'         => { 'COMPRESS' => 'gzip -9f', 'SUFFIX' => 'gz', },
 );
+
+sub check_prereq {
+    my @classes = @_;
+    for my $class ( @classes ) {
+        eval "require $class";
+        if ( $@ ) {
+            print "*** The optional dependency \"$class\" can't be loaded.\n";
+            print "    I will continue, but some functionality will not be \n";
+            print "    available. Refer to the Bio::Phylo README file for\n";
+            print "    more information.\n\n";
+        }
+    }
+}

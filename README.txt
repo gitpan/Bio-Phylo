@@ -19,17 +19,16 @@ http://testers.cpan.org/show/Bio-Phylo.html
 
 INSTALLATION
 
-Bio::Phylo has the following dependencies (0 = any version):
-  Scalar::Util: 0
-  Exception::Class: 0
-  Test::More: 0
-  Math::Random: 0
-  IO::String: 0
-  SVG: 1.07
-  Storable: 0
-  fields: 0
-  base: 0
- 
+Bio::Phylo has the following required dependencies:
+	Scalar::Util (core)
+	Test::More (core)
+	IO::String (non-core, but installs everywhere)
+
+And the following optional dependencies:
+	SVG (to draw trees as SVG vector drawings)
+	Math::Random (to simulate trees)
+	XML::Twig (to parse nexml)
+
 These modules are all available from
 http://www.cpan.org, and should install without
 problems on most platforms.
@@ -50,7 +49,7 @@ http://support.microsoft.com/default.aspx?scid=kb;en-us;Q132084)
 
 AUTHOR
 
-Rutger Vos, rvos@interchange.ubc.ca, rvosa@sfu.ca
+Rutger Vos, rvos@interchange.ubc.ca
 
 BUGS
 

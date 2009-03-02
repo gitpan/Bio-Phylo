@@ -1,48 +1,33 @@
-# $Id: Node.pm 4265 2007-07-20 14:14:44Z rvosa $
+# $Id: Node.pm 770 2009-02-22 16:57:26Z rvos $
 package Bio::Phylo::Forest::Node;
 use strict;
 use Bio::Phylo::Taxa::TaxonLinker;
-use Bio::Phylo::Util::CONSTANT qw(_NODE_ _TREE_ _TAXON_ looks_like_number);
-use Bio::Phylo::Util::XMLWritable;
-use Bio::Phylo::Adaptor;
-use Bio::Phylo::Mediators::NodeMediator;
-use Bio::Phylo::Util::Logger;
-use Scalar::Util qw(weaken);
+use Bio::Phylo::Util::CONSTANT qw(_NODE_ _TREE_ _TAXON_ looks_like_number looks_like_object looks_like_hash);
+use Bio::Phylo::Listable;
+use Bio::Phylo::Util::Exceptions 'throw';
+use Scalar::Util 'weaken';
+
+no warnings 'recursion';
 
 # classic @ISA manipulation, not using 'base'
-use vars qw($VERSION @ISA);
+use vars qw(@ISA);
 @ISA = qw(
   Bio::Phylo::Taxa::TaxonLinker
-  Bio::Phylo::Util::XMLWritable
+  Bio::Phylo::Listable
 );
 
-# set version based on svn rev
-my $version = $Bio::Phylo::VERSION;
-my $rev     = '$Id: Node.pm 4265 2007-07-20 14:14:44Z rvosa $';
-$rev     =~ s/^[^\d]+(\d+)\b.*$/$1/;
-$version =~ s/_.+$/_$rev/;
-$VERSION = $version;
+my $LOADED_WRAPPERS = 0;
 
 {
 
-	# node mediator singleton
-	my $mediator = Bio::Phylo::Mediators::NodeMediator->new;
-
 	# logger singleton
-	my $logger = Bio::Phylo::Util::Logger->new;
+	my $logger = __PACKAGE__->get_logger;
 
 	# store type constant
 	my ( $TYPE_CONSTANT, $CONTAINER_CONSTANT ) = ( _NODE_, _TREE_ );
 
-	# $fields hashref necessary for object destruction
-	my @fields = \(
-#		my %parent,
-#		my %first_daughter,
-#		my %last_daughter,
-#		my %next_sister,
-#		my %previous_sister,
-		my %branch_length,
-	);
+	# @fields array necessary for object destruction
+	my @fields = \( my ( %branch_length, %parent, %tree ) );
 
 =head1 NAME
 
@@ -136,16 +121,60 @@ Node constructor.
 
 		# notify user
 		$logger->info("constructor called for '$class'");
+		
+		# process bioperl args
+		my %args = looks_like_hash @_;
+		if ( exists $args{'-leaf'} ) {
+			delete $args{'-leaf'};
+		}
+		if ( exists $args{'-id'} ) {
+			my $name = $args{'-id'};
+			delete $args{'-id'};
+			$args{'-name'} = $name;
+		}
+		if ( exists $args{'-nhx'} ) {
+			my $hash = $args{'-nhx'};
+			delete $args{'-nhx'};
+			$args{'-generic'} = $hash;
+		}
+		if ( not exists $args{'-tag'} ) {
+			$args{'-tag'} = 'node';
+		}
 
 		# go up inheritance tree, eventually get an ID
-		my $self = $class->SUPER::new(@_);
+		my $self = $class->SUPER::new(%args);
+		
+		if ( not $LOADED_WRAPPERS ) {
+			eval do { local $/; <DATA> };
+			$LOADED_WRAPPERS++;
+		}	
 
-		# register with node mediator
-		$mediator->register($self);
-
-		# adapt (or not, if $Bio::Phylo::COMPAT is not set)
-		return Bio::Phylo::Adaptor->new($self);
+		return $self;
 	}
+
+	my $set_raw_parent = sub {
+		my ( $self, $parent ) = @_;
+		$parent{ $$self } = $parent; # XXX here we modify parent
+		weaken $parent{ $$self } if $parent;
+	};
+
+	my $get_parent = sub {
+		my $self = shift;
+		return $parent{ $$self };
+	};
+	
+	my $get_children = sub { shift->get_entities };
+	
+	my $get_branch_length = sub {
+		my $self = shift;
+		return $branch_length{ $$self };
+	};
+
+	my $set_raw_child = sub {
+		my ( $self, $child, $i ) = @_;
+		$i = $self->last_index + 1 if not defined $i or $i == -1;
+		$self->insert_at_index( $child, $i ); # XXX here we modify children
+	};
 
 =item new_from_bioperl()
 
@@ -166,7 +195,7 @@ Node constructor from bioperl L<Bio::Tree::NodeI> argument.
 
 	sub new_from_bioperl {
 		my ( $class, $bpnode ) = @_;
-		my $node = __PACKAGE__->new;
+		my $node = $class->new;
 		$node->set_name( $bpnode->id );
 		$node->set_branch_length( $bpnode->branch_length );
 		$node->set_desc( $bpnode->description );
@@ -176,7 +205,6 @@ Node constructor from bioperl L<Bio::Tree::NodeI> argument.
 		for my $i ( 0 .. $#k ) {
 			$node->set_generic( $k[$i] => $v[$i] );
 		}
-		$mediator->register($node);
 		return $node;
 	}
 
@@ -186,12 +214,86 @@ Node constructor from bioperl L<Bio::Tree::NodeI> argument.
 
 =over
 
+=item prune_child()
+
+Sets argument as invocant's parent.
+
+ Type    : Mutator
+ Title   : prune_child
+ Usage   : $parent->prune_child($child);
+ Function: Removes $child (and its descendants) from $parent's children
+ Returns : Modified object.
+ Args    : A valid argument is Bio::Phylo::Forest::Node object.
+
+=cut
+
+	sub prune_child {
+		my ( $self, $child ) = @_;	
+		$self->delete( $child );
+		return $self;
+	}
+
+=item collapse()
+
+Collapse node.
+
+ Type    : Mutator
+ Title   : collapse
+ Usage   : $node->collapse;
+ Function: Attaches invocant's children to invocant's parent.
+ Returns : Modified object.
+ Args    : NONE
+ Comments: If defined, adds invocant's branch 
+           length to that of its children. If
+           $node is in a tree, removes itself
+           from that tree.
+
+=cut
+
+	sub collapse {
+		my $self = shift;
+		
+		# can't collapse root
+		if ( my $parent = $self->get_parent ) {
+		
+			# can't collapse terminal nodes
+			if ( my @children = @{ $self->get_children } ) {
+			
+				# add node's branch length to that of children
+				my $length = $self->get_branch_length;
+				for my $child ( @children ) {
+					if ( defined $length ) {
+						my $child_length = $child->get_branch_length || 0;
+						$child->set_branch_length( $length + $child_length );
+					}
+					
+					# attach children to node's parent
+					$child->set_parent( $parent );
+				}
+				
+				# prune node from parent
+				$parent->prune_child( $self );
+				
+				# delete node from tree
+				if ( my $tree = $self->_get_container ) {
+					$tree->delete( $self );
+				}
+			}
+			else {
+				return $self;
+			}
+		}
+		else {
+			return $self;
+		}
+	}
+
 =item set_parent()
 
 Sets argument as invocant's parent.
 
  Type    : Mutator
- Title   : parent
+ Title   : set_parent
  Usage   : $node->set_parent($parent);
  Function: Assigns a node's parent.
  Returns : Modified object.
@@ -204,26 +306,11 @@ Sets argument as invocant's parent.
 
 	sub set_parent {
 		my ( $self, $parent ) = @_;
-		my $id = $self->get_id;
-		if ($parent) {
-			my $type;
-			eval { $type = $parent->_type };
-			if ( $@ || $type != $TYPE_CONSTANT ) {
-				Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-					error => "\"$parent\" is not a valid node object" );
-			}
-			else {
-
-				#$parent{$id} = $parent;
-				#weaken $parent{$id};
-				$mediator->set_link(
-					'node'   => $self,
-					'parent' => $parent,
-				);
-			}
+		if ( $parent and looks_like_object $parent, $TYPE_CONSTANT ) {		
+			$parent->set_child( $self );
 		}
-		else {
-			#$parent{$id} = undef;
+		elsif ( not $parent ) {
+			$set_raw_parent->( $self );
 		}
 		return $self;
 	}
@@ -244,28 +331,8 @@ Sets argument as invocant's first daughter.
 =cut
 
 	sub set_first_daughter {
-		my ( $self, $first_daughter ) = @_;
-		my $id = $self->get_id;
-		if ($first_daughter) {
-			my $type;
-			eval { $type = $first_daughter->_type };
-			if ( $@ || $type != $TYPE_CONSTANT ) {
-				Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-					error => "\"$first_daughter\" is not a valid node object" );
-			}
-			else {
-
-				#$first_daughter{$id} = $first_daughter;
-				#weaken $first_daughter{$id};
-				$mediator->set_link(
-					'node'           => $self,
-					'first_daughter' => $first_daughter,
-				);
-			}
-		}
-		else {
-			#$first_daughter{$id} = undef;
-		}
+		my ( $self, $fd ) = @_;
+		$self->set_child( $fd, 0 );
 		return $self;
 	}
 
@@ -286,28 +353,8 @@ Sets argument as invocant's last daughter.
 =cut
 
 	sub set_last_daughter {
-		my ( $self, $last_daughter ) = @_;
-		my $id = $self->get_id;
-		if ($last_daughter) {
-			my $type;
-			eval { $type = $last_daughter->_type };
-			if ( $@ || $type != $TYPE_CONSTANT ) {
-				Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-					error => "\"$last_daughter\" is not a valid node object" );
-			}
-			else {
-
-				#$last_daughter{$id} = $last_daughter;
-				#weaken $last_daughter{$id};
-				$mediator->set_link(
-					'node'          => $self,
-					'last_daughter' => $last_daughter,
-				);
-			}
-		}
-		else {
-			#$last_daughter{$id} = undef;
-		}
+		my ( $self, $ld ) = @_;
+		$self->set_child( $ld, scalar @{ $self->get_children } );
 		return $self;
 	}
 
@@ -328,27 +375,20 @@ Sets argument as invocant's previous sister.
 =cut
 
 	sub set_previous_sister {
-		my ( $self, $previous_sister ) = @_;
-		my $id = $self->get_id;
-		if ($previous_sister) {
-			my $type;
-			eval { $type = $previous_sister->_type };
-			if ( $@ || $type != $TYPE_CONSTANT ) {
-				Bio::Phylo::Util::Exceptions::ObjectMismatch->throw( error =>
-					  "\"$previous_sister\" is not a valid node object" );
+		my ( $self, $ps ) = @_;
+		if ( $ps and looks_like_object $ps, $TYPE_CONSTANT ) {
+			if ( my $parent  = $self->get_parent ) {
+				my $children = $parent->get_children;
+				my $j = 0;
+				FINDSELF: for ( my $i = $#{ $children }; $i >= 0; $i-- ) {
+					if ( $children->[$i] == $self ) {
+						$j = $i - 1;
+						last FINDSELF;
+					}
+				}
+				$j = 0 if $j == -1;
+				$parent->set_child( $ps, $j );
 			}
-			else {
-
-				#$previous_sister{$id} = $previous_sister;
-				#weaken $previous_sister{$id};
-				$mediator->set_link(
-					'node'            => $self,
-					'previous_sister' => $previous_sister,
-				);
-			}
-		}
-		else {
-			#$previous_sister{$id} = undef;
 		}
 		return $self;
 	}
@@ -371,27 +411,20 @@ Sets argument as invocant's next sister.
 =cut
 
 	sub set_next_sister {
-		my ( $self, $next_sister ) = @_;
-		my $id = $self->get_id;
-		if ($next_sister) {
-			my $type;
-			eval { $type = $next_sister->_type };
-			if ( $@ || $type != $TYPE_CONSTANT ) {
-				Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-					error => "\"$next_sister\" is not a valid node object" );
+		my ( $self, $ns ) = @_;
+		if ( $ns and looks_like_object $ns, $TYPE_CONSTANT ) {
+			if ( my $parent  = $self->get_parent ) {
+				my $children = $parent->get_children;
+				my $last = scalar @{ $children };		
+				my $j = $last;
+				FINDSELF: for my $i ( 0 .. $#{ $children } ) {
+					if ( $children->[$i] == $self ) {
+						$j = $i + 1;
+						last FINDSELF;
+					}
+				}
+				$parent->set_child( $ns, $j );
 			}
-			else {
-
-				#$next_sister{$id} = $next_sister;
-				#weaken $next_sister{$id};
-				$mediator->set_link(
-					'node'        => $self,
-					'next_sister' => $next_sister,
-				);
-			}
-		}
-		else {
-			#$next_sister{$id} = undef;
 		}
 		return $self;
 	}
@@ -411,18 +444,69 @@ Sets argument as invocant's child.
 =cut
 
 	sub set_child {
-		my ( $self, $child ) = @_;
-		if ($child) {
-			my $type;
-			eval { $type = $child->_type };
-			if ( $@ || $type != $TYPE_CONSTANT ) {
-				Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-					error => "\"$child\" is not a valid node object" );
+		my ( $self, $child, $i ) = @_;
+		
+		# bad args?
+		if ( not $child or not looks_like_object $child, $TYPE_CONSTANT ) {
+			return;
+		}
+		
+		# maybe nothing to do?
+		if ( not $child or $child->get_id == $self->get_id or $child->is_child_of($self) ) {
+			return $self;
+		}
+		
+		# $child_parent is NEVER $self, see above
+		my $child_parent = $child->get_parent;
+		
+		# child is ancestor: this is obviously problematic, because
+		# now we're trying to set a node nearer to the root on the
+		# same lineage as the CHILD of a descendant. Because they're
+		# on the same lineage it's hard to see how this can be done
+		# sensibly. The decision here is to do:
+		# 	1. we prune what is to become the parent (now the descendant)
+		#	   from its current parent
+		#	2. we set this pruned node (and its descendants) as a sibling
+		#	   of what is to become the child
+		#	3. we prune what is to become the child from its parent
+		#	4. we set that pruned child as the child of $self
+		if ( $child->is_ancestor_of( $self ) ) {
+			
+			# step 1.
+			my $parent_parent = $self->get_parent;
+			$parent_parent->prune_child( $self );
+			
+			# step 2.
+			$set_raw_parent->( $self, $child_parent ); # XXX could be undef	
+			if ( $child_parent ) {
+				$set_raw_child->( $child_parent, $self );
 			}
-			else {
-				$child->set_parent($self);
+		
+		}
+		
+		# step 3.
+		if ( $child_parent ) {
+			$child_parent->prune_child( $child );
+		}
+		$set_raw_parent->( $child, $self );
+		
+		# now do the insert, first make room by shifting later siblings right
+		my $children = $self->get_children;
+		if ( defined $i ) {
+			for ( my $j = $#{ $children }; $j >= 0; $j-- ) {
+				my $sibling = $children->[$j];
+				$set_raw_child->( $self, $sibling, $j + 1 );
 			}
 		}
+		
+		# no index was supplied, child becomes last daughter
+		else {
+			$i = scalar @{ $children };
+		}
+		
+		# step 4.
+		$set_raw_child->( $self, $child, $i );
+	
 		return $self;
 	}
 
@@ -444,18 +528,57 @@ Sets argument as invocant's branch length.
 
 	sub set_branch_length {
 		my ( $self, $bl ) = @_;
-		my $id = $self->get_id;
+		my $id = $$self;
 		if ( defined $bl && looks_like_number $bl && !ref $bl ) {
 			$branch_length{$id} = $bl;
 		}
 		elsif ( defined $bl && ( !looks_like_number $bl || ref $bl ) ) {
-			Bio::Phylo::Util::Exceptions::BadNumber->throw(
-				error => "Branch length \"$bl\" is a bad number" );
+			throw 'BadNumber' => "Branch length \"$bl\" is a bad number";
 		}
 		elsif ( !defined $bl ) {
 			$branch_length{$id} = undef;
 		}
 		return $self;
+	}
+
+=item set_node_below()
+
+Sets new (unbranched) node below invocant.
+
+ Type    : Mutator
+ Title   : set_node_below
+ Usage   : my $new_node = $node->set_node_below;
+ Function: Creates a new node below $node
+ Returns : New node if tree was modified, undef otherwise
+ Args    : NONE
+
+=cut 
+
+	sub set_node_below {
+		my $self = shift;
+		
+		# can't set node below root
+		if ( $self->is_root ) {
+			return;
+		}
+		
+		# instantiate new node from $self's class
+		my $new_node = ( ref $self )->new( @_ );
+		
+		# attach new node to $child's parent
+		my $parent = $self->get_parent;
+		$parent->set_child( $new_node );
+		
+		# insert new node in tree
+# 		if ( my $tree = $self->_get_container ) {
+# 			$tree->insert( $new_node );
+# 		}
+		
+		# attach $self to new node
+		$new_node->set_child( $self );	
+		
+		# done
+		return $new_node;
 	}
 
 =item set_root_below()
@@ -468,58 +591,168 @@ Reroots below invocant.
  Function: Creates a new tree root below $node
  Returns : New root if tree was modified, undef otherwise
  Args    : NONE
- Comments: throws Bio::Phylo::Util::Exceptions::BadArgs if 
-           $node isn't part of a tree
+ Comments: Implementation incomplete: returns spurious 
+           results when $node is grandchild of current root.
 
 =cut    
 
-	sub set_root_below {
-		my $node = shift;
-		if ( $node->get_ancestors ) {
-			my @ancestors = @{ $node->get_ancestors };
-
-			# first collapse root
-			my $root = $ancestors[-1];
-			my $lineage_containing_node;
-			my @children = @{ $root->get_children };
-		  FIND_LINEAGE: for my $child (@children) {
-				if ( $child->get_id == $node->get_id ) {
-					$lineage_containing_node = $child;
-					last FIND_LINEAGE;
-				}
-				for my $descendant ( @{ $child->get_descendants } ) {
-					if ( $descendant->get_id == $node->get_id ) {
-						$lineage_containing_node = $child;
-						last FIND_LINEAGE;
-					}
-				}
-			}
-			for my $child (@children) {
-				next if $child->get_id == $lineage_containing_node->get_id;
-				$child->set_parent($lineage_containing_node);
-			}
-
-			# now create new root as parent of $node
-			my $newroot = __PACKAGE__->new( '-name' => 'root' );
-			$node->set_parent($newroot);
-
-			# update list of ancestors, want to get rid of old root
-			# at $ancestors[-1] and have new root as $ancestors[0]
-			unshift @ancestors, $newroot;
-			pop @ancestors;
-
-			# update connections
-			for ( my $i = $#ancestors ; $i >= 1 ; $i-- ) {
-				$ancestors[$i]->set_parent( $ancestors[ $i - 1 ] );
-			}
-
-			# delete root if part of tree, insert new
-			if ( my $tree = $node->_get_container ) {
-				$tree->delete($root);
-				$tree->insert($newroot);
-			}
+# Example tree to illustrate rerooting algorithm:
+#
+#  A     B     C     D     E     F
+#   \   /     /     /     /     /
+#    \_/     /     /     /     /
+#     1     /     /     /     /
+# new->\   /     /     /     /
+#       \_/     /     /     /
+#        2     /     /     /
+#         \   /     /     /
+#          \_/     /     /
+#           3     /     /
+#            \   /     /
+#             \_/     /
+#              4     / 
+#               \   /
+#                \_/
+#                 5
+#                 |
+           
+sub set_root_below {
+	my $self = shift;
+	my %constructor_args = @_;
+	$constructor_args{'-name'} = 'root' if not $constructor_args{'-name'};
+	
+	# $self is node 5, nothing to do,
+	# can't place root below root
+	if ( $self->is_root ) {
+		return;
+	}
+	
+	my @ancestors = @{ $self->get_ancestors };
+	
+	# if @ancestors = ( 5 ); i.e. $self is node 4
+	# root is already below $self
+	if ( scalar @ancestors == 1 ) {
+		return;
+	}
+	
+	# let's say $self is node 1, ancestors is:	
+	# ( 2, 3, 4, 5 ) -> ( 2, 3, 4 )
+	my $root = pop @ancestors;
+	
+	# ( 2, 3, 4 ) -> ( 2, 3 )
+	my $node_above_root = pop @ancestors; 
+	
+	# collapse node 4
+	$node_above_root->collapse; 
+	
+	 # ( 2, 3 ) -> ( 2, 3, 5 ); 4 doesn't exist anymore (collapsed)
+	push @ancestors, $root;   
+	
+	# ( 2, 3, 5 ) -> ( new, 2, 3, 5 )
+	unshift @ancestors, $self->set_node_below(%constructor_args); 
+	
+	# i.e. $self wasn't 3
+	if ( scalar @ancestors > 2 ) {
+		for ( my $i = $#ancestors; $i >= 0; $i-- ) {
+		
+			# flip parent & child
+			$ancestors[$i]->set_child( $ancestors[$i+1] ); 
 		}
 	}
+	else {
+		# XXX
+		$logger->warn;
+		$ancestors[0]->set_child( $ancestors[1] );
+	}
+
+	if ( my $tree = $self->get_tree ) {
+	    $tree->insert($ancestors[0]);
+	}
+	return $ancestors[0];
+	
+}
+
+# 	sub set_root_below {
+# 		my $node = shift;
+# 		if ( $node->get_ancestors ) {
+# 			my @ancestors = @{ $node->get_ancestors };
+# 
+# 			# first collapse root
+# 			my $root = $ancestors[-1];
+# 			my $lineage_containing_node;
+# 			my @children = @{ $root->get_children };
+# 		  FIND_LINEAGE: for my $child (@children) {
+# 				if ( $child->get_id == $node->get_id ) {
+# 					$lineage_containing_node = $child;
+# 					last FIND_LINEAGE;
+# 				}
+# 				for my $descendant ( @{ $child->get_descendants } ) {
+# 					if ( $descendant->get_id == $node->get_id ) {
+# 						$lineage_containing_node = $child;
+# 						last FIND_LINEAGE;
+# 					}
+# 				}
+# 			}
+# 			for my $child (@children) {
+# 				next if $child->get_id == $lineage_containing_node->get_id;
+# 				$child->set_parent($lineage_containing_node);
+# 			}
+# 
+# 			# now create new root as parent of $node
+# 			my $newroot = __PACKAGE__->new( '-name' => 'root' );
+# 			$node->set_parent($newroot);
+# 
+# 			# update list of ancestors, want to get rid of old root
+# 			# at $ancestors[-1] and have new root as $ancestors[0]
+# 			unshift @ancestors, $newroot;
+# 			pop @ancestors;
+# 
+# 			# update connections
+# 			for ( my $i = $#ancestors ; $i >= 1 ; $i-- ) {
+# 				$ancestors[$i]->set_parent( $ancestors[ $i - 1 ] );
+# 			}
+# 
+# 			# delete root if part of tree, insert new
+# 			if ( my $tree = $node->_get_container ) {
+# 				$tree->delete($root);
+# 				$tree->insert($newroot);
+# 			}
+# 		}
+# 	}
+
+=item set_tree()
+
+Sets what tree invocant belongs to
+
+ Type    : Mutator
+ Title   : set_tree
+ Usage   : $node->set_tree($tree);
+ Function: Sets what tree invocant belongs to
+ Returns : Invocant
+ Args    : Bio::Phylo::Forest::Tree
+ Comments: This method is called automatically 
+           when inserting or deleting nodes in
+           trees.
+
+=cut 
+
+    sub set_tree {
+        my ( $self, $tree ) = @_;
+        my $id = $self->get_id;
+        if ( $tree ) {
+            if ( looks_like_object $tree, $CONTAINER_CONSTANT ) {
+                $tree{$id} = $tree;
+                weaken $tree{$id};
+            }
+            else {
+                throw 'ObjectMismatch' => "$tree is not a tree";
+            }
+        }
+        else {
+            $tree{$id} = undef;
+        }
+        return $self;
+    }
 
 =back
 
@@ -540,7 +773,7 @@ Gets invocant's parent.
 
 =cut
 
-	sub get_parent { $mediator->get_link( 'parent_of' => shift ) }
+	sub get_parent { return $get_parent->( shift ) }
 
 =item get_first_daughter()
 
@@ -556,7 +789,7 @@ Gets invocant's first daughter.
 =cut
 
 	sub get_first_daughter {
-		$mediator->get_link( 'first_daughter_of' => shift );
+		return $_[0]->get_child(0);
 	}
 
 =item get_last_daughter()
@@ -572,7 +805,9 @@ Gets invocant's last daughter.
 
 =cut
 
-	sub get_last_daughter { $mediator->get_link( 'last_daughter_of' => shift ) }
+	sub get_last_daughter {
+		return $_[0]->get_child(-1);
+	}
 
 =item get_previous_sister()
 
@@ -588,7 +823,18 @@ Gets invocant's previous sister.
 =cut
 
 	sub get_previous_sister {
-		$mediator->get_link( 'previous_sister_of' => shift );
+		my ( $self ) = @_;
+		my $ps;
+		if ( my $parent = $self->get_parent ) {
+			my $children = $parent->get_children;
+			FINDSELF: for ( my $i = $#{ $children }; $i >= 1; $i-- ) {
+				if ( $children->[$i] == $self ) {
+					$ps = $children->[$i - 1];
+					last FINDSELF;				
+				}
+			}
+		}
+		return $ps;
 	}
 
 =item get_next_sister()
@@ -604,7 +850,20 @@ Gets invocant's next sister.
 
 =cut
 
-	sub get_next_sister { $mediator->get_link( 'next_sister_of' => shift ) }
+	sub get_next_sister {
+		my ( $self ) = @_;
+		my $ns;
+		if ( my $parent = $self->get_parent ) {
+			my $children = $parent->get_children;
+			FINDSELF: for my $i ( 0 .. $#{ $children } ) {
+				if ( $children->[$i] == $self ) {
+					$ns = $children->[$i + 1];
+					last FINDSELF;
+				}
+			}
+		}
+		return $ns;
+	}
 
 =item get_branch_length()
 
@@ -623,7 +882,7 @@ Gets invocant's branch length.
 
 =cut
 
-	sub get_branch_length { $branch_length{ shift->get_id } }
+	sub get_branch_length { return $get_branch_length->( shift ) }
 
 =item get_ancestors()
 
@@ -692,20 +951,28 @@ Gets invocant's immediate children.
 
 =cut
 
-	sub get_children {
-		my $self = shift;
-		my @children;
-		my $fd = $self->get_first_daughter;
-		if ($fd) {
-			while ($fd) {
-				push @children, $fd;
-				$fd = $fd->get_next_sister;
-			}
-			return \@children;
-		}
-		else {
-			return;
-		}
+	sub get_children { return $get_children->( shift ) }
+
+=item get_child()
+
+Gets invocant's i'th child.
+
+ Type    : Query
+ Title   : get_child
+ Usage   : my $child = $node->get_child($i);
+ Function: Returns the child at index $i
+ Returns : A Bio::Phylo::Forest::Node object.
+ Args    : An index (integer) $i
+ Comments: if no index is specified, first
+           child is returned
+
+=cut
+
+	sub get_child {
+		my ( $self, $i ) = @_;
+		$i = 0 if not defined $i;
+		my $children = $self->get_children;
+		return $children->[$i];
 	}
 
 =item get_descendants()
@@ -854,7 +1121,8 @@ Gets invocant's most recent common ancestor shared with argument.
 				}
 			}
 		}
-		return;
+		$logger->warn( "using " . $self_anc->[-1]->get_internal_name );
+		return $self_anc->[-1];
 	}
 
 =item get_leftmost_terminal()
@@ -917,6 +1185,25 @@ Gets invocant's rightmost terminal descendant
 		return $daughter;
 	}
 
+=item get_tree()
+
+Returns the tree invocant belongs to
+
+ Type    : Query
+ Title   : get_tree
+ Usage   : my $tree = $node->get_tree;
+ Function: Returns the tree $node belongs to
+ Returns : Bio::Phylo::Forest::Tree
+ Args    : NONE
+
+=cut
+
+    sub get_tree {
+        my $self = shift;
+        my $id = $self->get_id;
+        return $tree{$id};
+    }
+
 =back
 
 =head2 TESTS
@@ -940,7 +1227,7 @@ Tests if invocant is a terminal node.
 =cut
 
 	sub is_terminal {
-		return !shift->is_internal;
+		return !shift->get_first_daughter;
 	}
 
 =item is_internal()
@@ -1041,7 +1328,7 @@ Tests if invocant is descendant of argument.
 
 	sub is_descendant_of {
 		my ( $self, $ancestor ) = @_;
-		my $ancestor_id = $ancestor->get_id;
+		my $ancestor_id = $$ancestor;
 		while ($self) {
 			if ( my $parent = $self->get_parent ) {
 				$self = $parent;
@@ -1049,7 +1336,7 @@ Tests if invocant is descendant of argument.
 			else {
 				return;
 			}
-			if ( $self->get_id == $ancestor_id ) {
+			if ( $$self == $ancestor_id ) {
 				return 1;
 			}
 		}
@@ -1114,6 +1401,31 @@ Tests if invocant is sister of argument.
 		}
 	}
 
+=item is_child_of()
+
+Tests if invocant is child of argument.
+
+ Type    : Test
+ Title   : is_child_of
+ Usage   : if ( $node->is_child_of($parent) ) {
+              # do something
+           }
+ Function: Returns true if the node is
+           a child of the argument.
+ Returns : BOOLEAN
+ Args    : putative parent - a
+           Bio::Phylo::Forest::Node object.
+
+=cut
+
+	sub is_child_of {
+		my ( $self, $node ) = @_;
+		if ( my $parent = $self->get_parent ) {
+			return $parent->get_id == $node->get_id;
+		}
+		return 0;
+	}
+
 =item is_outgroup_of()
 
 Test if invocant is outgroup of argument nodes.
@@ -1141,6 +1453,36 @@ Test if invocant is outgroup of argument nodes.
 				my $mrca = $nodes->[$i]->get_mrca( $nodes->[$j] );
 				return if $mrca->is_ancestor_of($outgroup);
 			}
+		}
+		return 1;
+	}
+
+=item can_contain()
+
+Test if argument(s) can be a child/children of invocant.
+
+ Type    : Test
+ Title   : can_contain
+ Usage   : if ( $parent->can_contain(@children) ) {
+              # do something
+           }
+ Function: Test if arguments can be children of invocant.
+ Returns : BOOLEAN
+ Args    : An array of Bio::Phylo::Forest::Node objects;
+ Comments: This method is an override of 
+           Bio::Phylo::Listable::can_contain. Since node
+           objects hold a list of their children, they
+           inherit from the listable class and so they
+           need to be able to validate the contents
+           of that list before they are inserted.
+
+=cut
+
+	sub can_contain {
+		my $self = shift;
+		my $type = $self->_type;
+		for ( @_ ) {
+			return 0 if $type != $_->_type;
 		}
 		return 1;
 	}
@@ -1380,7 +1722,7 @@ Calculates patristic distance between invocant and argument.
 			}
 			$self = $self->get_parent;
 		}
-		while ( $other_node->get_id != $mrca_id ) {
+		while ( $other_node and $other_node->get_id != $mrca_id ) {
 			my $branch_length = $other_node->get_branch_length;
 			if ( defined $branch_length ) {
 				$patristic_distance += $branch_length;
@@ -1388,6 +1730,37 @@ Calculates patristic distance between invocant and argument.
 			$other_node = $other_node->get_parent;
 		}
 		return $patristic_distance;
+	}
+	
+=item calc_nodal_distance()
+
+Calculates node distance between invocant and argument.
+
+ Type    : Calculation
+ Title   : calc_nodal_distance
+ Usage   : my $nodal_distance =
+           $node->calc_nodal_distance($other_node);
+ Function: Returns the number of nodes
+           between $node and $other_node.
+ Returns : INT
+ Args    : Bio::Phylo::Forest::Node
+
+=cut	
+	
+	sub calc_nodal_distance {
+	    my ( $self, $other_node ) = @_;
+	    my $nodal_distance;
+	    my $mrca = $self->get_mrca( $other_node );
+	    my $mrca_id = $mrca->get_id;
+		while ( $self and $self->get_id != $mrca_id ) {
+			$nodal_distance++;
+			$self = $self->get_parent;
+		}
+		while ( $other_node and $other_node->get_id != $mrca_id ) {
+			$nodal_distance++;
+			$other_node = $other_node->get_parent;
+		}
+		return $nodal_distance;	    
 	}
 
 =back
@@ -1410,37 +1783,37 @@ Visits nodes depth first
  Function: Visits nodes in a depth first traversal, executes subs
  Returns : $tree
  Args    : Optional:
-			# first event handler, is executed when node is reached in recursion
-			-pre            => sub { print "pre: ",            shift->get_name, "\n" },
-						
-			# is executed if node has a daughter, but before that daughter is processed
-			-pre_daughter   => sub { print "pre_daughter: ",   shift->get_name, "\n" },
-			
-			# is executed if node has a daughter, after daughter has been processed	
-			-post_daughter  => sub { print "post_daughter: ",  shift->get_name, "\n" },
-			
-			# is executed if node has no daughter
-			-no_daughter    => sub { print "no_daughter: ",    shift->get_name, "\n" },							
+            # first event handler, is executed when node is reached in recursion
+            -pre            => sub { print "pre: ",            shift->get_name, "\n" },
+                        
+            # is executed if node has a daughter, but before that daughter is processed
+            -pre_daughter   => sub { print "pre_daughter: ",   shift->get_name, "\n" },
+            
+            # is executed if node has a daughter, after daughter has been processed 
+            -post_daughter  => sub { print "post_daughter: ",  shift->get_name, "\n" },
+            
+            # is executed if node has no daughter
+            -no_daughter    => sub { print "no_daughter: ",    shift->get_name, "\n" },                         
 
-			# is executed whether or not node has sisters, if it does have sisters
-			# they're processed first	
-			-in             => sub { print "in: ",             shift->get_name, "\n" },
+            # is executed whether or not node has sisters, if it does have sisters
+            # they're processed first   
+            -in             => sub { print "in: ",             shift->get_name, "\n" },
 
-			# is executed if node has a sister, before sister is processed
-			-pre_sister     => sub { print "pre_sister: ",     shift->get_name, "\n" },	
-			
-			# is executed if node has a sister, after sister is processed
-			-post_sister    => sub { print "post_sister: ",    shift->get_name, "\n" },			
-			
-			# is executed if node has no sister
-			-no_sister      => sub { print "no_sister: ",      shift->get_name, "\n" },	
-			
-			# is executed last			
-			-post           => sub { print "post: ",           shift->get_name, "\n" },
-			
-			# specifies traversal order, default 'ltr' means first_daugher -> next_sister
-			# traversal, alternate value 'rtl' means last_daughter -> previous_sister traversal
-			-order          => 'ltr', # ltr = left-to-right, 'rtl' = right-to-left
+            # is executed if node has a sister, before sister is processed
+            -pre_sister     => sub { print "pre_sister: ",     shift->get_name, "\n" }, 
+            
+            # is executed if node has a sister, after sister is processed
+            -post_sister    => sub { print "post_sister: ",    shift->get_name, "\n" },         
+            
+            # is executed if node has no sister
+            -no_sister      => sub { print "no_sister: ",      shift->get_name, "\n" }, 
+            
+            # is executed last          
+            -post           => sub { print "post: ",           shift->get_name, "\n" },
+            
+            # specifies traversal order, default 'ltr' means first_daugher -> next_sister
+            # traversal, alternate value 'rtl' means last_daughter -> previous_sister traversal
+            -order          => 'ltr', # ltr = left-to-right, 'rtl' = right-to-left
  Comments: 
 
 =cut
@@ -1458,7 +1831,7 @@ Visits nodes depth first
 
 	sub visit_depth_first {
 		my $self = shift;
-		my %args = @_;
+		my %args = looks_like_hash @_;
 
 		if ( $args{'-order'} and $args{'-order'} =~ /^rtl$/i ) {
 			$args{'-sister_method'}   = 'get_previous_sister';
@@ -1514,44 +1887,44 @@ Visits nodes breadth first
  Returns : $tree
  Args    : Optional handlers in the order in which they would be executed on an internal node:
 			
-			# first event handler, is executed when node is reached in recursion
-			-pre            => sub { print "pre: ",            shift->get_name, "\n" },
-			
-			# is executed if node has a sister, before sister is processed
-			-pre_sister     => sub { print "pre_sister: ",     shift->get_name, "\n" },	
-			
-			# is executed if node has a sister, after sister is processed
-			-post_sister    => sub { print "post_sister: ",    shift->get_name, "\n" },			
-			
-			# is executed if node has no sister
-			-no_sister      => sub { print "no_sister: ",      shift->get_name, "\n" },				
-			
-			# is executed whether or not node has sisters, if it does have sisters
-			# they're processed first	
-			-in             => sub { print "in: ",             shift->get_name, "\n" },			
-			
-			# is executed if node has a daughter, but before that daughter is processed
-			-pre_daughter   => sub { print "pre_daughter: ",   shift->get_name, "\n" },
-			
-			# is executed if node has a daughter, after daughter has been processed	
-			-post_daughter  => sub { print "post_daughter: ",  shift->get_name, "\n" },
-			
-			# is executed if node has no daughter
-			-no_daughter    => sub { print "no_daughter: ",    shift->get_name, "\n" },							
-			
-			# is executed last			
-			-post           => sub { print "post: ",           shift->get_name, "\n" },
-			
-			# specifies traversal order, default 'ltr' means first_daugher -> next_sister
-			# traversal, alternate value 'rtl' means last_daughter -> previous_sister traversal
-			-order          => 'ltr', # ltr = left-to-right, 'rtl' = right-to-left
+            # first event handler, is executed when node is reached in recursion
+            -pre            => sub { print "pre: ",            shift->get_name, "\n" },
+            
+            # is executed if node has a sister, before sister is processed
+            -pre_sister     => sub { print "pre_sister: ",     shift->get_name, "\n" }, 
+            
+            # is executed if node has a sister, after sister is processed
+            -post_sister    => sub { print "post_sister: ",    shift->get_name, "\n" },         
+            
+            # is executed if node has no sister
+            -no_sister      => sub { print "no_sister: ",      shift->get_name, "\n" },             
+            
+            # is executed whether or not node has sisters, if it does have sisters
+            # they're processed first   
+            -in             => sub { print "in: ",             shift->get_name, "\n" },         
+            
+            # is executed if node has a daughter, but before that daughter is processed
+            -pre_daughter   => sub { print "pre_daughter: ",   shift->get_name, "\n" },
+            
+            # is executed if node has a daughter, after daughter has been processed 
+            -post_daughter  => sub { print "post_daughter: ",  shift->get_name, "\n" },
+            
+            # is executed if node has no daughter
+            -no_daughter    => sub { print "no_daughter: ",    shift->get_name, "\n" },                         
+            
+            # is executed last          
+            -post           => sub { print "post: ",           shift->get_name, "\n" },
+            
+            # specifies traversal order, default 'ltr' means first_daugher -> next_sister
+            # traversal, alternate value 'rtl' means last_daughter -> previous_sister traversal
+            -order          => 'ltr', # ltr = left-to-right, 'rtl' = right-to-left
  Comments: 
 
 =cut
 
 	sub visit_breadth_first {
 		my $self = shift;
-		my %args = @_;
+		my %args = looks_like_hash @_;
 
 		if ( $args{'-order'} and $args{'-order'} =~ /rtl/i ) {
 			$args{'-sister_method'}   = 'get_previous_sister';
@@ -1623,10 +1996,73 @@ Visits nodes in a level order traversal.
 			}
 		}
 		else {
-			Bio::Phylo::Util::Exceptions::BadArgs->throw(
-				'error' => "'$sub' not a CODE reference" );
+			throw 'BadArgs' => "'$sub' not a CODE reference";
 		}
 		return $self;
+	}
+
+=back
+
+=head2 UTILITY METHODS
+
+=over
+
+=item clone()
+
+Clones invocant.
+
+ Type    : Utility method
+ Title   : clone
+ Usage   : my $clone = $object->clone;
+ Function: Creates a copy of the invocant object.
+ Returns : A copy of the invocant.
+ Args    : Optional: a hash of code references to 
+           override reflection-based getter/setter copying
+
+           my $clone = $object->clone(  
+               'set_forest' => sub {
+                   my ( $self, $clone ) = @_;
+                   for my $forest ( @{ $self->get_forests } ) {
+                       $clone->set_forest( $forest );
+                   }
+               },
+               'set_matrix' => sub {
+                   my ( $self, $clone ) = @_;
+                   for my $matrix ( @{ $self->get_matrices } ) {
+                       $clone->set_matrix( $matrix );
+                   }
+           );
+
+ Comments: Cloning is currently experimental, use with caution.
+           It works on the assumption that the output of get_foo
+           called on the invocant is to be provided as argument
+           to set_foo on the clone - such as 
+           $clone->set_name( $self->get_name ). Sometimes this 
+           doesn't work, for example where this symmetry doesn't
+           exist, or where the return value of get_foo isn't valid
+           input for set_foo. If such a copy fails, a warning is 
+           emitted. To make sure all relevant attributes are copied
+           into the clone, additional code references can be 
+           provided, as in the example above. Typically, this is
+           done by overrides of this method in child classes.
+
+=cut
+
+	sub clone {
+		my $self = shift;
+		$logger->info("cloning $self");
+		my %subs = @_;
+			
+		# we'll clone relatives in the tree, so no raw copying
+		$subs{'set_parent'}          = sub {};
+		$subs{'set_first_daughter'}  = sub {};
+		$subs{'set_last_daughter'}   = sub {};
+		$subs{'set_next_sister'}     = sub {};
+		$subs{'set_previous_sister'} = sub {};
+		$subs{'set_child'}           = sub {};
+		$subs{'insert'}              = sub {};
+		
+		return $self->SUPER::clone(%subs);
 	}
 
 =back
@@ -1635,6 +2071,37 @@ Visits nodes in a level order traversal.
 
 =over
 
+=item to_json()
+
+Serializes object to JSON string
+
+ Type    : Serializer
+ Title   : to_json()
+ Usage   : print $obj->to_json();
+ Function: Serializes object to JSON string
+ Returns : String 
+ Args    : None
+ Comments:
+
+=cut
+
+    sub to_json {
+        my $node = shift;
+        my %args = @_;
+        my $extra_attr = \%args;
+        $extra_attr->{'get_branch_length'} = 'length';
+        if ( my @children = @{ $node->get_children } ) {
+            return '{' 
+                . $node->_to_json( $extra_attr )
+                . ',"children":['
+                . ( join ',', map { $_->to_json } @children )
+                . ']}';
+        }
+        else {
+            return '{' . $node->_to_json($extra_attr) . '}';
+        }
+    }
+
 =item to_xml()
 
 Serializes invocant to xml.
@@ -1642,37 +2109,51 @@ Serializes invocant to xml.
  Type    : Serializer
  Title   : to_xml
  Usage   : my $xml = $obj->to_xml;
- Function: Turns the invocant object into an XML string.
+ Function: Turns the invocant object (and its descendants )into an XML string.
  Returns : SCALAR
  Args    : NONE
 
 =cut
 
 	sub to_xml {
-		my $self  = shift;
-		my $class = ref $self;
-		$class =~ s/^.*:([^:]+)$/$1/g;
-		$class = lc($class);
-		my $xml     = '<' . $class . ' id="' . $class . $self->get_id . '">';
-		my $generic = $self->get_generic;
-		my ( $name, $score, $desc ) =
-		  ( $self->get_name, $self->get_score, $self->get_desc );
-		$xml .= '<name>' . $name . '</name>'    if $name;
-		$xml .= '<score>' . $score . '</score>' if $score;
-		$xml .= '<desc>' . $desc . '</desc>'    if $desc;
-
-		if ( $generic and ref $generic eq 'HASH' ) {
-			$xml .= '<generic>';
-			$xml .= "<prop><key>$_</key><val>$generic->{$_}</val></prop>\n"
-			  for keys %$generic;
-			$xml .= '</generic>';
+		my $self = shift;
+		my @nodes = ( $self, @{ $self->get_descendants } );
+		my $xml = '';
+		
+		# first write out the node elements
+		for my $node ( @nodes ) {
+			if ( my $taxon = $node->get_taxon ) {
+				$node->set_attributes( 'otu' => $taxon->get_xml_id );
+			}
+			if ( $node->is_root ) {
+				$node->set_attributes( 'root' => 'true' );
+			}
+			$xml .= "\n" . $node->get_xml_tag(1);
+			
 		}
-		$xml .= '<branchlength>' . $self->get_branch_length . '</branchlength>'
-		  if defined $self->get_branch_length;
-		$xml .= '<parent idref="' . $class . $self->get_parent->get_id . '" />'
-		  if $self->get_parent;
-		$xml .= '</' . $class . '>';
-		return $xml;
+		
+		# then the rootedge?
+		if ( my $length = shift(@nodes)->get_branch_length ) {
+			my $target = $self->get_xml_id;
+			my $id = "edge" . $self->get_id;
+			$xml .= "\n" . sprintf('<rootedge target="%s" id="%s" length="%s"/>', $target, $id, $length);
+		}
+		
+		# then the subtended edges
+		for my $node ( @nodes ) {
+			my $source = $node->get_parent->get_xml_id;
+			my $target = $node->get_xml_id;
+			my $id     = "edge" . $node->get_id;
+			my $length = $node->get_branch_length;
+			if ( defined $length ) {
+				$xml .= "\n" . sprintf('<edge source="%s" target="%s" id="%s" length="%s"/>', $source, $target, $id, $length);
+			}
+			else {
+				$xml .= "\n" . sprintf('<edge source="%s" target="%s" id="%s"/>', $source, $target, $id);
+			}
+		}
+		
+		return $xml;		
 	}
 
 =item to_newick()
@@ -1691,7 +2172,7 @@ Serializes subtree subtended by invocant to newick string.
 
 	{
 		my ( $root_id, $string );
-		no warnings 'uninitialized';
+		#no warnings 'uninitialized';
 
 		sub to_newick {
 			my $node = shift;
@@ -1803,8 +2284,6 @@ Serializes subtree subtended by invocant to newick string.
 
 	sub _cleanup {
 		my $self = shift;
-		$logger->debug("cleaning up '$self'");
-		$mediator->unregister($self);
 		my $id = $self->get_id;
 		for my $field (@fields) {
 			delete $field->{$id};
@@ -1852,23 +2331,149 @@ Serializes subtree subtended by invocant to newick string.
 This object inherits from L<Bio::Phylo::Taxa::TaxonLinker>, so methods
 defined there are also applicable here.
 
-=item L<Bio::Phylo::Util::XMLWritable>
+=item L<Bio::Phylo::Listable>
 
-This object inherits from L<Bio::Phylo::Util::XMLWritable>, so methods
+This object inherits from L<Bio::Phylo::Listable>, so methods
 defined there are also applicable here.
 
 =item L<Bio::Phylo::Manual>
 
-Also see the manual: L<Bio::Phylo::Manual>.
+Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =back
 
 =head1 REVISION
 
- $Id: Node.pm 4265 2007-07-20 14:14:44Z rvosa $
+ $Id: Node.pm 770 2009-02-22 16:57:26Z rvos $
 
 =cut
 
 }
 
 1;
+
+__DATA__
+
+sub add_Descendent{
+   my ( $self,$child ) = @_;
+   $self->set_child( $child );
+   return scalar @{ $self->get_children };
+}
+
+sub each_Descendent{
+	my $self = shift;
+	if ( my $children = $self->get_children ) {
+		return @{ $children };
+   	}
+   	return;
+}
+
+sub get_all_Descendents{
+	my $self = shift;
+	if ( my $desc = $self->get_descendants ) {
+		return @{ $desc };
+	}
+	return;
+}
+
+*get_Descendents = \&get_all_Descendents;
+
+*is_Leaf = \&is_terminal;
+*is_otu = \&is_terminal;
+
+sub descendent_count{
+	my $self = shift;
+	my $count = 0;
+	if ( my $desc = get_descendants ) {
+		$count = scalar @{ $desc };
+	}
+	return $count;
+}
+
+sub height{ shift->calc_max_path_to_tips }
+
+sub depth{ shift->calc_path_to_root }
+
+sub branch_length{
+	my $self = shift;
+	if ( @_ ) {
+		$self->set_branch_length(shift);
+	}
+	return $self->get_branch_length;
+}
+
+sub id {
+    my $self = shift;
+    if ( @_ ) {
+    	$self->set_name(shift);
+    }
+    return $self->get_name;
+}
+
+sub internal_id { shift->get_id }
+
+sub description {
+	my $self = shift;
+	if ( @_ ) {
+		$self->set_desc(shift);
+	}
+	return $self->get_desc;
+}
+
+sub bootstrap {
+	my $self = shift;
+	if ( @_ ) {
+		$self->set_score(shift);
+	}
+	return $self->get_score;
+}
+
+sub ancestor {
+	my $self = shift;
+	if ( @_ ) {
+		$self->set_parent(shift);
+	}
+	return $self->get_parent;
+}
+
+sub invalidate_height { }
+
+sub add_tag_value{
+	my $self = shift;
+	if ( @_ ) {
+		my ( $key, $value ) = @_;
+		$self->set_generic( $key, $value );
+	}
+	return 1;
+}
+
+sub remove_tag {
+	my ( $self, $tag ) = @_;
+	my %hash = %{ $self->get_generic };
+	my $exists = exists $hash{$tag};
+	delete $hash{$tag};
+	$self->set_generic();
+	$self->set_generic(%hash);
+	return !!$exists;
+}
+
+sub remove_all_tags{ shift->set_generic() }
+
+sub get_all_tags {
+	my $self = shift;
+	my %hash = %{ $self->get_generic };
+	return keys %hash;
+}
+
+sub get_tag_values{
+	my ( $self, $tag ) = @_;
+	return $self->get_generic($tag);
+}
+
+sub has_tag{
+	my ( $self, $tag ) = @_;
+	my %hash = %{ $self->get_generic };
+	return exists $hash{$tag};
+}
+
+sub id_output { shift->get_internal_name }

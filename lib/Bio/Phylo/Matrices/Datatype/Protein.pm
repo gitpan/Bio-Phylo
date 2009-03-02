@@ -1,5 +1,6 @@
-# $Id: Protein.pm 4213 2007-07-15 03:11:27Z rvosa $
+# $Id: Protein.pm 604 2008-09-05 17:32:28Z rvos $
 package Bio::Phylo::Matrices::Datatype::Protein;
+use Bio::Phylo::Matrices::Datatype;
 use strict;
 use vars qw($LOOKUP @ISA $MISSING $GAP);
 @ISA = qw(Bio::Phylo::Matrices::Datatype);
@@ -25,7 +26,7 @@ This class subclasses L<Bio::Phylo::Matrices::Datatype>.
 
 =item L<Bio::Phylo::Manual>
 
-Also see the manual: L<Bio::Phylo::Manual>.
+Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =back
 
@@ -38,7 +39,7 @@ L<http://www.cpanforum.com/dist/Bio-Phylo>
 
 =head1 REVISION
 
- $Id: Protein.pm 4213 2007-07-15 03:11:27Z rvosa $
+ $Id: Protein.pm 604 2008-09-05 17:32:28Z rvos $
 
 =cut
 

@@ -1,22 +1,31 @@
-# $Id: Taxa.pm 4265 2007-07-20 14:14:44Z rvosa $
+# $Id: Taxa.pm 686 2008-10-22 02:22:35Z rvos $
 package Bio::Phylo::Taxa;
 use strict;
 use Bio::Phylo::Listable;
-use Bio::Phylo::Util::IDPool;
-use Bio::Phylo::Util::CONSTANT qw(_NONE_ _TAXA_ _FOREST_ _MATRIX_);
-use Scalar::Util qw(weaken blessed);
+use Bio::Phylo::Util::CONSTANT qw(_NONE_ _TAXA_ _FOREST_ _MATRIX_ _PROJECT_ looks_like_object);
 use Bio::Phylo::Mediators::TaxaMediator;
-use Bio::Phylo::Util::Logger;
+use Bio::Phylo::Factory;
+use vars qw(@ISA);
 
-# One line so MakeMaker sees it.
-use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
+=begin comment
+
+This class has no internal state, no cleanup is necessary.
+
+=end comment
+
+=cut
 
 # classic @ISA manipulation, not using 'base'
-use vars qw($VERSION @ISA);
 @ISA = qw(Bio::Phylo::Listable);
 {
 
-	my $logger = Bio::Phylo::Util::Logger->new;
+	my $logger    = __PACKAGE__->get_logger;
+	my $mediator  = 'Bio::Phylo::Mediators::TaxaMediator';
+	my $factory   = Bio::Phylo::Factory->new;
+	my $CONTAINER = _PROJECT_;
+	my $TYPE      = _TAXA_;
+	my $MATRIX    = _MATRIX_;
+	my $FOREST    = _FOREST_;
 
 =head1 NAME
 
@@ -72,7 +81,7 @@ Taxa constructor.
         $logger->info("constructor called for '$class'");
         
         # recurse up inheritance tree, get ID
-        my $self = $class->SUPER::new( @_ );
+        my $self = $class->SUPER::new( '-tag' => 'otus', @_ );
         
         # local fields would be set here
         
@@ -105,16 +114,9 @@ Sets associated Bio::Phylo::Forest object.
     sub set_forest {
         my ( $self, $forest ) = @_;
         $logger->debug( "setting forest $forest" );
-        my $type;
-        eval { $type = $forest->_type };
-        if ( not $@ and $type == _FOREST_ ) {
+        if ( looks_like_object $forest, $FOREST ) {
         	$forest->set_taxa( $self );
-        }
-        else {
-            Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-                'error' => 'Not a forest object!'
-            );        	
-        }      
+        }    
         return $self;
     }
 
@@ -138,15 +140,8 @@ Sets associated Bio::Phylo::Matrices::Matrix object.
     sub set_matrix {
         my ( $self, $matrix ) = @_;
         $logger->debug( "setting matrix $matrix" );
-        my $type;
-        eval { $type = $matrix->_type };
-        if ( not $@ and $type == _MATRIX_ ) {
+        if ( looks_like_object $matrix, $MATRIX ) {
         	$matrix->set_taxa( $self );
-        }
-        else {
-            Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-                'error' => 'Not a matrix object!'
-            );        	
         }      
         return $self;
     }
@@ -169,15 +164,8 @@ Removes association with argument Bio::Phylo::Forest object.
     sub unset_forest {
         my ( $self, $forest ) = @_;
         $logger->debug( "unsetting forest $forest" );
-        my $type;
-        eval { $type = $forest->_type };
-        if ( not $@ and $type == _FOREST_ ) {
+        if ( looks_like_object $forest, $FOREST ) {
         	$forest->unset_taxa();
-        }
-        else {
-            Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-                'error' => 'Not a forest object!'
-            );        	
         }      
         return $self;
     }
@@ -200,16 +188,9 @@ Removes association with Bio::Phylo::Matrices::Matrix object.
     sub unset_matrix {
         my ( $self, $matrix ) = @_;
         $logger->debug( "unsetting matrix $matrix" );
-        my $type;
-        eval { $type = $matrix->_type };
-        if ( not $@ and $type == _MATRIX_ ) {
+        if ( looks_like_object $matrix, $MATRIX ) {
         	$matrix->unset_taxa();
-        }
-        else {
-            Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-                'error' => 'Not a matrix object!'
-            );        	
-        }      
+        }     
         return $self;
     }
 
@@ -237,9 +218,9 @@ Gets all associated Bio::Phylo::Forest objects.
 
     sub get_forests {
         my $self = shift;
-        return Bio::Phylo::Mediators::TaxaMediator->get_link( 
+        return $mediator->get_link( 
             '-source' => $self, 
-            '-type'   => _FOREST_,
+            '-type'   => $FOREST,
         );
     }
 
@@ -260,9 +241,9 @@ Gets all associated Bio::Phylo::Matrices::Matrix objects.
 
     sub get_matrices {
         my $self = shift;
-        return Bio::Phylo::Mediators::TaxaMediator->get_link( 
+        return $mediator->get_link( 
             '-source' => $self, 
-            '-type'   => _MATRIX_,
+            '-type'   => $MATRIX,
         );
     }
 
@@ -310,43 +291,28 @@ Merges argument Bio::Phylo::Taxa object with invocant.
 =cut
 
     sub merge_by_name {
-        my ( $self, $other_taxa ) = @_;
-        if (   $other_taxa
-            && $other_taxa->can('_type')
-            && $other_taxa->_type == _TAXA_ )
-        {
-            my %self = map { $_->get_name => $_ } @{ $self->get_entities };
-            my %other =
-              map { $_->get_name => $_ } @{ $other_taxa->get_entities };
-            my $new = Bio::Phylo::Taxa->new;
-            foreach my $name ( keys %self ) {
-                my $taxon = Bio::Phylo::Taxa::Taxon->new( '-name' => $name );
-                foreach my $datum ( @{ $self{$name}->get_data } ) {
-                    $datum->set_taxon($taxon);
-                    $taxon->set_datum($datum);
+        my $merged = $factory->create_taxa;
+        for my $taxa ( @_ ) {
+            my %object_by_name = map { $_->get_name => $_ } @{ $merged->get_entities };
+            foreach my $taxon ( @{ $taxa->get_entities } ) {
+                my $name   = $taxon->get_name;
+                my $target = $factory->create_taxon( '-name' => $name );
+                if ( exists $object_by_name{$name} ) {
+                    $target = $object_by_name{$name};
+                }                
+                foreach my $datum ( @{ $taxon->get_data } ) {
+                    $datum->set_taxon( $target );
                 }
-                foreach my $node ( @{ $self{$name}->get_nodes } ) {
-                    $node->set_taxon($taxon);
-                    $taxon->set_node($node);
+                foreach my $node ( @{ $taxon->get_nodes } ) {
+                    $node->set_taxon( $target );
                 }
-                if ( exists $other{$name} ) {
-                    foreach my $datum ( @{ $other{$name}->get_data } ) {
-                        $datum->set_taxon($taxon);
-                        $taxon->set_datum($datum);
-                    }
-                    foreach my $node ( @{ $other{$name}->get_nodes } ) {
-                        $node->set_taxon($taxon);
-                        $taxon->set_node($node);
-                    }
+                if ( not exists $object_by_name{$name} ) {
+                    $merged->insert($target);
+                    $object_by_name{ $target->get_name } = $target;
                 }
-                $new->insert($taxon);
             }
-            return $new;
         }
-        else {
-            Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-                error => "\"$other_taxa\" is not a Taxa object" );
-        }
+        return $merged;
     }
 
 =item to_nexus()
@@ -379,35 +345,6 @@ Serializes invocant to nexus format.
 
 =begin comment
 
-Invocant destructor.
-
- Type    : Destructor
- Title   : DESTROY
- Usage   : $phylo->DESTROY
- Function: Destroys Phylo object
- Alias   :
- Returns : TRUE
- Args    : none
- Comments: You don't really need this, 
-           it is called automatically when
-           the object goes out of scope.
-
-=end comment
-
-=cut
-
-    sub DESTROY {
-        my $self = shift;
-        
-        # notify user
-        $logger->info("destructor called for '$self'");
-        
-        # recurse up inheritance tree for cleanup
-        $self->SUPER::DESTROY;
-    }
-
-=begin comment
-
  Type    : Internal method
  Title   : _container
  Usage   : $taxa->_container;
@@ -419,7 +356,7 @@ Invocant destructor.
 
 =cut
 
-    sub _container { _NONE_ }
+    sub _container { $CONTAINER }
 
 =begin comment
 
@@ -434,7 +371,7 @@ Invocant destructor.
 
 =cut
 
-    sub _type { _TAXA_ }
+    sub _type { $TYPE }
 
 =back
 
@@ -449,13 +386,13 @@ object. Look there for more methods applicable to the taxa object.
 
 =item L<Bio::Phylo::Manual>
 
-Also see the manual: L<Bio::Phylo::Manual>.
+Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =back
 
 =head1 REVISION
 
- $Id: Taxa.pm 4265 2007-07-20 14:14:44Z rvosa $
+ $Id: Taxa.pm 686 2008-10-22 02:22:35Z rvos $
 
 =cut
 

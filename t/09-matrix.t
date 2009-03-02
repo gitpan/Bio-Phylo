@@ -1,6 +1,6 @@
-# $Id: 09-matrix.t 4186 2007-07-11 02:15:56Z rvosa $
+# $Id: 09-matrix.t 4444 2007-08-21 13:04:36Z rvosa $
 use strict;
-use warnings;
+#use warnings;
 use Test::More tests => 27;
 use Bio::Phylo::Matrices::Datum;
 use Bio::Phylo::Matrices::Matrix;

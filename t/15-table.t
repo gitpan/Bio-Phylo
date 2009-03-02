@@ -1,6 +1,6 @@
-# $Id: 15-table.t 4225 2007-07-16 03:16:38Z rvosa $
+# $Id: 15-table.t 4444 2007-08-21 13:04:36Z rvosa $
 use strict;
-use warnings;
+#use warnings;
 use Test::More tests => 2;
 use Bio::Phylo::Parsers::Table;
 use Bio::Phylo::IO qw(parse unparse);

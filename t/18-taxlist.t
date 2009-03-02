@@ -1,6 +1,6 @@
-# $Id: 18-taxlist.t 4186 2007-07-11 02:15:56Z rvosa $
+# $Id: 18-taxlist.t 4444 2007-08-21 13:04:36Z rvosa $
 use strict;
-use warnings;
+#use warnings;
 use Test::More tests => 1;
 use Bio::Phylo;
 use Bio::Phylo::Parsers::Taxlist;

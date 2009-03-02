@@ -1,19 +1,106 @@
-# $Id: Exceptions.pm 4224 2007-07-16 03:16:05Z rvosa $
-# Subversion: $Rev: 170 $
-package Bio::Phylo::Util::Exceptions;
+# $Id: Exceptions.pm 631 2008-09-10 22:07:13Z rvos $
+package Bio::Phylo::Util::StackTrace;
 use strict;
-use Devel::StackTrace;
 
-sub throw {
-	my $class = shift;	
+sub new {
+	my $class = shift;
+	my $self = [];
+	my $i = 0;
+	my $j = 0;
+	package DB; # to get @_ stack from previous frames, see perldoc -f caller
+	while( my @frame = caller($i) ) {
+		my $package = $frame[0];
+		if ( not Bio::Phylo::Util::StackTrace::_skip_me( $package ) ) {
+			my @args = @DB::args;
+			$self->[$j++] = [ @frame, @args ];
+		}
+		$i++;
+	}
+	package Bio::Phylo::Util::StackTrace;
+	shift @$self; # to remove "throw" frame
+	return bless $self, $class;
+}
+
+sub _skip_me {
+	my $class = shift;
+	my $skip = 0;
+	if ( UNIVERSAL::isa( $class, 'Bio::Phylo::Util::Exceptions') ) {
+		$skip++;
+	}
+	if ( UNIVERSAL::isa( $class, 'Bio::Phylo::Util::ExceptionFactory' ) ) {
+		$skip++;
+	}
+	return $skip;
+}
+
+# fields in frame:
+#  [
+#  0   'main',
+# +1   '/Users/rvosa/Desktop/exceptions.pl',
+# +2   102,
+# +3   'Object::this_dies',
+#  4   1,
+#  5   undef,
+#  6   undef,
+#  7   undef,
+#  8   2,
+#  9   'UUUUUUUUUUUU',
+# +10  bless( {}, 'Object' ),
+# +11  'very',
+# +12  'violently'
+#  ],
+
+sub as_string {
+	my $self = shift;
+	my $string = "";
+	for my $frame ( @$self ) {
+		my $method = $frame->[3];
+		my @args;
+		for my $i ( 10 .. $#{ $frame } ) {
+			push @args, $frame->[$i];
+		}
+		my $file = $frame->[1];
+		my $line = $frame->[2];
+		$string .= $method . "(" . join(', ', map { "'$_'" } @args ) . ") called at $file line $line\n";
+	}
+	return $string;
+}
+
+package Bio::Phylo::Util::Exceptions;
+BEGIN {
+	require Exporter;
+	use vars qw($AUTOLOAD @EXPORT_OK @ISA);
+	@ISA=qw(Exporter);
+	@EXPORT_OK=qw(throw);
+}
+use strict;
+use overload 'bool' => sub { 1 }, 'fallback' => 1, '""' => \&as_string;
+
+sub new {
+	my $class = shift;
 	my %args = @_;
-	my @frames = map { "STACK: $_" } split '\n', Devel::StackTrace->new->as_string;
-	shift(@frames);
-	shift(@frames);
-	my $trace = join "\n", @frames;
-	my $error = $args{'error'} || '';
-	my $description = $class->description;
-	$args{'error'} = <<"ERROR_HERE_DOC";
+	my $self = {
+#		'error'       => $args{'error'},
+#		'description' => $args{'description'},
+		'trace'       => Bio::Phylo::Util::StackTrace->new,
+		'time'        => CORE::time(),
+		'pid'         => $$,
+		'uid'         => $<,
+		'euid'        => $>,
+		'gid'         => $(,
+		'egid'        => $),
+		%args
+	};
+	return bless $self, $class;
+}
+
+sub as_string {
+	my $self = shift;
+	my $error = $self->error;
+	my $description = $self->description;
+	my $class = ref $self;
+	my $trace = join "\n", map { "STACK: $_" } split '\n', $self->trace->as_string;
+	return <<"ERROR_HERE_DOC";
 -------------------------- EXCEPTION ----------------------------
 Message: $error
 
@@ -22,16 +109,93 @@ was thrown.
 
 $description
 
+Refer to the Bio::Phylo::Util::Exceptions documentation for more
+information.
 ------------------------- STACK TRACE ---------------------------
 $trace	
 -----------------------------------------------------------------
 ERROR_HERE_DOC
-	$class->SUPER::throw(%args);
 }
 
-# One line so MakeMaker sees it.
-use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
-use Exception::Class (
+sub throw (@) {
+	# called as static method, with odd args
+	my $self;	
+	if ( scalar @_ % 2 ) {
+		my $class = shift;
+		$self = $class->new(@_);		
+	}
+	# called as function, with even args e.g. throw BadArgs => 'msg';
+	else {
+		my $type = shift;
+		my $class = __PACKAGE__ . '::' . $type;
+		$self = $class->new( 'error' => shift, @_ );
+	}
+# 	if ( not $ENV{'PERL_DL_NONLAZY'} ) {
+# 		require Bio::Phylo;
+# 		$Bio::Phylo::Util::Logger::TRACEBACK = 1;
+# 		my $logger = Bio::Phylo->get_logger();
+# 		$logger->error($self->error);
+# 		$Bio::Phylo::Util::Logger::TRACEBACK = 0;
+# 	}	
+	die $self;	
+}
+
+sub rethrow {
+	my $self = shift;
+	die $self;
+}
+
+sub caught {
+	my $class = shift;
+	if ( @_ ) {
+		$class = shift;
+	}
+	if ( $@ ) {
+		if ( UNIVERSAL::isa( $@, $class ) ) {
+			return $@;
+		}
+		else {
+			die $@;
+		}
+	}
+}
+
+sub AUTOLOAD {
+	my $self = shift;
+	my $field = $AUTOLOAD;
+	$field =~ s/.*://;
+	return $self->{$field};
+}
+
+sub _make_exceptions {
+	my $class = shift;
+	my $root = shift;
+	my %exceptions = @_;
+	for my $exception ( keys %exceptions ) {
+		my $isa = $exceptions{ $exception }->{'isa'};
+		my @isa = ref $isa ? @$isa : ( $isa );
+		my $description = $exceptions{ $exception }->{'description'};
+		my $class = <<"EXCEPTION_CLASS";
+package ${exception};
+use vars '\@ISA';
+\@ISA=qw(@isa);
+my \$desc;
+sub description { 
+	my \$self = shift;
+	if ( \@_ ) {
+		\$desc = shift;
+	}
+	return \$desc;
+}
+1;
+EXCEPTION_CLASS
+		eval $class;
+		$exception->description( $description );
+	}
+	
+}
+
+__PACKAGE__->_make_exceptions(
 	# root classes
     'Bio::Phylo::Util::Exceptions',
     'Bio::Phylo::Util::Exceptions::Generic' => {
@@ -100,14 +264,20 @@ use Exception::Class (
         'description' => "This kind of error happens when a file can not be accessed.",
     },
     'Bio::Phylo::Util::Exceptions::ExtensionError' => {
-        'isa'         => 'Bio::Phylo::Util::Exceptions::System',
+        'isa'         => [
+        	'Bio::Phylo::Util::Exceptions::System',
+        	'Bio::Phylo::Util::Exceptions::BadFormat',
+        ],
         'description' => "This kind of error happens when an extension module can not be\nloaded.",
     },
     'Bio::Phylo::Util::Exceptions::BadFormat' => {
         'isa'         => 'Bio::Phylo::Util::Exceptions::System',
         'description' => "This kind of error happens when a bad\nparse or unparse format was specified.",
-    },    
+    },
+
 );
+
+
 1;
 __END__
 
@@ -214,15 +384,59 @@ Thrown when a deprecated method is called.
 
 =over
 
+=item new()
+
+Constructor
+
+ Type    : Constructor
+ Title   : new
+ Usage   : $class->new( error => 'An exception was thrown!' );
+ Function: Constructs exception
+ Returns : A Bio::Phylo::Util::Exceptions object
+ Args    : error => 'Error message'
+
 =item throw()
 
-Serializes invocant to XML.
+Throws exception.
 
  Type    : Exception
  Title   : throw
  Usage   : $class->throw( error => 'An exception was thrown!' );
  Function: Throws exception
  Returns : A Bio::Phylo::Util::Exceptions object
+ Args    : error => 'Error message'
+
+=item caught()
+
+Catches an exception by class.
+
+ Type    : Handler
+ Title   : caught
+ Usage   : my $e = Bio::Phylo::Util::Exceptions->caught;
+ Function: Catches an exception
+ Returns : A Bio::Phylo::Util::Exceptions object
+ Args    : None
+
+=item rethrow()
+
+Rethrows a caught exception.
+
+ Type    : Exception
+ Title   : rethrow
+ Usage   : $@->rethrow;
+ Function: Rethrows exception
+ Returns : A Bio::Phylo::Util::Exceptions object
+ Args    : None
+
+=item as_string()
+
+Serializes exception.
+
+ Type    : Serializer
+ Title   : as_string
+ Usage   : print $@->as_string;
+ Function: Serializes exception with description and stack trace.
+ Returns : String
  Args    : None
 
 =back
@@ -233,13 +447,13 @@ Serializes invocant to XML.
 
 =item L<Bio::Phylo::Manual>
 
-Also see the manual: L<Bio::Phylo::Manual|Bio::Phylo::Manual>.
+Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>
 
 =back
 
 =head1 REVISION
 
- $Id: Exceptions.pm 4224 2007-07-16 03:16:05Z rvosa $
+ $Id: Exceptions.pm 631 2008-09-10 22:07:13Z rvos $
 
 =cut
 

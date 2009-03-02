@@ -1,15 +1,11 @@
-# $Id: Newick.pm 4213 2007-07-15 03:11:27Z rvosa $
-# Subversion: $Rev: 190 $
+# $Id: Newick.pm 604 2008-09-05 17:32:28Z rvos $
 package Bio::Phylo::Unparsers::Newick;
 use strict;
 use Bio::Phylo::Forest::Tree;
 use Bio::Phylo::IO;
+use vars qw(@ISA);
 
-use vars '@ISA';
 @ISA=qw(Bio::Phylo::IO);
-
-# One line so MakeMaker sees it.
-use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
 
 =head1 NAME
 
@@ -105,23 +101,11 @@ sub _to_string {
     my $tree = $self->{'PHYLO'};
     my $root = $tree->get_root;
     my %args;
-    if ( $self->{'TRANSLATE'} ) {
-    	$args{'-translate'} = $self->{'TRANSLATE'};
-    }
-    if ( $self->{'TIPNAMES'} ) {
-    	$args{'-tipnames'} = $self->{'NAMES'};
-    }
-    if ( $self->{'NHXKEYS'} ) {
-    	$args{'-nhxkeys'} = $self->{'NHXKEYS'};
-    }
-    if ( $self->{'NODELABELS'} ) {
-    	$args{'-nodelabels'} = $self->{'NODELABELS'}; 
-    }
-    if ( $self->{'BLFORMAT'} ) {
-    	$args{'-blformat'} = $self->{'BLFORMAT'}; 
-    }   
-    if ( $self->{'NHXSTYLE'} ) {
-    	$args{'-nhxstyle'} = $self->{'NHXSTYLE'};
+    for my $key ( qw(TRANSLATE TIPNAMES NHXKEYS NODELABELS BLFORMAT NHXSTYLE) ) {
+    	if ( my $val = $self->{$key} ) {
+    		my $arg = '-' . lc($key);
+    		$args{$arg} = $val;
+    	}
     } 
     return $root->to_newick( %args );
 }
@@ -143,7 +127,7 @@ sub _to_string {
 
 {
     my $string = q{};
-    no warnings 'uninitialized';
+    #no warnings 'uninitialized';
 
     sub __to_string {
         my ( $self, $tree, $n ) = @_;
@@ -192,13 +176,13 @@ Look there to learn how to unparse newick strings.
 
 =item L<Bio::Phylo::Manual>
 
-Also see the manual: L<Bio::Phylo::Manual>.
+Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =back
 
 =head1 REVISION
 
- $Id: Newick.pm 4213 2007-07-15 03:11:27Z rvosa $
+ $Id: Newick.pm 604 2008-09-05 17:32:28Z rvos $
 
 =cut
 

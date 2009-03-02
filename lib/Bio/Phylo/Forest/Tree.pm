@@ -1,27 +1,48 @@
-# $Id: Tree.pm 4265 2007-07-20 14:14:44Z rvosa $
+# $Id: Tree.pm 604 2008-09-05 17:32:28Z rvos $
 package Bio::Phylo::Forest::Tree;
 use strict;
 use Bio::Phylo::Listable;
 use Bio::Phylo::Forest::Node;
 use Bio::Phylo::IO qw(unparse);
-use Bio::Phylo::Util::IDPool;
-use Bio::Phylo::Adaptor;
-use Bio::Phylo::Util::Logger;
-use Bio::Phylo::Util::CONSTANT
-  qw(_TREE_ _FOREST_ INT_SCORE_TYPE DOUBLE_SCORE_TYPE NO_SCORE_TYPE looks_like_number);
+use Bio::Phylo::Util::Exceptions 'throw';
+use Bio::Phylo::Util::CONSTANT qw(_TREE_ _FOREST_ looks_like_number looks_like_hash);
+use Bio::Phylo::Factory;
 use Scalar::Util qw(blessed);
-
-# One line so MakeMaker sees it.
-use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
+use vars qw(@ISA);
 
 # classic @ISA manipulation, not using 'base'
-use vars qw($VERSION @ISA $HAS_BIOPERL_INTERFACE);
 @ISA = qw(Bio::Phylo::Listable);
 
-{
+eval { require Bio::Tree::TreeI };
+if ( not $@ ) {
+	push @ISA, 'Bio::Tree::TreeI';
+}
+else {
+	undef($@);
+}
 
-	my $logger = Bio::Phylo::Util::Logger->new;
+my $LOADED_WRAPPERS = 0;
+
+{
+	#my $mediator = Bio::Phylo::Mediators::NodeMediator->new;
+	my $logger = __PACKAGE__->get_logger;
 	my ( $TYPE_CONSTANT, $CONTAINER_CONSTANT ) = ( _TREE_, _FOREST_ );
+	my @fields = \( my ( %default, %rooted ) );
+	my $fac = Bio::Phylo::Factory->new;
+	my %default_constructor_args = (
+        '-tag'      => 'tree', 
+        '-listener' => sub {
+            my ( $self, $method, @args ) = @_;                
+            for my $node ( @args ) {
+                if ( $method eq 'insert' ) {
+                    $node->set_tree( $self );
+                }
+                elsif ( $method eq 'delete' ) {
+                    $node->set_tree();
+                }
+            }
+        },	
+	);
 
 =head1 NAME
 
@@ -77,11 +98,14 @@ Tree constructor.
 		# notify user
 		$logger->info("constructor called for '$class'");
 
-		# go up inheritance tree, eventually get an ID
-		my $self = $class->SUPER::new(@_);
+		if ( not $LOADED_WRAPPERS ) {
+			eval do { local $/; <DATA> };
+			$LOADED_WRAPPERS++;
+		}	
 
-		# adapt (or not, if $Bio::Phylo::COMPAT is not set)
-		return Bio::Phylo::Adaptor->new($self);
+		# go up inheritance tree, eventually get an ID
+		my $self = $class->SUPER::new( %default_constructor_args, @_ );			
+		return $self;
 	}
 
 =item new_from_bioperl()
@@ -105,13 +129,12 @@ Tree constructor from Bio::Tree::TreeI argument.
 		my ( $class, $bptree ) = @_;
 		my $self;
 		if ( blessed $bptree && $bptree->isa('Bio::Tree::TreeI') ) {
-			$self = Bio::Phylo::Forest::Tree->SUPER::new(@_);
+			$self = $fac->create_tree;
 			bless $self, $class;
 			$self = $self->_recurse( $bptree->get_root_node );
 		}
 		else {
-			Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-				error => 'Not a bioperl tree!', );
+			throw 'ObjectMismatch' => 'Not a bioperl tree!';
 		}
 		return $self;
 	}
@@ -207,6 +230,85 @@ Tree constructor from Bio::Tree::TreeI argument.
 			}
 		}
 		return $tree;
+	}
+
+=back 
+
+=head2 MUTATORS
+
+=over
+
+=item set_as_unrooted()
+
+Sets tree to be interpreted as unrooted.
+
+ Type    : Mutator
+ Title   : set_as_unrooted
+ Usage   : $tree->set_as_unrooted;
+ Function: Sets tree to be interpreted as unrooted.
+ Returns : $tree
+ Args    : NONE
+ Comments: This is a flag to indicate that the invocant
+           is interpreted to be unrooted (regardless of
+           topology). The object is otherwise unaltered,
+           this method is only here to capture things such
+           as the [&U] token in nexus files.
+
+=cut
+
+	sub set_as_unrooted {
+		my $self = shift;
+		$rooted{$$self} = 1;
+		return $self;
+	}
+
+=item set_as_default()
+
+Sets tree to be the default tree in a forest
+
+ Type    : Mutator
+ Title   : set_as_default
+ Usage   : $tree->set_as_default;
+ Function: Sets tree to be default tree in forest
+ Returns : $tree
+ Args    : NONE
+ Comments: This is a flag to indicate that the invocant
+           is the default tree in a forest, i.e. to
+           capture the '*' token in nexus files.
+
+=cut
+
+	sub set_as_default {
+		my $self = shift;
+		if ( my $forest = $self->_get_container ) {
+			if ( my $tree = $forest->get_default_tree ) {
+				$tree->set_not_default;
+			}		
+		}
+		$default{$$self} = 1;
+		return $self;
+	}
+
+=item set_not_default()
+
+Sets tree to NOT be the default tree in a forest
+
+ Type    : Mutator
+ Title   : set_not_default
+ Usage   : $tree->set_not_default;
+ Function: Sets tree to not be default tree in forest
+ Returns : $tree
+ Args    : NONE
+ Comments: This is a flag to indicate that the invocant
+           is the default tree in a forest, i.e. to
+           capture the '*' token in nexus files.
+
+=cut
+
+	sub set_not_default {
+		my $self = shift;
+		$default{$$self} = 0;
+		return $self;
 	}
 
 =back
@@ -379,6 +481,27 @@ Get most recent common ancestor of argument nodes.
 
 =over
 
+=item is_default()
+
+Test if tree is default tree.
+
+ Type    : Test
+ Title   : is_default
+ Usage   : if ( $tree->is_default ) {
+              # do something
+           }
+ Function: Tests whether the invocant 
+           object is the default tree in the forest.
+ Returns : BOOLEAN
+ Args    : NONE
+
+=cut
+
+	sub is_default {
+		my $self = shift;
+		return !!$default{$$self};
+	}
+
 =item is_rooted()
 
 Test if tree is rooted.
@@ -392,14 +515,24 @@ Test if tree is rooted.
            object is rooted.
  Returns : BOOLEAN
  Args    : NONE
- Comments: A tree is considered unrooted if the basal
- 		   split is a polytomy
+ Comments: A tree is considered unrooted if:
+           - set_as_unrooted has been set, or
+           - the basal split is a polytomy
 
 =cut
 
 	sub is_rooted {
 		my $self = shift;
-		return scalar( @{ $self->get_root->get_children } ) <= 2;
+		if ( defined $rooted{$$self} ) {
+			return $rooted{$$self};
+		}
+		if ( my $root = $self->get_root ) {
+			if ( my $children = $root->get_children ) {
+				return scalar @{ $children } <= 2;
+			}
+			return 1;
+		}
+		return 0;
 	}
 
 =item is_binary()
@@ -543,6 +676,31 @@ Tests if argument (node array ref) forms a clade.
 			  $tips->[0]->get_mrca( $tips->[$i] );
 		}
 		scalar @{ $mrca->get_terminals } == scalar @{$tips} ? return 1 : return;
+	}
+
+=item is_cladogram()
+
+Tests if tree is a cladogram (i.e. no branch lengths)
+
+ Type    : Test
+ Title   : is_cladogram
+ Usage   : if ( $tree->is_cladogram() ) {
+              # do something
+           }
+ Function: Tests whether the tree is a 
+           cladogram (i.e. no branch lengths)
+ Returns : BOOLEAN
+ Args    : NONE
+ Comments:
+
+=cut
+
+	sub is_cladogram {
+	    my $tree = shift;
+	    for my $node ( @{ $tree->get_entities } ) {
+	        return 0 if defined $node->get_branch_length;
+	    }
+	    return 1;
 	}
 
 =back
@@ -739,8 +897,7 @@ Calculates Colless' coefficient of tree imbalance.
 		my $self = shift;
 		my ( $maxic, $sum, $Ic ) = ( 0, 0 );
 		if ( !$self->is_binary ) {
-			Bio::Phylo::Util::Exceptions::ObjectMismatch->throw( 'error' =>
-				  'Colless\' imbalance only possible for binary trees' );
+			throw 'ObjectMismatch' => 'Colless\' imbalance only possible for binary trees';
 		}
 		my $numtips = $self->calc_number_of_terminals;
 		$numtips -= 2;
@@ -789,8 +946,7 @@ Calculates I2 imbalance.
 		my $self = shift;
 		my ( $maxic, $sum, $I2 ) = ( 0, 0 );
 		if ( !$self->is_binary ) {
-			Bio::Phylo::Exceptions::ObjectMismatch->throw(
-				'error' => 'I2 imbalance only possible for binary trees' );
+			throw 'ObjectMismatch' => 'I2 imbalance only possible for binary trees';
 		}
 		my $numtips = $self->calc_number_of_terminals;
 		$numtips -= 2;
@@ -983,8 +1139,7 @@ Calculates stemminess measure from Rohlf et al. (1990).
 	sub calc_rohlf_stemminess {
 		my $self = shift;
 		if ( !$self->is_ultrametric(0.01) ) {
-			Bio::Phylo::Util::Exceptions::ObjectMismatch->throw( 'error' =>
-				  'Rohlf stemminess only possible for ultrametric trees' );
+			throw 'ObjectMismatch' => 'Rohlf stemminess only possible for ultrametric trees';
 		}
 		my @internals            = @{ $self->get_internals };
 		my $total                = 0;
@@ -1001,8 +1156,7 @@ Calculates stemminess measure from Rohlf et al. (1990).
 			}
 		}
 		unless ($total) {
-			Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-				'error' => 'it looks like all branches were of length zero' );
+			throw 'ObjectMismatch' => 'it looks like all branches were of length zero';
 		}
 		my $crs = $one_over_t_minus_two * $total;
 		return $crs;
@@ -1059,8 +1213,7 @@ Calculates branching times.
 		my $self = shift;
 		my @branching_times;
 		if ( !$self->is_ultrametric(0.01) ) {
-			Bio::Phylo::Util::Exceptions::ObjectMismatch->throw( 'error' =>
-				  'tree isn\'t ultrametric, results would be meaningless' );
+			throw 'ObjectMismatch' => 'tree isn\'t ultrametric, results would be meaningless';
 		}
 		else {
 			my ( $i, @temp ) = 0;
@@ -1098,8 +1251,7 @@ Calculates lineage-through-time data points.
 	sub calc_ltt {
 		my $self = shift;
 		if ( !$self->is_ultrametric(0.01) ) {
-			Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-				'error' => 'tree isn\'t ultrametric, results are meaningless' );
+			throw 'ObjectMismatch' => 'tree isn\'t ultrametric, results are meaningless';
 		}
 		my $ltt      = ( $self->calc_branching_times );
 		my $lineages = 1;
@@ -1422,7 +1574,7 @@ Visits nodes depth first
 
 	sub visit_depth_first {
 		my $self = shift;
-		my %args = @_;
+		my %args = looks_like_hash @_;
 		$self->get_root->visit_depth_first(%args);
 		return $self;
 	}
@@ -1469,7 +1621,7 @@ Visits nodes breadth first
 
 	sub visit_breadth_first {
 		my $self = shift;
-		my %args = @_;
+		my %args = looks_like_hash @_;
 		$self->get_root->visit_breadth_first(%args);
 		return $self;
 	}
@@ -1633,26 +1785,27 @@ Prunes argument nodes from invocant.
 			my @tmp = map { $_->get_name } @{ $tips->get_entities };
 			$tips = \@tmp;
 		}
-		my %names_to_delete = map { $_           => 1 } @{$tips};
-		my %keep            = map { $_->get_name => 1 }
-		  grep { not exists $names_to_delete{ $_->get_name } }
-		  @{ $self->get_terminals };
-		$self->visit_post_order(
-			sub {
-				my $node = shift;
-				if ( $node->is_terminal ) {
-					$self->delete($node) if not $keep{ $node->get_name };
-				}
-				else {
-					my $seen_tip_to_keep = 0;
-					for my $tip ( @{ $node->get_terminals } ) {
-						$seen_tip_to_keep++ if $keep{ $tip->get_name };
-					}
-					$self->delete($node) if not $seen_tip_to_keep;
-				}
-			}
-		);
-		$self->remove_unbranched_internals;
+		my %names_to_delete = map { $_ => 1 } @{ $tips };
+		my %names_to_keep;
+		for my $tip ( @{ $self->get_terminals } ) {
+		    my $name = $tip->get_internal_name;
+		    if ( not $names_to_delete{$name} ) {
+		        $names_to_keep{$name} = 1;
+		    }
+		}
+        $self->visit_depth_first(
+            '-post' => sub {
+                my $node = shift;
+                for my $tip ( @{ $node->get_terminals } ) {
+                    if ( not $names_to_keep{ $tip->get_internal_name } ) {
+                        $tip->get_parent->prune_child( $tip );
+                        $self->delete( $tip );
+                    }
+                }
+                $self->remove_unbranched_internals;
+            }
+        );
+		$self->remove_unbranched_internals;	
 		return $self;
 	}
 
@@ -1676,16 +1829,13 @@ Keeps argument nodes from invocant (i.e. prunes all others).
 			my @tmp = map { $_->get_name } @{ $tips->get_entities };
 			$tips = \@tmp;
 		}
-		my %tip_names = map { $_->get_name => 1 } @{ $tree->get_terminals };
-		my %keep_taxa = map { $_           => 1 } @{$tips};
+		my %keep_taxa = map { $_ => 1 } @{ $tips };
 		my @taxa_to_prune;
-		for my $name ( keys %tip_names ) {
-			if ( not exists $keep_taxa{$name} ) {
-				push @taxa_to_prune, $name;
-			}
+		for my $tip ( @{ $tree->get_terminals } ) {
+		    my $name = $tip->get_internal_name;
+		    push @taxa_to_prune, $name if not exists $keep_taxa{$name};
 		}
-		$tree->prune_tips( \@taxa_to_prune );
-		return $tree;
+		return $tree->prune_tips( \@taxa_to_prune );
 	}
 
 =item negative_to_zero()
@@ -1708,7 +1858,7 @@ Converts negative branch lengths to zero.
 		foreach my $node ( @{ $tree->get_entities } ) {
 			my $bl = $node->get_branch_length;
 			if ( $bl && $bl < 0 ) {
-				$node->set_branch_length('0.00');
+				$node->set_branch_length(0);
 			}
 		}
 		return $tree;
@@ -1730,8 +1880,7 @@ Raises branch lengths to argument.
 	sub exponentiate {
 		my ( $tree, $power ) = @_;
 		if ( !looks_like_number $power ) {
-			Bio::Phylo::Util::Exceptions::BadNumber->throw(
-				'error' => "Power \"$power\" is a bad number" );
+			throw 'BadNumber' => "Power \"$power\" is a bad number";
 		}
 		else {
 			foreach my $node ( @{ $tree->get_entities } ) {
@@ -1758,8 +1907,7 @@ Log argument base transform branch lengths.
 	sub log_transform {
 		my ( $tree, $base ) = @_;
 		if ( !looks_like_number $base ) {
-			Bio::Phylo::Util::Exceptions::BadNumber->throw(
-				'error' => "Base \"$base\" is a bad number" );
+			throw 'BadNumber' => "Base \"$base\" is a bad number"; 
 		}
 		else {
 			foreach my $node ( @{ $tree->get_entities } ) {
@@ -1767,8 +1915,7 @@ Log argument base transform branch lengths.
 				my $newbl;
 				eval { $newbl = ( log $bl ) / ( log $base ); };
 				if ($@) {
-					Bio::Phylo::Util::Exceptions::OutOfBounds->throw(
-						'error' => "Invalid input for log transform: $@" );
+					throw 'OutOfBounds' => "Invalid input for log transform: $@";
 				}
 				else {
 					$node->set_branch_length($newbl);
@@ -1819,6 +1966,90 @@ Collapses internal nodes with fewer than 2 children.
 		return $self;
 	}
 
+=back
+
+=head2 UTILITY METHODS
+
+=over
+
+=item clone()
+
+Clones invocant.
+
+ Type    : Utility method
+ Title   : clone
+ Usage   : my $clone = $object->clone;
+ Function: Creates a copy of the invocant object.
+ Returns : A copy of the invocant.
+ Args    : Optional: a hash of code references to 
+           override reflection-based getter/setter copying
+
+           my $clone = $object->clone(  
+               'set_forest' => sub {
+                   my ( $self, $clone ) = @_;
+                   for my $forest ( @{ $self->get_forests } ) {
+                       $clone->set_forest( $forest );
+                   }
+               },
+               'set_matrix' => sub {
+                   my ( $self, $clone ) = @_;
+                   for my $matrix ( @{ $self->get_matrices } ) {
+                       $clone->set_matrix( $matrix );
+                   }
+           );
+
+ Comments: Cloning is currently experimental, use with caution.
+           It works on the assumption that the output of get_foo
+           called on the invocant is to be provided as argument
+           to set_foo on the clone - such as 
+           $clone->set_name( $self->get_name ). Sometimes this 
+           doesn't work, for example where this symmetry doesn't
+           exist, or where the return value of get_foo isn't valid
+           input for set_foo. If such a copy fails, a warning is 
+           emitted. To make sure all relevant attributes are copied
+           into the clone, additional code references can be 
+           provided, as in the example above. Typically, this is
+           done by overrides of this method in child classes.
+
+=cut
+
+	sub clone {
+		my $self = shift;
+		$logger->info("cloning $self");
+		my %subs = @_;
+		
+		# override, because we'll handle insert
+		$subs{'set_root'}      = sub {};
+		$subs{'set_root_node'} = sub {};
+				
+		# we'll clone node objects, so no raw copying
+		$subs{'insert'} = sub {
+			my ( $self, $clone ) = @_;
+			my %clone_of;
+			for my $node ( @{ $self->get_entities } ) {
+				my $cloned_node = $node->clone;
+				$clone_of{ $node->get_id } = $cloned_node;
+				$clone->insert( $cloned_node );
+			}
+			for my $node ( @{ $self->get_entities } ) {
+				my $cloned_node = $clone_of{ $node->get_id };
+				if ( my $parent = $node->get_parent ) {
+					my $cloned_parent_node = $clone_of{ $parent->get_id };
+					$cloned_node->set_parent( $cloned_parent_node );
+				}
+			}
+		};
+		
+		return $self->SUPER::clone(%subs);
+	
+	} 
+
+=back
+
+=head2 SERIALIZERS
+
+=over
+
 =item to_newick()
 
 Serializes invocant to newick string.
@@ -1840,56 +2071,80 @@ Serializes invocant to newick string.
 		return $newick;
 	}
 
-=item to_cipres()
+=item to_xml()
 
-Converts invocant to CIPRES object.
+Serializes invocant to xml.
 
- Type    : Format converter
- Title   : to_cipres
- Usage   : my $ciprestree = $tree->to_cipres;
- Function: Turns the invocant tree object 
-           into a CIPRES CORBA compliant 
-           data structure
- Returns : HASHREF
+ Type    : Serializer
+ Title   : to_xml
+ Usage   : my $xml = $obj->to_xml;
+ Function: Turns the invocant object into an XML string.
+ Returns : SCALAR
  Args    : NONE
 
 =cut
 
-	sub to_cipres {
-		eval { require CipresIDL_api1; };
-		if ($@) {
-			Bio::Phylo::Util::Exceptions::Extension::Error->throw( 'error' =>
-				  'This method requires CipresIDL, which you don\'t have', );
+	sub to_xml {
+		my $self = shift;
+		my $xsi_type = 'nex:IntTree';
+		for my $node ( @{ $self->get_entities } ) {
+			my $length = $node->get_branch_length;
+			if ( defined $length and $length !~ /^[+-]?\d+$/ ) {
+				$xsi_type = 'nex:FloatTree';
+			}
 		}
-		my $self      = shift;
-		my $m_newick  = $self->to_newick;
-		my $m_name    = $self->get_name;
-		my $_score    = $self->get_score;
-		my $scoretype = $self->get_generic('score_type');
-		my $m_score   = CipresIDL_api1::TreeScore->new;
-		my $m_leafSet = [];
-
-		for my $i ( 0 .. $#{ $self->get_entities } ) {
-			push @{$m_leafSet}, $i if $self->get_by_index($i)->is_terminal;
+		$self->set_attributes( 'xsi:type' => $xsi_type );
+		my $xml = $self->get_xml_tag;
+		if ( my $root = $self->get_root ) {
+			$xml .= $root->to_xml;
 		}
-		if ( defined $scoretype && $scoretype == INT_SCORE_TYPE ) {
-			$m_score->intScore( 'CipresIDL_api1::INT_SCORE_TYPE', $_score );
-		}
-		elsif ( defined $scoretype && $scoretype == DOUBLE_SCORE_TYPE ) {
-			$m_score->doubleScore( 'CipresIDL_api1::DOUBLE_SCORE_TYPE',
-				$_score );
-		}
-		else {
-			$m_score->noScore( 'CipresIDL_api1::NO_SCORE_TYPE', $_score );
-		}
-		my $cipres_tree = CipresIDL_api1::Tree->new(
-			'm_newick'  => $m_newick,
-			'm_score'   => $m_score,
-			'm_leafSet' => $m_leafSet,
-			'm_name'    => $m_name,
-		);
-		return $cipres_tree;
+		$xml .= sprintf( "\n</%s>", $self->get_tag );
+		return $xml;		
 	}
+
+=item to_svg()
+
+Serializes invocant to SVG.
+
+ Type    : Serializer
+ Title   : to_svg
+ Usage   : my $svg = $obj->to_svg;
+ Function: Turns the invocant object into an SVG string.
+ Returns : SCALAR
+ Args    : Same args as the Bio::Phylo::Treedrawer constructor
+
+=cut
+
+	sub to_svg {
+	    my $self = shift;
+		my $drawer = $fac->create_drawer(@_);
+		$drawer->set_tree($self);
+	    return $drawer->draw;
+	}
+
+=item to_json()
+
+Serializes object to JSON string
+
+ Type    : Serializer
+ Title   : to_json()
+ Usage   : print $obj->to_json();
+ Function: Serializes object to JSON string
+ Returns : String 
+ Args    : None
+ Comments:
+
+=cut
+
+    sub to_json {
+        my $self = shift;
+        if ( my $root = $self->get_root ) {
+            return '{' . $self->_to_json() . ',"root":' . $root->to_json() . '}';
+        }
+        else {
+            return $self->SUPER::to_json;
+        }
+    }
 
 =begin comment
 
@@ -1906,8 +2161,35 @@ Converts invocant to CIPRES object.
 
 	sub _cleanup {
 		my $self = shift;
-		$logger->debug("cleaning up '$self'");
+		if ( defined( my $id = $self->get_id ) ) {
+			for my $field ( @fields ) {
+				delete $field->{$id};
+			}			
+		}
 	}
+
+=begin comment
+
+ Type    : Internal method
+ Title   : _consolidate
+ Usage   : $tree->_consolidate;
+ Function: Does pre-order traversal, only keeps
+           nodes seen during traversal in tree,
+           in order of traversal
+ Returns :
+ Args    :
+
+=end comment
+
+=cut
+
+    sub _consolidate {
+        my $self = shift;
+        my @nodes;
+        $self->visit_depth_first( '-pre' => sub { push @nodes, shift } );
+        $self->clear;
+        $self->insert(@nodes);    
+    }
 
 =begin comment
 
@@ -1953,15 +2235,102 @@ therein also apply to trees.
 
 =item L<Bio::Phylo::Manual>
 
-Also see the manual: L<Bio::Phylo::Manual>.
+Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =back
 
 =head1 REVISION
 
- $Id: Tree.pm 4265 2007-07-20 14:14:44Z rvosa $
+ $Id: Tree.pm 604 2008-09-05 17:32:28Z rvos $
 
 =cut
 
 }
 1;
+
+__DATA__
+sub get_nodes {
+	my $self = shift;
+	my $order = 'depth';
+	my @nodes;
+	if ( @_ ) {
+		my %args = @_;
+		if ( $args{'order'} and $args{'order'} =~ m/^b/ ) {
+			$order = 'breadth';
+		}
+	}
+	if ( my $root = $self->get_root ) {		
+		my $method = "visit_${order}_first";
+		$root->$method(
+			'-post' => sub { push @nodes, shift }
+		);
+	}
+	return wantarray ? @nodes : \@nodes;
+}
+
+sub set_root {
+	my ( $self, $node ) = @_;
+	my @nodes = ($node);
+	if ( my $desc = $node->get_descendants ) {
+		push @nodes, @{ $desc };
+	}
+	$self->clear;
+	$self->insert(@nodes);
+	return $node;
+}
+
+*set_root_node = \&set_root;
+
+*as_string = \&to_newick;
+
+sub get_root_node{ shift->get_root }
+
+sub number_nodes { shift->calc_number_of_nodes }
+
+sub total_branch_length { shift->calc_tree_length }
+
+sub height {
+	my $self = shift;
+	my $nodect =  $self->calc_number_of_nodes;
+	return 0 if( ! $nodect ); 
+	return log($nodect) / log(2);
+}
+
+sub id {
+	my $self = shift;
+	if ( @_ ) {
+		$self->set_name(shift);
+	}
+	return $self->get_name;
+}
+
+sub score {
+	my $self = shift;
+	if ( @_ ) {
+		$self->set_score(shift);
+	}
+	return $self->get_score;
+}
+
+sub get_leaf_nodes {
+	my $self = shift;
+	my $tips = $self->get_terminals;
+	if ( $tips ) {
+		return @{ $tips };
+	}
+	return;
+}
+
+sub _parse_newick {
+	my $self = shift;
+	my $newick = join ('', @{ $_[0] } ) . ';';
+	my $forest = Bio::Phylo::IO::parse( '-format' => 'newick', '-string' => $newick );
+	my $tree = $forest->first;
+	my @nodes = @{ $tree->get_entities };
+	for my $node ( @nodes ) {
+		$self->insert($node);
+		$tree->delete($node);
+	}
+	$tree->DESTROY;
+	$forest->DESTROY;
+}

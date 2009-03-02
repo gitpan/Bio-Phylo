@@ -1,15 +1,15 @@
-# $Id: TaxaMediator.pm 4234 2007-07-17 13:41:02Z rvosa $
+# $Id: TaxaMediator.pm 604 2008-09-05 17:32:28Z rvos $
 package Bio::Phylo::Mediators::TaxaMediator;
 use strict;
-use warnings;
 use Scalar::Util qw(weaken);
 use Bio::Phylo;
 use Bio::Phylo::Util::Exceptions;
-use Bio::Phylo::Util::Logger;
+
+# XXX this class only has weak references
 
 {
 
-	my $logger = Bio::Phylo::Util::Logger->new;
+	my $logger = Bio::Phylo::get_logger();
 	my $self;
 	my ( @object, @relationship );
 
@@ -92,10 +92,11 @@ Stores argument in invocant's cache.
 	sub register {
 		my ( $self, $obj ) = @_;
 
+		my $id = $$obj;
+		
 		# notify user
-		$logger->info("registering object '$obj'");
-
-		my $id = $obj->get_id;
+		$logger->info("registering object $obj ($id)");
+		
 		$object[$id] = $obj;
 		weaken $object[$id];
 		return $self;
@@ -119,35 +120,28 @@ Removes argument from invocant's cache.
 		my ( $self, $obj ) = @_;
 
 		# notify user
-		$logger->info("unregistering object '$obj'");
+		#$logger->info("unregistering object '$obj'"); # XXX
 
-		my $id = $obj->get_id;
-		if ( exists $object[$id] ) {
-			if ( exists $relationship[$id] ) {
-
-				# notify user
-				$logger->info("deleting one-to-many relationship for '$obj'");
-
-				delete $relationship[$id];
-			}
-			else {
-			  LINK_SEARCH: for my $relation (@relationship) {
-					if ( exists $relation->{$id} ) {
-
-						# notify user
-						$logger->info(
-							"deleting one-to-one relationship for '$obj'");
-
-						delete $relation->{$id};
-						last LINK_SEARCH;
-					}
+		my $id = $$obj;
+		if ( defined $id ) {
+			if ( exists $object[$id] ) {
+				
+				# one-to-many relationship
+				if ( exists $relationship[$id] ) {
+					delete $relationship[$id];
 				}
+				else {
+					
+					# one-to-one relationship
+				  LINK_SEARCH: for my $relation (@relationship) {
+						if ( exists $relation->{$id} ) {	
+							delete $relation->{$id};
+							last LINK_SEARCH;
+						}
+					}
+				}	
+				delete $object[$id];
 			}
-
-			# notify user
-			$logger->info("deleting '$id' from mediator cache");
-
-			delete $object[$id];
 		}
 		return $self;
 	}
@@ -179,7 +173,7 @@ Creates link between objects.
 		my $self = shift;
 		my %opt  = @_;
 		my ( $one, $many ) = ( $opt{'-one'}, $opt{'-many'} );
-		my ( $one_id, $many_id ) = ( $one->get_id, $many->get_id );
+		my ( $one_id, $many_id ) = ( $$one, $$many );
 
 		# notify user
 		$logger->info("setting link between '$one' and '$many'");
@@ -243,7 +237,7 @@ Retrieves link between objects.
 	sub get_link {
 		my $self = shift;
 		my %opt  = @_;
-		my $id   = $opt{'-source'}->get_id;
+		my $id   = ${ $opt{'-source'} };
 
 		# have to get many objects
 		if ( defined $opt{'-type'} ) {
@@ -298,13 +292,13 @@ Removes link between objects.
 		my %opt  = @_;
 		my ( $one, $many ) = ( $opt{'-one'}, $opt{'-many'} );
 		if ($one) {
-			my $id       = $one->get_id;
+			my $id       = $$one;
 			my $relation = $relationship[$id];
 			return if not $relation;
-			delete $relation->{ $opt{'-many'}->get_id };
+			delete $relation->{$$many};
 		}
 		else {
-			my $id = $many->get_id;
+			my $id = $$many;
 		  LINK_SEARCH: for my $relation (@relationship) {
 				if ( exists $relation->{$id} ) {
 					delete $relation->{$id};
@@ -322,13 +316,13 @@ Removes link between objects.
 
 =item L<Bio::Phylo::Manual>
 
-Also see the manual: L<Bio::Phylo::Manual>.
+Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =back
 
 =head1 REVISION
 
- $Id: TaxaMediator.pm 4234 2007-07-17 13:41:02Z rvosa $
+ $Id: TaxaMediator.pm 604 2008-09-05 17:32:28Z rvos $
 
 =cut
 

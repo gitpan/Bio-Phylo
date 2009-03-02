@@ -2,7 +2,7 @@ package Bio::Phylo::Util::IDPool;
 use strict;
 {
     my @reclaim;
-    my $obj_counter = 0;
+    my $obj_counter = 1;
 
     sub _initialize {
         my $obj_ID = 0;
@@ -18,7 +18,7 @@ use strict;
 
     sub _reclaim {
         my ( $class, $obj ) = @_;
-        #push @reclaim, $obj->get_id;
+        push @reclaim, $obj->get_id;
     }
 }
 1;
@@ -40,12 +40,12 @@ respectively. There is no direct usage.
 
 =item L<Bio::Phylo::Manual>
 
-Also see the manual: L<Bio::Phylo::Manual>.
+Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =back
 
 =head1 REVISION
 
- $Id: IDPool.pm 4213 2007-07-15 03:11:27Z rvosa $
+ $Id: IDPool.pm 604 2008-09-05 17:32:28Z rvos $
 
 =cut

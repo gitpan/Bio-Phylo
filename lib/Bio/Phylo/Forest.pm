@@ -1,30 +1,33 @@
-# $Id: Forest.pm 4265 2007-07-20 14:14:44Z rvosa $
+# $Id: Forest.pm 676 2008-10-22 02:19:25Z rvos $
 package Bio::Phylo::Forest;
 use strict;
-use warnings FATAL => 'all';
-use Bio::Phylo;
+#use warnings FATAL => 'all';
 use Bio::Phylo::Listable;
+use Bio::Phylo::Taxa;
 use Bio::Phylo::Taxa::TaxaLinker;
 use Bio::Phylo::Taxa::Taxon;
-use Bio::Phylo::Util::Logger;
-use Bio::Phylo::Util::CONSTANT qw(_NONE_ _FOREST_);
-use vars qw($VERSION @ISA);
+use Bio::Phylo::Util::CONSTANT qw(_NONE_ _FOREST_ _PROJECT_);
+use Bio::Phylo::Util::Exceptions 'throw';
+use Bio::Phylo::Factory;
+use vars qw(@ISA);
 
-# set version based on svn rev
-my $version = $Bio::Phylo::VERSION;
-my $rev     = '$Id: Forest.pm 4265 2007-07-20 14:14:44Z rvosa $';
-$rev     =~ s/^[^\d]+(\d+)\b.*$/$1/;
-$version =~ s/_.+$/_$rev/;
-$VERSION = $version;
+=begin comment
+
+This class has no internal state, no cleanup is necessary.
+
+=end comment
+
+=cut
 
 # classic @ISA manipulation, not using 'base'
 @ISA = qw(Bio::Phylo::Listable Bio::Phylo::Taxa::TaxaLinker);
 
 {
 
-	my $logger             = Bio::Phylo::Util::Logger->new;
+	my $logger             = __PACKAGE__->get_logger;
+	my $factory            = Bio::Phylo::Factory->new;
 	my $CONSTANT_TYPE      = _FOREST_;
-	my $CONTAINER_CONSTANT = _NONE_;
+	my $CONTAINER_CONSTANT = _PROJECT_;
 
 =head1 NAME
 
@@ -76,7 +79,7 @@ Forest constructor.
 		$logger->info("constructor called for '$class'");
 
 		# recurse up inheritance tree, get ID
-		my $self = $class->SUPER::new(@_);
+		my $self = $class->SUPER::new( '-tag' => 'trees', @_ );
 
 		# local fields would be set here
 
@@ -88,6 +91,71 @@ Forest constructor.
 =head1 METHODS
 
 =over
+
+=item insert()
+
+Inserts trees in forest.
+
+ Type    : Method
+ Title   : insert
+ Usage   : $trees->insert( $tree1, $tree2, ... );
+ Function: Inserts trees in forest.
+ Returns : A Bio::Phylo::Forest object.
+ Args    : Trees
+ Comment : The last seen tree that is set as default
+           becomes the default for the entire forest
+
+=cut
+
+	sub insert {
+		my $self = shift;
+		if ( $self->can_contain(@_) ) {
+			my $seen_default = 0;
+			for my $tree ( reverse @_ ) {
+				if ( $tree->is_default ) {
+					if ( not $seen_default ) {
+						$seen_default++;
+					}
+					else {
+						$tree->set_not_default;
+					}
+				}
+			}
+			if ( $seen_default ) {
+				if ( my $tree = $self->get_default_tree ) {
+					$tree->set_not_default;
+				}
+			}
+			$self->SUPER::insert(@_);
+		}
+		else {
+			throw 'ObjectMismatch' => "Failed insertion: @_ [in $self]";
+		}
+	}
+
+=item get_default_tree()
+
+Gets the default tree in the forest.
+
+ Type    : Method
+ Title   : get_default_tree
+ Usage   : my $tree = $trees->get_default_tree;
+ Function: Gets the default tree in the forest.
+ Returns : A Bio::Phylo::Forest::Tree object.
+ Args    : None
+ Comment : If no default tree has been set, 
+           returns first tree. 
+
+=cut
+
+	sub get_default_tree {
+		my $self = shift;
+		my $first = $self->first;
+		for my $tree ( @{ $self->get_entities } ) {
+			return $tree if $tree->is_default;
+		}
+		return $first;
+	}
 
 =item check_taxa()
 
@@ -108,20 +176,25 @@ Validates taxon links of nodes in invocant's trees.
 
 		# is linked
 		if ( my $taxa = $self->get_taxa ) {
-			my %tips =
-			  map { $_->get_internal_name => $_ }
-			  map { @{ $_->get_terminals } } @{ $self->get_entities };
+			my %tips;
+			for my $tip ( map { @{ $_->get_terminals } } @{ $self->get_entities } ) {
+				my $name = $tip->get_internal_name;
+				if ( not $tips{$name} ) {
+					$tips{$name} = [];
+				}
+				push @{ $tips{$name} }, $tip;
+			}
 			my %taxa =
 			  map { $_->get_internal_name => $_ } @{ $taxa->get_entities };
-			for my $tip ( keys %tips ) {
-				$logger->debug("linking tip $tip");
-				if ( not exists $taxa{$tip} ) {
-					$logger->debug(
-						"no taxon object for $tip yet, instantiating");
-					$taxa->insert( $taxa{$tip} =
-						  Bio::Phylo::Taxa::Taxon->new( '-name' => $tip ) );
+			for my $name ( keys %tips ) {
+				$logger->debug("linking tip $name");
+				if ( not exists $taxa{$name} ) {
+					$logger->debug("no taxon object for $name yet, instantiating");
+					$taxa->insert( $taxa{$name} = $factory->create_taxon( '-name' => $name ) );
 				}
-				$tips{$tip}->set_taxon( $taxa{$tip} );
+				for my $tip ( @{ $tips{$name} } ) {
+					$tip->set_taxon( $taxa{$name} );
+				}
 			}
 		}
 
@@ -136,6 +209,120 @@ Validates taxon links of nodes in invocant's trees.
 		return $self;
 	}
 
+=item make_matrix()
+
+Creates an MRP matrix object.
+
+ Type    : Method
+ Title   : make_matrix
+ Usage   : my $matrix = $obj->make_matrix
+ Function: Creates an MRP matrix object
+ Returns : $matrix
+ Args    : NONE
+
+=cut
+
+    sub make_matrix {
+        my $self = shift;
+        my $taxa = $self->make_taxa;
+        my $matrix = $factory->create_matrix;
+        $matrix->set_taxa( $taxa );
+        my ( %data, @charlabels, @statelabels );
+        for my $taxon ( @{ $taxa->get_entities } ) {
+            my $datum = $factory->create_datum;
+            $datum->set_taxon( $taxon );
+            $datum->set_name( $taxon->get_name );
+            $matrix->insert( $datum );
+            $data{ $taxon->get_name } = [];
+        }
+        my $recursion = sub {
+            my ( $node, $tree, $taxa, $method ) = @_;
+            push @charlabels, $tree->get_internal_name;
+            push @statelabels, [ 'outgroup', $node->get_internal_name ];
+            my %tip_values = map { $_->get_name => 1 } @{ $node->get_terminals };
+            for my $tipname ( map { $_->get_name } @{ $tree->get_terminals } ) {
+                $tip_values{$tipname} = 0 if not exists $tip_values{$tipname};
+            }
+            for my $datumname ( keys %data ) {
+                if ( exists $tip_values{$datumname} ) {
+                    push @{ $data{$datumname} }, $tip_values{$datumname};
+                }
+                else {
+                    push @{ $data{$datumname} }, '?';
+                }
+            }
+            $method->( $_, $tree, $taxa, $method ) for grep { $_->is_internal } @{ $node->get_children };            
+        };
+        for my $tree ( @{ $self->get_entities } ) {
+            $recursion->( $tree->get_root, $tree, $taxa, $recursion );
+        }
+        for my $datum ( @{ $matrix->get_entities } ) {
+            $datum->set_char( $data{ $datum->get_name } );
+        }
+        $matrix->set_charlabels( \@charlabels );
+        $matrix->set_statelabels( \@statelabels );
+        return $matrix;
+    }
+
+=item make_taxa()
+
+Creates a taxa block from the objects contents if none exists yet.
+
+ Type    : Method
+ Title   : make_taxa
+ Usage   : my $taxa = $obj->make_taxa
+ Function: Creates a taxa block from the objects contents if none exists yet.
+ Returns : $taxa
+ Args    : NONE
+
+=cut
+
+	sub make_taxa {
+		my $self = shift;
+		if ( my $taxa = $self->get_taxa ) {
+			return $taxa;
+		}
+		else {
+			my %taxa;
+			my $taxa = $factory->create_taxa;
+			for my $tree ( @{ $self->get_entities } ) {
+				for my $tip ( @{ $tree->get_terminals } ) {
+					my $name = $tip->get_internal_name;
+					if ( not $taxa{$name} ) {
+						$taxa{$name} = $factory->create_taxon( '-name' => $name );
+					}
+				}
+			}
+			$taxa->insert( map { $taxa{$_} } sort { $a cmp $b } keys %taxa );
+			$self->set_taxa( $taxa );
+			return $taxa;
+		}
+	}
+
+=item to_newick()
+
+Serializes invocant to newick string.
+
+ Type    : Stringifier
+ Title   : to_newick
+ Usage   : my $string = $forest->to_newick;
+ Function: Turns the invocant forest object 
+           into a newick string, one line per tree
+ Returns : SCALAR
+ Args    : The same arguments as 
+           Bio::Phylo::Forest::Tree::to_newick
+
+=cut
+
+    sub to_newick {
+        my $self = shift;
+        my $newick;
+        for my $tree ( @{ $self->get_entities } ) {
+            $newick .= $tree->to_newick(@_) . "\n";
+        }
+        return $newick;
+    }
+
 =item to_nexus()
 
 Serializer to nexus format.
@@ -146,19 +333,19 @@ Serializer to nexus format.
  Function: Converts matrix object into a nexus data block.
  Returns : Nexus data block (SCALAR).
  Args    : Trees can be formatted using the same arguments as those
- 		   passed to Bio::Phylo::Unparsers::Newick. In addition, you
- 		   can provide: 
- 		   
- 		   # as per mesquite's inter-block linking system (default is false):
- 		   -links => 1 (to create a TITLE token, and a LINK token, if applicable)
- 		   
- 		   # rooting is determined based on basal trichotomy. "token" means 'TREE' or 'UTREE'
- 		   # is used, "comment" means [&R] or [&U] is used, "nhx" means [%unrooted=on] or
- 		   # [%unrooted=off] if used, default is "comment"
- 		   -rooting => one of (token|comment|nhx)
- 		   
- 		   # to map taxon names to indices (default is false)
- 		   -make_translate => 1 (autogenerate translation table, overrides -translate => {})
+           passed to Bio::Phylo::Unparsers::Newick. In addition, you
+           can provide: 
+           
+           # as per mesquite's inter-block linking system (default is false):
+           -links => 1 (to create a TITLE token, and a LINK token, if applicable)
+           
+           # rooting is determined based on basal trichotomy. "token" means 'TREE' or 'UTREE'
+           # is used, "comment" means [&R] or [&U] is used, "nhx" means [%unrooted=on] or
+           # [%unrooted=off] if used, default is "comment"
+           -rooting => one of (token|comment|nhx)
+           
+           # to map taxon names to indices (default is false)
+           -make_translate => 1 (autogenerate translation table, overrides -translate => {})
  Comments:
 
 =cut
@@ -295,24 +482,6 @@ Serializer to nexus format.
 =begin comment
 
  Type    : Internal method
- Title   : _cleanup
- Usage   : $trees->_cleanup;
- Function: Called during object destruction, for cleanup of instance data
- Returns : 
- Args    :
-
-=end comment
-
-=cut
-
-	sub _cleanup {
-		my $self = shift;
-		$logger->debug("cleaning up '$self'");
-	}
-
-=begin comment
-
- Type    : Internal method
  Title   : _container
  Usage   : $trees->_container;
  Function:
@@ -358,13 +527,13 @@ object. The methods defined therein are applicable to forest objects.
 
 =item L<Bio::Phylo::Manual>
 
-Also see the manual: L<Bio::Phylo::Manual>.
+Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =back
 
 =head1 REVISION
 
- $Id: Forest.pm 4265 2007-07-20 14:14:44Z rvosa $
+ $Id: Forest.pm 676 2008-10-22 02:19:25Z rvos $
 
 =cut
 

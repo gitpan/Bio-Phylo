@@ -1,6 +1,6 @@
-# $Id: 11-taxon.t 4186 2007-07-11 02:15:56Z rvosa $
+# $Id: 11-taxon.t 4444 2007-08-21 13:04:36Z rvosa $
 use strict;
-use warnings;
+#use warnings;
 use Test::More tests => 14;
 use Bio::Phylo::Taxa::Taxon;
 use Bio::Phylo::Forest;
@@ -12,7 +12,7 @@ ok( $taxon->set_desc('This is a taxon description'), '2 enter description' );
 ok( $taxon->get_desc,                                '3 fetch description' );
 
 eval { $taxon->set_name(':') };
-ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Util::Exceptions::BadString' ), '4 enter bad name' );
+ok( $taxon->get_name eq ':', '4 enter bad name' );
 
 ok( $taxon->_container,                              '5 container' );
 ok( $taxon->_type,                                   '6 container type' );

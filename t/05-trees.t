@@ -1,6 +1,6 @@
-# $Id: 05-trees.t 4186 2007-07-11 02:15:56Z rvosa $
+# $Id: 05-trees.t 4444 2007-08-21 13:04:36Z rvosa $
 use strict;
-use warnings;
+#use warnings;
 use Test::More tests => 13;
 use Bio::Phylo::IO qw(parse);
 

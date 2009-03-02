@@ -1,16 +1,15 @@
-# $Id: Newick.pm 4251 2007-07-19 14:21:33Z rvosa $
+# $Id: Newick.pm 679 2008-10-22 02:20:20Z rvos $
 package Bio::Phylo::Parsers::Newick;
 use strict;
 use Bio::Phylo::IO;
 use Bio::Phylo;
-use vars '@ISA';
-use Bio::Phylo::Util::Logger;
+use vars qw(@ISA);
 @ISA=qw(Bio::Phylo::IO);
 
-my $logger = Bio::Phylo::Util::Logger->new;
+no warnings 'recursion';
 
-# One line so MakeMaker sees it.
-use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
+my $logger = Bio::Phylo->get_logger;
+
 *_from_handle = \&_from_both;
 *_from_string = \&_from_both;
 
@@ -103,7 +102,21 @@ sub _from_both {
     }
 
     # done
-    return $forest;
+    if ( $args{'-project'} ) {
+    	my $taxa = $forest->make_taxa;
+    	$args{'-project'}->insert($taxa,$forest);
+    	return $args{'-project'};
+    }
+    elsif ( $args{'-as_project'} ) {
+    	my $taxa = $forest->make_taxa;
+    	require Bio::Phylo::Project;
+    	my $proj = Bio::Phylo::Project->new;
+    	$proj->insert($taxa,$forest);
+    	return $proj;
+    }
+    else {
+    	return $forest;
+    }
 }
 
 =begin comment
@@ -187,6 +200,7 @@ sub _parse_string {
     $self->_parse_clade( $tree, $root, @tokens[ 0 .. ( $i - 1 ) ] );
     return $tree;
 }
+
 sub _parse_clade {
     my ( $self, $tree, $root, @tokens ) = @_;
     $logger->debug("recursively parsing clade '@tokens'");
@@ -225,6 +239,7 @@ sub _parse_clade {
         push @clade, $tokens[$i];
     }
 }
+
 sub _parse_node_data {
     my ( $self, $node, @clade ) = @_;
     $logger->debug("parsing name and branch length for node");
@@ -250,6 +265,7 @@ sub _parse_node_data {
         $node->set_branch_length( $tail[-1] );
     }
 }
+
 sub _next_token {
     my ( $self, $string ) = @_;
     $logger->debug("tokenizing string '$string'");
@@ -406,13 +422,13 @@ Look there to learn how to parse newick strings.
 
 =item L<Bio::Phylo::Manual>
 
-Also see the manual: L<Bio::Phylo::Manual>.
+Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =back
 
 =head1 REVISION
 
- $Id: Newick.pm 4251 2007-07-19 14:21:33Z rvosa $
+ $Id: Newick.pm 679 2008-10-22 02:20:20Z rvos $
 
 =cut
 

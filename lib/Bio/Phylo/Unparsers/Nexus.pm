@@ -1,15 +1,11 @@
-# $Id: Nexus.pm 4213 2007-07-15 03:11:27Z rvosa $
-# Subversion: $Rev: 190 $
+# $Id: Nexus.pm 604 2008-09-05 17:32:28Z rvos $
 package Bio::Phylo::Unparsers::Nexus;
 use strict;
 use Bio::Phylo::IO;
 use Bio::Phylo::Util::CONSTANT qw(:objecttypes);
-use Bio::Phylo::Util::Exceptions;
-use vars '@ISA';
+use Bio::Phylo::Util::Exceptions 'throw';
+use vars qw(@ISA);
 @ISA=qw(Bio::Phylo::IO);
-
-# One line so MakeMaker sees it.
-use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
 
 =head1 NAME
 
@@ -118,9 +114,7 @@ sub _to_string {
     			}     			
     		}
     		elsif ( $@ ) {
-		    	Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-    				'error' => "Can't unparse this object: $blocks"
-    			);    			
+		    	throw 'ObjectMismatch' => "Can't unparse this object: $blocks";
     		}
     		$nexus .= $block->to_nexus(%args);
     	}
@@ -133,9 +127,7 @@ sub _to_string {
     
     # wrong!
     else {
-    	Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-    		'error' => "Can't unparse this object: $blocks"
-    	);
+    	throw 'ObjectMismatch' => "Can't unparse this object: $blocks";
     }
     
     return $nexus;
@@ -153,13 +145,13 @@ Look there to learn how to unparse newick strings.
 
 =item L<Bio::Phylo::Manual>
 
-Also see the manual: L<Bio::Phylo::Manual>.
+Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =back
 
 =head1 REVISION
 
- $Id: Nexus.pm 4213 2007-07-15 03:11:27Z rvosa $
+ $Id: Nexus.pm 604 2008-09-05 17:32:28Z rvos $
 
 =cut
 

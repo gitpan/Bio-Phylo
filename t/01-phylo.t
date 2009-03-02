@@ -1,6 +1,6 @@
-# $Id: 01-phylo.t 4186 2007-07-11 02:15:56Z rvosa $
+# $Id: 01-phylo.t 4587 2007-09-27 21:16:10Z rvosa $
 use strict;
-use warnings;
+#use warnings;
 use Test::More tests => 4;
 use Bio::Phylo;
 my $data;
@@ -9,7 +9,7 @@ while (<DATA>) {
 }
 ok( my $phylo = new Bio::Phylo,          '1 init' );
 ok( !Bio::Phylo->VERBOSE( -level => 0 ), '2 set terse' );
-ok( $phylo->VERSION,                     '3 version number' );
+ok( $Bio::Phylo::VERSION,                '3 version number' );
 ok( $phylo->CITATION,                    '4 citation' );
 __DATA__
 (H:1,(G:1,(F:1,(E:1,(D:1,(C:1,(A:1,B:1):1):1):1):1):1):1):0;

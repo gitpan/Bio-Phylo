@@ -1,16 +1,11 @@
-# $Id: Taxlist.pm 4213 2007-07-15 03:11:27Z rvosa $
+# $Id: Taxlist.pm 683 2008-10-22 02:21:38Z rvos $
 package Bio::Phylo::Parsers::Taxlist;
 use strict;
-use Bio::Phylo;
 use Bio::Phylo::Taxa;
 use Bio::Phylo::Taxa::Taxon;
 use Bio::Phylo::IO;
-
-use vars '@ISA';
+use vars qw(@ISA);
 @ISA=qw(Bio::Phylo::IO);
-
-# One line so MakeMaker sees it.
-use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
 
 =head1 NAME
 
@@ -87,7 +82,19 @@ sub _from_both {
             }
         }
     }
-    return $taxa;
+    if ( $opts{'-project'} ) {
+    	$opts{'-project'}->insert($taxa);
+    	return $opts{'-project'};    	
+    }
+    elsif ( $opts{'-as_project'} ) {
+    	require Bio::Phylo::Project;
+    	my $proj = Bio::Phylo::Project->new;
+    	$proj->insert($taxa);
+    	return $proj;
+    }
+    else {
+    	return $taxa;
+    }
 }
 
 =head1 SEE ALSO
@@ -101,13 +108,13 @@ Look there for examples.
 
 =item L<Bio::Phylo::Manual>
 
-Also see the manual: L<Bio::Phylo::Manual>.
+Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =back
 
 =head1 REVISION
 
- $Id: Taxlist.pm 4213 2007-07-15 03:11:27Z rvosa $
+ $Id: Taxlist.pm 683 2008-10-22 02:21:38Z rvos $
 
 =cut
 

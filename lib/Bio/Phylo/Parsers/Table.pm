@@ -1,22 +1,17 @@
-# $Id: Table.pm 4234 2007-07-17 13:41:02Z rvosa $
+# $Id: Table.pm 682 2008-10-22 02:21:17Z rvos $
 package Bio::Phylo::Parsers::Table;
 use strict;
-use Bio::Phylo;
 use Bio::Phylo::IO;
 use Bio::Phylo::Matrices::Matrix;
 use Bio::Phylo::Matrices::Datum;
 use Bio::Phylo::Taxa;
 use Bio::Phylo::Taxa::Taxon;
-use Bio::Phylo::Util::Logger;
-
-# One line so MakeMaker sees it.
-use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
+use vars qw(@ISA);
 
 # classic @ISA manipulation, not using 'base'
-use vars qw($VERSION @ISA);
 @ISA = qw(Bio::Phylo::IO);
 
-my $logger = Bio::Phylo::Util::Logger->new;
+my $logger = Bio::Phylo->get_logger;
 
 =head1 NAME
 
@@ -142,7 +137,22 @@ sub _from_both {
             $matrix->insert($datum);
         }
     }
-    return $matrix;
+    
+    if ( $opts{'-project'} ) {
+    	my $taxa = $matrix->make_taxa();
+    	$opts{'-project'}->insert($taxa,$matrix);
+    	return $opts{'-project'};
+    }
+    elsif ( $opts{'-as_project'} ) {
+    	require Bio::Phylo::Project;
+    	my $proj = Bio::Phylo::Project->new;
+    	my $taxa = $matrix->make_taxa();
+    	$proj->insert($taxa,$matrix);
+    	return $proj;
+    }
+    else {
+    	return $matrix;
+    }
 }
 
 =head1 SEE ALSO
@@ -156,13 +166,13 @@ Look there to learn how to parse tab- (or otherwise) delimited matrices.
 
 =item L<Bio::Phylo::Manual>
 
-Also see the manual: L<Bio::Phylo::Manual|Bio::Phylo::Manual>.
+Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>
 
 =back
 
 =head1 REVISION
 
- $Id: Table.pm 4234 2007-07-17 13:41:02Z rvosa $
+ $Id: Table.pm 682 2008-10-22 02:21:17Z rvos $
 
 =cut
 

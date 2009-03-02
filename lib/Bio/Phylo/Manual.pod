@@ -53,13 +53,24 @@ The C<-MModule> switch includes a module the way you would use
 C<use Module;> in a script. Here we use the L<Bio::Phylo::IO> module, which
 is Bio::Phylo's entry point into file parsing and file writing.
 
-The C<-e> switch is used to evaluate the subsequent expression. We
-parse a string, C<((A,B),C);>, of format C<newick>. The parser
-returns a L<Bio::Phylo::Forest> object (i.e. a set of trees, in this case
-a set of one). From this set we retrieve the first (and only) tree, and
-calculate Colless' imbalance, which returns a number, which we print to standard
-out. This would print "1", because the tree is a ladder, and therefore completely
-unbalanced.
+The C<-e> switch is used to evaluate the subsequent expression. We parse a 
+string, C<((A,B),C);>, of format C<newick>. The parser returns a 
+L<Bio::Phylo::Forest> object (i.e. a set of trees, in this case a set of 
+one). From this set we retrieve the first (and only) tree, and calculate 
+Colless' imbalance, which returns a number, which we print to standard out. 
+This would print "1", because the tree is a ladder, and therefore completely
+unbalanced. Note how this example uses the standard interface for 
+L<Bio::Phylo::IO>. As a new feature (onwards from v.0.17), the arguments to
+the C<parse> function can also be supplied in C<@ARGV> (useful for calls 
+from shell scripts or other processes that launch shell commands) and so 
+the example can be rewritten (both options are valid usage, of course) as:
+
+ perl -MBio::Phylo::IO=parse -e 'print parse()->first->calc_imbalance' \
+ format newick string "((A,B),C);"
+
+In this alternative invocation, note how the arguments to the parse call are
+now outside of the '...command...' quotes, making them "shell words",
+which for various reasons may not be preceded by dashes.
 
 =item B<Sets of trees>
 
@@ -139,10 +150,14 @@ You want to create a L<Bio::Phylo::Forest::Tree> object from a newick string.
 
 =item Discussion
 
-The L<Bio::Phylo::IO> module invokes specific parser modules. It is essentially
-the front door for the parsers. In the solution the
-L<Bio::Phylo::Parsers::Newick> parser turns a tree description into a
-L<Bio::Phylo::Forest> object. 
+The L<Bio::Phylo::IO> module invokes format specific parser and unparser modules. 
+It is Bio::Phylo's front door for data input and output from files, raw strings 
+and file handles. 
+
+In the solution the IO module calls the L<Bio::Phylo::Parsers::Newick> parser
+which turns a tree description into a L<Bio::Phylo::Forest> object. (Several other 
+parser and unparser modules live in the Bio::Phylo::Parsers::* and 
+Bio::Phylo::Unparsers::* namespaces, respectively.)
 
 The returned forest object subclasses L<Bio::Phylo::Listable>, as a forest models 
 a list of trees that you can iterate over. By calling the C<->first> method, we 
@@ -277,8 +292,8 @@ You want to access the individual taxa in a L<Bio::Phylo::Taxa> object.
 
  my $string = 'A|B|C|D|E|F|G|H';
  my $taxa = parse(
-     -string => $string,
-     -format => 'taxlist',
+     -string   => $string,
+     -format   => 'taxlist',
      -fieldsep => '|'
  );
  print ref $taxa; # prints 'Bio::Phylo::Taxa';
@@ -331,7 +346,7 @@ here as well. In the above example, the get_by_index method is used. With
 a single argument it returns a Bio::Phylo object. With multiple arguments
 the semantics are nearly identical to array slicing (see L<perldata>), 
 except that an array I<reference> is returned. Bio::Phylo generally passes
-by reference (see L<perlref>).
+lists by reference (see L<perlref>).
 
 =back
 
@@ -661,7 +676,7 @@ that the forest object that contains the node references:
                          ____|_____        |  __________  |  
                         |TAXA      |       | |TREE      | |  
                         |  ______  |       | |  ______  | |  
-                        | |TAXON |_|______ |_|_|NODE  | | |  
+                        | |TAXON |------------>|NODE  | | |  
                         | |______| |       | | |______| | |  
                         |__________|       | |__________| |  
                                            |______________|        
@@ -777,15 +792,27 @@ to one that is based on inheritance from a java-like interface, as
 is the convention in bioperl. Both systems have their advantages and
 drawbacks, but luckily they can coexist side by without problems.
 
+As a new feature, a utility function is provided that does this type
+checking for you, returning true or throwing an exception (see below),
+so that the following will either succeed or die (so you might want
+to put it inside an eval{} block):
+
+ if ( looks_like_object( $node, _NODE_ ) ) {
+      # do something
+ }
+
 =head2 Constructor arguments
 
 All mutators (i.e. setters, methods called set_*) for a class and its
 superclasses can be accessed from the constructor. E.g. because the
-Bio::Phylo superclasses of object Bio::Phylo::Forest::Node has a
+Bio::Phylo superclass of object Bio::Phylo::Forest::Node has a
 "set_name" method, you can pass the following to the constructor:
 
  use Bio::Phylo::Forest::Node;
  my $node = Bio::Phylo::Forest::Node->new( -name => "node1" );
+
+The arguments will be passed up the inheritance tree, and will 
+eventually be turned into method calls by the root class.
 
 =head1 RETURN VALUES AND EXCEPTIONS
 
@@ -829,8 +856,9 @@ value is C<undef>. Here you should take care how you test. For example:
  	$root = $node;
  }
 
-This works as expected. C<$node> has no parent, hence it must be the root.
-However:
+This works as expected - object references are always "true", so if
+C<get_parent> returns "false", C<$node> has no parent - hence it must 
+be the root. However:
 
  if ( ! $node->get_branch_length ) {
 
@@ -885,6 +913,10 @@ into the module code.
     warn join ' ',  $@->euid, $@->egid, $@->uid, $@->gid, $@->pid, $@->time;
     exit;
  }
+
+As a new feature (from v.0.17 onwards) exceptions have become more descriptive,
+with a generic explanation of what the thrown exception class typically means
+added to the error message, and stack traces are printed out by default.
 
 =item Exception types
 
@@ -948,7 +980,7 @@ changes. If you can localize the bug to particular package file (i.e. a *.pm fil
 from this release), please include the REVISION tag for that file in your bug
 report. It is a string such as this one:
 
-  $Id: Manual.pod 4213 2007-07-15 03:11:27Z rvosa $
+  $Id: Manual.pod 4676 2007-10-12 06:44:50Z rvosa $
 
 =head1 AUTHORS
 
@@ -956,9 +988,9 @@ Rutger Vos, Aki Mimoto, Klaas Hartmann, Jason Caravas
 
 =over
 
-=item email: C<< rvosa@sfu.ca >>
+=item email: C<< rvos@interchange.ubc.ca >>
 
-=item web page: L<http://www.sfu.ca/~rvosa/>
+=item web page: L<http://rutgervos.blogspot.com/>
 
 =back
 
@@ -971,7 +1003,7 @@ for comments and requests.
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2005 Rutger A. Vos, All Rights Reserved. This program is free
+Copyright 2005-2007 Rutger A. Vos, All Rights Reserved. This program is free
 software; you can redistribute it and/or modify it under the same terms as Perl
 itself.
 

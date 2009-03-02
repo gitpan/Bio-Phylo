@@ -1,38 +1,97 @@
-# $Id: Nexus.pm 4234 2007-07-17 13:41:02Z rvosa $
-# Subversion: $Rev: 195 $
+# $Id: Nexus.pm 681 2008-10-22 02:21:00Z rvos $
 package Bio::Phylo::Parsers::Nexus;
 use strict;
-use Bio::Phylo::Taxa;
-use Bio::Phylo::Taxa::Taxon;
-use Bio::Phylo::Forest;
-use Bio::Phylo::Matrices::Datum;
-use Bio::Phylo::Matrices::Matrix;
+use Bio::Phylo::Factory;
 use Bio::Phylo::IO qw(parse);
-use Bio::Phylo::Util::CONSTANT qw(:objecttypes :datatypes);
-use Bio::Phylo::Util::Exceptions;
-use Bio::Phylo::Util::Logger;
-use Scalar::Util qw(blessed);
-use List::Util qw(first);
+use Bio::Phylo::Util::CONSTANT qw(:objecttypes);
+use Bio::Phylo::Util::Exceptions qw(throw);
+use UNIVERSAL qw(isa);
 use IO::String;
+use vars qw(@ISA);
 
-my $DATATYPES = {
-    'DNA'        => DNA_DATATYPE,
-    'RNA'        => RNA_DATATYPE,    
-    'PROTEIN'    => AA_DATATYPE,
-    'STANDARD'   => CATEGORICAL_DATATYPE,
-    'CONTINUOUS' => CONTINUOUS_DATATYPE,
-};
-
-# TODO: handle mixed?
-# One line so MakeMaker sees it.
-use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
+# TODO: handle mixed? distances, splits, bipartitions
 
 # classic @ISA manipulation, not using 'base'
-use vars qw($VERSION @ISA);
 @ISA = qw(Bio::Phylo::IO);
 
 # create logger
-my $logger = Bio::Phylo::Util::Logger->new;
+my $logger = Bio::Phylo->get_logger;
+
+# create factory
+my $factory = Bio::Phylo::Factory->new;
+
+my $TAXA = _TAXA_;
+
+# useful regular expressions
+my $COMMENT = qr|^\[|; # crude, only checks first char, use after tokenizing!
+my $QUOTES_OR_BRACKETS = qr/[\[\]'"]/mox; # catch all for opening/closing square brackets and quotes
+my $OPENING_QUOTE_OR_BRACKET = qr/^(.*?)([\['"].*)$/mox; # capturing regex for opening sq. br. & q.
+
+# this is a dispatch table whose sub references are invoked
+# during parsing. the keys match the tokens upon which the
+# respective subs are called. Underscored (private) fields are for parsing
+# context. The fields of this table comprise the default state of the
+# parser object.
+my %defaults = (
+	'_lines'           => undef,
+	'_current'         => undef,
+	'_previous'        => undef,
+	'_begin'           => undef,
+	'_ntax'            => undef,
+	'_nchar'           => undef,
+	'_gap'             => undef,
+	'_missing'         => undef,
+	'_i'               => undef,
+	'_tree'            => undef,
+	'_trees'           => undef,
+	'_treename'        => undef,
+	'_treestart'       => undef,
+	'_row'             => undef,
+	'_matrixtype'      => undef,
+	'_found'           => 0,
+	'_linemode'        => 0,
+	'_taxlabels'       => [],
+	'_tokens'          => [],
+	'_context'         => [],
+	'_translate'       => [],
+	'_symbols'         => [],
+	'_charlabels'      => [],
+	'_statelabels'     => [],
+	'_tmpstatelabels'  => [],
+	'_comments'        => [],
+	'_treenames'       => [],
+	'_matrixrowlabels' => [],
+	'_matrix'          => {},
+	'begin'            => \&_begin,
+	'taxa'             => \&_taxa,
+	'title'            => \&_title,
+	'dimensions'       => \&_dimensions,
+	'ntax'             => \&_ntax,
+	'taxlabels'        => \&_taxlabels,
+	'blockid'          => \&_blockid,
+	'data'             => \&_data,
+	'characters'       => \&_characters,
+	'nchar'            => \&_nchar,
+	'format'           => \&_format,
+	'datatype'         => \&_datatype,
+	'matchchar'        => \&_matchchar,
+	'gap'              => \&_gap,
+	'missing'          => \&_missing,
+	'charlabels'       => \&_charlabels,
+	'statelabels'      => \&_statelabels,
+	'symbols'          => \&_symbols,
+	'items'            => \&_items,
+	'matrix'           => \&_matrix,
+	'trees'            => \&_trees,
+	'translate'        => \&_translate,
+	'tree'             => \&_tree,
+	'utree'            => \&_tree,
+	'end'              => \&_end,
+	'endblock'         => \&_end,        
+	'#nexus'           => \&_nexus,
+	'link'             => \&_link,
+	';'                => \&_semicolon,
+);
 
 =head1 NAME
 
@@ -63,63 +122,23 @@ and matrices objects. Nexus comments are stripped, private nexus blocks (and the
 =cut
 
 sub _new {
-    my $class = shift;
-
-    # this is a dispatch table whose sub references are invoked
-    # during parsing. the keys match the tokens upon which the
-    # respective subs are called. Underscored (private) fields are for parsing
-    # context.
-    my $self = {
-        '_current'         => undef,
-        '_previous'        => undef,
-        '_begin'           => undef,
-        '_ntax'            => undef,
-        '_nchar'           => undef,
-        '_gap'             => undef,
-        '_missing'         => undef,
-        '_i'               => undef,
-        '_tree'            => undef,
-        '_trees'           => undef,
-        '_treename'        => undef,
-        '_treestart'       => undef,
-        '_row'             => undef,
-        '_matrixtype'      => undef,
-        '_found'           => 0,
-        '_linemode'        => 0,
-        '_tokens'          => [],
-        '_context'         => [],
-        '_translate'       => [],
-        '_symbols'         => [],
-        '_charlabels'      => [],
-        '_comments'        => [],
-        '_treenames'       => [],
-        '_matrix'          => {},
-        'begin'            => \&_begin,
-        'taxa'             => \&_taxa,
-        'title'            => \&_title,
-        'dimensions'       => \&_dimensions,
-        'ntax'             => \&_ntax,
-        'taxlabels'        => \&_taxlabels,
-        'data'             => \&_data,
-        'characters'       => \&_characters,
-        'nchar'            => \&_nchar,
-        'format'           => \&_format,
-        'datatype'         => \&_datatype,
-        'gap'              => \&_gap,
-        'missing'          => \&_missing,
-        'charlabels'       => \&_charlabels,
-        'symbols'          => \&_symbols,
-        'items'            => \&_items,
-        'matrix'           => \&_matrix,
-        'trees'            => \&_trees,
-        'translate'        => \&_translate,
-        'tree'             => \&_tree,
-        'utree'            => \&_tree,
-        'end'              => \&_end,
-        '#nexus'           => \&_nexus,
-        'link'             => \&_link,
-        ';'                => \&_semicolon,
-    };
+    my $class = shift;    
+    
+    # initialize object, note we have to 
+    # force data type references to be empty
+    my $self = {};
+    for my $key ( keys %defaults ) {
+    	if ( isa( $defaults{$key}, 'ARRAY' ) ) {
+    		$self->{$key} = [];
+    	}
+    	elsif ( isa( $defaults{$key}, 'HASH') ) {
+    		$self->{$key} = {};
+    	}
+    	else {
+    		$self->{$key} = $defaults{$key};
+    	}
+    }
+    
     if ( ref $class ) {
         %$class = %$self;
     }
@@ -213,7 +232,7 @@ sub _from_handle {
         }
     }
 
-    return $self->_post_process;
+    return $self->_post_process(@_);
 }
 
 # makes array reference of strings, one string per line, from input
@@ -293,9 +312,7 @@ sub _tokenize {
     $logger->info( "going to split lines on tokens" );
     my ( $extract, $INSIDE_QUOTE, $continue ) = ( '', 0, 0 );
     my ( @tokens, @split );
-
-    my $QUOTES_OR_BRACKETS       = qr/[\[\]'"]/mox;
-    my $OPENING_QUOTE_OR_BRACKET = qr/^(.*?)([\['"].*)$/mox;
+        
     my $CLOSING_BRACKET_MIDLINE  = qr/^.*?(\])(.*)$/mox;
     my $CONTEXT_QB_AT_START      = qr/^([\['"])(.*)$/mox;
 
@@ -440,9 +457,7 @@ sub _tokenize {
     # This can happen if any of these symbols is used in an illegal
     # way, e.g. by using double quotes as gap symbols in matrices.
     if ( $INSIDE_QUOTE ) {
-        Bio::Phylo::Util::Exceptions::BadArgs->throw(
-            error => "Unbalanced $QuoteContext starting at line $QuoteStartLine"
-        );
+    	throw 'BadArgs' => "Unbalanced $QuoteContext starting at line $QuoteStartLine";
     }
 
     # final split: non-quoted/bracketed fragments are split on whitespace,
@@ -469,69 +484,52 @@ sub _post_process {
     my $self = shift;
     my $taxa = [];
     foreach my $block ( @{ $self->{'_context'} } ) {
-        if ( $block->_type == _TAXA_ ) {
+        if ( $block->_type == $TAXA ) {
             push @{$taxa}, $block;
         }
-        elsif ( $block->_type != _TAXA_ and $block->can('set_taxa') ) {
-            if ( $taxa->[-1] and $taxa->[-1]->can('_type') == _TAXA_ and not $block->get_taxa ) {
+        elsif ( $block->_type != $TAXA and $block->can('set_taxa') ) {
+            if ( $taxa->[-1] and $taxa->[-1]->can('_type') == $TAXA and not $block->get_taxa ) {
                 $block->set_taxa( $taxa->[-1] );    # XXX exception here?
             }
         }
     }
     my $blocks = $self->{'_context'};
     
+    # initialize object, note we have to 
+    # force data type references to be empty    
     @{ $taxa } = ();
-    $self->{'_current'}         = undef;
-    $self->{'_previous'}        = undef;
-    $self->{'_begin'}           = undef;
-    $self->{'_ntax'}            = undef;
-    $self->{'_nchar'}           = undef;
-    $self->{'_gap'}             = undef;
-    $self->{'_missing'}         = undef;
-    $self->{'_i'}               = undef;
-    $self->{'_tree'}            = undef;
-    $self->{'_trees'}           = undef;
-    $self->{'_treename'}        = undef;
-    $self->{'_treestart'}       = undef;
-    $self->{'_row'}             = undef;
-    $self->{'_matrixtype'}      = undef;
-    $self->{'_found'}           = 0;
-    $self->{'_linemode'}        = 0;
-    $self->{'_tokens'}          = [];
-    $self->{'_context'}         = [];
-    $self->{'_translate'}       = [];
-    $self->{'_symbols'}         = [];
-    $self->{'_charlabels'}      = [];
-    $self->{'_comments'}        = [];
-    $self->{'_treenames'}       = [];
-    $self->{'_matrix'}          = {};
-    $self->{'begin'}            = \&_begin;
-    $self->{'taxa'}             = \&_taxa;
-    $self->{'title'}            = \&_title;
-    $self->{'dimensions'}       = \&_dimensions;
-    $self->{'ntax'}             = \&_ntax;
-    $self->{'taxlabels'}        = \&_taxlabels;
-    $self->{'data'}             = \&_data;
-    $self->{'characters'}       = \&_characters;
-    $self->{'nchar'}            = \&_nchar;
-    $self->{'format'}           = \&_format;
-    $self->{'datatype'}         = \&_datatype;
-    $self->{'gap'}              = \&_gap;
-    $self->{'missing'}          = \&_missing;
-    $self->{'charlabels'}       = \&_charlabels;
-    $self->{'symbols'}          = \&_symbols;
-    $self->{'items'}            = \&_items;
-    $self->{'matrix'}           = \&_matrix;
-    $self->{'trees'}            = \&_trees;
-    $self->{'translate'}        = \&_translate;
-    $self->{'tree'}             = \&_tree;
-    $self->{'utree'}            = \&_tree;
-    $self->{'end'}              = \&_end;
-    $self->{'#nexus'}           = \&_nexus;
-    $self->{'link'}             = \&_link;
-    $self->{';'}                = \&_semicolon;
+    for my $key ( keys %defaults ) {
+    	if ( isa( $defaults{$key}, 'ARRAY' ) ) {
+    		$self->{$key} = [];
+    	}
+    	elsif ( isa( $defaults{$key}, 'HASH') ) {
+    		$self->{$key} = {};
+    	}
+    	else {
+    		$self->{$key} = $defaults{$key};
+    	}
+    }   
     
-    return $blocks;
+    # prepare return value:
+    my %args = @_;
+    
+    #... could be a provided project object...
+    if ( $args{'-project'} ) {
+    	$args{'-project'}->insert( @{ $blocks } );
+    	return $args{'-project'};
+    } 
+    
+    # ... or one we create de novo...
+    elsif ( $args{'-as_project'} ) {
+    	my $proj = $factory->create_project;
+    	$proj->insert( @{ $blocks } );
+    	return $proj;
+    }
+    
+    # ... or a flat list of data objects...
+    else {
+    	return $blocks;
+    }
 }
 
 =begin comment
@@ -558,10 +556,7 @@ sub _begin {
 sub _taxa {
     my $self = shift;
     if ( $self->{'_begin'} ) {
-        my $taxa = Bio::Phylo::Taxa->new();
-        my $name = ref $taxa;
-        $name =~ s/::/./g;
-        $taxa->set_name( $name . '.' . $taxa->get_id );
+        my $taxa = $factory->create_taxa;
         push @{ $self->{'_context'} }, $taxa;
         $logger->info( "starting taxa block" );
         $self->{'_begin'} = 0;
@@ -576,8 +571,8 @@ sub _title {
     my $token = shift;
     if ( defined $token and uc($token) ne 'TITLE' ) {
         my $title = $token;
-        if ( not $self->{'_context'}->[-1]->get_name ) {
-            $self->{'_context'}->[-1]->set_name($title);
+        if ( not $self->_current->get_name ) {
+            $self->_current->set_name($title);
             $logger->info( "block has title '$title'" );
         }
     }
@@ -588,10 +583,10 @@ sub _link {
     my $token = shift;
     if ( defined $token and $token !~ m/^(?:LINK|TAXA|=)$/i ) {
         my $link = $token;
-        if ( not $self->{'_context'}->[-1]->get_taxa ) {
+        if ( not $self->_current->get_taxa ) {
             foreach my $block ( @{ $self->{'_context'} } ) {
                 if ( $block->get_name and $block->get_name eq $link ) {
-                    $self->{'_context'}->[-1]->set_taxa($block);
+                    $self->_current->set_taxa($block);
                     last;
                 }
             }
@@ -601,7 +596,7 @@ sub _link {
 }
 
 sub _dimensions {
-    my $self = shift;
+    #my $self = shift;
 }
 
 sub _ntax {
@@ -621,7 +616,7 @@ sub _taxlabels {
         push @{ $self->{'_taxlabels'} }, $taxon;
     }
     elsif ( defined $_[0] and uc( $_[0] ) eq 'TAXLABELS' ) {
-        $self->{'_context'}->[-1]->set_generic(
+        $self->_current->set_generic(
             'nexus_comments' => $self->{'_comments'}
         );
         $self->{'_comments'} = [];
@@ -629,10 +624,20 @@ sub _taxlabels {
     }
 }
 
+sub _blockid {
+    my $self = shift;
+    if ( defined $_[0] and uc( $_[0] ) ne 'BLOCKID' ) {
+        my $blockid = shift;
+        $logger->debug( "blockid: $blockid" );
+        $self->_current->set_generic( 'blockid' => $blockid );
+    }
+}
+
 sub _data {
     my $self = shift;
     if ( $self->{'_begin'} ) {
         $self->{'_begin'} = 0;
+        push @{ $self->{'_context'} }, $factory->create_matrix;
         $logger->info( "starting data block" );
     }
 }
@@ -641,6 +646,7 @@ sub _characters {
     my $self = shift;
     if ( $self->{'_begin'} ) {
         $self->{'_begin'} = 0;
+        push @{ $self->{'_context'} }, $factory->create_matrix;
         $logger->info( "starting characters block" );
     }
 }
@@ -655,26 +661,29 @@ sub _nchar {
 }
 
 sub _format {
-    my $self = shift;
+    #my $self = shift;
 }
 
 sub _datatype {
     my $self = shift;
     if ( defined $_[0] and $_[0] !~ m/^(?:DATATYPE|=)/i ) {
         my $datatype = shift;
-        my $matrix = Bio::Phylo::Matrices::Matrix->new(
-        	'-type' => $datatype,
-        );
-        my $name = ref $matrix;
-        $name =~ s/::/./g;
-        $matrix->set_name( $name . '.' . $matrix->get_id );
-        push @{ $self->{'_context'} }, $matrix;
+        $self->_current->set_type($datatype);
         $logger->info( "datatype: $datatype" );
     }
 }
 
-sub _items {
+sub _matchchar {
     my $self = shift;
+    if ( defined $_[0] and $_[0] !~ m/^(?:MATCHCHAR|=)/i ) {
+        my $matchchar = shift;
+        $self->_current->set_matchchar($matchchar);
+        $logger->info( "matchchar: $matchchar" );
+    }
+}
+
+sub _items {
+    #my $self = shift;
 }
 
 sub _gap {
@@ -682,7 +691,7 @@ sub _gap {
     if ( $_[0] !~ m/^(?:GAP|=)/i and !$self->{'_gap'} ) {
         $self->{'_gap'} = shift;
         my $gap = $self->{'_gap'};
-        $self->{'_context'}->[-1]->set_gap( $gap );
+        $self->_current->set_gap( $gap );
         $logger->info( "gap character: $gap" );
         undef $self->{'_gap'};
     }
@@ -693,7 +702,7 @@ sub _missing {
     if ( $_[0] !~ m/^(?:MISSING|=)/i and !$self->{'_missing'} ) {
         $self->{'_missing'} = shift;
         my $missing = $self->{'_missing'};
-        $self->{'_context'}->[-1]->set_missing( $missing );
+        $self->_current->set_missing( $missing );
         $logger->info( "missing character: $missing" );
         undef $self->{'_missing'};
     }
@@ -713,166 +722,263 @@ sub _charlabels {
     }
 }
 
-sub _matrix {
-    my $self  = shift;
-    my $token = shift;
+sub _statelabels {
+	my $self = shift;
+	my $token = shift;
+	if ( defined $token and uc $token ne 'STATELABELS' ) {
+		if ( $token eq ',' ) {
+			my $tmpstatelabels = $self->{'_tmpstatelabels'};
+			my $index = shift @{$tmpstatelabels};
+			$self->{'_statelabels'}->[$index - 1] = $tmpstatelabels;			
+			$self->{'_tmpstatelabels'} = [];
+		}
+		else {
+			push @{ $self->{'_tmpstatelabels'} }, $token;
+		}
+	}
+}
+
+# for data type, character labels, state labels
+sub _add_matrix_metadata {
+	my $self = shift;
+	$logger->info("adding matrix metadata");
     if ( not defined $self->{'_matrixtype'} ) {
-        $self->{'_matrixtype'} = $self->{'_context'}->[-1]->get_type;
+        $self->{'_matrixtype'} = $self->_current->get_type;
         if ( @{ $self->{'_charlabels'} } ) {
-            $self->{'_context'}->[-1]->set_charlabels(
+            $self->_current->set_charlabels(
                 $self->{'_charlabels'}
             );
         }
+        if ( @{ $self->{'_statelabels'} } ) {
+            $self->_current->set_statelabels(
+                $self->{'_statelabels'}
+            );
+        }        
     }
+    return $self;	
+}
 
-    # first token: 'MATRIX'
-    if ( not UNIVERSAL::isa($token, 'ARRAY') and uc($token) eq 'MATRIX' ) {
+sub _add_tokens_to_row {
+	my ( $self, $tokens ) = @_;
+	my $rowname;
+	$logger->debug("adding tokens to row");
+	for my $token ( @{ $tokens } ) {
+	    $logger->debug("token: $token");
+		last if $token eq ';';
+		
+		# mesquite sometimes writes multiline (but not interleaved)
+		# matrix rows (harrumph).
+		if ( not defined $rowname and $token !~ $COMMENT ) {
+		    my $taxa;
+		    if ( $taxa = $self->_current->get_taxa ) {
+		        if ( my $taxon = $taxa->get_by_name($token) ) {
+		            $rowname = $token;    
+		        }
+		        else {
+		            $rowname = $self->{'_matrixrowlabels'}->[-1];
+		        }
+		    }
+		    elsif ( $taxa = $self->_find_last_seen_taxa_block ) {
+		        if ( my $taxon = $taxa->get_by_name($token) ) {
+		            $rowname = $token;
+		        }
+		        else {
+		            $rowname = $self->{'_matrixrowlabels'}->[-1];
+		        }		        
+		    }
+		    else {
+		        $rowname = $token;
+		    }			
+			if ( not exists $self->{'_matrix'}->{$rowname} ) {
+				$self->{'_matrix'}->{$rowname} = [];
+				push @{ $self->{'_matrixrowlabels'} }, $rowname;
+			}
+		}
+		elsif ( defined $rowname and $token !~ $COMMENT ) {
+			my $row = $self->{'_matrix'}->{$rowname};
+			if ( $self->{'_matrixtype'} =~ m/^continuous$/i ) {
+				push @{ $row }, split( /\s+/, $token );
+			}
+			else {
+				push @{ $row }, split( //, $token );
+			}
+			$logger->debug("added states to row: $token");
+		}
+	}
+}
+
+sub _find_last_seen_taxa_block {
+	my $self = shift;
+    for ( my $i = $#{ $self->{'_context'} }; $i >= 0 ; $i-- ) {
+    	if ( $self->{'_context'}->[$i]->_type == $TAXA ) {
+        	return $self->{'_context'}->[$i];
+     	}
+    }
+    return;	
+}
+
+sub _set_taxon {
+	my ( $self, $obj, $taxa ) = @_;
+	
+	# first case: a taxon by $obj's name already exists
+	if ( my $taxon = $taxa->get_by_name($obj->get_name) ) {
+		$obj->set_taxon($taxon);
+		return $self;
+	}
+	
+	# second case: no taxon by $obj's name exists yet
+	else {
+		my $taxon = $factory->create_taxon( '-name' => $obj->get_name );
+		$taxa->insert($taxon);
+		$obj->set_taxon($taxon);
+		return $self;
+	}	
+}
+
+sub _resolve_taxon {
+	my ( $self, $obj ) = @_;
+	my $container = $self->_current;
+	
+	# first case: the object is actually already
+	# linked to a taxon
+	if ( my $taxon = $obj->get_taxon ) {
+		return $self;
+	}
+	
+	# second case: the container is already linked
+	# to a taxa block, but the object isn't
+	if ( my $taxa = $container->get_taxa ) {		
+		$self->_set_taxon( $obj, $taxa );		
+	}
+	
+	# third case: the container isn't explicitly linked,
+	# but a taxa block has been seen
+	if ( my $taxa = $self->_find_last_seen_taxa_block ) {
+		$container->set_taxa($taxa);		
+		$self->_set_taxon( $obj, $taxa );		
+	}
+	
+	# final case: no taxa block exists
+	else {
+		my $taxa = $container->make_taxa;
+		pop @{ $self->{'_context'} };
+		push @{ $self->{'_context'} }, $taxa, $container;		
+		$self->_set_taxon( $obj, $taxa );		
+	}
+}
+
+sub _resolve_ambig {
+	my ( $self, $datum, $chars ) = @_;
+	my %brackets = (
+		'(' => ')',
+		'{' => '}',
+	);
+	my $to = $datum->get_type_object;
+	my @resolved;
+	my $in_set = 0;
+	my @set;
+	my $close;
+	for my $c ( @{ $chars } ) {
+		if ( not $in_set and not exists $brackets{$c} ) {
+			push @resolved, $c if defined $c;
+		}
+		elsif ( not $in_set and exists $brackets{$c} ) {
+			$in_set++;
+			$close = $brackets{$c};
+		}
+		elsif ( $in_set and $c ne $close ) {
+			push @set, $c;
+		}
+		elsif ( $in_set and $c eq $close ) {
+			push @resolved, $to->get_symbol_for_states(@set);
+			@set = ();
+			$in_set = 0;
+			$close = undef;
+		}
+	}
+	return \@resolved;
+}
+
+sub _matrix {
+    my $self  = shift;
+    my $token = shift;
+    $self->_add_matrix_metadata;
+
+    # first token: 'MATRIX', i.e. we're just starting to parse
+    # the actual matrix. Here we need to switch to "linemode",
+    # so that subsequently tokens will be array references (all
+    # the tokens on a line). This is so that we can handle
+    # interleaved matrices, which unfortunately need line breaks
+    # in them.
+    if ( not isa($token, 'ARRAY') and uc($token) eq 'MATRIX' ) {
         $self->{'_linemode'} = 1;
         $logger->info( "starting matrix" );
         return;
     }
-    elsif ( UNIVERSAL::isa($token, 'ARRAY') and not grep { /^;$/ } @{ $token } ) {
-        my $name;
-        for my $i ( 0 .. $#{ $token } ) {
-            if ( not $name and $token->[$i] !~ qr/^\[/ ) {
-                $name = $token->[$i];
-                if ( not exists $self->{'_matrix'}->{$name} ) {
-                    $self->{'_matrix'}->{$name} = [];
-                }
-            }
-            elsif ( $name and $token->[$i] !~ qr/^\[/ ) {
-                if ( $self->{'_matrixtype'} =~ m/^continuous$/i ) {
-                    push @{ $self->{'_matrix'}->{$name} }, map { split(/\s+/, $_) } $token->[$i];
-                }
-                else {
-                    push @{ $self->{'_matrix'}->{$name} }, map { split(//, $_) } $token->[$i];
-                }
-            }
-            else {
-                next;
-            }
-        }
+    
+    # a row inside the matrix, after adding tokens to row, nothing
+    # else to do 
+    elsif ( isa($token, 'ARRAY') and not grep { /^;$/ } @{ $token } ) {
+		$self->_add_tokens_to_row($token);
+		$logger->info( "adding tokens to row" );
+		return;
     }
-    elsif ( UNIVERSAL::isa($token, 'ARRAY') and grep { /^;$/ } @{ $token } ) {
-        my $name;
-        for my $i ( 0 .. $#{ $token } ) {
-            last if $token->[$i] eq ';';
-            if ( not $name and $token->[$i] !~ qr/^\[/ ) {
-                $name = $token->[$i];
-                $self->{'_matrix'}->{$name} = [] if not $self->{'_matrix'}->{$name};
-                next;
-            }
-            elsif ( $name and $token->[$i] !~ qr/^\[/ ) {
-                if ( $self->{'_matrixtype'} == CONTINUOUS_DATATYPE ) {
-                    push @{ $self->{'_matrix'}->{$name} }, map { split(/\s+/, $_) } $token->[$i];
-                }
-                else {
-                    push @{ $self->{'_matrix'}->{$name} }, map { split(//, $_) } $token->[$i];
-                }
-            }
-        }
+    
+    # the last row of the matrix, after adding tokens to row,
+    # instantiate & populate datum objects, link against taxa
+    # objects
+    elsif ( isa($token, 'ARRAY') and grep { /^;$/ } @{ $token } ) {
+		$self->_add_tokens_to_row($token);
 
         # link to taxa
-        for my $row ( keys %{ $self->{'_matrix'} } ) {
-            my $taxon;
-
-            # find / create matching taxon, matrix is linked
-            if ( my $taxa = $self->{'_context'}->[-1]->get_taxa ) {
-                FINDTAXON: for ( @{ $taxa->get_entities } ) {
-                    if ( $_->get_name eq $row ) {
-                        $taxon = $_;
-                        last FINDTAXON;
-                    }
-                }
-                if ( not $taxon ) {
-                    $taxon = Bio::Phylo::Taxa::Taxon->new( '-name' => $row, );
-                    $taxa->insert($taxon);
-                }
-            }
-
-            # find / create taxa, matrix is not linked
-            else {
-                my $taxa;
-                FINDTAXA: for ( my $i = $#{ $self->{'_context'} } ; $i >= 0 ; $i-- ) {
-                    if ( $self->{'_context'}->[$i]->_type == _TAXA_ ) {
-                        $taxa = $self->{'_context'}->[$i];
-                        last FINDTAXA;
-                    }
-                }
-
-                # create new taxa block
-                if ( not $taxa ) {
-                    $taxa = Bio::Phylo::Taxa->new();
-                    my $name = ref $taxa;
-                    $name =~ s/::/./g;
-                    $taxa->set_name( $name . '.' . $taxa->get_id );
-                    my $current = pop( @{ $self->{'_context'} } );
-                    push @{ $self->{'_context'} }, $taxa, $current;
-                    $taxon = Bio::Phylo::Taxa::Taxon->new( '-name' => $row, );
-                    $taxa->insert($taxon);
-
-                }
-                else {
-                    FINDINNEW: for ( @{ $taxa->get_entities } ) {
-                        if ( $_->get_name eq $row ) {
-                            $taxon = $_;
-                            last FINDINNEW;
-                        }
-                    }
-                }
-
-                # link current block to taxa
-                if ( not $self->{'_context'}->[-1]->get_taxa ) {
-                    $self->{'_context'}->[-1]->set_taxa($taxa);
-                }
-            }
-            
+        for my $row ( @{ $self->{'_matrixrowlabels'} } ) {
+        	            
             # create new datum
-            my @logarray = @{ $self->{'_matrix'}->{ $row } };
-            my $logstring = join ' ', @logarray;
-            $logger->info("Setting seq: $logstring");
-            my $datum = Bio::Phylo::Matrices::Datum->new(
-                '-name'  => $row,
-                '-taxon' => $taxon,
-                '-type'  => $self->{'_context'}->[-1]->get_type,
-                #'-char'  => \@logarray,
+            my $datum = $factory->create_datum(
+            	'-type_object' => $self->_current->get_type_object,
+            	'-name'        => $row,       
             );
-            $datum->set_char( \@logarray );
+            $logger->debug(sprintf("row: %s", join '', @{ $self->{'_matrix'}->{ $row } }));
+            my $char = $self->_resolve_ambig( $datum, $self->{'_matrix'}->{ $row } );
+            $datum->set_char( $char );
 
             # insert new datum in matrix
-            $self->{'_context'}->[-1]->insert( $datum );
-            if ( $self->VERBOSE ) {
-                $logger->info( sprintf("parsed %s characters for taxon '$row'", $datum->get_length ) );
-                if ( $self->{'_matrixtype'} =~ qr/^continuous$/i ) {
-                    my $logchars = join( ' ', @{ $self->{'_matrix'}->{$row} } );
-                    $logger->info( "characters: $logchars" );
-                }
-                else {
-                    my $logchars = join( '', @{ $self->{'_matrix'}->{$row} } );
-                    $logger->info( "characters: $logchars" );
-                }
-            }
-        }
-        $self->{'_matrix'} = {};
+            $self->_current->insert( $datum );
+            
+            # link to taxon
+            $self->_resolve_taxon( $datum );
+            my ( $length, $seq ) = ( $datum->get_length, $datum->get_char );
+            $logger->info("parsed $length characters for ${row}: $seq");
+        }        
 
         # Let's avoid these!
-        if ( $self->{'_context'}->[-1]->get_nchar != $self->{'_nchar'} ) {
-            my ( $obs, $exp ) = ( $self->{'_context'}->[-1]->get_nchar, $self->{'_nchar'} );
-            #Bio::Phylo::Util::Exceptions::BadFormat->throw(
-            #    error => "Observed and expected nchar mismatch: $obs vs. $exp",
-            #);
-            $logger->warn("Observed and expected nchar mismatch: $obs vs. $exp");
+        if ( $self->_current->get_nchar != $self->{'_nchar'} ) {
+            my ( $obs, $exp ) = ( $self->_current->get_nchar, $self->{'_nchar'} );
+            _bad_format( "Observed and expected nchar mismatch: $obs vs. $exp" );
         }
-        elsif ( $self->{'_context'}->[-1]->get_ntax != $self->{'_ntax'} ) {
-            my ( $obs, $exp ) = ( $self->{'_context'}->[-1]->get_ntax, $self->{'_ntax'} );
-            Bio::Phylo::Util::Exceptions::BadFormat->throw(
-                error => "Observed and expected ntax mismatch: $obs vs. $exp",
-            );
+        
+        # ntax is only defined for "data" blocks (which have ntax token),
+        # not for "characters" blocks (which should match up with taxa block)
+        elsif ( defined $self->{'_ntax'} and $self->_current->get_ntax != $self->{'_ntax'} ) {
+            my ( $obs, $exp ) = ( $self->_current->get_ntax, $self->{'_ntax'} );
+            _bad_format( "Observed and expected ntax mismatch: $obs vs. $exp" );
         }
 
-        $self->{'_linemode'} = 0;
+		# XXX matrix clean up here
+		$self->{'_ntax'}            = undef;
+		$self->{'_nchar'}           = undef;
+		$self->{'_matrixtype'}      = undef;
+		$self->{'_matrix'}          = {};
+		$self->{'_matrixrowlabels'} = [];
+        $self->{'_linemode'}        = 0;
     }
 }
+
+sub _bad_format {
+	throw 'BadFormat' => shift;
+}
+
+sub _current { shift->{'_context'}->[-1] }
 
 sub _trees {
     my $self = shift;
@@ -880,22 +986,22 @@ sub _trees {
         $self->{'_begin'}     = 0;
         $self->{'_trees'}     = '';
         $self->{'_treenames'} = [];
+        push @{ $self->{'_context'} }, $factory->create_forest;
         $logger->info( "starting trees block" );
     }
 }
 
 sub _translate {
     my $self = shift;
-    if ( defined $_[0] and $_[0] =~ m/^\d+$/ ) {
-        $self->{'_i'} = shift;
-        if ( $self->{'_i'} == 1 ) {
-            $logger->info( "starting translation table" );
-        }
-        elsif ( $self->{'_i'} > 1 ) {
-        }
+    my $i = $self->{'_i'}; 
+    if ( $i && $i == 1 ) {
+        $logger->info( "starting translation table" );
     }
-    elsif ( defined $self->{'_i'} and defined $_[0] and $_[0] ne ';' ) {
-        my $i = $self->{'_i'};
+    if ( !$i && $_[0] =~ m/^\d+$/ ) {
+        $self->{'_i'} = shift;
+        $self->{'_translate'}->[ $self->{'_i'} ] = undef;
+    }
+    elsif ( $i && exists $self->{'_translate'}->[$i] && ! defined $self->{'_translate'}->[$i] && $_[0] ne ';' ) {
         $self->{'_translate'}->[$i] = $_[0];
         $logger->debug( "Translation: $i => $_[0]" );
         $self->{'_i'} = undef;
@@ -929,6 +1035,8 @@ sub _tree {
         $logger->info( "tree: $logtreename string: $logtree" );
         $self->{'_trees'} .= $translated . ';';
         push @{ $self->{'_treenames'} }, $self->{'_treename'};
+        
+        # XXX tree cleanup here
         $self->{'_treestart'} = 0;
         $self->{'_tree'}      = undef;
         $self->{'_treename'}  = undef;
@@ -939,13 +1047,28 @@ sub _end {
     my $self = shift;
     $self->{'_translate'} = [];
     if ( uc $self->{'_previous'} eq ';' and $self->{'_trees'} ) {
-        my $forest = parse( '-format' => 'newick', '-string' => $self->{'_trees'} );
+        my $forest = $self->_current;
+        my $trees = parse( '-format' => 'newick', '-string' => $self->{'_trees'} );
+        for my $tree ( @{ $trees->get_entities } ) {
+        	$forest->insert($tree);
+        }
+        
+        # set tree names
         for my $i ( 0 .. $#{ $self->{'_treenames'} } ) {
             $forest->get_by_index($i)->set_name( $self->{'_treenames'}->[$i] );
         }
+        
+        # link tips to taxa
+        for my $tree ( @{ $forest->get_entities } ) {
+        	for my $tip ( @{ $tree->get_terminals } ) {
+        		$self->_resolve_taxon($tip);
+        	}
+        }   
+        
+        # XXX trees cleanup here
         $self->{'_trees'} = '';
-        $self->{'_treenames'} = [];
-        push @{ $self->{'_context'} }, $forest;
+        $self->{'_treenames'} = [];             
+        
     }
 }
 
@@ -953,12 +1076,13 @@ sub _semicolon {
     my $self = shift;
     if ( uc $self->{'_previous'} eq 'MATRIX' ) {
         $self->{'_matrixtype'} = undef;
-        $self->{'_matrix'}     = {};
-        $self->{'_charlabels'} = [];
-        $self->{'_linemode'}   = 0;
-        if ( not $self->{'_context'}->[-1]->get_ntax ) {
+        $self->{'_matrix'}      = {};
+        $self->{'_charlabels'}  = [];
+        $self->{'_statelabels'} = [];
+        $self->{'_linemode'}    = 0;
+        if ( not $self->_current->get_ntax ) {
             my $taxon = {};
-            foreach my $row ( @{ $self->{'_context'}->[-1]->get_entities } ) {
+            foreach my $row ( @{ $self->_current->get_entities } ) {
                 $taxon->{ $row->get_taxon }++;
             }
             my $ntax = scalar keys %{$taxon};
@@ -966,32 +1090,38 @@ sub _semicolon {
     }
     elsif ( uc $self->{'_previous'} eq 'TAXLABELS' ) {
         foreach my $name ( @{ $self->{'_taxlabels'} } ) {
-            my $taxon = Bio::Phylo::Taxa::Taxon->new( '-name' => $name, );
-            $self->{'_context'}->[-1]->insert($taxon);
+            my $taxon = $factory->create_taxon( '-name' => $name );
+            $self->_current->insert($taxon);
         }
-        if ( $self->{'_context'}->[-1]->get_ntax != $self->{'_ntax'} ) {
-            Bio::Phylo::Util::Exceptions::BadFormat->throw(
-                error =>
+        if ( $self->_current->get_ntax != $self->{'_ntax'} ) {
+            _bad_format(
                 sprintf(
                     'Mismatch between observed and expected ntax: %d vs %d',
-                    $self->{'_context'}->[-1]->get_ntax,
+                    $self->_current->get_ntax,
                     $self->{'_ntax'}
                 )
             );
         }
+        
+        # XXX taxa cleanup here
+        $self->{'_ntax'}      = undef;
         $self->{'_taxlabels'} = [];
     }
     elsif ( uc $self->{'_previous'} eq 'SYMBOLS' ) {
-        if ( $self->VERBOSE ) {
-            my $logsymbols = join( ' ', @{ $self->{'_symbols'} } );
-            $self->info( "symbols: $logsymbols" );
-        }
+		my $logsymbols = join( ' ', @{ $self->{'_symbols'} } );
+		$logger->info( "symbols: $logsymbols" );
         $self->{'_symbols'} = [];
     }
     elsif ( uc $self->{'_previous'} eq 'CHARLABELS' ) {
-        if ( $self->VERBOSE and @{ $self->{'_charlabels'} } ) {
+        if ( @{ $self->{'_charlabels'} } ) {
             my $logcharlabels = join( ' ', @{ $self->{'_charlabels'} } );
-            $self->info( "charlabels: $logcharlabels" );
+            $logger->info( "charlabels: $logcharlabels" );
+        }
+    }
+    elsif ( uc $self->{'_previous'} eq 'STATELABELS' ) {
+        if ( @{ $self->{'_statelabels'} } ) {
+            my $logstatelabels = join( ' ', @{ $self->{'_statelabels'} } );
+            $logger->info( "statelabels: $logstatelabels" );
         }
     }
 }
@@ -1007,13 +1137,13 @@ examples of file parsing and manipulation.
 
 =item L<Bio::Phylo::Manual>
 
-Also see the manual: L<Bio::Phylo::Manual>.
+Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =back
 
 =head1 REVISION
 
- $Id: Nexus.pm 4234 2007-07-17 13:41:02Z rvosa $
+ $Id: Nexus.pm 681 2008-10-22 02:21:00Z rvos $
 
 =cut
 

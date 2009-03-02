@@ -1,15 +1,14 @@
-# $Id: Continuous.pm 4234 2007-07-17 13:41:02Z rvosa $
+# $Id: Continuous.pm 604 2008-09-05 17:32:28Z rvos $
 package Bio::Phylo::Matrices::Datatype::Continuous;
 use Bio::Phylo::Util::CONSTANT qw(looks_like_number);
 use Bio::Phylo::Matrices::Datatype;
 use strict;
-use base 'Bio::Phylo::Matrices::Datatype';
-use Bio::Phylo::Util::Logger;
-use vars qw($LOOKUP $MISSING $GAP);
+use vars qw($LOOKUP $MISSING $GAP @ISA);
+@ISA=qw(Bio::Phylo::Matrices::Datatype);
 
 {
 
-	my $logger = Bio::Phylo::Util::Logger->new;
+	my $logger = __PACKAGE__->get_logger;
 
 =head1 NAME
 
@@ -47,7 +46,7 @@ Sets the lookup table (no-op for continuous data!).
 =cut
 
 	sub set_lookup {
-		$logger->warn("Can't set lookup table for continuous characters");
+		$logger->info("Can't set lookup table for continuous characters");
 		return;
 	}
 
@@ -71,7 +70,7 @@ Gets the lookup table (no-op for continuous data!).
 =cut
 
 	sub get_lookup {
-		$logger->warn("Can't get lookup table for continuous characters");
+		$logger->info("Can't get lookup table for continuous characters");
 		return;
 	}
 
@@ -183,13 +182,13 @@ objects.
 
 =item L<Bio::Phylo::Manual>
 
-Also see the manual: L<Bio::Phylo::Manual>.
+Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =back
 
 =head1 REVISION
 
- $Id: Continuous.pm 4234 2007-07-17 13:41:02Z rvosa $
+ $Id: Continuous.pm 604 2008-09-05 17:32:28Z rvos $
 
 =cut
 

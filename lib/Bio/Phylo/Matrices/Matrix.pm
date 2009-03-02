@@ -1,37 +1,44 @@
+# $Id: Matrix.pm 678 2008-10-22 02:19:58Z rvos $
 package Bio::Phylo::Matrices::Matrix;
 use vars '@ISA';
 use strict;
-use Bio::Phylo::Listable;
+use Bio::Phylo::Factory;
 use Bio::Phylo::Taxa::TaxaLinker;
-use Bio::Phylo::Taxa::Taxon;
 use Bio::Phylo::IO qw(unparse);
 use Bio::Phylo::Util::CONSTANT qw(:objecttypes);
-use Bio::Phylo::Util::Exceptions;
+use Bio::Phylo::Util::Exceptions qw(throw);
 use Bio::Phylo::Matrices::TypeSafeData;
-use Bio::Phylo::Matrices::Datum;
-use Bio::Phylo::Util::XMLWritable;
-use Bio::Phylo::Util::Logger;
-use Scalar::Util qw(blessed);
-
+use UNIVERSAL qw(isa);
 @ISA = qw(
   Bio::Phylo::Matrices::TypeSafeData
   Bio::Phylo::Taxa::TaxaLinker
 );
 
-{
+eval { require Bio::Align::AlignI };
+if ( not $@ ) {
+	push @ISA, 'Bio::Align::AlignI';
+}
+else {
+	undef($@);
+}
+my $LOADED_WRAPPERS = 0;
 
+
+{
 	my $CONSTANT_TYPE      = _MATRIX_;
 	my $CONSTANT_CONTAINER = _MATRICES_;
-	
-	my $logger = Bio::Phylo::Util::Logger->new;
-
-	my @inside_out_arrays = \(
-		my %type, 
-		my %charlabels,
-		my %gapmode,
-		my %matchchar,
-		my %polymorphism,
-		my %case_sensitivity,
+	my $logger             = __PACKAGE__->get_logger;
+	my $factory            = Bio::Phylo::Factory->new;
+	my @inside_out_arrays  = \(
+		my (
+			%type,  
+			%charlabels,
+			%statelabels,
+			%gapmode,
+			%matchchar,
+			%polymorphism,
+			%case_sensitivity,
+		)
 	);
 
 =head1 NAME
@@ -72,52 +79,52 @@ Bio::Phylo::Matrices::Matrix - Character state matrix.
  
  # note: complicated constructor for mixed data!
  my $mixed_matrix = Bio::Phylo::Matrices::Matrix->new( 
-	
-	# if you want to create 'mixed', value for '-type' is array ref...
-	'-type' =>  [ 
-	
-		# ...with first field 'mixed'...				
-		'mixed',
-		
-		# ...second field is an array ref...
-		[
-			
-			# ...with _ordered_ key/value pairs...
-			'dna'      => 10, # value is length of type range
-			'standard' => 10, # value is length of type range
-			
-			# ... or, more complicated, value is a hash ref...
-			'rna'      => {
-				'-length' => 10, # value is length of type range
-				
-				# ...value for '-args' is an array ref with args 
-				# as can be passed to 'unmixed' datatype constructors,
-				# for example, here we modify the lookup table for
-				# rna to allow both 'U' (default) and 'T'
-				'-args'   => [
-					'-lookup' => {
-						'A' => [ 'A'                     ],
-						'C' => [ 'C'                     ],
-						'G' => [ 'G'                     ],
-						'U' => [ 'U'                     ],
-						'T' => [ 'T'                     ],
-						'M' => [ 'A', 'C'                ],
-						'R' => [ 'A', 'G'                ],
-						'S' => [ 'C', 'G'                ],
-						'W' => [ 'A', 'U', 'T'           ],						
-						'Y' => [ 'C', 'U', 'T'           ],
-						'K' => [ 'G', 'U', 'T'           ],
-						'V' => [ 'A', 'C', 'G'           ],
-						'H' => [ 'A', 'C', 'U', 'T'      ],
-						'D' => [ 'A', 'G', 'U', 'T'      ],
-						'B' => [ 'C', 'G', 'U', 'T'      ],
-						'X' => [ 'G', 'A', 'U', 'T', 'C' ],
-						'N' => [ 'G', 'A', 'U', 'T', 'C' ],
-					},
-				],
-			},
-		],
-	],
+    
+    # if you want to create 'mixed', value for '-type' is array ref...
+    '-type' =>  [ 
+    
+        # ...with first field 'mixed'...                
+        'mixed',
+        
+        # ...second field is an array ref...
+        [
+            
+            # ...with _ordered_ key/value pairs...
+            'dna'      => 10, # value is length of type range
+            'standard' => 10, # value is length of type range
+            
+            # ... or, more complicated, value is a hash ref...
+            'rna'      => {
+                '-length' => 10, # value is length of type range
+                
+                # ...value for '-args' is an array ref with args 
+                # as can be passed to 'unmixed' datatype constructors,
+                # for example, here we modify the lookup table for
+                # rna to allow both 'U' (default) and 'T'
+                '-args'   => [
+                    '-lookup' => {
+                        'A' => [ 'A'                     ],
+                        'C' => [ 'C'                     ],
+                        'G' => [ 'G'                     ],
+                        'U' => [ 'U'                     ],
+                        'T' => [ 'T'                     ],
+                        'M' => [ 'A', 'C'                ],
+                        'R' => [ 'A', 'G'                ],
+                        'S' => [ 'C', 'G'                ],
+                        'W' => [ 'A', 'U', 'T'           ],
+                        'Y' => [ 'C', 'U', 'T'           ],
+                        'K' => [ 'G', 'U', 'T'           ],
+                        'V' => [ 'A', 'C', 'G'           ],
+                        'H' => [ 'A', 'C', 'U', 'T'      ],
+                        'D' => [ 'A', 'G', 'U', 'T'      ],
+                        'B' => [ 'C', 'G', 'U', 'T'      ],
+                        'X' => [ 'G', 'A', 'U', 'T', 'C' ],
+                        'N' => [ 'G', 'A', 'U', 'T', 'C' ],
+                    },
+                ],
+            },
+        ],
+    ],
  );
  
  # prints 'mixed(Dna:1-10, Standard:11-20, Rna:21-30)'
@@ -165,12 +172,65 @@ Matrix constructor.
 
 		# notify user
 		$logger->info("constructor called for '$class'");
+		
+		if ( not $LOADED_WRAPPERS ) {
+			eval do { local $/; <DATA> };
+			die $@ if $@;
+			$LOADED_WRAPPERS++;
+		}		
 
 		# go up inheritance tree, eventually get an ID
-		my $self = $class->SUPER::new(@_);
+		my $self = $class->SUPER::new( '-tag' => 'characters', @_ );
+		return $self;
+	}
 
-		# adapt (or not, if $Bio::Phylo::COMPAT is not set)
-		return Bio::Phylo::Adaptor->new($self);
+=item new_from_bioperl()
+
+Matrix constructor from Bio::Align::AlignI argument.
+
+ Type    : Constructor
+ Title   : new_from_bioperl
+ Usage   : my $matrix = 
+           Bio::Phylo::Matrices::Matrix->new_from_bioperl(
+               $aln           
+           );
+ Function: Instantiates a 
+           Bio::Phylo::Matrices::Matrix object.
+ Returns : A Bio::Phylo::Matrices::Matrix object.
+ Args    : An alignment that implements Bio::Align::AlignI
+
+=cut
+	
+	sub new_from_bioperl {
+	    my ( $class, $aln ) = @_;
+		if ( isa( $aln, 'Bio::Align::AlignI' ) ) {
+		    $aln->unmatch;
+		    $aln->map_chars('\.','-');
+		    my @seqs = $aln->each_seq;
+			my $self = $class->SUPER::new( 
+			    '-tag'       => 'characters',
+			    '-type'      => $seqs[0] ? $seqs[0]->alphabet : 'dna',
+                '-missing'   => $aln->missing_char,
+                '-gap'       => $aln->gap_char,
+                '-matchchar' => $aln->match_char,
+			);
+			my $to = $self->get_type_object;
+			bless $self, $class;
+            for my $seq ( @seqs ) {
+                $self->insert( 
+                    $factory->create_datum( 
+                        '-type_object' => $to,
+                        '-char'        => $seq->seq,
+                        '-name'        => $seq->display_id,
+                        '-desc'        => $seq->desc,                                        
+                    )
+                );
+            }
+            return $self;
+		}
+		else {
+			throw 'ObjectMismatch' => 'Not a bioperl alignment!';
+		}
 	}
 
 =back
@@ -178,6 +238,47 @@ Matrix constructor.
 =head2 MUTATORS
 
 =over
+
+=item set_statelabels()
+
+Sets argument state labels.
+
+ Type    : Mutator
+ Title   : set_statelabels
+ Usage   : $matrix->set_statelabels( [ [ 'state1', 'state2' ] ] );
+ Function: Assigns state labels.
+ Returns : $self
+ Args    : ARRAY, or nothing (to reset);
+           The array is two-dimensional, 
+           the first index is to indicate
+           the column the labels apply to,
+           the second dimension the states
+           (sorted numerically or alphabetically,
+           depending on what's appropriate)
+
+=cut
+
+	sub set_statelabels {
+		my ( $self, $statelabels ) = @_;
+		
+		# it's an array ref, but what about its contents?
+		if ( isa( $statelabels, 'ARRAY' ) ) {
+			for my $col ( @{$statelabels} ) {
+				if ( not isa( $col, 'ARRAY') ) {
+					throw 'BadArgs' => "statelabels must be a two dimensional array ref";
+				}
+			}
+		}
+
+		# it's defined but not an array ref
+		elsif ( defined $statelabels && ! isa( $statelabels, 'ARRAY' ) ) {
+			throw 'BadArgs' => "statelabels must be a two dimensional array ref";
+		}
+
+		# it's either a valid array ref, or nothing, i.e. a reset
+		$statelabels{$$self} = $statelabels || [];
+		return $self;		
+	}
 
 =item set_charlabels()
 
@@ -196,24 +297,21 @@ Sets argument character labels.
 		my ( $self, $charlabels ) = @_;
 
 		# it's an array ref, but what about its contents?
-		if ( UNIVERSAL::isa( $charlabels, 'ARRAY' ) ) {
+		if ( isa( $charlabels, 'ARRAY' ) ) {
 			for my $label ( @{$charlabels} ) {
 				if ( ref $label ) {
-					Bio::Phylo::Util::Exceptions::BadArgs->throw( 'error' =>
-						  "charlabels must be an array ref of scalars" );
+					throw 'BadArgs' => "charlabels must be an array ref of scalars";
 				}
 			}
 		}
 
 		# it's defined but not an array ref
-		elsif ( defined $charlabels && !UNIVERSAL::isa( $charlabels, 'ARRAY' ) )
-		{
-			Bio::Phylo::Util::Exceptions::BadArgs->throw(
-				'error' => "charlabels must be an array ref of scalars" );
+		elsif ( defined $charlabels && ! isa( $charlabels, 'ARRAY' ) ) {
+			throw 'BadArgs' => "charlabels must be an array ref of scalars";
 		}
 
 		# it's either a valid array ref, or nothing, i.e. a reset
-		$charlabels{ $self->get_id } = defined $charlabels ? $charlabels : [];
+		$charlabels{$$self} = defined $charlabels ? $charlabels : [];
 		return $self;
 	}
 
@@ -232,7 +330,7 @@ Defines matrix gapmode.
 
 	sub set_gapmode {
 		my ( $self, $gapmode ) = @_;
-		$gapmode{ $self->get_id } = !!$gapmode;
+		$gapmode{$$self} = !!$gapmode;
 		return $self;
 	}
 
@@ -250,8 +348,18 @@ Assigns match symbol.
 =cut
 
 	sub set_matchchar {
-		my ( $self, $char ) = @_;
-		$matchchar{ $self->get_id } = $char;
+		my ( $self, $match ) = @_;
+		my $missing = $self->get_missing;
+		my $gap     = $self->get_gap;
+		if ( $match eq $missing ) {
+			throw 'BadArgs' => "Match character '$match' already in use as missing character";
+		}
+		elsif ( $match eq $gap ) {
+			throw 'BadArgs' => "Match character '$match' already in use as gap character";
+		}
+		else {
+			$matchchar{$$self} = $match;
+		}
 		return $self;
 	}
 
@@ -271,7 +379,7 @@ Defines matrix 'polymorphism' interpretation.
 
 	sub set_polymorphism {
 		my ( $self, $poly ) = @_;
-		$polymorphism{ $self->get_id } = !!$poly;
+		$polymorphism{$$self} = !!$poly;
 		return $self;
 	}
 
@@ -292,12 +400,12 @@ Set contents using two-dimensional array argument.
 	sub set_raw {
 		my ( $self, $raw ) = @_;
 		if ( defined $raw ) {
-			if ( UNIVERSAL::isa( $raw, 'ARRAY' ) ) {
+			if ( isa( $raw, 'ARRAY' ) ) {
 				my @rows;
 				for my $row ( @{$raw} ) {
 					if ( defined $row ) {
-						if ( UNIVERSAL::isa( $row, 'ARRAY' ) ) {
-							my $matrixrow = Bio::Phylo::Matrices::Datum->new(
+						if ( isa( $row, 'ARRAY' ) ) {
+							my $matrixrow = $factory->create_datum(
 								'-type_object' => $self->get_type_object,
 								'-name'        => $row->[0],
 								'-char' => join( ' ', @$row[ 1 .. $#{$row} ] ),
@@ -305,9 +413,7 @@ Set contents using two-dimensional array argument.
 							push @rows, $matrixrow;
 						}
 						else {
-							Bio::Phylo::Util::Exceptions::BadArgs->throw(
-								'error' =>
-								  "Raw matrix row must be an array reference" );
+							throw 'BadArgs' => "Raw matrix row must be an array reference";
 						}
 					}
 				}
@@ -315,8 +421,7 @@ Set contents using two-dimensional array argument.
 				$self->insert($_) for @rows;
 			}
 			else {
-				Bio::Phylo::Util::Exceptions::BadArgs->throw(
-					'error' => "Raw matrix must be an array reference" );
+				throw 'BadArgs' => "Raw matrix must be an array reference";
 			}
 		}
 		return $self;
@@ -338,7 +443,7 @@ Defines matrix case sensitivity interpretation.
 
 	sub set_respectcase {
 		my ( $self, $case_sensitivity ) = @_;
-		$case_sensitivity{ $self->get_id } = !!$case_sensitivity;
+		$case_sensitivity{$$self} = !!$case_sensitivity;
 		return $self;
 	}
 
@@ -347,6 +452,21 @@ Defines matrix case sensitivity interpretation.
 =head2 ACCESSORS
 
 =over
+
+=item get_statelabels()
+
+Retrieves state labels.
+
+ Type    : Accessor
+ Title   : get_statelabels
+ Usage   : my @statelabels = @{ $matrix->get_statelabels };
+ Function: Retrieves state labels.
+ Returns : ARRAY
+ Args    : None.
+
+=cut
+
+	sub get_statelabels { $statelabels{ ${ $_[0] } } || [] }
 
 =item get_charlabels()
 
@@ -361,11 +481,7 @@ Retrieves character labels.
 
 =cut
 
-	sub get_charlabels {
-		my $self = shift;
-		my $id   = $self->get_id;
-		return defined $charlabels{$id} ? $charlabels{$id} : [];
-	}
+	sub get_charlabels { $charlabels{ ${ $_[0] } } || [] }
 
 =item get_gapmode()
 
@@ -380,10 +496,7 @@ Returns matrix gapmode.
 
 =cut
 
-	sub get_gapmode {
-		my $self = shift;
-		return $gapmode{ $self->get_id };
-	}
+	sub get_gapmode { $gapmode{ ${ $_[0] } } }
 
 =item get_matchchar()
 
@@ -398,10 +511,7 @@ Returns matrix match character.
 
 =cut
 
-	sub get_matchchar {
-		my $self = shift;
-		return $matchchar{ $self->get_id };
-	}
+	sub get_matchchar { $matchchar{ ${ $_[0] } } || '.' }
 
 =item get_nchar()
 
@@ -420,11 +530,11 @@ Calculates number of characters.
 	sub get_nchar {
 		my $self  = shift;
 		my $nchar = 0;
-		my $i     = 1;
+#		my $i     = 1;
 		for my $row ( @{ $self->get_entities } ) {
-			my $rowlength = $row->get_length;
-			$logger->debug(
-				sprintf( "counted %s chars in row %s", $rowlength, $i++ ) );
+			my $rowlength = scalar( @{ $row->get_entities } ) + $row->get_position - 1;
+# 			$logger->debug(
+# 				sprintf( "counted %s chars in row %s", $rowlength, $i++ ) );
 			$nchar = $rowlength if $rowlength > $nchar;
 		}
 		return $nchar;
@@ -443,10 +553,7 @@ Calculates number of taxa (rows) in matrix.
 
 =cut
 
-	sub get_ntax {
-		my $self = shift;
-		return scalar @{ $self->get_entities };
-	}
+	sub get_ntax { scalar @{ shift->get_entities } }
 
 =item get_polymorphism()
 
@@ -462,10 +569,7 @@ Returns matrix 'polymorphism' interpretation.
 
 =cut
 
-	sub get_polymorphism {
-		my $self = shift;
-		return $polymorphism{ $self->get_id };
-	}
+	sub get_polymorphism { $polymorphism{ ${ $_[0] } } }
 
 =item get_raw()
 
@@ -509,16 +613,203 @@ Returns matrix case sensitivity interpretation.
 
 =cut
 
-	sub get_respectcase {
-		my $self = shift;
-		return $case_sensitivity{ $self->get_id };
-	}
+	sub get_respectcase { $case_sensitivity{ ${ $_[0] } } }
 
 =back
 
 =head2 METHODS
 
 =over
+
+=item bootstrap()
+
+Creates bootstrapped clone.
+
+ Type    : Utility method
+ Title   : bootstrap
+ Usage   : my $bootstrap = $object->bootstrap;
+ Function: Creates bootstrapped clone.
+ Returns : A bootstrapped clone of the invocant.
+ Args    : NONE
+ Comments: The bootstrapping algorithm uses perl's random number
+           generator to create a new series of indices (without
+           replacement) of the same length as the original matrix.
+           These indices are first sorted, then applied to the 
+           cloned sequences. Annotations (if present) stay connected
+           to the resampled cells.
+
+=cut
+
+	sub bootstrap {
+		my $self = shift;		
+		my $clone = $self->clone;
+		my $nchar = $clone->get_nchar;
+		my @indices;
+		push @indices, int(rand($nchar)) for ( 1 .. $nchar );
+		@indices = sort { $a <=> $b } @indices;
+		for my $row ( @{ $clone->get_entities } ) {
+			my @anno = @{ $row->get_annotations };	
+			my @char = @{ $row->get_entities };
+			my @resampled = @char[@indices];
+			$row->set_char(@resampled);
+			if ( @anno ) {
+				my @re_anno = @anno[@indices];
+				$row->set_annotations(@re_anno);
+			}
+		}
+		my @labels = @{ $clone->get_charlabels };
+		if ( @labels ) {
+			my @re_labels = @labels[@indices];
+			$clone->set_charlabels(\@re_labels);
+		}
+		return $clone;
+	}
+
+=item clone()
+
+Clones invocant.
+
+ Type    : Utility method
+ Title   : clone
+ Usage   : my $clone = $object->clone;
+ Function: Creates a copy of the invocant object.
+ Returns : A copy of the invocant.
+ Args    : NONE
+
+=cut
+
+	sub clone {
+		my $self = shift;
+		$logger->info("cloning $self");
+		my %subs = @_;
+				
+		# we'll clone datum objects, so no raw copying
+		$subs{'set_raw'} = sub {};
+		
+		return $self->SUPER::clone(%subs);
+	
+	} 
+
+=item to_xml()
+
+Serializes matrix to nexml format.
+
+ Type    : Format convertor
+ Title   : to_xml
+ Usage   : my $data_block = $matrix->to_xml;
+ Function: Converts matrix object into a nexml element structure.
+ Returns : Nexml block (SCALAR).
+ Args    : Optional:
+ 		   -compact => 1 (for compact representation of matrix)
+
+=cut
+
+	sub to_xml {
+		my $self = shift;		
+		my ( %args, $ids_for_states );
+		if ( @_ ) {
+			%args = @_;
+		}
+		my $type = $self->get_type;
+		my $verbosity = $args{'-compact'} ? 'Seqs' : 'Cells';
+		my $xsi_type = 'nex:' . ucfirst($type) . $verbosity;
+		$self->set_attributes( 'xsi:type' => $xsi_type );
+		my $xml = $self->get_xml_tag;
+		my $normalized = $self->_normalize_symbols;
+		
+		# skip <format/> block in compact mode
+		if ( not $args{'-compact'} ) {
+			
+			# the format block
+			$xml .= "\n<format>";
+			my $to = $self->get_type_object;
+			$ids_for_states = $to->get_ids_for_states(1);
+			
+			# write state definitions
+			$xml .= $to->to_xml($normalized);
+			
+			# write column definitions
+			if ( %{ $ids_for_states } ) {
+				$xml .= $self->_write_char_labels( $to->get_xml_id );
+			}
+			else {
+				$xml .= $self->_write_char_labels();
+			}
+			$xml .= "\n</format>";
+		}
+		
+		# the matrix block
+		$xml .= "\n<matrix>";
+		my @char_ids;
+		for ( 0 .. $self->get_nchar ) {
+			push @char_ids, 'c' . ($_+1);
+		}
+		
+		# write rows
+		for my $row ( @{ $self->get_entities } ) {
+			$xml .= "\n" . $row->to_xml(
+				'-states'  => $ids_for_states,
+				'-chars'   => \@char_ids,
+				'-symbols' => $normalized,
+				%args,
+			);
+		}
+		$xml .= "\n</matrix>";
+		$xml .= "\n" . sprintf( '</%s>', $self->get_tag );
+		return $xml;
+	}
+	
+	sub _normalize_symbols {
+		my $self = shift;
+		if ( $self->get_type =~ /^standard$/i ) {
+			my $to = $self->get_type_object;
+			my $lookup = $self->get_lookup;
+			my @states = keys %{ $lookup };
+			if ( my @letters = sort { $a cmp $b } grep { /[a-z]/i } @states ) {
+				my @numbers  = sort { $a <=> $b } grep { /^\d+$/ } @states;
+				my $i = $numbers[-1];
+				my %map = map { $_ => ++$i } @letters;	
+				return \%map;			
+			}
+			else {
+				return {};
+			}			
+		}
+		else {
+			return {};
+		}
+	}
+	
+	sub _write_char_labels {
+		my ( $self, $states_id ) = @_;
+		my $xml = '';
+		my $labels = $self->get_charlabels;
+		for my $i ( 1 .. $self->get_nchar ) {
+			my $char_id = 'c' . $i;
+			my $label   = $labels->[ $i - 1 ];
+			
+			# have state definitions (categorical data)
+			if ( $states_id ) {
+				if ( $label ) {
+					$xml .= "\n" . sprintf('<char id="%s" label="%s" states="%s"/>', $char_id, $label, $states_id);
+				}
+				else {
+					$xml .= "\n" . sprintf('<char id="%s" states="%s"/>', $char_id, $states_id);
+				}
+			}
+			
+			# must be continuous characters (because no state definitions)
+			else {
+				if ( $label ) {
+					$xml .= "\n" . sprintf('<char id="%s" label="%s"/>', $char_id, $label);
+				}
+				else {
+					$xml .= "\n" . sprintf('<char id="%s"/>', $char_id);
+				}
+			}
+		}	
+		return $xml;	
+	}
 
 =item to_nexus()
 
@@ -531,36 +822,44 @@ Serializes matrix to nexus format.
  Returns : Nexus data block (SCALAR).
  Args    : The following options are available:
  
- 		   # if set, writes TITLE & LINK tokens
- 		   '-links' => 1
- 		   
-           # if set, writes block as a "data" block (deprecated, but used by mrbayes),
-           # otherwise writes "characters" block (default)
- 	       -data_block => 1
- 	       
- 	       # if set, writes "RESPECTCASE" token
- 	       -respectcase => 1
- 	       
- 	       # if set, writes "GAPMODE=(NEWSTATE of MISSING)" token
- 	       -gapmode => 1
- 	       
- 	       # if set, writes "MSTAXA=(POLYMORPH or UNCERTAIN)" token
- 	       -polymorphism => 1
- 	       
- 	       # if set, writes character labels
- 	       -charlabels => 1
- 	       
-		   # by default, names for sequences are derived from $datum->get_name, if 
-		   # 'internal' is specified, uses $datum->get_internal_name, if 'taxon'
-		   # uses $datum->get_taxon->get_name, if 'taxon_internal' uses 
-		   # $datum->get_taxon->get_internal_name, if $key, uses $datum->get_generic($key)
-		   -tipnames => one of (internal|taxon|taxon_internal|$key)
+            # if set, writes TITLE & LINK tokens
+            '-links' => 1
+            
+            # if set, writes block as a "data" block (deprecated, but used by mrbayes),
+            # otherwise writes "characters" block (default)
+            -data_block => 1
+            
+            # if set, writes "RESPECTCASE" token
+            -respectcase => 1
+            
+            # if set, writes "GAPMODE=(NEWSTATE or MISSING)" token
+            -gapmode => 1
+            
+            # if set, writes "MSTAXA=(POLYMORPH or UNCERTAIN)" token
+            -polymorphism => 1
+            
+            # if set, writes character labels
+            -charlabels => 1
+            
+            # if set, writes state labels
+            -statelabels => 1
+            
+            # if set, writes mesquite-style charstatelabels
+            -charstatelabels => 1
+            
+            # by default, names for sequences are derived from $datum->get_name, if 
+            # 'internal' is specified, uses $datum->get_internal_name, if 'taxon'
+            # uses $datum->get_taxon->get_name, if 'taxon_internal' uses 
+            # $datum->get_taxon->get_internal_name, if $key, uses $datum->get_generic($key)
+            -seqnames => one of (internal|taxon|taxon_internal|$key)
 
 =cut
 
 	sub to_nexus {
 		my $self   = shift;
+		$logger->info("writing to nexus: $self");
 		my %args   = @_;
+		my $nchar  = $self->get_nchar;
 		my $string = sprintf "BEGIN %s;\n",
 		  $args{'-data_block'} ? 'DATA' : 'CHARACTERS';
 		$string .=
@@ -577,13 +876,13 @@ Serializes matrix to nexus format.
 			  if $self->get_taxa;
 		}
 
-	 # dimensions token line - data block defines NTAX, characters block doesn't
+	 	# dimensions token line - data block defines NTAX, characters block doesn't
 		if ( $args{'-data_block'} ) {
 			$string .= "\tDIMENSIONS NTAX=" . $self->get_ntax() . ' ';
-			$string .= 'NCHAR=' . $self->get_nchar() . ";\n";
+			$string .= 'NCHAR=' . $nchar . ";\n";
 		}
 		else {
-			$string .= "\tDIMENSIONS NCHAR=" . $self->get_nchar() . ";\n";
+			$string .= "\tDIMENSIONS NCHAR=" . $nchar . ";\n";
 		}
 
 		# format token line
@@ -611,11 +910,59 @@ Serializes matrix to nexus format.
 		if ( $args{'-charlabels'} ) {
 			my $charlabels;
 			if ( my @labels = @{ $self->get_charlabels } ) {
+				my $i = 1;
 				for my $label (@labels) {
-					$charlabels .= $label =~ /\s/ ? " '$label'" : " $label";
+					$charlabels .= $label =~ /\s/ ? "\n\t\t [$i] '$label'" : "\n\t\t [$i] $label";
+					$i++;
 				}
-				$string .= "\tCHARLABELS$charlabels;\n";
+				$string .= "\tCHARLABELS$charlabels\n\t;\n";
 			}
+		}
+		
+		# statelabels token line
+		if ( $args{'-statelabels'} ) {
+		    my $statelabels;
+		    if ( my @labels = @{ $self->get_statelabels } ) {
+		        my $i = 1;
+		        for my $labelset ( @labels ) {
+		            $statelabels .= "\n\t\t $i";
+		            for my $label ( @{ $labelset } ) {
+		                $statelabels .= $label =~ /\s/ ? "\n\t\t\t'$label'" : "\n\t\t\t$label";
+		                $i++;
+		            }
+		            $statelabels .= ',';
+		        }
+		        $string .= "\tSTATELABELS$statelabels\n\t;\n";
+		    }
+		}
+		
+		# charstatelabels token line
+		if ( $args{'-charstatelabels'} ) {
+		    my @charlabels = @{ $self->get_charlabels };
+		    my @statelabels = @{ $self->get_statelabels };
+		    if ( @charlabels and @statelabels ) {
+		        my $charstatelabels;
+		        my $nlabels = $self->get_nchar - 1;
+		        for my $i ( 0 .. $nlabels ) {
+		            $charstatelabels .= "\n\t\t" . ( $i + 1 );
+		            if ( my $label = $charlabels[$i] ) {
+		                $charstatelabels .= $label =~ /\s/ ? " '$label' /" : " $label /";
+		            }
+		            else {
+		                $charstatelabels .= " ' ' /";
+		            }
+		            if ( my $labelset = $statelabels[$i] ) {
+		                for my $label ( @{ $labelset } ) {
+		                    $charstatelabels .= $label =~ /\s/ ? " '$label'" : " $label";
+		                }
+		            }
+		            else {
+		                $charstatelabels .= " ' '";
+		            }
+		            $charstatelabels .= $i == $nlabels ? "\n\t;" : ',';
+		        }
+		        $string .= "\tCHARSTATELABELS$charstatelabels\n\t;\n";
+		    }
 		}
 
 		# ...and write matrix!
@@ -651,17 +998,11 @@ Serializes matrix to nexus format.
 			}
 			$name = $datum->get_internal_name if not $name;
 			$string .= $name . ( $sp x ( $length - length($name) ) );
-
-			#        # write states
-			#		for my $i ( 0 .. ( $self->get_nchar - 1 ) ) {
-			#			if ( $datum->get_type =~ m/^CONTINUOUS$/ ) {
-			#				$string .= $datum->get_by_index($i) . " ";
-			#			}
-			#			else {
-			#				$string .= $datum->get_by_index($i);
-			#			}
-			#		}
-			$string .= $datum->get_char . "\n";
+			my @characters;
+			for my $i ( 0 .. ( $nchar - 1 ) ) {
+				push @characters, $datum->get_by_index($i);
+			}
+			$string .= $self->get_type_object->join( \@characters ) . "\n";
 		}
 		$string .= "\t;\nEND;\n";
 		return $string;
@@ -687,32 +1028,28 @@ Insert argument in invocant.
 		my $obj_container;
 		eval { $obj_container = $obj->_container };
 		if ( $@ || $obj_container != $self->_type ) {
-			Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-				'error' => 'object not a datum object!' );
+			throw 'ObjectMismatch' => 'object not a datum object!';
 		}
 		$logger->info("inserting '$obj' in '$self'");
 		if ( !$self->get_type_object->is_same( $obj->get_type_object ) ) {
-			Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-				'error' => 'object is of wrong data type' );
+			throw 'ObjectMismatch' => 'object is of wrong data type';
 		}
 		my $taxon1 = $obj->get_taxon;
 		for my $ents ( @{ $self->get_entities } ) {
 			if ( $obj->get_id == $ents->get_id ) {
-				Bio::Phylo::Util::Exceptions::ObjectMismatch->throw(
-					'error' => 'row already inserted' );
+				throw 'ObjectMismatch' => 'row already inserted';
 			}
 			if ($taxon1) {
 				my $taxon2 = $ents->get_taxon;
 				if ( $taxon2 && $taxon1->get_id == $taxon2->get_id ) {
-					$logger->warn(
-'datum linking to same taxon already existed, concatenating instead'
-					);
+					$logger->warn('datum linking to same taxon already existed, concatenating instead');
 					$ents->concat($obj);
 					return $self;
 				}
 			}
 		}
-		$self->SUPER::insert($obj);
+		$self->SUPER::insert( $obj );
+		return $self;
 	}
 
 =item validate()
@@ -735,6 +1072,37 @@ Validates the object's contents.
 		for my $row ( @{ $self->get_entities } ) {
 			$row->validate;
 		}
+	}
+
+=item compress_lookup()
+
+Removes unused states from lookup table
+
+ Type    : Method
+ Title   : validate
+ Usage   : $obj->compress_lookup
+ Function: Removes unused states from lookup table
+ Returns : $self
+ Args    : None
+
+=cut
+
+	sub compress_lookup {
+		my $self = shift;
+		my $to = $self->get_type_object;
+		my $lookup = $to->get_lookup;
+		my %seen;
+		for my $row ( @{ $self->get_entities } ) {
+			my @char = $row->get_char;
+			$seen{$_}++ for (@char);
+		}
+		for my $state ( keys %{ $lookup } ) {
+			if ( not exists $seen{$state} ) {
+				delete $lookup->{$state};
+			}
+		}
+		$to->set_lookup($lookup);
+		return $self;
 	}
 
 =item check_taxa()
@@ -768,13 +1136,12 @@ Validates taxa associations.
 					$row->set_taxon( $taxa{$name} );
 				}
 				else {
-					my $taxon = Bio::Phylo::Taxa::Taxon->new( -name => $name );
+					my $taxon = $factory->create_taxon( -name => $name );
 					$taxa{$name} = $taxon;
 					$taxa->insert($taxon);
 					$row->set_taxon($taxon);
 				}
 			}
-
 		}
 
 		# not linked
@@ -786,14 +1153,46 @@ Validates taxa associations.
 		return $self;
 	}
 
-	sub _type { $CONSTANT_TYPE }
+=item make_taxa()
 
+Creates a taxa block from the objects contents if none exists yet.
+
+ Type    : Method
+ Title   : make_taxa
+ Usage   : my $taxa = $obj->make_taxa
+ Function: Creates a taxa block from the objects contents if none exists yet.
+ Returns : $taxa
+ Args    : NONE
+
+=cut
+
+	sub make_taxa {
+		my $self = shift;
+		if ( my $taxa = $self->get_taxa ) {
+			return $taxa;
+		}
+		else {
+			my %taxa;
+			my $taxa = $factory->create_taxa;
+			for my $row ( @{ $self->get_entities } ) {
+				my $name = $row->get_internal_name;
+				if ( not $taxa{$name} ) {
+					$taxa{$name} = $factory->create_taxon( '-name' => $name );
+				}
+			}
+			$taxa->insert( map { $taxa{$_} } sort { $a cmp $b } keys %taxa );
+			$self->set_taxa( $taxa );
+			return $taxa;
+		}
+	}	
+	
+	sub _type      { $CONSTANT_TYPE }
 	sub _container { $CONSTANT_CONTAINER }
 
 	sub _cleanup {
 		my $self = shift;
 		$logger->info("cleaning up '$self'");
-		my $id = $self->get_id;
+		my $id = $$self;
 		for (@inside_out_arrays) {
 			delete $_->{$id} if defined $id and exists $_->{$id};
 		}
@@ -819,16 +1218,281 @@ objects.
 
 =item L<Bio::Phylo::Manual>
 
-Also see the manual: L<Bio::Phylo::Manual>.
+Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =back
 
 =head1 REVISION
 
- $Id: Matrix.pm 4265 2007-07-20 14:14:44Z rvosa $
+ $Id: Matrix.pm 678 2008-10-22 02:19:58Z rvos $
 
 =cut
 
 }
-
 1;
+
+__DATA__
+
+sub add_seq {
+    my ( $self, $seq, $order ) = @_;
+    $self->insert( $seq );
+}
+
+sub remove_seq {
+    my ( $self, $seq ) = @_;
+    $self->delete( $seq );
+}
+
+sub purge {
+ $logger->warn 
+}
+
+sub sort_alphabetically {
+    my $self = shift;
+    my @sorted = map  { $_->[0] }
+                 sort { $a->[1] cmp $b->[1] }
+                 map  { [ $_, $_->get_name ] }
+                 @{ $self->get_entities };
+    $self->clear;
+    $self->insert(@sorted);
+    return @sorted;
+}
+
+sub each_seq {
+    my $self = shift;
+    return @{ $self->get_entities };
+}
+
+sub each_alphabetically {
+    my $self = shift;
+    return map  { $_->[0] }
+           sort { $a->[1] cmp $b->[1] }
+           map  { [ $_, $_->get_name ] } @{ $self->get_entities };
+}
+
+sub each_seq_with_id {
+    my ( $self, $name ) = @_;
+    return @{ 
+        $self->get_by_regular_expression(
+            '-value' => 'get_name',
+            '-match' => qr/^\Q$name\E$/
+        )
+    }
+}
+
+sub get_seq_by_pos {
+    my ( $self, $pos ) = @_;
+    return $self->get_by_index( $pos - 1 );
+}
+
+sub select {
+    my ( $self, $start, $end ) = @_;
+    my $clone = $self->clone;
+    my @contents = @{ $clone->get_entities };
+    my @deleteme;
+    for my $i ( 0 .. $#contents ) {
+        if ( $i < $start - 1 or $i > $end - 1 ) {
+            push @deleteme, $contents[$i];
+        }
+    }
+    $clone->delete( $_ ) for @deleteme;
+    return $clone;
+}
+
+sub select_noncont {
+    my ( $self, @indices ) = @_;
+    my $clone = $self->clone;
+    my @contents = @{ $clone->get_entities };
+    my ( @deleteme, %keep );
+    %keep = map { ( $_ - 1 ) => 1 } @indices;
+    for my $i ( 0 .. $#contents ) {
+        if ( not exists $keep{$i} ) {
+            push @deleteme, $contents[$i];
+        }
+    }
+    $clone->delete( $_ ) for @deleteme;
+    return $clone;
+}
+
+sub slice {
+    my ( $self, $start, $end, $include_gapped ) = @_;
+    my $clone = $self->clone;
+    my $gap = $self->get_gap;
+    SEQ: for my $seq ( @{ $clone->get_entities } ) {
+        my @char = $self->get_char;
+        my @slice = splice @char, ( $start - 1 ), ( $end - $start - 1 );
+        if ( not $include_gapped ) {
+            if ( not grep { $_ !~ /^\Q$gap\E$/ } @slice ) {
+                next SEQ;
+            }
+        }
+        $seq->set_char(@slice);
+    }
+}
+
+sub map_chars {
+    my ( $self, $from, $to ) = @_;
+    for my $seq ( @{ $self->get_entities } ) {
+        my @char = $seq->get_char;
+        for my $c ( @char ) {
+            $c =~ s/$from/$to/;
+        }
+        $seq->set_char( @char );
+    }
+}
+
+sub uppercase {
+    my $self = shift;
+    for my $seq ( @{ $self->get_entities } ) {
+        my @char = $seq->get_char;
+        my @uc = map { uc $_ } @char;
+        $seq->set_char(@uc);
+    }
+}
+
+sub match_line {
+ $logger->warn 
+}
+
+sub match {
+    my ( $self, $match ) = @_;
+    if ( defined $match ) {
+        $self->set_matchchar($match);
+    }
+    else {
+        $self->set_matchchar('.');
+    }
+    $match = $self->get_matchchar;
+    my @seqs = @{ $self->get_entities };
+    my @firstseq = $seqs[0]->get_char;
+    for my $i ( 1 .. $#seqs ) {
+        my @char = $seqs[$i]->get_char;
+        for my $j ( 0 .. $#char ) {
+            if ( $char[$j] eq $firstseq[$j] ) {
+                $char[$j] = $match;
+            }
+        }
+        $seqs[$i]->set_char(@char);
+    }
+    1;
+}
+
+sub unmatch {
+    my ( $self, $match ) = @_;
+    if ( defined $match ) {
+        $self->set_matchchar($match);
+    }
+    else {
+        $self->set_matchchar('.');
+    }
+    $match = $self->get_matchchar;
+    my @seqs = @{ $self->get_entities };
+    my @firstseq = $seqs[0]->get_char;
+    for my $i ( 1 .. $#seqs ) {
+        my @char = $seqs[$i]->get_char;
+        for my $j ( 0 .. $#char ) {
+            if ( $char[$j] eq $match ) {
+                $char[$j] = $firstseq[$j];
+            }
+        }
+        $seqs[$i]->set_char(@char);
+    }
+    1;
+}
+
+sub id {
+    my ( $self, $name ) = @_;
+    if ( defined $name ) {
+        $self->set_name( $name );
+    }
+    return $self->get_name;
+}
+
+sub missing_char {
+    my ( $self, $missing ) = @_;
+    if ( defined $missing ) {
+        $self->set_missing( $missing );
+    }
+    return $self->get_missing;
+}
+
+sub match_char {
+    my ( $self, $match ) = @_;
+    if ( defined $match ) {
+        $self->set_matchchar( $match );
+    }
+    return $self->get_matchchar;
+}
+
+sub gap_char {
+    my ( $self, $gap ) = @_;
+    if ( defined $gap ) {
+        $self->set_gap( $gap );
+    }
+    return $self->get_gap;
+}
+
+sub symbol_chars {
+    my $self = shift;
+    my $to = $self->get_type_object;
+    my $lookup = $to->get_lookup;
+    return keys %{ $lookup };
+}
+
+sub consensus_string {
+ $logger->warn 
+}
+
+sub consensus_iupac {
+ $logger->warn 
+}
+
+sub is_flush { 1 }
+
+sub length { shift->get_nchar }
+
+sub maxname_length { $logger->warn }
+
+sub no_residues { $logger->warn }
+
+sub no_sequences {
+    my $self = shift;
+    return scalar @{ $self->get_entities };
+}
+
+sub percentage_identity { $logger->warn }
+
+sub overall_percentage_identity { $logger->warn }
+
+sub average_percentage_identity { $logger->warn }
+
+sub column_from_residue_number {
+    my ( $self, $seqname, $resnumber ) = @_;
+    my $col;
+    if ( my $seq = $self->get_by_name($seqname) ) {
+        my $gap  = $seq->get_gap;
+        my @char = $seq->get_char;
+        for my $i ( 0 .. $#char ) {
+            $col++ if $char[$i] ne $gap;
+            if ( $col + 1 == $resnumber ) {
+                return $i + 1;
+            }
+        }
+    }
+}
+
+sub displayname { 
+    my ( $self, $name ) = @_;
+    return $name;
+}
+
+sub maxdisplayname_length { $logger->warn }
+
+sub set_displayname_count { $logger->warn }
+
+sub set_displayname_flat { $logger->warn }
+
+sub set_displayname_normal { $logger->warn }
+
+
+

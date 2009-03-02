@@ -1,15 +1,11 @@
-# $Id: Pagel.pm 4213 2007-07-15 03:11:27Z rvosa $
-# Subversion: $Rev: 191 $
+# $Id: Pagel.pm 604 2008-09-05 17:32:28Z rvos $
 package Bio::Phylo::Unparsers::Pagel;
 use strict;
 use Bio::Phylo::Forest::Tree;
 use Bio::Phylo::IO;
+use vars qw(@ISA);
 
-use vars '@ISA';
 @ISA=qw(Bio::Phylo::IO);
-
-# One line so MakeMaker sees it.
-use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
 
 =head1 NAME
 
@@ -132,13 +128,13 @@ Look there to learn how to create pagel formatted files.
 
 =item L<Bio::Phylo::Manual>
 
-Also see the manual: L<Bio::Phylo::Manual>.
+Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =back
 
 =head1 REVISION
 
- $Id: Pagel.pm 4213 2007-07-15 03:11:27Z rvosa $
+ $Id: Pagel.pm 604 2008-09-05 17:32:28Z rvos $
 
 =cut
 

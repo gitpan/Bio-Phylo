@@ -1,5 +1,6 @@
-# $Id: Restriction.pm 4216 2007-07-15 03:21:27Z rvosa $
+# $Id: Restriction.pm 604 2008-09-05 17:32:28Z rvos $
 package Bio::Phylo::Matrices::Datatype::Restriction;
+use Bio::Phylo::Matrices::Datatype;
 use strict;
 use vars qw($LOOKUP @ISA $MISSING $GAP);
 @ISA = qw(Bio::Phylo::Matrices::Datatype);
@@ -25,13 +26,13 @@ This class subclasses L<Bio::Phylo::Matrices::Datatype>.
 
 =item L<Bio::Phylo::Manual>
 
-Also see the manual: L<Bio::Phylo::Manual>.
+Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =back
 
 =head1 REVISION
 
- $Id: Restriction.pm 4216 2007-07-15 03:21:27Z rvosa $
+ $Id: Restriction.pm 604 2008-09-05 17:32:28Z rvos $
 
 =cut
 

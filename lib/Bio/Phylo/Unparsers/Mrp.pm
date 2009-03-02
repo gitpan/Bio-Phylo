@@ -1,13 +1,9 @@
-# $Id: Mrp.pm 4213 2007-07-15 03:11:27Z rvosa $
+# $Id: Mrp.pm 604 2008-09-05 17:32:28Z rvos $
 package Bio::Phylo::Unparsers::Mrp;
 use strict;
 use Bio::Phylo::IO;
-
-use vars '@ISA';
+use vars qw(@ISA);
 @ISA=qw(Bio::Phylo::IO);
-
-# One line so MakeMaker sees it.
-use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
 
 =head1 NAME
 
@@ -138,13 +134,13 @@ Look there to learn how to create mrp matrices.
 
 =item L<Bio::Phylo::Manual>
 
-Also see the manual: L<Bio::Phylo::Manual>.
+Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =back
 
 =head1 REVISION
 
- $Id: Mrp.pm 4213 2007-07-15 03:11:27Z rvosa $
+ $Id: Mrp.pm 604 2008-09-05 17:32:28Z rvos $
 
 =cut
 
