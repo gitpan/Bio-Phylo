@@ -1,4 +1,4 @@
-# $Id: Nexus.pm 604 2008-09-05 17:32:28Z rvos $
+# $Id: Nexus.pm 815 2009-03-03 03:40:01Z rvos $
 package Bio::Phylo::Unparsers::Nexus;
 use strict;
 use Bio::Phylo::IO;
@@ -140,8 +140,7 @@ sub _to_string {
 
 =item L<Bio::Phylo::IO>
 
-The newick unparser is called by the L<Bio::Phylo::IO> object.
-Look there to learn how to unparse newick strings.
+The nexus serializer is called by the L<Bio::Phylo::IO> object.
 
 =item L<Bio::Phylo::Manual>
 
@@ -151,7 +150,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: Nexus.pm 604 2008-09-05 17:32:28Z rvos $
+ $Id: Nexus.pm 815 2009-03-03 03:40:01Z rvos $
 
 =cut
 

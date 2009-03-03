@@ -1,7 +1,6 @@
 COPYING
 lib/Bio/Phylo.pm
 lib/Bio/Phylo/Annotation.pm
-lib/Bio/Phylo/Article.pod
 lib/Bio/Phylo/Dictionary.pm
 lib/Bio/Phylo/Factory.pm
 lib/Bio/Phylo/Forest.pm
@@ -84,4 +83,6 @@ t/regress_21209.t
 t/regress_21417.t
 t/regress_22813.t
 t/regress_26332.t
+t/regress_35511.t
+t/regress_41070.t
 META.yml                                 Module meta-data (added by MakeMaker)

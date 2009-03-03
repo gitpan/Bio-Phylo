@@ -1,8 +1,6 @@
-# $Id: Treedrawer.pm 604 2008-09-05 17:32:28Z rvos $
+# $Id: Treedrawer.pm 810 2009-03-03 02:07:21Z rvos $
 package Bio::Phylo::Treedrawer;
 use strict;
-use Bio::Phylo::Forest::Tree;
-use Bio::Phylo::Forest::Node;
 use Bio::Phylo::Util::Exceptions 'throw';
 use Bio::Phylo::Util::CONSTANT qw(_TREE_ looks_like_number looks_like_object looks_like_hash looks_like_class);
 my @fields = qw(WIDTH HEIGHT MODE SHAPE PADDING NODE_RADIUS TIP_RADIUS TEXT_HORIZ_OFFSET TEXT_VERT_OFFSET TEXT_WIDTH TREE _SCALEX _SCALEY SCALE FORMAT);
@@ -966,7 +964,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: Treedrawer.pm 604 2008-09-05 17:32:28Z rvos $
+ $Id: Treedrawer.pm 810 2009-03-03 02:07:21Z rvos $
 
 =cut
 

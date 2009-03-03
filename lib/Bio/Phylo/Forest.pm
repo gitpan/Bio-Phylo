@@ -1,11 +1,8 @@
-# $Id: Forest.pm 676 2008-10-22 02:19:25Z rvos $
+# $Id: Forest.pm 810 2009-03-03 02:07:21Z rvos $
 package Bio::Phylo::Forest;
 use strict;
-#use warnings FATAL => 'all';
 use Bio::Phylo::Listable;
-use Bio::Phylo::Taxa;
 use Bio::Phylo::Taxa::TaxaLinker;
-use Bio::Phylo::Taxa::Taxon;
 use Bio::Phylo::Util::CONSTANT qw(_NONE_ _FOREST_ _PROJECT_);
 use Bio::Phylo::Util::Exceptions 'throw';
 use Bio::Phylo::Factory;
@@ -533,7 +530,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: Forest.pm 676 2008-10-22 02:19:25Z rvos $
+ $Id: Forest.pm 810 2009-03-03 02:07:21Z rvos $
 
 =cut
 
