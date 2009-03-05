@@ -127,7 +127,7 @@ CODE_TEMPLATE
 
 =head1 NAME
 
-Bio::Phylo::Util::Logger - Logging for Bio::Phylo.
+Bio::Phylo::Util::Logger - Logger of internal messages of several severity levels 
 
 =head1 SYNOPSIS
 
@@ -405,6 +405,6 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: Logger.pm 636 2008-09-11 08:14:13Z rvos $
+ $Id: Logger.pm 841 2009-03-04 23:07:30Z rvos $
 
 =cut

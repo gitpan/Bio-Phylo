@@ -1,4 +1,4 @@
-# $Id: Exceptions.pm 631 2008-09-10 22:07:13Z rvos $
+# $Id: Exceptions.pm 841 2009-03-04 23:07:30Z rvos $
 package Bio::Phylo::Util::StackTrace;
 use strict;
 
@@ -128,7 +128,12 @@ sub throw (@) {
 	else {
 		my $type = shift;
 		my $class = __PACKAGE__ . '::' . $type;
-		$self = $class->new( 'error' => shift, @_ );
+		if ( $class->isa('Bio::Phylo::Util::Exceptions') ) {
+			$self = $class->new( 'error' => shift, @_ );
+		}
+		else {
+			$self = Bio::Phylo::Util::Exceptions::Generic->new( 'error' => shift, @_ );
+		}
 	}
 # 	if ( not $ENV{'PERL_DL_NONLAZY'} ) {
 # 		require Bio::Phylo;
@@ -283,7 +288,7 @@ __END__
 
 =head1 NAME
 
-Bio::Phylo::Util::Exceptions - Exception classes for Bio::Phylo.
+Bio::Phylo::Util::Exceptions - Errors ($@) that are objects
 
 =head1 SYNOPSIS
 
@@ -296,10 +301,15 @@ Bio::Phylo::Util::Exceptions - Exception classes for Bio::Phylo.
  };
 
  # have an error
- if ( $@ && UNIVERSAL::isa( $@, 'Bio::Phylo::Util::Exception' ) ) {
+ if ( my $e = Bio::Phylo::Util::Exceptions::BadNumber->caught ) {
 
     # print out where the error came from
     print $@->trace->as_string;
+    
+    # caught() returns $@, so $e and $@ are the 
+    # same object in this example. 
+    # Therefore, the same thing would be:
+    print $e->trace->as_string;
  }
 
 =head1 DESCRIPTION
@@ -453,7 +463,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>
 
 =head1 REVISION
 
- $Id: Exceptions.pm 631 2008-09-10 22:07:13Z rvos $
+ $Id: Exceptions.pm 841 2009-03-04 23:07:30Z rvos $
 
 =cut
 

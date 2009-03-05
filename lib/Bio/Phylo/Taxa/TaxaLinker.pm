@@ -1,4 +1,4 @@
-# $Id: TaxaLinker.pm 604 2008-09-05 17:32:28Z rvos $
+# $Id: TaxaLinker.pm 841 2009-03-04 23:07:30Z rvos $
 package Bio::Phylo::Taxa::TaxaLinker;
 use Bio::Phylo;
 use Bio::Phylo::Mediators::TaxaMediator;
@@ -12,15 +12,15 @@ my $TYPE_CONSTANT = _TAXA_;
 
 =head1 NAME
 
-Bio::Phylo::Taxa::TaxaLinker - Superclass for objects that link to taxa objects.
+Bio::Phylo::Taxa::TaxaLinker - Superclass for objects that link to taxa objects
 
 =head1 SYNOPSIS
 
- use Bio::Phylo::Matrices::Matrix;
- use Bio::Phylo::Taxa;
+ use Bio::Phylo::Factory;
+ my $fac = Bio::Phylo::Factory->new;
 
- my $matrix = Bio::Phylo::Matrices::Matrix->new;
- my $taxa = Bio::Phylo::Taxa->new;
+ my $matrix = $fac->create_matrix;
+ my $taxa = $fac->create_taxa;
 
  if ( $matrix->isa('Bio::Phylo::Taxa::TaxaLinker') ) {
     $matrix->set_taxa( $taxa );
@@ -184,7 +184,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: TaxaLinker.pm 604 2008-09-05 17:32:28Z rvos $
+ $Id: TaxaLinker.pm 841 2009-03-04 23:07:30Z rvos $
 
 =cut
 

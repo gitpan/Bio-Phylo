@@ -17,11 +17,12 @@ my %class = (
     'dictionary' => 'Bio::Phylo::Dictionary',
     'annotation' => 'Bio::Phylo::Annotation',
     'set'        => 'Bio::Phylo::Set',
+    'generator'  => 'Bio::Phylo::Generator',
 );
 
 =head1 NAME
 
-Bio::Phylo::Factory - Object to instantiate other objects.
+Bio::Phylo::Factory - Creator of objects, reduces hardcoded class names in code
 
 =head1 SYNOPSIS
 
@@ -173,7 +174,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: Factory.pm 791 2009-02-24 22:04:47Z rvos $
+ $Id: Factory.pm 841 2009-03-04 23:07:30Z rvos $
 
 =cut
 

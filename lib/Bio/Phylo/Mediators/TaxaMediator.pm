@@ -1,4 +1,4 @@
-# $Id: TaxaMediator.pm 604 2008-09-05 17:32:28Z rvos $
+# $Id: TaxaMediator.pm 841 2009-03-04 23:07:30Z rvos $
 package Bio::Phylo::Mediators::TaxaMediator;
 use strict;
 use Scalar::Util qw(weaken);
@@ -15,7 +15,7 @@ use Bio::Phylo::Util::Exceptions;
 
 =head1 NAME
 
-Bio::Phylo::Mediators::TaxaMediator - Mediator class to manage links between objects.
+Bio::Phylo::Mediators::TaxaMediator - Mediator for links between taxa and other objects
 
 =head1 SYNOPSIS
 
@@ -322,7 +322,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: TaxaMediator.pm 604 2008-09-05 17:32:28Z rvos $
+ $Id: TaxaMediator.pm 841 2009-03-04 23:07:30Z rvos $
 
 =cut
 

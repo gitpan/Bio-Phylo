@@ -1,13 +1,14 @@
-# $Id: Matrix.pm 678 2008-10-22 02:19:58Z rvos $
+# $Id: Matrix.pm 844 2009-03-05 00:07:26Z rvos $
 package Bio::Phylo::Matrices::Matrix;
 use vars '@ISA';
 use strict;
 use Bio::Phylo::Factory;
 use Bio::Phylo::Taxa::TaxaLinker;
 use Bio::Phylo::IO qw(unparse);
-use Bio::Phylo::Util::CONSTANT qw(:objecttypes);
+use Bio::Phylo::Util::CONSTANT qw(:objecttypes looks_like_hash);
 use Bio::Phylo::Util::Exceptions qw(throw);
 use Bio::Phylo::Matrices::TypeSafeData;
+use Bio::Phylo::Matrices::Datum;
 use UNIVERSAL qw(isa);
 @ISA = qw(
   Bio::Phylo::Matrices::TypeSafeData
@@ -43,24 +44,23 @@ my $LOADED_WRAPPERS = 0;
 
 =head1 NAME
 
-Bio::Phylo::Matrices::Matrix - Character state matrix.
+Bio::Phylo::Matrices::Matrix - Character state matrix
 
 =head1 SYNOPSIS
 
- use Bio::Phylo::Matrices::Matrix;
- use Bio::Phylo::Taxa;
- use Bio::Phylo::Taxa::Taxon;
+ use Bio::Phylo::Factory;
+ my $fac = Bio::Phylo::Factory->new;
 
  # instantiate taxa object
- my $taxa = Bio::Phylo::Taxa->new();
+ my $taxa = $fac->create_taxa;
  for ( 'Homo sapiens', 'Pan paniscus', 'Pan troglodytes' ) {
-     $taxa->insert( Bio::Phylo::Taxa::Taxon->new( '-name' => $_ ) );
+     $taxa->insert( $fac->create_taxon( '-name' => $_ ) );
  }
 
  # instantiate matrix object, 'standard' data type. All categorical
  # data types follow semantics like this, though with different
  # symbols in lookup table and matrix
- my $standard_matrix = Bio::Phylo::Matrices::Matrix->new(
+ my $standard_matrix = $fac->create_matrix(
      '-type'   => 'STANDARD',
      '-taxa'   => $taxa,
      '-lookup' => { 
@@ -202,29 +202,37 @@ Matrix constructor from Bio::Align::AlignI argument.
 =cut
 	
 	sub new_from_bioperl {
-	    my ( $class, $aln ) = @_;
+	    my ( $class, $aln, @args ) = @_;
 		if ( isa( $aln, 'Bio::Align::AlignI' ) ) {
 		    $aln->unmatch;
 		    $aln->map_chars('\.','-');
 		    my @seqs = $aln->each_seq;
-			my $self = $class->SUPER::new( 
-			    '-tag'       => 'characters',
-			    '-type'      => $seqs[0] ? $seqs[0]->alphabet : 'dna',
-                '-missing'   => $aln->missing_char,
-                '-gap'       => $aln->gap_char,
-                '-matchchar' => $aln->match_char,
-			);
-			my $to = $self->get_type_object;
-			bless $self, $class;
+		    my ( $type, $missing, $gap, $matchchar ); 
+		    if ( $seqs[0] ) {
+		    	$type = $seqs[0]->alphabet || $seqs[0]->_guess_alphabet || 'dna';
+		    }
+		    else {
+		    	$type = 'dna';
+		    }
+			my $self = $factory->create_matrix( 
+				'-type' => $type,
+				'-special_symbols' => {
+			    	'-missing'   => $aln->missing_char || '?',
+			    	'-matchchar' => $aln->match_char   || '.',
+			    	'-gap'       => $aln->gap_char     || '-',					
+				},
+				@args 
+			);			
+			# XXX create raw getter/setter pairs for annotation, accession, consensus_meta source
+			for my $field ( qw(description accession id annotation consensus_meta score source) ) {
+				$self->$field( $aln->$field );
+			}			
+			my $to = $self->get_type_object;			
             for my $seq ( @seqs ) {
-                $self->insert( 
-                    $factory->create_datum( 
-                        '-type_object' => $to,
-                        '-char'        => $seq->seq,
-                        '-name'        => $seq->display_id,
-                        '-desc'        => $seq->desc,                                        
-                    )
-                );
+            	my $datum = Bio::Phylo::Matrices::Datum->new_from_bioperl(
+            		$seq, '-type_object' => $to
+            	);                                         	
+                $self->insert($datum);
             }
             return $self;
 		}
@@ -238,6 +246,80 @@ Matrix constructor from Bio::Align::AlignI argument.
 =head2 MUTATORS
 
 =over
+
+=item set_special_symbols
+
+Sets three special symbols in one call
+
+ Type    : Mutator
+ Title   : set_special_symbols
+ Usage   : $matrix->set_special_symbols( 
+ 		       -missing   => '?', 
+ 		       -gap       => '-', 
+ 		       -matchchar => '.' 
+ 		   );
+ Function: Assigns state labels.
+ Returns : $self
+ Args    : Three args (with distinct $x, $y and $z):
+  		       -missing   => $x, 
+ 		       -gap       => $y, 
+ 		       -matchchar => $z
+ Notes   : This method is here to ensure
+           you don't accidentally use the
+           same symbol for missing AND gap
+
+=cut
+
+	sub set_special_symbols {
+		my $self = shift;
+		my %args;
+		if ( ( @_ == 1 && ref($_[0]) eq 'HASH' && ( %args = %{$_[0]} ) ) || ( %args = looks_like_hash @_ ) ) {
+			if ( ! defined $args{'-missing'} || ! defined $args{'-gap'} || ! defined $args{'-matchchar'} ) {
+				throw 'BadArgs' => 'Need -missing => $x, -gap => $y, -matchchar => $z arguments, not '."@_";
+			}
+			my %values = map { $_ => 1 } values %args;
+			my @values = keys %values;
+			if ( scalar @values < 3 ) {
+				throw 'BadArgs' => 'Symbols must be distinct, not ' . join(', ', values %args);
+			}
+			my %old_special_symbols = ( 
+				$self->get_missing   => 'set_missing',
+				$self->get_gap       => 'set_gap',
+				$self->get_matchchar => 'set_matchchar',
+			);	
+			my %new_special_symbols = (
+				$args{'-missing'}    => 'set_missing',
+				$args{'-gap'}        => 'set_gap',
+				$args{'-matchchar'}  => 'set_matchchar',
+			);
+			my %dummies;
+			while ( %new_special_symbols ) {
+				for my $sym ( keys %new_special_symbols ) {
+					if ( not $old_special_symbols{$sym} ) {
+						my $method = $new_special_symbols{$sym};
+						$self->$method($sym);
+						delete $new_special_symbols{$sym};
+					}
+					elsif ( $old_special_symbols{$sym} eq $new_special_symbols{$sym} ) {
+						delete $new_special_symbols{$sym};
+					}
+					else {
+						DUMMY: for my $dummy ( qw(! @ $ % ^ & *) ) {
+							if ( ! $new_special_symbols{$dummy} && ! $old_special_symbols{$dummy} && ! $dummies{$dummy} ) {
+								my $method = $old_special_symbols{$sym};
+								$self->$method($dummy);
+								$dummies{$dummy} = 1;
+								delete $old_special_symbols{$sym};
+								$old_special_symbols{$dummy} = $method;
+								last DUMMY;
+							}
+						}
+					}
+				}
+			}
+		}
+		return $self;
+	}
 
 =item set_statelabels()
 
@@ -452,6 +534,28 @@ Defines matrix case sensitivity interpretation.
 =head2 ACCESSORS
 
 =over
+
+=item get_special_symbols()
+
+Retrieves hash ref for missing, gap and matchchar symbols
+
+ Type    : Accessor
+ Title   : get_special_symbols
+ Usage   : my %syms = %{ $matrix->get_special_symbols };
+ Function: Retrieves special symbols
+ Returns : HASH ref, e.g. { -missing => '?', -gap => '-', -matchchar => '.' }
+ Args    : None.
+
+=cut
+
+	sub get_special_symbols {
+		my $self = shift;
+		return {
+			'-missing'   => $self->get_missing,
+			'-matchchar' => $self->get_matchchar,
+			'-gap'       => $self->get_gap
+		};
+	}
 
 =item get_statelabels()
 
@@ -685,6 +789,11 @@ Clones invocant.
 				
 		# we'll clone datum objects, so no raw copying
 		$subs{'set_raw'} = sub {};
+		
+		# we'll use the set/get_special_symbols method
+		$subs{'set_missing'}   = sub {};
+		$subs{'set_gap'}       = sub {};
+		$subs{'set_matchchar'} = sub {};
 		
 		return $self->SUPER::clone(%subs);
 	
@@ -1200,6 +1309,1118 @@ Creates a taxa block from the objects contents if none exists yet.
 
 =back
 
+=cut
+
+# podinherit_insert_token
+# podinherit_start_token_do_not_remove
+# AUTOGENERATED pod created by /Users/rvosa/Applications/podinherit on Wed Mar  4 17:13:44 2009
+# DO NOT EDIT the code below, rerun /Users/rvosa/Applications/podinherit instead.
+
+=pod
+
+=head1 INHERITED METHODS
+
+Bio::Phylo::Matrices::Matrix inherits from one or more superclasses. This means that objects of 
+class Bio::Phylo::Matrices::Matrix also "do" the methods from the superclasses in addition to the 
+ones implemented in this class. Below is the documentation for those additional 
+methods, organized by superclass.
+
+=head2 SUPERCLASS Bio::Phylo::Matrices::TypeSafeData
+
+Bio::Phylo::Matrices::Matrix inherits from superclass L<Bio::Phylo::Matrices::TypeSafeData>. 
+Below are the public methods (if any) from this superclass.
+
+=over
+
+=item clone()
+
+Clones invocant.
+
+ Type    : Utility method
+ Title   : clone
+ Usage   : my $clone = $object->clone;
+ Function: Creates a copy of the invocant object.
+ Returns : A copy of the invocant.
+ Args    : NONE
+
+=item get_gap()
+
+Get gap symbol.
+
+ Type    : Accessor
+ Title   : get_gap
+ Usage   : my $gap = $obj->get_gap;
+ Function: Returns the object's gap symbol
+ Returns : A string
+ Args    : None
+
+=item get_lookup()
+
+Get ambiguity lookup table.
+
+ Type    : Accessor
+ Title   : get_lookup
+ Usage   : my $lookup = $obj->get_lookup;
+ Function: Returns the object's lookup hash
+ Returns : A hash reference
+ Args    : None
+
+=item get_missing()
+
+Get missing data symbol.
+
+ Type    : Accessor
+ Title   : get_missing
+ Usage   : my $missing = $obj->get_missing;
+ Function: Returns the object's missing data symbol
+ Returns : A string
+ Args    : None
+
+=item get_type()
+
+Get data type.
+
+ Type    : Accessor
+ Title   : get_type
+ Usage   : my $type = $obj->get_type;
+ Function: Returns the object's datatype
+ Returns : A string
+ Args    : None
+
+=item get_type_object()
+
+Get data type object.
+
+ Type    : Accessor
+ Title   : get_type_object
+ Usage   : my $obj = $obj->get_type_object;
+ Function: Returns the object's linked datatype object
+ Returns : A subclass of Bio::Phylo::Matrices::Datatype
+ Args    : None
+
+=item new()
+
+TypeSafeData constructor.
+
+ Type    : Constructor
+ Title   : new
+ Usage   : No direct usage, is called by child class;
+ Function: Instantiates a Bio::Phylo::Matrices::TypeSafeData
+ Returns : a Bio::Phylo::Matrices::TypeSafeData child class
+ Args    : -type        => (data type - required)
+           Optional:
+           -missing     => (the symbol for missing data)
+           -gap         => (the symbol for gaps)
+           -lookup      => (a character state lookup hash)
+           -type_object => (a datatype object)
+
+=item set_gap()
+
+Set gap data symbol.
+
+ Type    : Mutator
+ Title   : set_gap
+ Usage   : $obj->set_gap('-');
+ Function: Sets the symbol for gaps
+ Returns : Modified object.
+ Args    : Argument must be a single
+           character, default is '-'
+
+=item set_lookup()
+
+Set ambiguity lookup table.
+
+ Type    : Mutator
+ Title   : set_lookup
+ Usage   : $obj->set_gap($hashref);
+ Function: Sets the symbol for gaps
+ Returns : Modified object.
+ Args    : Argument must be a hash
+           reference that maps allowed
+           single character symbols
+           (including ambiguity symbols)
+           onto the equivalent set of
+           non-ambiguous symbols
+
+=item set_missing()
+
+Set missing data symbol.
+
+ Type    : Mutator
+ Title   : set_missing
+ Usage   : $obj->set_missing('?');
+ Function: Sets the symbol for missing data
+ Returns : Modified object.
+ Args    : Argument must be a single
+           character, default is '?'
+
+=item set_type()
+
+Set data type.
+
+ Type    : Mutator
+ Title   : set_type
+ Usage   : $obj->set_type($type);
+ Function: Sets the object's datatype.
+ Returns : Modified object.
+ Args    : Argument must be a string, one of
+           continuous, custom, dna, mixed,
+           protein, restriction, rna, standard
+
+=item set_type_object()
+
+Set data type object.
+
+ Type    : Mutator
+ Title   : set_type_object
+ Usage   : $obj->set_gap($obj);
+ Function: Sets the datatype object
+ Returns : Modified object.
+ Args    : Argument must be a subclass
+           of Bio::Phylo::Matrices::Datatype
+
+=item validate()
+
+Validates the object's contents
+
+ Type    : Interface method
+ Title   : validate
+ Usage   : $obj->validate
+ Function: Validates the object's contents
+ Returns : True or throws Bio::Phylo::Util::Exceptions::InvalidData
+ Args    : None
+ Comments: This is an interface method, i.e. this class doesn't
+           implement the method, child classes have to
+
+=back
+
+=head2 SUPERCLASS Bio::Phylo::Listable
+
+Bio::Phylo::Matrices::Matrix inherits from superclass L<Bio::Phylo::Listable>. 
+Below are the public methods (if any) from this superclass.
+
+=over
+
+=item add_set()
+
+ Type    : Mutator
+ Title   : add_set
+ Usage   : $obj->add_set($set)
+ Function: Associates a Bio::Phylo::Set object with the invocant
+ Returns : Invocant
+ Args    : A Bio::Phylo::Set object
+
+=item add_to_set()
+
+ Type    : Mutator
+ Title   : add_to_set
+ Usage   : $listable->add_to_set($obj,$set);
+ Function: Adds first argument to the second argument
+ Returns : Invocant
+ Args    : $obj - an object to add to $set
+           $set - the Bio::Phylo::Set object to add to
+ Notes   : this method assumes that $obj is already 
+           part of the invocant. If that assumption is
+           violated a warning message is printed.
+
+=item can_contain()
+
+Tests if argument can be inserted in invocant.
+
+ Type    : Test
+ Title   : can_contain
+ Usage   : &do_something if $listable->can_contain( $obj );
+ Function: Tests if $obj can be inserted in $listable
+ Returns : BOOL
+ Args    : An $obj to test
+
+=item clear()
+
+Empties container object.
+
+ Type    : Object method
+ Title   : clear
+ Usage   : $obj->clear();
+ Function: Clears the container.
+ Returns : A Bio::Phylo::Listable object.
+ Args    : Note.
+ Note    : 
+
+=item clone()
+
+Clones invocant.
+
+ Type    : Utility method
+ Title   : clone
+ Usage   : my $clone = $object->clone;
+ Function: Creates a copy of the invocant object.
+ Returns : A copy of the invocant.
+ Args    : None.
+ Comments: Cloning is currently experimental, use with caution.
+
+=item contains()
+
+Tests whether the invocant object contains the argument object.
+
+ Type    : Test
+ Title   : contains
+ Usage   : if ( $obj->contains( $other_obj ) ) {
+               # do something
+           }
+ Function: Tests whether the invocant object 
+           contains the argument object
+ Returns : BOOLEAN
+ Args    : A Bio::Phylo::* object
+
+=item cross_reference()
+
+The cross_reference method links node and datum objects to the taxa they apply
+to. After crossreferencing a matrix with a taxa object, every datum object has
+a reference to a taxon object stored in its C<$datum-E<gt>get_taxon> field, and
+every taxon object has a list of references to datum objects stored in its
+C<$taxon-E<gt>get_data> field.
+
+ Type    : Generic method
+ Title   : cross_reference
+ Usage   : $obj->cross_reference($taxa);
+ Function: Crossreferences the entities 
+           in the invocant with names 
+           in $taxa
+ Returns : string
+ Args    : A Bio::Phylo::Taxa object
+ Comments:
+
+=item current()
+
+Returns the current focal element of the listable object.
+
+ Type    : Iterator
+ Title   : current
+ Usage   : my $current_obj = $obj->current;
+ Function: Retrieves the current focal 
+           entity in the invocant.
+ Returns : A Bio::Phylo::* object
+ Args    : none.
+
+=item current_index()
+
+Returns the current internal index of the invocant.
+
+ Type    : Generic query
+ Title   : current_index
+ Usage   : my $last_index = $obj->current_index;
+ Function: Returns the current internal 
+           index of the invocant.
+ Returns : An integer
+ Args    : none.
+
+=item delete()
+
+Deletes argument from invocant object.
+
+ Type    : Object method
+ Title   : delete
+ Usage   : $obj->delete($other_obj);
+ Function: Deletes an object from its container.
+ Returns : A Bio::Phylo::Listable object.
+ Args    : A Bio::Phylo::* object.
+ Note    : Be careful with this method: deleting 
+           a node from a tree like this will 
+           result in undefined references in its 
+           neighbouring nodes. Its children will 
+           have their parent reference become 
+           undef (instead of pointing to their 
+           grandparent, as collapsing a node would 
+           do). The same is true for taxon objects 
+           that reference datum objects: if the 
+           datum object is deleted from a matrix 
+           (say), the taxon will now hold undefined 
+           references.
+
+=item first()
+
+Jumps to the first element contained by the listable object.
+
+ Type    : Iterator
+ Title   : first
+ Usage   : my $first_obj = $obj->first;
+ Function: Retrieves the first 
+           entity in the invocant.
+ Returns : A Bio::Phylo::* object
+ Args    : none.
+
+=item get_by_index()
+
+Gets element defined by argument index from invocant container.
+
+ Type    : Query
+ Title   : get_by_index
+ Usage   : my $contained_obj = $obj->get_by_index($i);
+ Function: Retrieves the i'th entity 
+           from a listable object.
+ Returns : An entity stored by a listable 
+           object (or array ref for slices).
+ Args    : An index or range. This works 
+           the way you dereference any perl
+           array including through slices, 
+           i.e. $obj->get_by_index(0 .. 10)>
+           $obj->get_by_index(0, -1) 
+           and so on.
+ Comments: Throws if out-of-bounds
+
+=item get_by_name()
+
+Gets first element that has argument name
+
+ Type    : Visitor predicate
+ Title   : get_by_name
+ Usage   : my $found = $obj->get_by_name('foo');
+ Function: Retrieves the first contained object
+           in the current Bio::Phylo::Listable 
+           object whose name is 'foo'
+ Returns : A Bio::Phylo::* object.
+ Args    : A name (string)
+
+=item get_by_regular_expression()
+
+Gets elements that match regular expression from invocant container.
+
+ Type    : Visitor predicate
+ Title   : get_by_regular_expression
+ Usage   : my @objects = @{ 
+               $obj->get_by_regular_expression(
+                    -value => $method,
+                    -match => $re
+            ) };
+ Function: Retrieves the data in the 
+           current Bio::Phylo::Listable 
+           object whose $method output 
+           matches $re
+ Returns : A list of Bio::Phylo::* objects.
+ Args    : -value => any of the string 
+                     datum props (e.g. 'get_type')
+           -match => a compiled regular 
+                     expression (e.g. qr/^[D|R]NA$/)
+
+=item get_by_value()
+
+Gets elements that meet numerical rule from invocant container.
+
+ Type    : Visitor predicate
+ Title   : get_by_value
+ Usage   : my @objects = @{ $obj->get_by_value(
+              -value => $method,
+              -ge    => $number
+           ) };
+ Function: Iterates through all objects 
+           contained by $obj and returns 
+           those for which the output of 
+           $method (e.g. get_tree_length) 
+           is less than (-lt), less than 
+           or equal to (-le), equal to 
+           (-eq), greater than or equal to 
+           (-ge), or greater than (-gt) $number.
+ Returns : A reference to an array of objects
+ Args    : -value => any of the numerical 
+                     obj data (e.g. tree length)
+           -lt    => less than
+           -le    => less than or equals
+           -eq    => equals
+           -ge    => greater than or equals
+           -gt    => greater than
+
+=item get_entities()
+
+Returns a reference to an array of objects contained by the listable object.
+
+ Type    : Generic query
+ Title   : get_entities
+ Usage   : my @entities = @{ $obj->get_entities };
+ Function: Retrieves all entities in the invocant.
+ Returns : A reference to a list of Bio::Phylo::* 
+           objects.
+ Args    : none.
+
+=item get_index_of()
+
+Returns the index of the argument in the list,
+or undef if the list doesn't contain the argument
+
+ Type    : Generic query
+ Title   : get_index_of
+ Usage   : my $i = $listable->get_index_of($obj)
+ Function: Returns the index of the argument in the list,
+           or undef if the list doesn't contain the argument
+ Returns : An index or undef
+ Args    : A contained object
+
+=item get_logger()
+
+Gets a logger object.
+
+ Type    : Accessor
+ Title   : get_logger
+ Usage   : my $logger = $obj->get_logger;
+ Function: Returns a Bio::Phylo::Util::Logger object
+ Returns : Bio::Phylo::Util::Logger
+ Args    : None
+
+=item get_sets()
+
+ Type    : Accessor
+ Title   : get_sets
+ Usage   : my @sets = @{ $obj->get_sets() };
+ Function: Retrieves all associated Bio::Phylo::Set objects
+ Returns : Invocant
+ Args    : None
+
+=item insert()
+
+Pushes an object into its container.
+
+ Type    : Object method
+ Title   : insert
+ Usage   : $obj->insert($other_obj);
+ Function: Pushes an object into its container.
+ Returns : A Bio::Phylo::Listable object.
+ Args    : A Bio::Phylo::* object.
+
+=item insert_at_index()
+
+Inserts argument object in invocant container at argument index.
+
+ Type    : Object method
+ Title   : insert_at_index
+ Usage   : $obj->insert_at_index($other_obj, $i);
+ Function: Inserts $other_obj at index $i in container $obj
+ Returns : A Bio::Phylo::Listable object.
+ Args    : A Bio::Phylo::* object.
+
+=item is_in_set()
+
+ Type    : Test
+ Title   : is_in_set
+ Usage   : @do_something if $listable->is_in_set($obj,$set);
+ Function: Returns whether or not the first argument is listed in the second argument
+ Returns : Boolean
+ Args    : $obj - an object that may, or may not be in $set
+           $set - the Bio::Phylo::Set object to query
+ Notes   : This method makes two assumptions:
+           i) the $set object is associated with the invocant,
+              i.e. add_set($set) has been called previously
+           ii) the $obj object is part of the invocant
+           If either assumption is violated a warning message
+           is printed.
+
+=item last()
+
+Jumps to the last element contained by the listable object.
+
+ Type    : Iterator
+ Title   : last
+ Usage   : my $last_obj = $obj->last;
+ Function: Retrieves the last 
+           entity in the invocant.
+ Returns : A Bio::Phylo::* object
+ Args    : none.
+
+=item last_index()
+
+Returns the highest valid index of the invocant.
+
+ Type    : Generic query
+ Title   : last_index
+ Usage   : my $last_index = $obj->last_index;
+ Function: Returns the highest valid 
+           index of the invocant.
+ Returns : An integer
+ Args    : none.
+
+=item next()
+
+Returns the next focal element of the listable object.
+
+ Type    : Iterator
+ Title   : next
+ Usage   : my $next_obj = $obj->next;
+ Function: Retrieves the next focal 
+           entity in the invocant.
+ Returns : A Bio::Phylo::* object
+ Args    : none.
+
+=item notify_listeners()
+
+Notifies listeners of changed contents.
+
+ Type    : Utility method
+ Title   : notify_listeners
+ Usage   : $object->notify_listeners;
+ Function: Notifies listeners of changed contents.
+ Returns : Invocant.
+ Args    : NONE.
+ Comments:
+
+=item previous()
+
+Returns the previous element of the listable object.
+
+ Type    : Iterator
+ Title   : previous
+ Usage   : my $previous_obj = $obj->previous;
+ Function: Retrieves the previous 
+           focal entity in the invocant.
+ Returns : A Bio::Phylo::* object
+ Args    : none.
+
+=item remove_from_set()
+
+ Type    : Mutator
+ Title   : remove_from_set
+ Usage   : $listable->remove_from_set($obj,$set);
+ Function: Removes first argument from the second argument
+ Returns : Invocant
+ Args    : $obj - an object to remove from $set
+           $set - the Bio::Phylo::Set object to remove from
+ Notes   : this method assumes that $obj is already 
+           part of the invocant. If that assumption is
+           violated a warning message is printed.
+
+=item remove_set()
+
+ Type    : Mutator
+ Title   : remove_set
+ Usage   : $obj->remove_set($set)
+ Function: Removes association between a Bio::Phylo::Set object and the invocant
+ Returns : Invocant
+ Args    : A Bio::Phylo::Set object
+
+=item set_listener()
+
+Attaches a listener (code ref) which is executed when contents change.
+
+ Type    : Utility method
+ Title   : set_listener
+ Usage   : $object->set_listener( sub { my $object = shift; } );
+ Function: Attaches a listener (code ref) which is executed when contents change.
+ Returns : Invocant.
+ Args    : A code reference.
+ Comments: When executed, the code reference will receive $object
+           (the invocant) as its first argument.
+
+=item visit()
+
+Iterates over objects contained by invocant, executes argument
+code reference on each.
+
+ Type    : Visitor predicate
+ Title   : visit
+ Usage   : $obj->visit( 
+               sub{ print $_[0]->get_name, "\n" } 
+           );
+ Function: Implements visitor pattern 
+           using code reference.
+ Returns : The invocant, possibly modified.
+ Args    : a CODE reference.
+
+=back
+
+=head2 SUPERCLASS Bio::Phylo::Util::XMLWritable
+
+Bio::Phylo::Matrices::Matrix inherits from superclass L<Bio::Phylo::Util::XMLWritable>. 
+Below are the public methods (if any) from this superclass.
+
+=over
+
+=item add_dictionary()
+
+ Type    : Mutator
+ Title   : add_dictionary
+ Usage   : $obj->add_dictionary($dict);
+ Function: Adds a dictionary attachment to the object
+ Returns : $self
+ Args    : Bio::Phylo::Dictionary
+
+=item get_attributes()
+
+Retrieves attributes for the element.
+
+ Type    : Accessor
+ Title   : get_attributes
+ Usage   : my %attrs = %{ $obj->get_attributes };
+ Function: Gets the xml attributes for the object;
+ Returns : A hash reference
+ Args    : None.
+ Comments: throws ObjectMismatch if no linked taxa object 
+           can be found
+
+=item get_dictionaries()
+
+Retrieves the dictionaries for the element.
+
+ Type    : Accessor
+ Title   : get_dictionaries
+ Usage   : my @dicts = @{ $obj->get_dictionaries };
+ Function: Retrieves the dictionaries for the element.
+ Returns : An array ref of Bio::Phylo::Dictionary objects
+ Args    : None.
+
+=item get_namespaces()
+
+ Type    : Accessor
+ Title   : get_namespaces
+ Usage   : my %ns = %{ $obj->get_namespaces };
+ Function: Retrieves the known namespaces
+ Returns : A hash of prefix/namespace key/value pairs, or
+           a single namespace if a single, optional
+           prefix was provided as argument
+ Args    : Optional - a namespace prefix
+
+=item get_tag()
+
+Retrieves tag name for the element.
+
+ Type    : Accessor
+ Title   : get_tag
+ Usage   : my $tag = $obj->get_tag;
+ Function: Gets the xml tag name for the object;
+ Returns : A tag name
+ Args    : None.
+
+=item get_xml_id()
+
+Retrieves xml id for the element.
+
+ Type    : Accessor
+ Title   : get_xml_id
+ Usage   : my $id = $obj->get_xml_id;
+ Function: Gets the xml id for the object;
+ Returns : An xml id
+ Args    : None.
+
+=item get_xml_tag()
+
+Retrieves tag string
+
+ Type    : Accessor
+ Title   : get_xml_tag
+ Usage   : my $str = $obj->get_xml_tag;
+ Function: Gets the xml tag for the object;
+ Returns : A tag, i.e. pointy brackets
+ Args    : Optional: a true value, to close an empty tag
+
+=item is_identifiable()
+
+By default, all XMLWritable objects are identifiable when serialized,
+i.e. they have a unique id attribute. However, in some cases a serialized
+object may not have an id attribute (governed by the nexml schema). This
+method indicates whether that is the case.
+
+ Type    : Test
+ Title   : is_identifiable
+ Usage   : if ( $obj->is_identifiable ) { ... }
+ Function: Indicates whether IDs are generated
+ Returns : BOOLEAN
+ Args    : NONE
+
+=item remove_dictionary()
+
+ Type    : Mutator
+ Title   : remove_dictionary
+ Usage   : $obj->remove_dictionary($dict);
+ Function: Removes a dictionary attachment from the object
+ Returns : $self
+ Args    : Bio::Phylo::Dictionary
+
+=item set_attributes()
+
+Assigns attributes for the element.
+
+ Type    : Mutator
+ Title   : set_attributes
+ Usage   : $obj->set_attributes( 'foo' => 'bar' )
+ Function: Sets the xml attributes for the object;
+ Returns : $self
+ Args    : key/value pairs or a hash ref
+
+=item set_identifiable()
+
+By default, all XMLWritable objects are identifiable when serialized,
+i.e. they have a unique id attribute. However, in some cases a serialized
+object may not have an id attribute (governed by the nexml schema). For
+such objects, id generation can be explicitly disabled using this method.
+Typically, this is done internally - you will probably never use this method.
+
+ Type    : Mutator
+ Title   : set_identifiable
+ Usage   : $obj->set_tag(0);
+ Function: Enables/disables id generation
+ Returns : $self
+ Args    : BOOLEAN
+
+=item set_namespaces()
+
+ Type    : Mutator
+ Title   : set_namespaces
+ Usage   : $obj->set_namespaces( 'dwc' => 'http://www.namespaceTBD.org/darwin2' );
+ Function: Adds one or more prefix/namespace pairs
+ Returns : $self
+ Args    : One or more prefix/namespace pairs, as even-sized list, 
+           or as a hash reference, i.e.:
+           $obj->set_namespaces( 'dwc' => 'http://www.namespaceTBD.org/darwin2' );
+           or
+           $obj->set_namespaces( { 'dwc' => 'http://www.namespaceTBD.org/darwin2' } );
+ Notes   : This is a global for the XMLWritable class, so that in a recursive
+ 		   to_xml call the outermost element contains the namespace definitions.
+ 		   This method can also be called as a static class method, i.e.
+ 		   Bio::Phylo::Util::XMLWritable->set_namespaces(
+ 		   'dwc' => 'http://www.namespaceTBD.org/darwin2');
+
+=item set_tag()
+
+This method is usually only used internally, to define or alter the
+name of the tag into which the object is serialized. For example,
+for a Bio::Phylo::Forest::Node object, this method would be called 
+with the 'node' argument, so that the object is serialized into an
+xml element structure called <node/>
+
+ Type    : Mutator
+ Title   : set_tag
+ Usage   : $obj->set_tag('node');
+ Function: Sets the tag name
+ Returns : $self
+ Args    : A tag name (must be a valid xml element name)
+
+=item set_xml_id()
+
+This method is usually only used internally, to store the xml id
+of an object as it is parsed out of a nexml file - this is for
+the purpose of round-tripping nexml info sets.
+
+ Type    : Mutator
+ Title   : set_xml_id
+ Usage   : $obj->set_xml_id('node345');
+ Function: Sets the xml id
+ Returns : $self
+ Args    : An xml id (must be a valid xml NCName)
+
+=item to_xml()
+
+Serializes invocant to XML.
+
+ Type    : XML serializer
+ Title   : to_xml
+ Usage   : my $xml = $obj->to_xml;
+ Function: Serializes $obj to xml
+ Returns : An xml string
+ Args    : None
+
+=back
+
+=head2 SUPERCLASS Bio::Phylo
+
+Bio::Phylo::Matrices::Matrix inherits from superclass L<Bio::Phylo>. 
+Below are the public methods (if any) from this superclass.
+
+=over
+
+=item clone()
+
+Clones invocant.
+
+ Type    : Utility method
+ Title   : clone
+ Usage   : my $clone = $object->clone;
+ Function: Creates a copy of the invocant object.
+ Returns : A copy of the invocant.
+ Args    : None.
+ Comments: Cloning is currently experimental, use with caution.
+
+=item get()
+
+Attempts to execute argument string as method on invocant.
+
+ Type    : Accessor
+ Title   : get
+ Usage   : my $treename = $tree->get('get_name');
+ Function: Alternative syntax for safely accessing
+           any of the object data; useful for
+           interpolating runtime $vars.
+ Returns : (context dependent)
+ Args    : a SCALAR variable, e.g. $var = 'get_name';
+
+=item get_desc()
+
+Gets invocant description.
+
+ Type    : Accessor
+ Title   : get_desc
+ Usage   : my $desc = $obj->get_desc;
+ Function: Returns the object's description (if any).
+ Returns : A string
+ Args    : None
+
+=item get_generic()
+
+Gets generic hashref or hash value(s).
+
+ Type    : Accessor
+ Title   : get_generic
+ Usage   : my $value = $obj->get_generic($key);
+           or
+           my %hash = %{ $obj->get_generic() };
+ Function: Returns the object's generic data. If an
+           argument is used, it is considered a key
+           for which the associated value is returned.
+           Without arguments, a reference to the whole
+           hash is returned.
+ Returns : A string or hash reference.
+ Args    : None
+
+=item get_id()
+
+Gets invocant's UID.
+
+ Type    : Accessor
+ Title   : get_id
+ Usage   : my $id = $obj->get_id;
+ Function: Returns the object's unique ID
+ Returns : INT
+ Args    : None
+
+=item get_internal_name()
+
+Gets invocant's 'fallback' name (possibly autogenerated).
+
+ Type    : Accessor
+ Title   : get_internal_name
+ Usage   : my $name = $obj->get_internal_name;
+ Function: Returns the object's name (if none was set, the name
+           is a combination of the $obj's class and its UID).
+ Returns : A string
+ Args    : None
+
+=item get_logger()
+
+Gets a logger object.
+
+ Type    : Accessor
+ Title   : get_logger
+ Usage   : my $logger = $obj->get_logger;
+ Function: Returns a Bio::Phylo::Util::Logger object
+ Returns : Bio::Phylo::Util::Logger
+ Args    : None
+
+=item get_name()
+
+Gets invocant's name.
+
+ Type    : Accessor
+ Title   : get_name
+ Usage   : my $name = $obj->get_name;
+ Function: Returns the object's name.
+ Returns : A string
+ Args    : None
+
+=item get_obj_by_id()
+
+Attempts to fetch an in-memory object by its UID
+
+ Type    : Accessor
+ Title   : get_obj_by_id
+ Usage   : my $obj = Bio::Phylo->get_obj_by_id($uid);
+ Function: Fetches an object from the IDPool cache
+ Returns : A Bio::Phylo object 
+ Args    : A unique id
+
+=item get_score()
+
+Gets invocant's score.
+
+ Type    : Accessor
+ Title   : get_score
+ Usage   : my $score = $obj->get_score;
+ Function: Returns the object's numerical score (if any).
+ Returns : A number
+ Args    : None
+
+=item new()
+
+The Bio::Phylo root constructor, is rarely used directly. Rather, many other 
+objects in Bio::Phylo internally go up the inheritance tree to this constructor. 
+The arguments shown here can therefore also be passed to any of the child 
+classes' constructors, which will pass them on up the inheritance tree. Generally, 
+constructors in Bio::Phylo subclasses can process as arguments all methods that 
+have set_* in their names. The arguments are named for the methods, but "set_" 
+has been replaced with a dash "-", e.g. the method "set_name" becomes the 
+argument "-name" in the constructor.
+
+ Type    : Constructor
+ Title   : new
+ Usage   : my $phylo = Bio::Phylo->new;
+ Function: Instantiates Bio::Phylo object
+ Returns : a Bio::Phylo object 
+ Args    : Optional, any number of setters. For example,
+ 		   Bio::Phylo->new( -name => $name )
+ 		   will call set_name( $name ) internally
+
+=item set_desc()
+
+Sets invocant description.
+
+ Type    : Mutator
+ Title   : set_desc
+ Usage   : $obj->set_desc($desc);
+ Function: Assigns an object's description.
+ Returns : Modified object.
+ Args    : Argument must be a string.
+
+=item set_generic()
+
+Sets generic key/value pair(s).
+
+ Type    : Mutator
+ Title   : set_generic
+ Usage   : $obj->set_generic( %generic );
+ Function: Assigns generic key/value pairs to the invocant.
+ Returns : Modified object.
+ Args    : Valid arguments constitute:
+
+           * key/value pairs, for example:
+             $obj->set_generic( '-lnl' => 0.87565 );
+
+           * or a hash ref, for example:
+             $obj->set_generic( { '-lnl' => 0.87565 } );
+
+           * or nothing, to reset the stored hash, e.g.
+                $obj->set_generic( );
+
+=item set_name()
+
+Sets invocant name.
+
+ Type    : Mutator
+ Title   : set_name
+ Usage   : $obj->set_name($name);
+ Function: Assigns an object's name.
+ Returns : Modified object.
+ Args    : Argument must be a string, will be single 
+           quoted if it contains [;|,|:\(|\)] 
+           or spaces. Preceding and trailing spaces
+           will be removed.
+
+=item set_score()
+
+Sets invocant score.
+
+ Type    : Mutator
+ Title   : set_score
+ Usage   : $obj->set_score($score);
+ Function: Assigns an object's numerical score.
+ Returns : Modified object.
+ Args    : Argument must be any of
+           perl's number formats, or undefined
+           to reset score.
+
+=item to_json()
+
+Serializes object to JSON string
+
+ Type    : Serializer
+ Title   : to_json()
+ Usage   : print $obj->to_json();
+ Function: Serializes object to JSON string
+ Returns : String 
+ Args    : None
+ Comments:
+
+=item to_string()
+
+Serializes object to general purpose string
+
+ Type    : Serializer
+ Title   : to_string()
+ Usage   : print $obj->to_string();
+ Function: Serializes object to general purpose string
+ Returns : String 
+ Args    : None
+ Comments: This is YAML
+
+=back
+
+=head2 SUPERCLASS Bio::Phylo::Taxa::TaxaLinker
+
+Bio::Phylo::Matrices::Matrix inherits from superclass L<Bio::Phylo::Taxa::TaxaLinker>. 
+Below are the public methods (if any) from this superclass.
+
+=over
+
+=item check_taxa()
+
+Performs sanity check on taxon relationships.
+
+ Type    : Interface method
+ Title   : check_taxa
+ Usage   : $obj->check_taxa
+ Function: Performs sanity check on taxon relationships
+ Returns : $obj
+ Args    : NONE
+
+=item get_taxa()
+
+Retrieves association between invocant and Bio::Phylo::Taxa object.
+
+ Type    : Accessor
+ Title   : get_taxa
+ Usage   : my $taxa = $obj->get_taxa;
+ Function: Retrieves the Bio::Phylo::Taxa
+           object linked to the invocant.
+ Returns : Bio::Phylo::Taxa
+ Args    : NONE
+ Comments: This method returns the Bio::Phylo::Taxa
+           object to which the invocant is linked.
+           The returned object can therefore contain
+           *more* taxa than are actually in the matrix.
+
+=item make_taxa()
+
+Creates a taxa block from the objects contents if none exists yet.
+
+ Type    : Decorated interface method
+ Title   : make_taxa
+ Usage   : my $taxa = $obj->make_taxa
+ Function: Creates a taxa block from the objects contents if none exists yet.
+ Returns : $taxa
+ Args    : NONE
+
+=item set_taxa()
+
+Associates invocant with Bio::Phylo::Taxa argument.
+
+ Type    : Mutator
+ Title   : set_taxa
+ Usage   : $obj->set_taxa( $taxa );
+ Function: Links the invocant object
+           to a taxa object.
+ Returns : Modified $obj
+ Args    : A Bio::Phylo::Taxa object.
+
+=item unset_taxa()
+
+Removes association between invocant and Bio::Phylo::Taxa object.
+
+ Type    : Mutator
+ Title   : unset_taxa
+ Usage   : $obj->unset_taxa();
+ Function: Removes the link between invocant object and taxa
+ Returns : Modified $obj
+ Args    : NONE
+
+=back
+
+=cut
+
+# podinherit_stop_token_do_not_remove
+
 =head1 SEE ALSO
 
 =over
@@ -1224,7 +2445,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: Matrix.pm 678 2008-10-22 02:19:58Z rvos $
+ $Id: Matrix.pm 844 2009-03-05 00:07:26Z rvos $
 
 =cut
 
@@ -1232,6 +2453,46 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 1;
 
 __DATA__
+
+my %CONSERVATION_GROUPS = (
+            'strong' => [ qw(
+						 STA
+						 NEQK
+						 NHQK
+						 NDEQ
+						 QHRK
+						 MILV
+						 MILF
+						 HY
+						 FYW )],
+				'weak' => [ qw(
+                      CSA
+					       ATV
+					       SAG
+					       STNK
+					       STPA
+					       SGND
+					       SNDEQK
+					       NDEQHK
+					       NEQHRK
+					       FVLIM
+					       HFY )],);
+
+sub description {
+	my ( $self, $desc ) = @_;
+	if ( defined $desc ) {
+		$self->set_desc( $desc );
+	}
+	return $self->get_desc;
+}
+
+sub score {
+	my ( $self, $score ) = @_;
+	if ( defined $score ) {
+		$self->set_score( $score );
+	}
+	return $self->get_score;
+}
 
 sub add_seq {
     my ( $self, $seq, $order ) = @_;
@@ -1350,8 +2611,80 @@ sub uppercase {
     }
 }
 
+# from simplealign
 sub match_line {
- $logger->warn 
+	my ($self,$matchlinechar, $strong, $weak) = @_;
+	my %matchchars = ('match'    => $matchlinechar || '*',
+							  'weak'     => $weak          || '.',
+							  'strong'   => $strong        || ':',
+							  'mismatch' => ' ',
+						  );
+
+	my @seqchars;
+	my $alphabet;
+	foreach my $seq ( $self->each_seq ) {
+		push @seqchars, [ split(//, uc ($seq->seq)) ];
+		$alphabet = $seq->alphabet unless defined $alphabet;
+	}
+	my $refseq = shift @seqchars;
+	# let's just march down the columns
+	my $matchline;
+ POS:
+	foreach my $pos ( 0..$self->length ) {
+		my $refchar = $refseq->[$pos];
+		my $char = $matchchars{'mismatch'};
+		unless( defined $refchar ) {
+			last if $pos == $self->length; # short circuit on last residue
+			# this in place to handle jason's soon-to-be-committed
+			# intron mapping code
+			goto bottom;
+		}
+		my %col = ($refchar => 1);
+		my $dash = ($refchar eq '-' || $refchar eq '.' || $refchar eq ' ');
+		foreach my $seq ( @seqchars ) {
+			next if $pos >= scalar @$seq;
+			$dash = 1 if( $seq->[$pos] eq '-' || $seq->[$pos] eq '.' ||
+							  $seq->[$pos] eq ' ' );
+			$col{$seq->[$pos]}++ if defined $seq->[$pos];
+		}
+		my @colresidues = sort keys %col;
+
+		# if all the values are the same
+		if( $dash ) { $char =  $matchchars{'mismatch'} }
+		elsif( @colresidues == 1 ) { $char = $matchchars{'match'} }
+		elsif( $alphabet eq 'protein' ) { # only try to do weak/strong
+			# matches for protein seqs
+	    TYPE:
+			foreach my $type ( qw(strong weak) ) {
+				# iterate through categories
+				my %groups;
+				# iterate through each of the aa in the col
+				# look to see which groups it is in
+				foreach my $c ( @colresidues ) {
+					foreach my $f ( grep { index($_,$c) >= 0 } @{$CONSERVATION_GROUPS{$type}} ) {
+						push @{$groups{$f}},$c;
+					}
+				}
+			 GRP:
+				foreach my $cols ( values %groups ) {
+					@$cols = sort @$cols;
+					# now we are just testing to see if two arrays
+					# are identical w/o changing either one
+					# have to be same len
+					next if( scalar @$cols != scalar @colresidues );
+					# walk down the length and check each slot
+					for($_=0;$_ < (scalar @$cols);$_++ ) {
+						next GRP if( $cols->[$_] ne $colresidues[$_] );
+					}
+					$char = $matchchars{$type};
+					last TYPE;
+				}
+			}
+		}
+	 bottom:
+		$matchline .= $char;
+	}
+	return $matchline;
 }
 
 sub match {
@@ -1363,6 +2696,7 @@ sub match {
         $self->set_matchchar('.');
     }
     $match = $self->get_matchchar;
+    my $lookup = $self->get_type_object->get_lookup->{$match} = [ $match ];    
     my @seqs = @{ $self->get_entities };
     my @firstseq = $seqs[0]->get_char;
     for my $i ( 1 .. $#seqs ) {
@@ -1433,14 +2767,33 @@ sub gap_char {
 }
 
 sub symbol_chars {
-    my $self = shift;
-    my $to = $self->get_type_object;
-    my $lookup = $to->get_lookup;
-    return keys %{ $lookup };
+    my ( $self, $includeextra ) = @_;
+	my %seen;
+	for my $row ( @{ $self->get_entities } ) {
+		my @char = $row->get_char;
+		$seen{$_} = 1 for @char;
+	}
+    return keys %seen if $includeextra;
+    my $special_values = $self->get_special_symbols;
+    my %special_keys   = map { $_ => 1 } values %{ $special_values };
+    return grep { ! $special_keys{$_} } keys %seen;
 }
 
 sub consensus_string {
- $logger->warn 
+	my $self = shift;
+	my $to = $self->get_type_object;
+	my $ntax = $self->get_ntax;
+	my $nchar = $self->get_nchar;
+	my @consensus;
+	for my $i ( 0 .. $ntax - 1 ) {
+		my ( @column, %column );
+		for my $j ( 0 .. $nchar - 1 ) {
+			$column{ $self->get_by_index($i)->get_by_index($j) } = 1;
+		}
+		@column = keys %column;
+		push @consensus, $to->get_symbol_for_states(@column);
+	}
+	return join '', @consensus;
 }
 
 sub consensus_iupac {
@@ -1462,9 +2815,130 @@ sub no_sequences {
 
 sub percentage_identity { $logger->warn }
 
-sub overall_percentage_identity { $logger->warn }
+# from simplealign
+sub average_percentage_identity{
+   my ($self,@args) = @_;
 
-sub average_percentage_identity { $logger->warn }
+   my @alphabet = ('A','B','C','D','E','F','G','H','I','J','K','L','M',
+                   'N','O','P','Q','R','S','T','U','V','W','X','Y','Z');
+
+   my ($len, $total, $subtotal, $divisor, $subdivisor, @seqs, @countHashes);
+
+   if (! $self->is_flush()) {
+       throw 'Generic' => "All sequences in the alignment must be the same length";
+   }
+
+   @seqs = $self->each_seq();
+   $len = $self->length();
+
+   # load the each hash with correct keys for existence checks
+
+   for( my $index=0; $index < $len; $index++) {
+       foreach my $letter (@alphabet) {
+       		$countHashes[$index] = {} if not $countHashes[$index];
+	   $countHashes[$index]->{$letter} = 0;
+       }
+   }
+   foreach my $seq (@seqs)  {
+       my @seqChars = split //, $seq->seq();
+       for( my $column=0; $column < @seqChars; $column++ ) {
+	   my $char = uc($seqChars[$column]);
+	   if (exists $countHashes[$column]->{$char}) {
+	       $countHashes[$column]->{$char}++;
+	   }
+       }
+   }
+
+   $total = 0;
+   $divisor = 0;
+   for(my $column =0; $column < $len; $column++) {
+       my %hash = %{$countHashes[$column]};
+       $subdivisor = 0;
+       foreach my $res (keys %hash) {
+	   $total += $hash{$res}*($hash{$res} - 1);
+	   $subdivisor += $hash{$res};
+       }
+       $divisor += $subdivisor * ($subdivisor - 1);
+   }
+   return $divisor > 0 ? ($total / $divisor )*100.0 : 0;
+}
+
+# from simplealign
+sub overall_percentage_identity{
+   my ($self, $length_measure) = @_;
+
+   my @alphabet = ('A','B','C','D','E','F','G','H','I','J','K','L','M',
+                   'N','O','P','Q','R','S','T','U','V','W','X','Y','Z');
+
+   my ($len, $total, @seqs, @countHashes);
+
+   my %enum = map {$_ => 1} qw (align short long);
+
+   throw 'Generic' => "Unknown argument [$length_measure]" 
+       if $length_measure and not $enum{$length_measure};
+   $length_measure ||= 'align';
+
+   if (! $self->is_flush()) {
+       throw 'Generic' => "All sequences in the alignment must be the same length";
+   }
+
+   @seqs = $self->each_seq();
+   $len = $self->length();
+
+   # load the each hash with correct keys for existence checks
+   for( my $index=0; $index < $len; $index++) {
+       foreach my $letter (@alphabet) {
+       		$countHashes[$index] = {} if not $countHashes[$index];
+	   $countHashes[$index]->{$letter} = 0;
+       }
+   }
+   foreach my $seq (@seqs)  {
+       my @seqChars = split //, $seq->seq();
+       for( my $column=0; $column < @seqChars; $column++ ) {
+	   my $char = uc($seqChars[$column]);
+	   if (exists $countHashes[$column]->{$char}) {
+	       $countHashes[$column]->{$char}++;
+	   }
+       }
+   }
+
+   $total = 0;
+   for(my $column =0; $column < $len; $column++) {
+       my %hash = %{$countHashes[$column]};
+       foreach ( values %hash ) {
+	   next if( $_ == 0 );
+	   $total++ if( $_ == scalar @seqs );
+	   last;
+       }
+   }
+
+   if ($length_measure eq 'short') {
+       ## find the shortest length
+       $len = 0;
+       foreach my $seq ($self->each_seq) {
+           my $count = $seq->seq =~ tr/[A-Za-z]//;
+           if ($len) {
+               $len = $count if $count < $len;
+           } else {
+               $len = $count;
+           }
+       }
+   }
+   elsif ($length_measure eq 'long') {
+       ## find the longest length
+       $len = 0;
+       foreach my $seq ($self->each_seq) {
+           my $count = $seq->seq =~ tr/[A-Za-z]//;
+           if ($len) {
+               $len = $count if $count > $len;
+           } else {
+               $len = $count;
+           }
+       }
+   }
+
+   return ($total / $len ) * 100.0;
+}
 
 sub column_from_residue_number {
     my ( $self, $seqname, $resnumber ) = @_;
@@ -1481,18 +2955,116 @@ sub column_from_residue_number {
     }
 }
 
-sub displayname { 
-    my ( $self, $name ) = @_;
-    return $name;
+sub displayname {
+    my ( $self, $name, $disname ) = @_;
+	my $seq;
+	$self->visit( sub{ $seq = $_[0] if $_[0]->get_nse eq $name } );
+    $self->throw("No sequence with name [$name]") unless $seq;
+	my $disnames = $self->get_generic( 'displaynames' ) || {};
+    if ( $disname and  $name ) {
+    	$disnames->{$name} = $disname;
+		return $disname;
+    }
+    elsif( defined $disnames->{$name} ) {
+		return  $disnames->{$name};
+    } 
+    else {
+		return $name;
+    }
 }
 
-sub maxdisplayname_length { $logger->warn }
+# from SimpleAlign
+sub maxdisplayname_length {
+    my $self = shift;
+    my $maxname = (-1);
+    my ($seq,$len);
+    foreach $seq ( $self->each_seq() ) {
+		$len = CORE::length $self->displayname($seq->get_nse());	
+		if( $len > $maxname ) {
+		    $maxname = $len;
+		}
+    }
+    return $maxname;
+}
+
+# from SimpleAlign
+sub set_displayname_flat {
+    my $self = shift;
+    my ($nse,$seq);
+
+    foreach $seq ( $self->each_seq() ) {
+	$nse = $seq->get_nse();
+	$self->displayname($nse,$seq->id());
+    }
+    return 1;
+}
 
 sub set_displayname_count { $logger->warn }
 
-sub set_displayname_flat { $logger->warn }
-
 sub set_displayname_normal { $logger->warn }
+
+sub accession {
+	my ( $self, $acc ) = @_;
+	if ( defined $acc ) {
+		$self->set_generic( 'accession' => $acc );
+	}
+	return $self->get_generic( 'accession' );
+}
+
+sub source {
+	my ( $self, $source ) = @_;
+	if ( defined $source ) {
+		$self->set_generic( 'source' => $source );
+	}
+	return $self->get_generic( 'source' );
+}
+
+sub annotation {
+	my ( $self, $anno ) = @_;
+	if ( defined $anno ) {
+		$self->set_generic( 'annotation' => $anno );
+	}
+	return $self->get_generic( 'annotation' );
+}
+
+sub consensus_meta {
+	my ( $self, $meta ) = @_;
+	if ( defined $meta ) {
+		$self->set_generic( 'consensus_meta' => $meta );
+	}
+	return $self->get_generic( 'consensus_meta' );
+}
+
+# XXX this might be removed, and instead inherit from SimpleAlign
+sub max_metaname_length {
+    my $self = shift;
+    my $maxname = (-1);
+    my ($seq,$len);
+    
+    # check seq meta first
+    for $seq ( $self->each_seq() ) {
+        next if !$seq->isa('Bio::Seq::MetaI' || !$seq->meta_names);
+        for my $mtag ($seq->meta_names) {
+            $len = CORE::length $mtag;
+            if( $len > $maxname ) {
+                $maxname = $len;
+            }
+        }
+    }
+    
+    # alignment meta
+    for my $meta ($self->consensus_meta) {
+        next unless $meta;
+        for my $name ($meta->meta_names) {
+            $len = CORE::length $name;
+            if( $len > $maxname ) {
+                $maxname = $len;
+            }
+        }
+    }
+
+    return $maxname;
+}
 
 
 

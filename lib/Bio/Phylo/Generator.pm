@@ -1,4 +1,4 @@
-# $Id: Generator.pm 604 2008-09-05 17:32:28Z rvos $
+# $Id: Generator.pm 841 2009-03-04 23:07:30Z rvos $
 package Bio::Phylo::Generator;
 use strict;
 use Bio::Phylo::Util::IDPool;
@@ -20,12 +20,13 @@ Math::Random->import('random_exponential');
 
 =head1 NAME
 
-Bio::Phylo::Generator - Generates random trees.
+Bio::Phylo::Generator - Generator of tree topologies
 
 =head1 SYNOPSIS
 
- use Bio::Phylo::Generator;
- my $gen = Bio::Phylo::Generator->new;
+ use Bio::Phylo::Factory;
+ my $fac = Bio::Phylo::Factory->new;
+ my $gen = $fac->create_generator;
  my $trees = $gen->gen_rand_pure_birth( 
      '-tips'  => 10, 
      '-model' => 'yule',
@@ -388,7 +389,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: Generator.pm 604 2008-09-05 17:32:28Z rvos $
+ $Id: Generator.pm 841 2009-03-04 23:07:30Z rvos $
 
 =cut
 

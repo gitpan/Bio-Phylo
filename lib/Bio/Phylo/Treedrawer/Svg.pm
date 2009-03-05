@@ -1,4 +1,4 @@
-# $Id: Svg.pm 604 2008-09-05 17:32:28Z rvos $
+# $Id: Svg.pm 841 2009-03-04 23:07:30Z rvos $
 package Bio::Phylo::Treedrawer::Svg;
 use strict;
 use Bio::Phylo::Util::CONSTANT 'looks_like_hash';
@@ -21,8 +21,8 @@ my %colors;
 
 =head1 NAME
 
-Bio::Phylo::Treedrawer::Svg - Creates svg tree drawings. No serviceable parts
-inside.
+Bio::Phylo::Treedrawer::Svg - Graphics format writer used by treedrawer, no serviceable parts
+inside
 
 =head1 DESCRIPTION
 
@@ -439,7 +439,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: Svg.pm 604 2008-09-05 17:32:28Z rvos $
+ $Id: Svg.pm 841 2009-03-04 23:07:30Z rvos $
 
 =cut
 

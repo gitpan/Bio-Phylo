@@ -1,4 +1,4 @@
-# $Id: TaxonLinker.pm 604 2008-09-05 17:32:28Z rvos $
+# $Id: TaxonLinker.pm 844 2009-03-05 00:07:26Z rvos $
 package Bio::Phylo::Taxa::TaxonLinker;
 use Bio::Phylo::Mediators::TaxaMediator;
 use Bio::Phylo::Util::Exceptions;
@@ -13,15 +13,15 @@ use strict;
 
 =head1 NAME
 
-Bio::Phylo::Taxa::TaxonLinker - Superclass for objects that link to taxon objects.
+Bio::Phylo::Taxa::TaxonLinker - Superclass for objects that link to taxon objects
 
 =head1 SYNOPSIS
 
- use Bio::Phylo::Forest::Node;
- use Bio::Phylo::Taxa::Taxon;
+ use Bio::Phylo::Factory;
+ my $fac = Bio::Phylo::Factory->new;
 
- my $node  = Bio::Phylo::Forest::Node->new;
- my $taxon = Bio::Phylo::Taxa::Taxon->new;
+ my $node  = $fac->create_node;
+ my $taxon = $fac->create_taxon;
 
  # just to show who's what
  if ( $node->isa('Bio::Phylo::Taxa::TaxonLinker') ) { 
@@ -129,6 +129,10 @@ Retrieves the Bio::Phylo::Taxa::Taxon object linked to the invocant.
 
 =back
 
+=cut
+
+# podinherit_insert_token
+
 =head1 SEE ALSO
 
 =over
@@ -149,7 +153,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: TaxonLinker.pm 604 2008-09-05 17:32:28Z rvos $
+ $Id: TaxonLinker.pm 844 2009-03-05 00:07:26Z rvos $
 
 =cut
 

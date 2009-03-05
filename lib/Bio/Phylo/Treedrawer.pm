@@ -1,4 +1,4 @@
-# $Id: Treedrawer.pm 810 2009-03-03 02:07:21Z rvos $
+# $Id: Treedrawer.pm 841 2009-03-04 23:07:30Z rvos $
 package Bio::Phylo::Treedrawer;
 use strict;
 use Bio::Phylo::Util::Exceptions 'throw';
@@ -11,7 +11,7 @@ my $logger = Bio::Phylo->get_logger;
 
 =head1 NAME
 
-Bio::Phylo::Treedrawer - An object-oriented facade for drawing trees.
+Bio::Phylo::Treedrawer - Visualizer of tree shapes
 
 =head1 SYNOPSIS
 
@@ -964,7 +964,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: Treedrawer.pm 810 2009-03-03 02:07:21Z rvos $
+ $Id: Treedrawer.pm 841 2009-03-04 23:07:30Z rvos $
 
 =cut
 

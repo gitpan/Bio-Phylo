@@ -1,4 +1,4 @@
-# $Id: NodeMediator.pm 604 2008-09-05 17:32:28Z rvos $
+# $Id: NodeMediator.pm 841 2009-03-04 23:07:30Z rvos $
 package Bio::Phylo::Mediators::NodeMediator;
 use strict;
 use Scalar::Util qw(weaken);
@@ -15,7 +15,7 @@ use Bio::Phylo;
 
 =head1 NAME
 
-Bio::Phylo::Mediators::NodeMediator - Mediator class to manage links between nodes.
+Bio::Phylo::Mediators::NodeMediator - Mediator for links between tree nodes
 
 =head1 SYNOPSIS
 
@@ -569,7 +569,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: NodeMediator.pm 604 2008-09-05 17:32:28Z rvos $
+ $Id: NodeMediator.pm 841 2009-03-04 23:07:30Z rvos $
 
 =cut
 
