@@ -1,8 +1,8 @@
-# $Id: Newick.pm 1171 2009-07-07 06:23:58Z rvos $
+# $Id: Newick.pm 1235 2010-03-02 16:11:07Z rvos $
 package Bio::Phylo::Unparsers::Newick;
 use strict;
-use Bio::Phylo::Forest::Tree;
-use Bio::Phylo::IO;
+use Bio::Phylo::Forest::Tree ();
+use Bio::Phylo::IO ();
 use Bio::Phylo::Util::CONSTANT qw(:objecttypes);
 use vars qw(@ISA);
 
@@ -223,7 +223,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: Newick.pm 1171 2009-07-07 06:23:58Z rvos $
+ $Id: Newick.pm 1235 2010-03-02 16:11:07Z rvos $
 
 =cut
 

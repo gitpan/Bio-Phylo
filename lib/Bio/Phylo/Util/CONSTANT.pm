@@ -1,7 +1,7 @@
-# $Id: CONSTANT.pm 1171 2009-07-07 06:23:58Z rvos $
+# $Id: CONSTANT.pm 1242 2010-03-03 20:37:23Z rvos $
 package Bio::Phylo::Util::CONSTANT;
 use strict;
-use Scalar::Util ();
+use Scalar::Util 'blessed';
 use Bio::Phylo::Util::Exceptions 'throw';
 BEGIN {
     require Exporter;
@@ -33,10 +33,14 @@ BEGIN {
         _DESCRIPTION_
         _RESOURCE_ 
         _HTTP_SC_SEE_ALSO_
+	_DOCUMENT_
+	_ELEMENT_
       	looks_like_number
       	looks_like_object
-		looks_like_hash
-		looks_like_class      	
+	looks_like_hash
+	looks_like_class   
+	looks_like_instance
+	looks_like_implementor
     );
     %EXPORT_TAGS = ( 
         'all'         => [ @EXPORT_OK ],
@@ -65,14 +69,18 @@ BEGIN {
                 _DESCRIPTION_
                 _RESOURCE_
                 _HTTP_SC_SEE_ALSO_
+		_DOCUMENT_
+		_ELEMENT_
             )
         ],
         'functions' => [
         	qw(
-        		looks_like_number
-        		looks_like_object
-        		looks_like_hash
-        		looks_like_class
+		    looks_like_number
+		    looks_like_object
+		    looks_like_hash
+		    looks_like_class
+		    looks_like_instance
+		    looks_like_implementor
         	)
         ],    
     );
@@ -109,6 +117,10 @@ sub _META_         () { 19 }
 sub _DESCRIPTION_  () { 20 }
 sub _RESOURCE_     () { 21 }
 
+sub _DOCUMENT_     () { 22 }
+sub _ELEMENT_      () { 23 }
+
+# for PhyloWS
 sub _HTTP_SC_SEE_ALSO_ () { '303 See Other' }
 
 # this is a drop in replacement for Scalar::Util's function
@@ -147,6 +159,29 @@ sub looks_like_object($$) {
 	}
 }
 
+sub looks_like_implementor($$) {
+	my ( $object, $method ) = @_;
+	if ( blessed $object ) {
+		return $object->can($method);
+	}
+	return;
+}
+
+sub looks_like_instance($$) {
+	my ( $object, $class ) = @_;
+	if ( ref $object ) {
+		if ( blessed $object ) {
+			return $object->isa($class);
+		}
+		else {
+			return ref $object eq $class;
+		}
+	}
+	else {
+		return;
+	}
+}
+
 sub looks_like_hash(@) {
 	my @array = @_;
 	my %hash;
@@ -165,10 +200,10 @@ sub looks_like_class($) {
 	$path     =~ s|::|/|g;
 	$path    .=  '.pm';
 	if ( not exists $INC{$path} ) {
-		eval { require $path };
-		if ( $@ ) {
-			throw 'ExtensionError' => $@;
-		}
+	    eval { require $path };
+	    if ( $@ ) {
+		throw 'ExtensionError' => $@;
+	    }
 	}
 	return $class;
 }
@@ -203,6 +238,30 @@ The subroutines use prototypes for more concise syntax, e.g.:
 These subroutines are used for argument processing inside method calls.
 
 =over
+
+=item looks_like_instance()
+
+Tests if argument 1 looks like an instance of argument 2
+
+ Type    : Utility function
+ Title   : looks_like_instance
+ Usage   : do 'something' if looks_like_instance $var, $class;
+ Function: Tests whether $var looks like an instance of $class.
+ Returns : TRUE or undef
+ Args    : $var = a variable to test, a $class to test against.
+           $class can also be anything returned by ref($var), e.g.
+           'HASH', 'CODE', etc.
+
+=item looks_like_implementor()
+
+Tests if argument 1 implements argument 2
+
+ Type    : Utility function
+ Title   : looks_like_implementor
+ Usage   : do 'something' if looks_like_implementor $var, $method;
+ Function: Tests whether $var implements $method
+ Returns : return value of UNIVERSAL::can or undef
+ Args    : $var = a variable to test, a $method to test against.
 
 =item looks_like_number()
 
@@ -263,7 +322,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: CONSTANT.pm 1171 2009-07-07 06:23:58Z rvos $
+ $Id: CONSTANT.pm 1242 2010-03-03 20:37:23Z rvos $
 
 =cut
 

@@ -1,13 +1,13 @@
-# $Id: Taxon.pm 844 2009-03-05 00:07:26Z rvos $
+# $Id: Taxon.pm 1247 2010-03-04 15:47:17Z rvos $
 package Bio::Phylo::Taxa::Taxon;
 use strict;
-use Bio::Phylo::Util::XMLWritable;
+use Bio::Phylo::NeXML::Writable ();
 use Bio::Phylo::Util::CONSTANT qw(_DATUM_ _NODE_ _TAXON_ _TAXA_ looks_like_object);
 use Bio::Phylo::Mediators::TaxaMediator;
 use vars qw(@ISA);
 
 # classic @ISA manipulation, not using 'base'
-@ISA = qw(Bio::Phylo::Util::XMLWritable);
+@ISA = qw(Bio::Phylo::NeXML::Writable);
 {
 	
 	my $TYPE_CONSTANT      = _TAXON_;
@@ -347,7 +347,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: Taxon.pm 844 2009-03-05 00:07:26Z rvos $
+ $Id: Taxon.pm 1247 2010-03-04 15:47:17Z rvos $
 
 =cut
 

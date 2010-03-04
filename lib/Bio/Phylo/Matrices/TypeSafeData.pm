@@ -1,10 +1,9 @@
-# $Id: TypeSafeData.pm 844 2009-03-05 00:07:26Z rvos $
+# $Id: TypeSafeData.pm 1247 2010-03-04 15:47:17Z rvos $
 package Bio::Phylo::Matrices::TypeSafeData;
-use Bio::Phylo::Listable;
+use Bio::Phylo::Listable ();
 use Bio::Phylo::Util::Exceptions 'throw';
-use Bio::Phylo::Util::CONSTANT qw(_MATRIX_ looks_like_hash looks_like_object);
-use Bio::Phylo::Matrices::Datatype;
-use UNIVERSAL 'isa';
+use Bio::Phylo::Util::CONSTANT qw(_MATRIX_ looks_like_hash looks_like_object looks_like_instance);
+use Bio::Phylo::Matrices::Datatype ();
 use strict;
 use vars '@ISA';
 @ISA = qw(Bio::Phylo::Listable);
@@ -99,7 +98,7 @@ Set data type.
         my $self = shift;
         my $arg  = shift;
         my ( $type, @args );
-        if ( isa( $arg, 'ARRAY' ) ) {
+        if ( looks_like_instance( $arg, 'ARRAY' ) ) {
         	@args = @{ $arg };
         	$type = shift @args;
         }
@@ -413,7 +412,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: TypeSafeData.pm 844 2009-03-05 00:07:26Z rvos $
+ $Id: TypeSafeData.pm 1247 2010-03-04 15:47:17Z rvos $
 
 =cut
 

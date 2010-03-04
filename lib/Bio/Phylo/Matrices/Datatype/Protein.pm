@@ -1,6 +1,6 @@
-# $Id: Protein.pm 844 2009-03-05 00:07:26Z rvos $
+# $Id: Protein.pm 1235 2010-03-02 16:11:07Z rvos $
 package Bio::Phylo::Matrices::Datatype::Protein;
-use Bio::Phylo::Matrices::Datatype;
+use Bio::Phylo::Matrices::Datatype ();
 use strict;
 use vars qw($LOOKUP @ISA $MISSING $GAP);
 @ISA = qw(Bio::Phylo::Matrices::Datatype);
@@ -43,7 +43,7 @@ L<http://www.cpanforum.com/dist/Bio-Phylo>
 
 =head1 REVISION
 
- $Id: Protein.pm 844 2009-03-05 00:07:26Z rvos $
+ $Id: Protein.pm 1235 2010-03-02 16:11:07Z rvos $
 
 =cut
 

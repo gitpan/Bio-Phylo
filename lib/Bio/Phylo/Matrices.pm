@@ -1,8 +1,8 @@
-# $Id: Matrices.pm 844 2009-03-05 00:07:26Z rvos $
+# $Id: Matrices.pm 1235 2010-03-02 16:11:07Z rvos $
 package Bio::Phylo::Matrices;
 use strict;
 #use warnings FATAL => 'all';
-use Bio::Phylo::Listable;
+use Bio::Phylo::Listable ();
 use Bio::Phylo::Util::CONSTANT qw(_NONE_ _MATRICES_);
 use vars qw(@ISA);
 
@@ -129,7 +129,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: Matrices.pm 844 2009-03-05 00:07:26Z rvos $
+ $Id: Matrices.pm 1235 2010-03-02 16:11:07Z rvos $
 
 =cut
 

@@ -1,6 +1,6 @@
-# $Id: TaxaLinker.pm 841 2009-03-04 23:07:30Z rvos $
+# $Id: TaxaLinker.pm 1235 2010-03-02 16:11:07Z rvos $
 package Bio::Phylo::Taxa::TaxaLinker;
-use Bio::Phylo;
+use Bio::Phylo ();
 use Bio::Phylo::Mediators::TaxaMediator;
 use Bio::Phylo::Util::Exceptions 'throw';
 use Bio::Phylo::Util::CONSTANT qw(_TAXA_ looks_like_object);
@@ -184,7 +184,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: TaxaLinker.pm 841 2009-03-04 23:07:30Z rvos $
+ $Id: TaxaLinker.pm 1235 2010-03-02 16:11:07Z rvos $
 
 =cut
 

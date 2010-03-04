@@ -1,6 +1,7 @@
 package Bio::Phylo::Set;
+use strict;
 use vars '@ISA';
-use Bio::Phylo::Listable;
+use Bio::Phylo::Listable ();
 use Bio::Phylo::Util::CONSTANT '_NONE_';
 @ISA=qw(Bio::Phylo::Listable);
 
@@ -120,7 +121,7 @@ defined there are also applicable here.
 
 =head1 REVISION
 
- $Id: Set.pm 844 2009-03-05 00:07:26Z rvos $
+ $Id: Set.pm 1237 2010-03-02 23:27:06Z rvos $
 
 =cut
 

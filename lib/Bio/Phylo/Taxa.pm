@@ -1,7 +1,7 @@
-# $Id: Taxa.pm 1175 2009-07-07 09:04:12Z rvos $
+# $Id: Taxa.pm 1235 2010-03-02 16:11:07Z rvos $
 package Bio::Phylo::Taxa;
 use strict;
-use Bio::Phylo::Listable;
+use Bio::Phylo::Listable ();
 use Bio::Phylo::Util::CONSTANT qw(_NONE_ _TAXA_ _FOREST_ _MATRIX_ _PROJECT_ looks_like_object);
 use Bio::Phylo::Mediators::TaxaMediator;
 use Bio::Phylo::Factory;
@@ -396,7 +396,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: Taxa.pm 1175 2009-07-07 09:04:12Z rvos $
+ $Id: Taxa.pm 1235 2010-03-02 16:11:07Z rvos $
 
 =cut
 

@@ -1,6 +1,6 @@
-# $Id: IO.pm 841 2009-03-04 23:07:30Z rvos $
+# $Id: IO.pm 1235 2010-03-02 16:11:07Z rvos $
 package Bio::Phylo::IO;
-use Bio::Phylo;
+use Bio::Phylo ();
 use Bio::Phylo::Util::CONSTANT qw(looks_like_class looks_like_hash);
 use Bio::Phylo::Util::Exceptions 'throw';
 use IO::File;
@@ -302,7 +302,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>
 
 =head1 REVISION
 
- $Id: IO.pm 841 2009-03-04 23:07:30Z rvos $
+ $Id: IO.pm 1235 2010-03-02 16:11:07Z rvos $
 
 =cut
 

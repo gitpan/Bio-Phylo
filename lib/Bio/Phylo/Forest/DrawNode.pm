@@ -1,6 +1,6 @@
 package Bio::Phylo::Forest::DrawNode;
 use strict;
-use Bio::Phylo::Forest::Node;
+use Bio::Phylo::Forest::Node ();
 use vars '@ISA';
 @ISA=qw(Bio::Phylo::Forest::Node);
 {
@@ -712,7 +712,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: DrawNode.pm 844 2009-03-05 00:07:26Z rvos $
+ $Id: DrawNode.pm 1235 2010-03-02 16:11:07Z rvos $
 
 =cut
 

@@ -1,8 +1,8 @@
-# $Id: Tree.pm 1223 2010-03-01 15:18:40Z rvos $
+# $Id: Tree.pm 1252 2010-03-04 17:31:40Z rvos $
 package Bio::Phylo::Forest::Tree;
 use strict;
-use Bio::Phylo::Listable;
-use Bio::Phylo::Forest::Node;
+use Bio::Phylo::Listable ();
+use Bio::Phylo::Forest::Node ();
 use Bio::Phylo::IO qw(unparse);
 use Bio::Phylo::Util::Exceptions 'throw';
 use Bio::Phylo::Util::CONSTANT qw(_TREE_ _FOREST_ _DOMCREATOR_ looks_like_number looks_like_hash looks_like_object);
@@ -24,7 +24,6 @@ else {
 my $LOADED_WRAPPERS = 0;
 
 {
-	#my $mediator = Bio::Phylo::Mediators::NodeMediator->new;
 	my $logger = __PACKAGE__->get_logger;
 	my ( $TYPE_CONSTANT, $CONTAINER_CONSTANT ) = ( _TREE_, _FOREST_ );
 	my @fields = \( my ( %default, %rooted ) );
@@ -99,7 +98,7 @@ Tree constructor.
 		$logger->info("constructor called for '$class'");
 
 		if ( not $LOADED_WRAPPERS ) {
-			eval do { local $/; <DATA> };
+			eval do { local $/; <DATA> }; 
 			$LOADED_WRAPPERS++;
 		}	
 
@@ -203,12 +202,12 @@ Tree constructor from Bio::Tree::TreeI argument.
 			$_->set_first_daughter();
 			$_->set_last_daughter();
 		}
-		my ( $i, $j, $first, $next );
+		my ( $first, $next );
 
 		# mmmm... O(N^2)
-	  NODE: for $i ( 0 .. $#{$nodes} ) {
+	  NODE: for my $i ( 0 .. $#{$nodes} ) {
 			$first = $nodes->[$i];
-			for $j ( ( $i + 1 ) .. $#{$nodes} ) {
+			for my $j ( ( $i + 1 ) .. $#{$nodes} ) {
 				$next = $nodes->[$j];
 				my ( $firstp, $nextp ) =
 				  ( $first->get_parent, $next->get_parent );
@@ -1096,7 +1095,7 @@ Calculates the Pybus gamma statistic.
 			$prev = $length;
 		}
 		my $sum = 0;
-		eval "require Math::BigFloat";
+		eval { require Math::BigFloat };
 		if ($@) {                                   # BigFloat is not available.
 			for ( my $i = 2 ; $i < $n ; $i++ ) {
 				for ( my $k = 2 ; $k <= $i ; $k++ ) {
@@ -2281,7 +2280,7 @@ Serializes object to JSON string
 
     sub to_dom {
 		my ($self, $dom) = @_;
-		$dom ||= $Bio::Phylo::Util::DOM::DOM;
+		$dom ||= $Bio::Phylo::NeXML::DOM::DOM;
 		unless (looks_like_object $dom, _DOMCREATOR_) {
 		    throw 'BadArgs' => 'DOM factory object not provided';
 		}
@@ -2399,7 +2398,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: Tree.pm 1223 2010-03-01 15:18:40Z rvos $
+ $Id: Tree.pm 1252 2010-03-04 17:31:40Z rvos $
 
 =cut
 

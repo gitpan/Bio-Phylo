@@ -1,14 +1,19 @@
-# $Id: Datum.pm 1183 2009-08-02 02:07:00Z maj1 $
+# $Id: Datum.pm 1247 2010-03-04 15:47:17Z rvos $
 package Bio::Phylo::Matrices::Datum;
 use vars '@ISA';
 use strict;
 use Bio::Phylo::Factory;
 use Bio::Phylo::Taxa::TaxonLinker;
 use Bio::Phylo::Util::Exceptions 'throw';
-use Bio::Phylo::Matrices::TypeSafeData;
-use Bio::Phylo::Util::CONSTANT qw(:objecttypes looks_like_number looks_like_hash);
-use Bio::Phylo::Util::XMLWritable;
-use UNIVERSAL qw(isa can);
+use Bio::Phylo::Matrices::TypeSafeData ();
+use Bio::Phylo::Util::CONSTANT qw(
+	:objecttypes 
+	looks_like_number 
+	looks_like_hash
+	looks_like_instance
+	looks_like_implementor
+);
+use Bio::Phylo::NeXML::Writable ();
 @ISA = qw(
   Bio::Phylo::Matrices::TypeSafeData
   Bio::Phylo::Taxa::TaxonLinker
@@ -99,7 +104,7 @@ Datum object constructor.
         $logger->info("constructor called for '$class'");
         
 		if ( not $LOADED_WRAPPERS ) {
-			eval do { local $/; <DATA> };
+			eval do { local $/; <DATA> }; 
 			die $@ if $@;
 			$LOADED_WRAPPERS++;
 		}        
@@ -135,7 +140,7 @@ Datum constructor from Bio::Seq argument.
         my $seqstring = $seq->seq;
         if ( $seqstring and $seqstring =~ /\S/ ) {
         	eval { $self->set_char( $seqstring ) };
-        	if ( $@ and UNIVERSAL::isa($@,'Bio::Phylo::Util::Exceptions::InvalidData') ) {
+        	if ( $@ and looks_like_instance($@,'Bio::Phylo::Util::Exceptions::InvalidData') ) {
         		$logger->error(
         			"\nAn exception of type Bio::Phylo::Util::Exceptions::InvalidData was caught\n\n".
         			$@->description                                                                  .
@@ -229,7 +234,7 @@ Sets character state(s)
         $logger->info("setting $name $length chars '@_'");
         my @data;
         for my $arg (@_) {
-            if ( isa( $arg, 'ARRAY' ) ) {
+            if ( looks_like_instance( $arg, 'ARRAY' ) ) {
                 push @data, @{$arg};
             }
             else {
@@ -369,7 +374,7 @@ Sets list of annotations.
     sub set_annotations {
         my $self = shift;
         my @anno;
-        if ( scalar @_ == 1 and UNIVERSAL::isa( $_[0], 'ARRAY' ) ) {
+        if ( scalar @_ == 1 and looks_like_instance( $_[0], 'ARRAY' ) ) {
         	@anno = @{ $_[0] };
         }
         else {
@@ -383,7 +388,7 @@ Sets list of annotations.
                     throw 'OutOfBounds' => "Specified char ($i) does not exist!";
                 }
                 else {
-                    if ( isa( $anno[$i], 'HASH' ) ) {
+                    if ( looks_like_instance( $anno[$i], 'HASH' ) ) {
                         $annotations{$id}->[$i] = {}
                           if !$annotations{$id}->[$i];
                         while ( my ( $k, $v ) = each %{ $anno[$i] } ) {
@@ -611,7 +616,7 @@ doesn't contain the argument
 			}
 			$i++;
 		}
-		return undef;
+		return;
 	}    
 
 =back
@@ -640,14 +645,14 @@ Tests if invocant can contain argument.
             if ( $obj->isa('Bio::Phylo::Matrices::Datatype::Mixed') ) {
                 my @split;
                 for my $datum (@data) {
-                    if ( can( $datum, 'get_char' ) ) {
+                    if ( looks_like_implementor( $datum, 'get_char' ) ) {
                         my @tmp = $datum->get_char();
                         my $i   = $datum->get_position() - 1;
                         for (@tmp) {
                             $split[ $i++ ] = $_;
                         }
                     }
-                    elsif ( isa( $datum, 'ARRAY' ) ) {
+                    elsif ( looks_like_instance( $datum, 'ARRAY' ) ) {
                         push @split, @{$datum};
                     }
                     else {
@@ -903,7 +908,7 @@ Serializes datum to nexml format.
 		}
 		else {
 			my @tmp = map { uc $_ } @char;
-			my $seq = Bio::Phylo::Util::XMLWritable->new(-tag => 'seq');
+			my $seq = Bio::Phylo::NeXML::Writable->new(-tag => 'seq');
 			my $seq_text = $self->get_type_object->join(\@tmp);
 			$xml .= $seq->get_xml_tag . "\n$seq_text\n" . "</".$seq->get_tag.">";
 		}
@@ -931,11 +936,11 @@ Analog to to_xml.
 		my $dom = $_[0];
 		my @args = @_;
 		# handle dom factory object...
-		if ( isa($dom, 'SCALAR') && $dom->_type == _DOMCREATOR_ ) {
+		if ( looks_like_instance($dom, 'SCALAR') && $dom->_type == _DOMCREATOR_ ) {
 		    splice(@args, 0, 1);
 		}
 		else {
-		    $dom = $Bio::Phylo::Util::DOM::DOM;
+		    $dom = $Bio::Phylo::NeXML::DOM::DOM;
 		    unless ($dom) {
 				throw 'BadArgs' => 'DOM factory object not provided';
 		    }
@@ -972,7 +977,7 @@ Analog to to_xml.
 				    else {
 						$s = uc $char[$i];
 				    }
-				    my $cell_elt = $dom->create_element('cell'); 
+				    my $cell_elt = $dom->create_element('-tag'=>'cell'); 
 				    $cell_elt->set_attributes( 'char' => $c );
 				    $cell_elt->set_attributes('state' => $s ); 
 				    $elt->set_child($cell_elt);
@@ -991,7 +996,7 @@ Analog to to_xml.
 				    else {
 						$s = $char[$i];
 				    }
-				    my $cell_elt = $dom->create_element('cell');
+				    my $cell_elt = $dom->create_element('-tag'=>'cell');
 				    $cell_elt->set_attributes('char' => $c);
 				    $cell_elt->set_attributes( 'state' => $s );
 				    $elt->set_child($cell_elt);
@@ -1002,9 +1007,10 @@ Analog to to_xml.
 		else {
 		    my @tmp = map { uc $_ } @char;
 		    my $seq = $self->get_type_object->join(\@tmp);
-		    my $seq_elt = $dom->create_element('seq');
+		    my $seq_elt = $dom->create_element('-tag'=>'seq');
 	#### create a text node here....
-		    $seq_elt->set_child( XML::LibXML::Text->new($seq) );
+		    $seq_elt->set_text($seq);
+		    #$seq_elt->set_child( XML::LibXML::Text->new($seq) );
 	####
 		    $elt->set_child($seq_elt);
 		}
@@ -1084,7 +1090,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: Datum.pm 1183 2009-08-02 02:07:00Z maj1 $
+ $Id: Datum.pm 1247 2010-03-04 15:47:17Z rvos $
 
 =cut
 

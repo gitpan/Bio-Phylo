@@ -1,6 +1,6 @@
-# $Id: 10-matrices.t 838 2009-03-04 20:47:20Z rvos $
+# $Id: 10-matrices.t 1247 2010-03-04 15:47:17Z rvos $
 use strict;
-#use warnings;
+use Bio::Phylo::Util::CONSTANT 'looks_like_instance';
 use Test::More tests => 10;
 use Bio::Phylo;
 use Bio::Phylo::Matrices;
@@ -12,10 +12,10 @@ ok( my $matrices = new Bio::Phylo::Matrices, '1 initialize obj' );
 $matrices->VERBOSE( -level => 0 );
 
 eval { $matrices->insert };
-ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Util::Exceptions::ObjectMismatch' ), '2 insert empty' );
+ok( looks_like_instance( $@, 'Bio::Phylo::Util::Exceptions::ObjectMismatch' ), '2 insert empty' );
 
 eval { $matrices->insert('BAD!') };
-ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Util::Exceptions::ObjectMismatch' ), '3 insert bad' );
+ok( looks_like_instance( $@, 'Bio::Phylo::Util::Exceptions::ObjectMismatch' ), '3 insert bad' );
 
 ok( $matrices->insert( new Bio::Phylo::Matrices::Matrix ), '4 insert good' );
 ok( $matrices->get_entities,                          '5 get matrices' );

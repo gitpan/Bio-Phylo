@@ -1,15 +1,14 @@
-# $Id: Nexml.pm 1171 2009-07-07 06:23:58Z rvos $
+# $Id: Nexml.pm 1235 2010-03-02 16:11:07Z rvos $
 # Subversion: $Rev: 190 $
 package Bio::Phylo::Unparsers::Nexml;
 use strict;
-use Bio::Phylo::IO;
+use Bio::Phylo::IO ();
 use Bio::Phylo::Util::CONSTANT qw(:objecttypes looks_like_object);
 use Bio::Phylo::Util::Exceptions 'throw';
 use vars qw(@ISA $VERSION);
 @ISA = qw(Bio::Phylo::IO);
 
-# One line so MakeMaker sees it.
-use Bio::Phylo; $VERSION = $Bio::Phylo::VERSION;
+use Bio::Phylo (); my $VERSION = $Bio::Phylo::VERSION;
 
 eval { require XML::Twig };
 if ( $@ ) {
@@ -168,7 +167,7 @@ Also see the manual: L<Bio::Phylo::Manual>.
 
 =head1 REVISION
 
- $Id: Nexml.pm 1171 2009-07-07 06:23:58Z rvos $
+ $Id: Nexml.pm 1235 2010-03-02 16:11:07Z rvos $
 
 =cut
 

@@ -1,7 +1,7 @@
-# $Id: Nexus.pm 1171 2009-07-07 06:23:58Z rvos $
+# $Id: Nexus.pm 1235 2010-03-02 16:11:07Z rvos $
 package Bio::Phylo::Unparsers::Nexus;
 use strict;
-use Bio::Phylo::IO;
+use Bio::Phylo::IO ();
 use Bio::Phylo::Util::CONSTANT qw(:objecttypes);
 use Bio::Phylo::Util::Exceptions 'throw';
 use vars qw(@ISA);
@@ -156,7 +156,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: Nexus.pm 1171 2009-07-07 06:23:58Z rvos $
+ $Id: Nexus.pm 1235 2010-03-02 16:11:07Z rvos $
 
 =cut
 

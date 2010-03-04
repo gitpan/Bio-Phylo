@@ -1,8 +1,8 @@
-# $Id: TaxaMediator.pm 841 2009-03-04 23:07:30Z rvos $
+# $Id: TaxaMediator.pm 1235 2010-03-02 16:11:07Z rvos $
 package Bio::Phylo::Mediators::TaxaMediator;
 use strict;
 use Scalar::Util qw(weaken);
-use Bio::Phylo;
+use Bio::Phylo ();
 use Bio::Phylo::Util::Exceptions;
 
 # XXX this class only has weak references
@@ -322,7 +322,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: TaxaMediator.pm 841 2009-03-04 23:07:30Z rvos $
+ $Id: TaxaMediator.pm 1235 2010-03-02 16:11:07Z rvos $
 
 =cut
 

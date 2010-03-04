@@ -1,6 +1,6 @@
-# $Id: 05-trees.t 1215 2010-02-26 20:13:40Z rvos $
+# $Id: 05-trees.t 1247 2010-03-04 15:47:17Z rvos $
 use strict;
-#use warnings;
+use Bio::Phylo::Util::CONSTANT 'looks_like_instance';
 use Test::More tests => 14;
 use Bio::Phylo::IO qw(parse);
 
@@ -57,7 +57,7 @@ ok( $trees->get_by_value(
 );
 
 eval { $trees->insert('BAD!') };
-ok( UNIVERSAL::isa( $@, 'Bio::Phylo::Util::Exceptions::ObjectMismatch' ) );
+ok( looks_like_instance $@, 'Bio::Phylo::Util::Exceptions::ObjectMismatch' );
 ok( $trees->_container );
 ok( $trees->_type );
 

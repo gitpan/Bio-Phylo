@@ -1,7 +1,7 @@
-# $Id: Table.pm 843 2009-03-04 23:50:27Z rvos $
+# $Id: Table.pm 1235 2010-03-02 16:11:07Z rvos $
 package Bio::Phylo::Parsers::Table;
 use strict;
-use Bio::Phylo::IO;
+use Bio::Phylo::IO ();
 use Bio::Phylo::Factory;
 use vars qw(@ISA);
 
@@ -170,7 +170,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>
 
 =head1 REVISION
 
- $Id: Table.pm 843 2009-03-04 23:50:27Z rvos $
+ $Id: Table.pm 1235 2010-03-02 16:11:07Z rvos $
 
 =cut
 

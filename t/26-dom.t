@@ -2,14 +2,18 @@ use Test::More;
 BEGIN {
     eval { require XML::LibXML::Reader };
     if ( $@ ) {
-         plan 'skip_all' => $@;
+         plan 'skip_all' => 'XML::LibXML not installed';
+    }
+    eval { require XML::Twig };
+    if ( $@ ) {
+	plan 'skip_all' => 'XML::Twig not installed';
     }
     else {
-        plan 'tests' => 81;
+        plan 'tests' => 80;
     }
 }
 
-use File::Temp;
+use File::Temp qw(tempfile);
 use strict;
 
 my @xml_objects = qw( 
@@ -27,11 +31,10 @@ my $TEST_XML_LIBXML = eval { require XML::LibXML; 1 };
 
 use_ok('Bio::Phylo::Factory');
 use_ok('Bio::Phylo::IO');
-use_ok('Bio::Phylo::Util::DOM');
-use_ok('Bio::Phylo::Util::XMLWritable');
+use_ok('Bio::Phylo::NeXML::DOM');
+use_ok('Bio::Phylo::NeXML::Writable');
 use_ok('Bio::Phylo::Util::Exceptions');
 use_ok('Bio::Phylo::Util::CONSTANT');
-use_ok('XML::Simple');
 use_ok('XML::LibXML');
 use_ok('XML::LibXML::Reader');
 
@@ -47,7 +50,7 @@ foreach (@xml_objects) {
 # test data
 use Bio::Phylo::IO qw( parse );
 my $data = do {local $/; <DATA>};
-ok( my $test = parse( -string=> $data, -format=>'nexml' ), 'parse 01_basic.xml');
+ok( my $test = parse( -string=> $data, -format=>'nexml' ), 'parse <DATA>');
 
 # factory object
 ok( my $fac = Bio::Phylo::Factory->new(), 'make factory' );
@@ -69,7 +72,7 @@ $proj->insert($forest);
 $proj->insert($matrix);
 
 foreach my $format (qw(twig libxml)) {
-    ok( Bio::Phylo::Util::DOM->new(-format => $format), "set DOM format: $format");
+    ok( Bio::Phylo::NeXML::DOM->new(-format => $format), "set DOM format: $format");
     my %dom;
     foreach (@elts) {
 	ok( $dom{$_} = eval "\$$_->to_dom", "do \$$_->to_dom()" );
@@ -81,12 +84,11 @@ foreach my $format (qw(twig libxml)) {
   SKIP: {
       skip 'env var NEXML_ROOT not set', 3 unless $ENV{'NEXML_ROOT'};
     # write to tempfile, run validation script (at ../script/nexvl.pl) on it
-      ok( my $fh = File::Temp->new, 'make temp file' );
-      my $fn = $fh->filename;
-      ok( $doc->to_xml_file($fn, 1), 'write XML from dom' );
+      my ( $fh, $fn ) = tempfile();
+      ok( $fh, 'make temp file' );
+      ok( print( $fh $doc->to_xml ), 'write XML from dom' );
       $fn =~ s/\\/\//g;
       is(system( $ENV{'NEXML_ROOT'} . '/perl/script/nexvl.pl', '-Q', $fn) + 1, 1, 'dom-generated XML is valid NeXML');
-      #is( (qx{ bash -c " if (./script/nexvl.pl -Q $fn) ; then echo -n 1 ; else echo -n 0 ; fi" })[0], 1, 'dom-generated XML is valid NeXML' );
     }
 
 # from here, want to check that all elements in the original file are 

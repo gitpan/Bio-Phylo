@@ -1,7 +1,8 @@
-# $Id: Mixed.pm 844 2009-03-05 00:07:26Z rvos $
+# $Id: Mixed.pm 1247 2010-03-04 15:47:17Z rvos $
 package Bio::Phylo::Matrices::Datatype::Mixed;
 use strict;
-use Bio::Phylo::Matrices::Datatype;
+use Bio::Phylo::Util::CONSTANT qw(looks_like_instance looks_like_implementor);
+use Bio::Phylo::Matrices::Datatype ();
 use Bio::Phylo::Util::Exceptions 'throw';
 use vars '@ISA';
 @ISA = qw(Bio::Phylo::Matrices::Datatype);
@@ -25,7 +26,7 @@ objects.
     
     sub _new { 
         my ( $package, $self, $ranges ) = @_;
-        if ( not UNIVERSAL::isa( $ranges, 'ARRAY' ) ) {
+        if ( not looks_like_instance $ranges, 'ARRAY' ) {
             throw 'BadArgs' => "No type ranges specified for 'mixed' data type!"; 
         }
         my $id = $self->get_id;
@@ -37,7 +38,7 @@ objects.
             my $type = $ranges->[ $i     ];
             my $arg  = $ranges->[ $i + 1 ];
             my ( @args, $length );
-            if ( UNIVERSAL::isa( $arg, 'HASH' ) ) {
+            if ( looks_like_instance $arg, 'HASH' ) {
                 $length = $arg->{'-length'};
                 @args   = @{ $arg->{'-args'} };
             }
@@ -260,7 +261,7 @@ Returns true if argument only contains valid characters
         my $datum = $_[0];
         my $is_datum_object;
         my ( $start, $end );
-        if ( UNIVERSAL::can( $datum, 'get_position') and UNIVERSAL::can( $datum, 'get_length' ) ) {
+        if ( looks_like_implementor $datum, 'get_position' and looks_like_implementor $datum, 'get_length' ) {
         	( $start, $end ) = ( $datum->get_position - 1, $datum->get_length - 1 );
         	$is_datum_object = 1;
         }
@@ -324,7 +325,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: Mixed.pm 844 2009-03-05 00:07:26Z rvos $
+ $Id: Mixed.pm 1247 2010-03-04 15:47:17Z rvos $
 
 =cut
 

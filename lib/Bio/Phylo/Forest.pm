@@ -1,7 +1,7 @@
-# $Id: Forest.pm 1218 2010-03-01 13:52:42Z rvos $
+# $Id: Forest.pm 1235 2010-03-02 16:11:07Z rvos $
 package Bio::Phylo::Forest;
 use strict;
-use Bio::Phylo::Listable;
+use Bio::Phylo::Listable ();
 use Bio::Phylo::Taxa::TaxaLinker;
 use Bio::Phylo::Util::CONSTANT qw(_NONE_ _FOREST_ _PROJECT_ looks_like_hash);
 use Bio::Phylo::Util::Exceptions 'throw';
@@ -675,7 +675,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: Forest.pm 1218 2010-03-01 13:52:42Z rvos $
+ $Id: Forest.pm 1235 2010-03-02 16:11:07Z rvos $
 
 =cut
 

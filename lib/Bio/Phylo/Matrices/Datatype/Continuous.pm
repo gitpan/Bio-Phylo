@@ -1,7 +1,7 @@
-# $Id: Continuous.pm 844 2009-03-05 00:07:26Z rvos $
+# $Id: Continuous.pm 1247 2010-03-04 15:47:17Z rvos $
 package Bio::Phylo::Matrices::Datatype::Continuous;
-use Bio::Phylo::Util::CONSTANT qw(looks_like_number);
-use Bio::Phylo::Matrices::Datatype;
+use Bio::Phylo::Util::CONSTANT qw(looks_like_number looks_like_implementor looks_like_instance);
+use Bio::Phylo::Matrices::Datatype ();
 use strict;
 use vars qw($LOOKUP $MISSING $GAP @ISA);
 @ISA=qw(Bio::Phylo::Matrices::Datatype);
@@ -101,10 +101,10 @@ Validates arguments for data validity.
 		my $self = shift;
 		my @data;
 		for my $arg (@_) {
-			if ( UNIVERSAL::can( $arg, 'get_char' ) ) {
+			if ( looks_like_implementor $arg, 'get_char' ) {
 				push @data, $arg->get_char;
 			}
-			elsif ( UNIVERSAL::isa( $arg, 'ARRAY' ) ) {
+			elsif ( looks_like_instance $arg, 'ARRAY' ) {
 				push @data, @{$arg};
 			}
 			else {
@@ -192,7 +192,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: Continuous.pm 844 2009-03-05 00:07:26Z rvos $
+ $Id: Continuous.pm 1247 2010-03-04 15:47:17Z rvos $
 
 =cut
 

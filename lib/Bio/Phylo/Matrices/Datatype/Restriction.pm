@@ -1,6 +1,6 @@
-# $Id: Restriction.pm 867 2009-03-06 06:28:54Z rvos $
+# $Id: Restriction.pm 1235 2010-03-02 16:11:07Z rvos $
 package Bio::Phylo::Matrices::Datatype::Restriction;
-use Bio::Phylo::Matrices::Datatype;
+use Bio::Phylo::Matrices::Datatype ();
 use strict;
 use vars qw($LOOKUP @ISA $MISSING $GAP);
 @ISA = qw(Bio::Phylo::Matrices::Datatype);
@@ -63,7 +63,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: Restriction.pm 867 2009-03-06 06:28:54Z rvos $
+ $Id: Restriction.pm 1235 2010-03-02 16:11:07Z rvos $
 
 =cut
 

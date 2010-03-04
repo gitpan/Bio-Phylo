@@ -1,16 +1,15 @@
-# $Id: Matrix.pm 1175 2009-07-07 09:04:12Z rvos $
+# $Id: Matrix.pm 1250 2010-03-04 17:14:37Z rvos $
 package Bio::Phylo::Matrices::Matrix;
 use vars '@ISA';
 use strict;
 use Bio::Phylo::Factory;
 use Bio::Phylo::Taxa::TaxaLinker;
 use Bio::Phylo::IO qw(unparse);
-use Bio::Phylo::Util::CONSTANT qw(:objecttypes looks_like_hash);
+use Bio::Phylo::Util::CONSTANT qw(:objecttypes looks_like_hash looks_like_instance);
 use Bio::Phylo::Util::Exceptions qw(throw);
-use Bio::Phylo::Util::XMLWritable;
-use Bio::Phylo::Matrices::TypeSafeData;
-use Bio::Phylo::Matrices::Datum;
-use UNIVERSAL qw(isa);
+use Bio::Phylo::NeXML::Writable ();
+use Bio::Phylo::Matrices::TypeSafeData ();
+use Bio::Phylo::Matrices::Datum ();
 @ISA = qw(
   Bio::Phylo::Matrices::TypeSafeData
   Bio::Phylo::Taxa::TaxaLinker
@@ -204,7 +203,7 @@ Matrix constructor from Bio::Align::AlignI argument.
 	
 	sub new_from_bioperl {
 	    my ( $class, $aln, @args ) = @_;
-		if ( isa( $aln, 'Bio::Align::AlignI' ) ) {
+		if ( looks_like_instance( $aln, 'Bio::Align::AlignI' ) ) {
 		    $aln->unmatch;
 		    $aln->map_chars('\.','-');
 		    my @seqs = $aln->each_seq;
@@ -345,16 +344,16 @@ Sets argument state labels.
 		my ( $self, $statelabels ) = @_;
 		
 		# it's an array ref, but what about its contents?
-		if ( isa( $statelabels, 'ARRAY' ) ) {
+		if ( looks_like_instance( $statelabels, 'ARRAY' ) ) {
 			for my $col ( @{$statelabels} ) {
-				if ( not isa( $col, 'ARRAY') ) {
+				if ( not looks_like_instance( $col, 'ARRAY') ) {
 					throw 'BadArgs' => "statelabels must be a two dimensional array ref";
 				}
 			}
 		}
 
 		# it's defined but not an array ref
-		elsif ( defined $statelabels && ! isa( $statelabels, 'ARRAY' ) ) {
+		elsif ( defined $statelabels && ! looks_like_instance( $statelabels, 'ARRAY' ) ) {
 			throw 'BadArgs' => "statelabels must be a two dimensional array ref";
 		}
 
@@ -380,7 +379,7 @@ Sets argument character labels.
 		my ( $self, $charlabels ) = @_;
 
 		# it's an array ref, but what about its contents?
-		if ( isa( $charlabels, 'ARRAY' ) ) {
+		if ( looks_like_instance( $charlabels, 'ARRAY' ) ) {
 			for my $label ( @{$charlabels} ) {
 				if ( ref $label ) {
 					throw 'BadArgs' => "charlabels must be an array ref of scalars";
@@ -389,7 +388,7 @@ Sets argument character labels.
 		}
 
 		# it's defined but not an array ref
-		elsif ( defined $charlabels && ! isa( $charlabels, 'ARRAY' ) ) {
+		elsif ( defined $charlabels && ! looks_like_instance( $charlabels, 'ARRAY' ) ) {
 			throw 'BadArgs' => "charlabels must be an array ref of scalars";
 		}
 
@@ -483,11 +482,11 @@ Set contents using two-dimensional array argument.
 	sub set_raw {
 		my ( $self, $raw ) = @_;
 		if ( defined $raw ) {
-			if ( isa( $raw, 'ARRAY' ) ) {
+			if ( looks_like_instance( $raw, 'ARRAY' ) ) {
 				my @rows;
 				for my $row ( @{$raw} ) {
 					if ( defined $row ) {
-						if ( isa( $row, 'ARRAY' ) ) {
+						if ( looks_like_instance( $row, 'ARRAY' ) ) {
 							my $matrixrow = $factory->create_datum(
 								'-type_object' => $self->get_type_object,
 								'-name'        => $row->[0],
@@ -1132,11 +1131,11 @@ Analog to to_xml.
 		my $dom = $_[0];
 		my @args = @_;
 		# handle dom factory object...
-		if ( isa($dom, 'SCALAR') && $dom->_type == _DOMCREATOR_ ) {
+		if ( looks_like_instance($dom, 'SCALAR') && $dom->_type == _DOMCREATOR_ ) {
 		    splice(@args, 0, 1);
 		}
 		else {
-		    $dom = $Bio::Phylo::Util::DOM::DOM;
+		    $dom = $Bio::Phylo::NeXML::DOM::DOM;
 		    unless ($dom) {
 				throw 'BadArgs' => 'DOM factory object not provided';
 		    }
@@ -1153,7 +1152,7 @@ Analog to to_xml.
 		my $normalized = $self->_normalize_symbols;
 		
 		# the format block
-	 	my $format_elt = $dom->create_element('format');
+	 	my $format_elt = $dom->create_element('-tag'=>'format');
 		my $to = $self->get_type_object;
 		$ids_for_states = $to->get_ids_for_states(1);
 		
@@ -1168,7 +1167,7 @@ Analog to to_xml.
 	
 		# the matrix block
 	
-		my $mx_elt = $dom->create_element('matrix');
+		my $mx_elt = $dom->create_element('-tag'=>'matrix');
 		my @char_ids;
 		for ( 0 .. $self->get_nchar ) {
 		    push @char_ids, 'c' . ($_+1);
@@ -1200,7 +1199,7 @@ Analog to to_xml.
 		for my $i ( 1 .. $self->get_nchar ) {
 		    my $char_id = 'c' . $i;
 		    my $label   = $labels->[ $i - 1 ];
-		    my $elt = $dom->create_element('char');
+		    my $elt = $dom->create_element('-tag'=>'char');
 		    $elt->set_attributes( 'id' => $char_id );
 		    $elt->set_attributes( 'label' => $label ) if $label;
 		    $elt->set_attributes( 'states' => $states_id ) if $states_id;
@@ -1429,7 +1428,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: Matrix.pm 1175 2009-07-07 09:04:12Z rvos $
+ $Id: Matrix.pm 1250 2010-03-04 17:14:37Z rvos $
 
 =cut
 
@@ -1439,28 +1438,31 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 __DATA__
 
 my %CONSERVATION_GROUPS = (
-            'strong' => [ qw(
-						 STA
-						 NEQK
-						 NHQK
-						 NDEQ
-						 QHRK
-						 MILV
-						 MILF
-						 HY
-						 FYW )],
-				'weak' => [ qw(
-                      CSA
-					       ATV
-					       SAG
-					       STNK
-					       STPA
-					       SGND
-					       SNDEQK
-					       NDEQHK
-					       NEQHRK
-					       FVLIM
-					       HFY )],);
+        'strong' => [ qw(
+		STA
+		NEQK
+		NHQK
+		NDEQ
+		QHRK
+		MILV
+		MILF
+		HY
+		FYW
+	)],
+	'weak' => [ qw(
+                CSA
+		ATV
+		SAG
+		STNK
+		STPA
+		SGND
+		SNDEQK
+		NDEQHK
+		NEQHRK
+		FVLIM
+		HFY
+	)],
+);
 
 sub description {
 	my ( $self, $desc ) = @_;
@@ -1468,6 +1470,18 @@ sub description {
 		$self->set_desc( $desc );
 	}
 	return $self->get_desc;
+}
+
+sub num_sequences {
+	my ( $self, $num ) = @_;
+	# setter?
+	return scalar @{ $self->get_entities };
+}
+
+sub datatype {
+	my ( $self, $type ) = @_;
+	# setter?
+	return uc $self->get_type;
 }
 
 sub score {
@@ -2050,5 +2064,7 @@ sub max_metaname_length {
     return $maxname;
 }
 
+
+sub get_SeqFeatures { return }
 
 

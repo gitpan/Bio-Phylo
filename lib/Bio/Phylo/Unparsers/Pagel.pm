@@ -1,8 +1,8 @@
-# $Id: Pagel.pm 843 2009-03-04 23:50:27Z rvos $
+# $Id: Pagel.pm 1235 2010-03-02 16:11:07Z rvos $
 package Bio::Phylo::Unparsers::Pagel;
 use strict;
-use Bio::Phylo::Forest::Tree;
-use Bio::Phylo::IO;
+use Bio::Phylo::Forest::Tree ();
+use Bio::Phylo::IO ();
 use vars qw(@ISA);
 
 @ISA=qw(Bio::Phylo::IO);
@@ -150,7 +150,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: Pagel.pm 843 2009-03-04 23:50:27Z rvos $
+ $Id: Pagel.pm 1235 2010-03-02 16:11:07Z rvos $
 
 =cut
 

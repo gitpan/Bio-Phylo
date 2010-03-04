@@ -1,4 +1,5 @@
 package Bio::Phylo::Factory;
+use strict;
 use vars '$AUTOLOAD';
 use Bio::Phylo::Util::Exceptions 'throw';
 use Bio::Phylo::Util::CONSTANT qw'looks_like_hash looks_like_class';
@@ -19,12 +20,16 @@ my %class = (
     'annotation'  => 'Bio::Phylo::Annotation',
     'set'         => 'Bio::Phylo::Set',
     'generator'   => 'Bio::Phylo::Generator',
-    'xmlwritable' => 'Bio::Phylo::Util::XMLWritable',
-    'meta'        => 'Bio::Phylo::Meta',
-    'client'      => 'Bio::Phylo::PhyloWS::Client',
-    'server'      => 'Bio::Phylo::PhyloWS::Server',  
-    'resource'    => 'Bio::Phylo::PhyloWS::Resource',    
-    'description' => 'Bio::Phylo::PhyloWS::Resource::Description',
+    'xmlwritable' => 'Bio::Phylo::NeXML::Writable',
+    'xmlliteral'  => 'Bio::Phylo::NeXML::Meta::XMLLiteral',
+    'meta'        => 'Bio::Phylo::NeXML::Meta',
+#    'client'      => 'Bio::Phylo::PhyloWS::Client',
+#    'server'      => 'Bio::Phylo::PhyloWS::Server',  
+#    'resource'    => 'Bio::Phylo::PhyloWS::Resource',    
+#    'description' => 'Bio::Phylo::PhyloWS::Resource::Description',
+    'dom'         => 'Bio::Phylo::NeXML::DOM',
+    'document'    => 'Bio::Phylo::NeXML::DOM::Document',
+    'element'     => 'Bio::Phylo::NeXML::DOM::Element',
 );
 
 =head1 NAME
@@ -37,13 +42,14 @@ Bio::Phylo::Factory - Creator of objects, reduces hardcoded class names in code
  my $fac = Bio::Phylo::Factory->new;
  my $node = $fac->create_node( '-name' => 'node1' );
 
- # prints 'Bio::Phylo::Forest::Node'
+ # probably prints 'Bio::Phylo::Forest::Node'?
  print ref $node;
 
 =head1 DESCRIPTION
 
 The factory module is used to create other objects without having to 'use' 
-their classes.
+their classes. This allows for greater flexibility in Bio::Phylo's design,
+as class names are no longer hard-coded all over the place.
 
 =head1 METHODS
 
@@ -123,36 +129,36 @@ method.
  Function: Registers a class name for instantiation
  Returns : Invocant
  Args    : $class, a class name (required), or
-           'short_name' => $class, such that you
-           can subsequently call $fac->create_short_name()
+           'bar' => 'Foo::Bar', such that you
+           can subsequently call $fac->create_bar()
 
 =cut
 
 sub register_class {
-	my ( $self, @args ) = @_;
-	my ( $short, $class );
-	if ( @args == 1 ) {
-	    $class = $args[0];
-	}
-	else {
-	    ( $short, $class ) = @args;
-	}
+    my ( $self, @args ) = @_;
+    my ( $short, $class );
+    if ( @args == 1 ) {
+	$class = $args[0];
+    }
+    else {
+	( $short, $class ) = @args;
+    }
     my $path = $class;
     $path =~ s|::|/|g;
     $path .= '.pm';
     if ( not $INC{$path} ) {
         eval { require $path };
-		if ( $@ ) {
-			throw 'ExtensionError' => "Can't register $class - $@";
-		}        
+	    if ( $@ ) {
+		throw 'ExtensionError' => "Can't register $class - $@";
+	    }        
     }
-	if ( not defined $short ) {
-        $short = $class;
-        $short =~ s/.*://;
-        $short = lc $short;
-	}
-	$class{$short} = $class;
-	return $self;
+    if ( not defined $short ) {
+	$short = $class;
+	$short =~ s/.*://;
+	$short = lc $short;
+    }
+    $class{$short} = $class;
+    return $self;
 }
 
 sub AUTOLOAD {
@@ -193,7 +199,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: Factory.pm 1171 2009-07-07 06:23:58Z rvos $
+ $Id: Factory.pm 1247 2010-03-04 15:47:17Z rvos $
 
 =cut
 

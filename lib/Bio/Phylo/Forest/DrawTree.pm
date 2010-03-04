@@ -1,7 +1,7 @@
 package Bio::Phylo::Forest::DrawTree;
 use strict;
-use Bio::Phylo::Forest::Tree;
-use Bio::Phylo::Forest::DrawNode;
+use Bio::Phylo::Forest::Tree ();
+use Bio::Phylo::Forest::DrawNode ();
 use Bio::Phylo::Util::CONSTANT qw(looks_like_hash);
 use vars '@ISA';
 @ISA=qw(Bio::Phylo::Forest::Tree);
@@ -1188,7 +1188,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: DrawTree.pm 844 2009-03-05 00:07:26Z rvos $
+ $Id: DrawTree.pm 1235 2010-03-02 16:11:07Z rvos $
 
 =cut
 

@@ -1,8 +1,8 @@
-# $Id: Taxlist.pm 848 2009-03-05 09:26:58Z rvos $
+# $Id: Taxlist.pm 1235 2010-03-02 16:11:07Z rvos $
 package Bio::Phylo::Parsers::Taxlist;
 use strict;
 use Bio::Phylo::Factory;
-use Bio::Phylo::IO;
+use Bio::Phylo::IO ();
 use vars qw(@ISA);
 @ISA=qw(Bio::Phylo::IO);
 
@@ -115,7 +115,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: Taxlist.pm 848 2009-03-05 09:26:58Z rvos $
+ $Id: Taxlist.pm 1235 2010-03-02 16:11:07Z rvos $
 
 =cut
 

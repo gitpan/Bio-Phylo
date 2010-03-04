@@ -1,14 +1,6 @@
-# $Id: Phylo.pm 1219 2010-03-01 14:05:09Z rvos $
+# $Id: Phylo.pm 1242 2010-03-03 20:37:23Z rvos $
 package Bio::Phylo;
 use strict;
-
-# we import 'isa' to use it as a function, which we NEVER
-# use to test class identity - isa( $obj, 'Some::Class') -
-# but sometimes to test references, e.g. isa( $hash, 'HASH' ).
-# In fact, we NEVER test class identity in any way, rather, we
-# use the duck-typing system looks_like_object( $obj, $CONST )
-# from Bio::Phylo::Util::CONSTANT
-use UNIVERSAL qw(isa);
 
 # we don't use 'our', for 5.005 compatibility
 use vars qw($VERSION $COMPAT $logger);
@@ -20,7 +12,11 @@ use Scalar::Util qw(weaken blessed);
 
 #... instead, Bio::Phylo::Util::CONSTANT can worry about it
 # in one location, perhaps using the S::U version, or a drop-in
-use Bio::Phylo::Util::CONSTANT qw(looks_like_number looks_like_hash);
+use Bio::Phylo::Util::CONSTANT qw(
+    looks_like_number
+    looks_like_hash
+    looks_like_instance
+);
 use Bio::Phylo::Util::IDPool;             # creates unique object IDs
 use Bio::Phylo::Util::Exceptions 'throw'; # defines exception classes and throws
 use Bio::Phylo::Util::Logger;             # for logging, like log4perl/log4j 
@@ -34,33 +30,28 @@ BEGIN {
 # Read up on the Mediator design pattern to learn how this works.
 require Bio::Phylo::Mediators::TaxaMediator;  
 
-# Include the revision number from CIPRES subversion in $VERSION
-my $rev = '$Id: Phylo.pm 1219 2010-03-01 14:05:09Z rvos $';
+# Include the revision number from subversion in $VERSION
+my $rev = '$Id: Phylo.pm 1242 2010-03-03 20:37:23Z rvos $';
 $rev =~ s/^[^\d]+(\d+)\b.*$/$1/;
-$VERSION = "0.18";
+$VERSION = "0.19";
 $VERSION .= "_$rev";
 {
     my $taxamediator = 'Bio::Phylo::Mediators::TaxaMediator';
-
-    # The following allows for semantics like:
-    # 'use Bio::Phylo verbose => 1;' to increase verbosity,
-    # and 'use Bio::Phylo compat => bioperl;' to set adaptor
-    # compatibility mode
     sub import {
         my $class = shift;
         if (@_) {
             my %opt = looks_like_hash @_;
-			while ( my ( $key, $value ) = each %opt ) {
-				if ( $key =~ qr/^VERBOSE$/i ) {
-					$logger->VERBOSE( '-level' => $value );
-				}
-				elsif ( $key =~ qr/^COMPAT$/i ) {
-					$COMPAT = ucfirst( lc($value) );
-				}
-				else {
-					throw 'BadArgs' => "'$key' is not a valid argument for import";
-				}
-			}
+	    while ( my ( $key, $value ) = each %opt ) {
+		if ( $key =~ qr/^VERBOSE$/i ) {
+		    $logger->VERBOSE( '-level' => $value, -class => $class );
+		}
+		elsif ( $key =~ qr/^COMPAT$/i ) {
+		    $COMPAT = ucfirst( lc($value) );
+		}
+		else {
+		    throw 'BadArgs' => "'$key' is not a valid argument for import";
+		}
+	    }
         }
         return 1;
     }
@@ -93,15 +84,18 @@ Bio::Phylo - Phylogenetic analysis using perl
 
 =head1 SYNOPSIS
 
- # verbosity goes from 0, only fatal messages, to 4: everything from
- # fatal -> error -> warning -> info -> debug (which is a lot)
- use Bio::Phylo verbose => 1;
+ # Actually, you would almost never use this module directly. This is 
+ # the base class for other modules.
+ use Bio::Phylo;
  
- # or:
- Bio::Phylo->VERBOSE( -level => 1 ); # sets global verbosity to 'error'
+ # sets global verbosity to 'error'
+ Bio::Phylo->VERBOSE( -level => Bio::Phylo::Util::Logger::ERROR );
  
  # sets verbosity for forest ojects to 'debug'
- Bio::Phylo->VERBOSE( -level => 4, -class => 'Bio::Phylo::Forest' );
+ Bio::Phylo->VERBOSE( 
+ 	-level => Bio::Phylo::Util::Logger::DEBUG, 
+ 	-class => 'Bio::Phylo::Forest' 
+ );
  
  # prints version, including SVN revision number
  print Bio::Phylo->VERSION;
@@ -132,7 +126,7 @@ in L<Bio::Phylo::Util::Logger> of use to localize problems.
 
 =item new()
 
-The Bio::Phylo root constructor, is rarely used directly. Rather, many other 
+The Bio::Phylo root constructor is rarely used directly. Rather, many other 
 objects in Bio::Phylo internally go up the inheritance tree to this constructor. 
 The arguments shown here can therefore also be passed to any of the child 
 classes' constructors, which will pass them on up the inheritance tree. Generally, 
@@ -180,55 +174,55 @@ argument "-name" in the constructor.
         # processing arguments
         if ( @_ and @_ = looks_like_hash @_ ) {
 
-			# notify user
-			$logger->debug("going to process constructor args");
+	    # notify user
+	    $logger->debug("going to process constructor args");
 
-			# process all arguments
-			ARG: while (@_) {
-				my $key   = shift @_;
-				my $value = shift @_;
-				
-				# this is a bioperl arg, meant to set
-				# verbosity at a per class basis. In
-				# bioperl, the $verbose argument is
-				# subsequently carried around in that
-				# class, here we delegate that to the
-				# logger, which has roughly the same 
-				# effect.
-				if ( $key eq '-verbose' ) {
-					$logger->VERBOSE( 
-						'-level' => $value,
-						'-class' => $class,
-					);
-					next ARG;
-				}
+	    # process all arguments
+	    ARG: while (@_) {
+		my $key   = shift @_;
+		my $value = shift @_;
+		
+		# this is a bioperl arg, meant to set
+		# verbosity at a per class basis. In
+		# bioperl, the $verbose argument is
+		# subsequently carried around in that
+		# class, here we delegate that to the
+		# logger, which has roughly the same 
+		# effect.
+		if ( $key eq '-verbose' ) {
+			$logger->VERBOSE( 
+				'-level' => $value,
+				'-class' => $class,
+			);
+			next ARG;
+		}
 
-				# notify user
-				$logger->debug("processing arg '$key'");
+		# notify user
+		$logger->debug("processing arg '$key'");
 
-				# don't access data structures directly, call mutators
-				# in child classes or __PACKAGE__
-				my $mutator = $key;
-				$mutator =~ s/^-/set_/;
+		# don't access data structures directly, call mutators
+		# in child classes or __PACKAGE__
+		my $mutator = $key;
+		$mutator =~ s/^-/set_/;
 
-				# backward compat fixes:
-				$mutator =~ s/^set_pos$/set_position/;
-				$mutator =~ s/^set_matrix$/set_raw/;
-				eval {
-					$self->$mutator($value);
-				};
-				if ( $@ ) {
-					if ( UNIVERSAL::can($@,'rethrow') ) {
-						$@->rethrow;
-					}
-					elsif ( not ref($@) and $@ =~ /^Can't locate object method / ) {
-						throw 'BadArgs' => "The named argument '${key}' cannot be passed to the constructor";
-					}
-					else {
-						throw 'Generic' => $@;
-					}
-				}
-			}
+		# backward compat fixes:
+		$mutator =~ s/^set_pos$/set_position/;
+		$mutator =~ s/^set_matrix$/set_raw/;
+		eval {
+			$self->$mutator($value);
+		};
+		if ( $@ ) {
+		    if ( blessed $@ and $@->can('rethrow') ) {
+			$@->rethrow;
+		    }
+		    elsif ( not ref($@) and $@ =~ /^Can't locate object method / ) {
+			throw 'BadArgs' => "The named argument '${key}' cannot be passed to the constructor";
+		    }
+		    else {
+			throw 'Generic' => $@;
+		    }
+		}
+	    }
         }
 
         # register with mediator
@@ -254,10 +248,9 @@ Sets invocant name.
  Usage   : $obj->set_name($name);
  Function: Assigns an object's name.
  Returns : Modified object.
- Args    : Argument must be a string, will be single 
-           quoted if it contains [;|,|:\(|\)] 
-           or spaces. Preceding and trailing spaces
-           will be removed.
+ Args    : Argument must be a string. Ensure that this string is safe to use for
+           whatever output format you want to use (this differs between xml and
+           nexus, for example).
 
 =cut
 
@@ -385,7 +378,7 @@ Sets generic key/value pair(s).
             my %args;
 
             # have a single arg, a hash ref
-            if ( scalar @_ == 1 && isa( $_[0], 'HASH' ) ) {
+            if ( scalar @_ == 1 && looks_like_instance( $_[0], 'HASH' ) ) {
                 %args = %{ $_[0] };
             }
 
@@ -394,13 +387,13 @@ Sets generic key/value pair(s).
                 %args = looks_like_hash @_;
             }
 
-			# notify user
-			$logger->info("setting generic key/value pairs %{args}");
+	    # notify user
+	    $logger->info("setting generic key/value pairs %{args}");
 
-			# fill up the hash
-			foreach my $key ( keys %args ) {
-				$generic{$id}->{$key} = $args{$key};
-			}
+	    # fill up the hash
+	    foreach my $key ( keys %args ) {
+		$generic{$id}->{$key} = $args{$key};
+	    }
         }
         return $self;
     }
@@ -575,8 +568,8 @@ Gets invocant's UID.
 =cut
 
     sub get_id {
-		my $self = shift;
-		return $$self;
+	my $self = shift;
+	return $$self;
     }
 
 =item get_logger()
@@ -642,10 +635,10 @@ Attempts to fetch an in-memory object by its UID
 
 =cut
 
-	sub get_obj_by_id {
-		my ( $class, $id ) = @_;
-		return $objects{$id};
-	}
+    sub get_obj_by_id {
+	my ( $class, $id ) = @_;
+	return $objects{$id};
+    }
 
 =item to_json()
 
@@ -690,11 +683,11 @@ Serializes object to JSON string
                 next if not defined $val;        
                 push @json, "\"$key\":\"$val\"";
             }
-            elsif ( UNIVERSAL::isa($val,'HASH') ) {
+            elsif ( looks_like_instance($val,'HASH') ) {
                 next if not %{ $val };
                 push @json, "\"$key\":{" . $self->_hash_to_json($val) . '}';
             }
-            elsif ( UNIVERSAL::isa($val,'ARRAY') ) {
+            elsif ( looks_like_instance($val,'ARRAY') ) {
                 next if not @{ $val };
                 push @json, "\"$key\":[" . $self->_array_to_json($val) . ']';
             }
@@ -709,10 +702,10 @@ Serializes object to JSON string
             if ( not ref $val ) {
                 push @json, "\"$val\"";
             }
-            elsif ( UNIVERSAL::isa($val,'HASH') ) {
+            elsif ( looks_like_instance($val,'HASH') ) {
                 push @json, $self->_hash_to_json($val);
             }
-            elsif ( UNIVERSAL::isa($val,'ARRAY') ) {
+            elsif ( looks_like_instance($val,'ARRAY') ) {
                 push @json, $self->_array_to_json($val);
             }
         }   
@@ -783,7 +776,7 @@ Clones invocant.
 		my %methods;
 		for my $package ( $class, @{$isa} ) {
 	    	my %symtable;
-		    eval "\%symtable = \%${package}::";
+		    eval "\%symtable = \%${package}::"; 
 		  SETTER: for my $setter ( keys %symtable ) {
 				next SETTER if $setter !~ m/^set_/;
 				my $getter = $setter;
@@ -794,7 +787,7 @@ Clones invocant.
 				# if they're code (not variables, for example)
 				my $get_ref = $class->can($getter);
 				my $set_ref = $class->can($setter);
-				if ( isa( $get_ref, 'CODE' ) and isa( $set_ref, 'CODE' ) ) {
+				if ( looks_like_instance( $get_ref, 'CODE' ) and looks_like_instance( $set_ref, 'CODE' ) ) {
 				    $methods{$getter} = $setter;
 				}
 	    	}
@@ -813,7 +806,7 @@ Clones invocant.
 	    	my $setter = $methods{$getter};
 	    	if ( exists $subs{$setter} ) {
 	    		$logger->info("method $setter for $clone overridden");
-	    		if ( isa( $subs{$setter}, 'CODE' ) ) {
+	    		if ( looks_like_instance( $subs{$setter}, 'CODE' ) ) {
 	    			$subs{$setter}->( $self, $clone );
 	    		}
 	    		delete $subs{$setter};
@@ -833,23 +826,21 @@ Clones invocant.
 		}
 
 		# execute additional code refs
-		$_->( $self, $clone ) for ( grep { isa( $_, 'CODE' ) } values %subs );
+		$_->( $self, $clone ) for ( grep { looks_like_instance( $_, 'CODE' ) } values %subs );
 		return $clone;
     }
 
 =item VERBOSE()
 
-Getter and setter for the verbose level. This comes in five levels: 0 = only
-fatal messages (though, when something fatal happens, you'll most likely get
-an exception object), 1 = errors (hopefully recoverable), 2 = warnings 
-(recoverable), 3 = info (useful diagnostics), 4 = debug (every method call)
+Getter and setter for the verbosity level. Refer to L<Bio::Phylo::Util::Logger> for more
+info on available verbosity levels.
 
  Type    : Accessor
  Title   : VERBOSE()
  Usage   : Bio::Phylo->VERBOSE( -level => $level )
  Function: Sets/gets verbose level
  Returns : Verbose level
- Args    : 0 <= $level && $level <= 4
+ Args    : -level => $level
  Comments:
 
 =cut
@@ -889,7 +880,7 @@ Returns suggested citation.
         my $self    = shift;
         my $name    = __PACKAGE__;
         my $version = __PACKAGE__->VERSION;
-        my $string  = qq{Rutger A. Vos, 2005-2009. $name: };
+        my $string  = qq{Rutger A. Vos, 2005-2010. $name: };
         $string .= qq{Phylogenetic analysis using Perl, version $version};
         return $string;
     }
@@ -953,7 +944,7 @@ Invocant destructor.
         # given multiple inheritance
         $logger->debug("going to clean up '$self'"); # XXX
         {
-            no strict 'refs';
+            no strict 'refs'; 
             for my $SUPER ( @{$isa} ) {
             	if ( $SUPER->can('_cleanup') ) {
 	                my $cleanup = "${SUPER}::_cleanup";
@@ -981,7 +972,7 @@ Invocant destructor.
             push @{$isa}, $class;
             my @isa;
             {
-                no strict 'refs';
+                no strict 'refs'; 
                 @isa = @{"${class}::ISA"};
                 use strict;
             }
@@ -1081,7 +1072,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>
 
 =head1 REVISION
 
- $Id: Phylo.pm 1219 2010-03-01 14:05:09Z rvos $
+ $Id: Phylo.pm 1242 2010-03-03 20:37:23Z rvos $
 
 =cut
 

@@ -1,11 +1,11 @@
-# $Id: Generator.pm 841 2009-03-04 23:07:30Z rvos $
+# $Id: Generator.pm 1235 2010-03-02 16:11:07Z rvos $
 package Bio::Phylo::Generator;
 use strict;
 use Bio::Phylo::Util::IDPool;
 use Bio::Phylo::Util::CONSTANT 'looks_like_hash';
-use Bio::Phylo::Forest;
-use Bio::Phylo::Forest::Tree;
-use Bio::Phylo::Forest::Node;
+use Bio::Phylo::Forest ();
+use Bio::Phylo::Forest::Tree ();
+use Bio::Phylo::Forest::Node ();
 use Bio::Phylo::Util::Exceptions 'throw';
 
 eval { require Math::Random };
@@ -389,7 +389,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: Generator.pm 841 2009-03-04 23:07:30Z rvos $
+ $Id: Generator.pm 1235 2010-03-02 16:11:07Z rvos $
 
 =cut
 

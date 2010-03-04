@@ -1,10 +1,10 @@
 package Bio::Phylo::Parsers::Tolweb;
 use strict;
 use warnings;
-use Bio::Phylo::IO;
+use Bio::Phylo::IO ();
 use Bio::Phylo::Util::Exceptions 'throw';
+use Bio::Phylo::Util::CONSTANT 'looks_like_instance';
 use Bio::Phylo::Factory;
-use UNIVERSAL 'isa';
 use vars qw(@ISA $VERSION);
 @ISA = qw(Bio::Phylo::IO);
 
@@ -50,7 +50,7 @@ L<http://tolweb.org/tree/home.pages/downloadtree.html>
 
 =head1 REVISION
 
- $Id: Tolweb.pm 1171 2009-07-07 06:23:58Z rvos $
+ $Id: Tolweb.pm 1247 2010-03-04 15:47:17Z rvos $
 
 =cut
 

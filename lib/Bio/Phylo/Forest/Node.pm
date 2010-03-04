@@ -1,12 +1,21 @@
-# $Id: Node.pm 1212 2010-02-18 14:13:35Z rvos $
+# $Id: Node.pm 1247 2010-03-04 15:47:17Z rvos $
 package Bio::Phylo::Forest::Node;
 use strict;
 use Bio::Phylo::Factory;
 use Bio::Phylo::Taxa::TaxonLinker;
-use Bio::Phylo::Util::CONSTANT qw(_NODE_ _TREE_ _TAXON_ _DOMCREATOR_ looks_like_number looks_like_object looks_like_hash);
-use Bio::Phylo::Listable;
+use Bio::Phylo::Util::CONSTANT qw(
+	_NODE_
+	_TREE_
+	_TAXON_
+	_DOMCREATOR_
+	looks_like_number
+	looks_like_object
+	looks_like_hash
+	looks_like_instance
+);
+use Bio::Phylo::Listable ();
 use Bio::Phylo::Util::Exceptions 'throw';
-use Bio::Phylo::Util::XMLWritable;
+use Bio::Phylo::NeXML::Writable ();
 use Scalar::Util 'weaken';
 
 no warnings 'recursion';
@@ -148,7 +157,7 @@ Node constructor.
 		my $self = $class->SUPER::new(%args);
 		
 		if ( not $LOADED_WRAPPERS ) {
-			eval do { local $/; <DATA> };
+			eval do { local $/; <DATA> }; 
 			$LOADED_WRAPPERS++;
 		}	
 
@@ -2011,7 +2020,7 @@ Visits nodes in a level order traversal.
 
 	sub visit_level_order {
 		my ( $self, $sub ) = @_;
-		if ( UNIVERSAL::isa( $sub, 'CODE' ) ) {
+		if ( looks_like_instance $sub, 'CODE' ) {
 			my @queue = ($self);
 			while (@queue) {
 				my $node = shift @queue;
@@ -2317,7 +2326,7 @@ Serializes subtree subtended by invocant to newick string.
 
     sub to_dom {
 		my ($self, $dom) = shift;
-		$dom ||= $Bio::Phylo::Util::DOM::DOM;
+		$dom ||= $Bio::Phylo::NeXML::DOM::DOM;
 		unless (looks_like_object $dom, _DOMCREATOR_) {
 		    throw 'BadArgs' => 'DOM factory object not provided';
 		}
@@ -2338,10 +2347,14 @@ Serializes subtree subtended by invocant to newick string.
 		if ( my $length = shift(@nodes)->get_branch_length ) {
 		    my $target = $self->get_xml_id;
 		    my $id = "edge" . $self->get_id;
-		    my $elt = $dom->create_element('rootedge');
-		    $elt->set_attributes('target' => $target);
-		    $elt->set_attributes('id' => $id);
-		    $elt->set_attributes('length' => $length);
+		    my $elt = $dom->create_element(
+			'-tag' => 'rootedge',
+			'-attributes' => {
+				'target' => $target,
+				'id'     => $id,
+				'length' => $length,
+			}
+		    );
 		    push @elts, $elt;
 		}
 		
@@ -2351,10 +2364,14 @@ Serializes subtree subtended by invocant to newick string.
 		    my $target = $node->get_xml_id;
 		    my $id     = "edge" . $node->get_id;
 		    my $length = $node->get_branch_length;
-		    my $elt = $dom->create_element('edge');
-		    $elt->set_attributes('source' => $source);
-		    $elt->set_attributes('target' => $target);
-		    $elt->set_attributes('id' => $id);
+		    my $elt = $dom->create_element(
+			'-tag' => 'edge',
+			'-attributes' => {
+				'source' => $source,
+				'target' => $target,
+				'id'     => $id,
+			}
+		    );
 		    $elt->set_attributes('length' => $length) if ( defined $length );
 		    push @elts, $elt;
 		}
@@ -2440,7 +2457,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: Node.pm 1212 2010-02-18 14:13:35Z rvos $
+ $Id: Node.pm 1247 2010-03-04 15:47:17Z rvos $
 
 =cut
 
