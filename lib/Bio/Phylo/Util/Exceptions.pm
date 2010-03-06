@@ -7,7 +7,7 @@ BEGIN {
 	@EXPORT_OK=qw(throw);
 }
 use Bio::Phylo::Util::StackTrace;
-use Bio::Phylo::Util::CONSTANT 'looks_like_instance';
+use Scalar::Util 'blessed';
 use overload 'bool' => sub { 1 }, 'fallback' => 1, '""' => \&as_string;
 
 sub new {
@@ -90,7 +90,7 @@ sub caught {
 		$class = shift;
 	}
 	if ( $@ ) {
-		if ( looks_like_instance $@, $class ) {
+		if ( blessed $@ and $@->isa($class) ) {
 			return $@;
 		}
 		else {
@@ -402,7 +402,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>
 
 =head1 REVISION
 
- $Id: Exceptions.pm 1247 2010-03-04 15:47:17Z rvos $
+ $Id: Exceptions.pm 1263 2010-03-06 18:05:28Z rvos $
 
 =cut
 

@@ -265,7 +265,7 @@ Serializes invocant to NEXUS.
 
     sub to_dom {
 		my ($self, $dom) = @_;
-		$dom ||= $Bio::Phylo::NeXML::DOM::DOM;
+		$dom ||= Bio::Phylo::NeXML::DOM->get_dom;
 		unless (looks_like_object $dom, _DOMCREATOR_) {
 		    throw 'BadArgs' => 'DOM factory object not provided';
 		}
@@ -304,7 +304,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: Project.pm 1247 2010-03-04 15:47:17Z rvos $
+ $Id: Project.pm 1259 2010-03-04 23:11:42Z rvos $
 
 =cut
 

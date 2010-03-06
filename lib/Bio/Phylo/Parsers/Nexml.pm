@@ -5,6 +5,7 @@ use Bio::Phylo::Util::Exceptions 'throw';
 use Bio::Phylo::Factory;
 use Bio::Phylo::Util::CONSTANT 'looks_like_instance';
 use Bio::Phylo::NeXML::Writable ();
+use Bio::Phylo::NeXML::Meta::XMLLiteral;
 use vars qw(@ISA $VERSION);
 @ISA = qw(Bio::Phylo::IO);
 
@@ -49,7 +50,7 @@ For more information about the nexml data standard, visit L<http://www.nexml.org
 
 =head1 REVISION
 
- $Id: Nexml.pm 1247 2010-03-04 15:47:17Z rvos $
+ $Id: Nexml.pm 1260 2010-03-04 23:13:22Z rvos $
 
 =cut
 
@@ -721,8 +722,14 @@ sub _process_meta {
         $object = $self->_get_base_uri($meta_elt) . $object;
     }
     my $meta = $factory->create_meta( '-triple' => { $predicate => $object } );
-    for my $child_meta_elt ( $meta_elt->children('meta') ) {
-        $meta->add_meta( $self->_process_meta( $child_meta_elt ) );
+    for my $child_meta_elt ( $meta_elt->children() ) {
+	if ( $child_meta_elt->gi eq 'meta' ) {
+		$meta->add_meta( $self->_process_meta( $child_meta_elt ) );
+	}
+	else {
+		my $lit = Bio::Phylo::NeXML::Meta::XMLLiteral->new($child_meta_elt);
+		$meta->set_triple( $predicate => $lit );
+	}
     }
     return $meta;
 }
