@@ -1,4 +1,4 @@
-# $Id: Svg.pm 1128 2009-06-16 07:26:07Z rvos $
+# $Id: Svg.pm 1264 2010-03-08 16:15:24Z rvos $
 package Bio::Phylo::Treedrawer::Svg;
 use strict;
 use Bio::Phylo::Util::CONSTANT 'looks_like_hash';
@@ -98,7 +98,12 @@ sub _draw {
         $class{'circle'} = $is_terminal ? 'taxon_circle' : 'node_circle';
         $class{'text'}   = $is_terminal ? 'taxon_text'   : 'node_text';
         $r = $is_terminal ? int($drawer->get_tip_radius) : int($drawer->get_node_radius);
-        my %circle = ( 'cx' => int($node->get_x), 'cy' => int($node->get_y), 'r' => $r, 'class' => $class{'circle'} );
+        my %circle = ( 
+        	'cx'    => int($node->get_x), 
+        	'cy'    => int($node->get_y), 
+        	'r'     => $r, 
+        	'class' => $class{'circle'} 
+        );
         my $x = int( $node->get_x + $drawer->get_text_horiz_offset );
         my $y = int( $node->get_y + $drawer->get_text_vert_offset );
         my %text = ( 'x' => $x, 'y' => $y, 'class' => $class{'text'} );
@@ -405,7 +410,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: Svg.pm 1128 2009-06-16 07:26:07Z rvos $
+ $Id: Svg.pm 1264 2010-03-08 16:15:24Z rvos $
 
 =cut
 

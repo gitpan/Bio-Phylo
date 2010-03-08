@@ -1,4 +1,4 @@
-# $Id: Phylo.pm 1258 2010-03-04 23:09:50Z rvos $
+# $Id: Phylo.pm 1265 2010-03-08 16:26:31Z rvos $
 package Bio::Phylo;
 use strict;
 
@@ -31,9 +31,9 @@ BEGIN {
 require Bio::Phylo::Mediators::TaxaMediator;  
 
 # Include the revision number from subversion in $VERSION
-my $rev = '$Id: Phylo.pm 1258 2010-03-04 23:09:50Z rvos $';
+my $rev = '$Id: Phylo.pm 1265 2010-03-08 16:26:31Z rvos $';
 $rev =~ s/^[^\d]+(\d+)\b.*$/$1/;
-$VERSION = "0.20";
+$VERSION = "0.21";
 $VERSION .= "_$rev";
 {
     my $taxamediator = 'Bio::Phylo::Mediators::TaxaMediator';
@@ -1072,7 +1072,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>
 
 =head1 REVISION
 
- $Id: Phylo.pm 1258 2010-03-04 23:09:50Z rvos $
+ $Id: Phylo.pm 1265 2010-03-08 16:26:31Z rvos $
 
 =cut
 
