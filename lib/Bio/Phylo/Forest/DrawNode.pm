@@ -9,14 +9,18 @@ use vars '@ISA';
 	    my ( 
 	        %x, 
 	        %y, 
-	        %radius, 
+	        %radius,
+		%tip_radius,
 	        %node_colour,
+		%node_outline_colour,
 	        %node_shape,
 	        %node_image,	        
 	        %branch_color,
 	        %branch_shape,
-            %branch_width,	
-            %branch_style,
+		%branch_width,	
+		%branch_style,
+		%collapsed,
+		%collapsed_width,
 	        %font_face,
 	        %font_size,
 	        %font_style,
@@ -56,6 +60,44 @@ and text attributes, etc.
 =head2 MUTATORS
 
 =over
+
+=item set_collapsed()
+
+ Type    : Mutator
+ Title   : set_collapsed
+ Usage   : $node->set_collapsed(1);
+ Function: Sets whether the node's descendants are shown as collapsed into a triangle
+ Returns : $self
+ Args    : true or false value
+
+=cut
+
+	sub set_collapsed {
+		my ( $self, $collapsed ) = @_;
+		my $id = $self->get_id;
+		$collapsed{$id} = $collapsed;
+		return $self;
+	}
+
+=item set_collapsed_clade_width()
+
+Sets collapsed clade width.
+
+ Type    : Mutator
+ Title   : set_collapsed_clade_width
+ Usage   : $tree->set_collapsed_clade_width(6);
+ Function: sets the width of collapsed clade triangles relative to uncollapsed tips
+ Returns :
+ Args    : Positive number
+
+=cut
+
+    sub set_collapsed_clade_width {
+        my ( $self, $width ) = @_;
+        my $id = $self->get_id;
+        $collapsed_width{$id} = $width;
+        return $self;
+    }
 
 =item set_x()
 
@@ -110,6 +152,25 @@ and text attributes, etc.
         $radius{$id} = $radius;
         return $self;
     }
+    *set_node_radius = \&set_radius;
+
+=item set_tip_radius()
+
+ Type    : Mutator
+ Title   : set_tip_node_radius
+ Usage   : $tree->set_tip_radius($node_radius);
+ Function: Sets tip radius
+ Returns : $self
+ Args    : tip radius
+
+=cut
+
+    sub set_tip_radius {
+        my ( $self, $r ) = @_;
+        my $id = $self->get_id;
+        $tip_radius{$id} = $r;
+        return $self;
+    } 
 
 =item set_node_colour()
 
@@ -126,6 +187,25 @@ and text attributes, etc.
         my ( $self, $node_colour ) = @_;
         my $id = $self->get_id;
         $node_colour{$id} = $node_colour;
+        return $self;
+    }
+    *set_node_color = \&set_node_colour;
+
+=item set_node_outline_colour()
+
+ Type    : Mutator
+ Title   : set_node_outline_colour
+ Usage   : $node->set_node_outline_colour($node_outline_colour);
+ Function: Sets node outline colour
+ Returns : $self
+ Args    : node_colour
+
+=cut
+
+    sub set_node_outline_colour {
+        my ( $self, $node_colour ) = @_;
+        my $id = $self->get_id;
+        $node_outline_colour{$id} = $node_colour;
         return $self;
     }
 
@@ -182,6 +262,7 @@ and text attributes, etc.
         $branch_color{$id} = $branch_color;
         return $self;
     }
+    *set_branch_colour = \&set_branch_color;
 
 =item set_branch_shape()
 
@@ -216,7 +297,6 @@ and text attributes, etc.
         my ( $self, $branch_width ) = @_;
         my $id = $self->get_id;
         $branch_width{$id} = $branch_width;
-        $self->_apply_to_nodes( 'set_branch_width', $branch_width );                        
         return $self;
     }
 
@@ -352,6 +432,94 @@ and text attributes, etc.
 
 =over
 
+=item get_collapsed()
+
+ Type    : Mutator
+ Title   : get_collapsed
+ Usage   : something() if $node->get_collapsed();
+ Function: Gets whether the node's descendants are shown as collapsed into a triangle
+ Returns : true or false value
+ Args    : NONE
+
+=cut
+
+    sub get_collapsed {
+        my $self = shift;
+        my $id = $self->get_id;
+        return $collapsed{$id};
+    }
+
+=item get_first_daughter()
+
+Gets invocant's first daughter.
+
+ Type    : Accessor
+ Title   : get_first_daughter
+ Usage   : my $f_daughter = $node->get_first_daughter;
+ Function: Retrieves a node's leftmost daughter.
+ Returns : Bio::Phylo::Forest::Node
+ Args    : NONE
+
+=cut
+
+    sub get_first_daughter {
+    	my $self = shift;
+    	if ( $self->get_collapsed ) {
+    		return;
+    	}
+    	else {
+    		return $self->SUPER::get_first_daughter;
+    	}
+    }
+
+=item get_last_daughter()
+
+Gets invocant's last daughter.
+
+ Type    : Accessor
+ Title   : get_last_daughter
+ Usage   : my $l_daughter = $node->get_last_daughter;
+ Function: Retrieves a node's rightmost daughter.
+ Returns : Bio::Phylo::Forest::Node
+ Args    : NONE
+
+=cut
+
+    sub get_last_daughter {
+    	my $self = shift;
+    	if ( $self->get_collapsed ) {
+    		return;
+    	}
+    	else {
+    		return $self->SUPER::get_last_daughter;
+    	}    	
+    }
+
+=item get_children()
+
+Gets invocant's immediate children.
+
+ Type    : Query
+ Title   : get_children
+ Usage   : my @children = @{ $node->get_children };
+ Function: Returns an array reference of immediate
+           descendants, ordered from left to right.
+ Returns : Array reference of
+           Bio::Phylo::Forest::Node objects.
+ Args    : NONE
+
+=cut
+
+    sub get_children {
+    	my $self = shift;
+    	if ( $self->get_collapsed ) {
+    		return [];
+    	}
+    	else {
+    		return $self->SUPER::get_children;
+    	}      
+    }
+
 =item get_x()
 
  Type    : Accessor
@@ -419,6 +587,24 @@ and text attributes, etc.
         my $id = $self->get_id;
         return $node_colour{$id};
     }
+    *get_node_color = \&get_node_colour;
+
+=item get_node_outline_colour()
+
+ Type    : Accessor
+ Title   : get_node_outline_colour
+ Usage   : my $node_outline_colour = $node->get_node_outline_colour();
+ Function: Gets node outline colour
+ Returns : node_colour
+ Args    : NONE
+
+=cut
+
+    sub get_node_outline_colour {
+        my $self = shift;
+        my $id = $self->get_id;
+        return $node_outline_colour{$id};
+    }
 
 =item get_node_shape()
 
@@ -454,6 +640,25 @@ and text attributes, etc.
         return $node_image{$id};
     }
 
+=item get_collapsed_clade_width()
+
+Gets collapsed clade width.
+
+ Type    : Mutator
+ Title   : get_collapsed_clade_width
+ Usage   : $w = $tree->get_collapsed_clade_width();
+ Function: gets the width of collapsed clade triangles relative to uncollapsed tips
+ Returns : Positive number
+ Args    : None
+
+=cut
+
+    sub get_collapsed_clade_width {
+        my $self = shift;
+        my $id = $self->get_id;
+        return $collapsed_width{$id};
+    }
+
 =item get_branch_color()
 
  Type    : Accessor
@@ -470,6 +675,7 @@ and text attributes, etc.
         my $id = $self->get_id;
         return $branch_color{$id};
     }
+    *get_branch_colour = \&get_branch_color;
 
 =item get_branch_shape()
 
@@ -501,8 +707,13 @@ and text attributes, etc.
 
     sub get_branch_width {
         my $self = shift;
-        my $id = $self->get_id;
-        return $branch_width{$id};
+	if ( my $node = shift ) {
+	    return $node->get_branch_width;
+	}
+	else {
+	    my $id = $self->get_id;
+	    return $branch_width{$id};
+	}
     }
 
 =item get_branch_style()
@@ -712,7 +923,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: DrawNode.pm 1235 2010-03-02 16:11:07Z rvos $
+ $Id: DrawNode.pm 1290 2010-04-01 13:37:56Z rvos $
 
 =cut
 

@@ -1,4 +1,4 @@
-# $Id: Tree.pm 1252 2010-03-04 17:31:40Z rvos $
+# $Id: Tree.pm 1302 2010-06-11 15:33:11Z rvos $
 package Bio::Phylo::Forest::Tree;
 use strict;
 use Bio::Phylo::Listable ();
@@ -348,10 +348,25 @@ Get terminal nodes.
 	sub get_terminals {
 		my $self = shift;
 		my @terminals;
-		for ( @{ $self->get_entities } ) {
-			if ( $_->is_terminal ) {
-				push @terminals, $_;
-			}
+		if ( my $root = $self->get_root ) {
+			$root->visit_level_order(
+				sub {
+					my $node = shift;
+					if ( $node->is_terminal ) {
+						push @terminals, $node;
+					}
+				}
+			);
+		}
+		else {
+			$self->visit(
+				sub {
+					my $n = shift;
+					if ( $n->is_terminal ) {
+						push @terminals, $n;
+					}
+				}
+			)
 		}
 		return \@terminals;
 	}
@@ -380,11 +395,14 @@ Get internal nodes.
 	sub get_internals {
 		my $self = shift;
 		my @internals;
-		foreach ( @{ $self->get_entities } ) {
-			if ( $_->is_internal ) {
-				push @internals, $_;
+		$self->visit_level_order(
+			sub {
+				my $node = shift;
+				if ( $node->is_internal ) {
+					push @internals, $node;
+				}
 			}
-		}
+		);
 		return \@internals;
 	}
 
@@ -437,7 +455,7 @@ Retrieves the node furthest from the root.
 
 		# has (at least some) branch lengths
 		if ( $self->calc_tree_length ) {
-			$criterion = 'calc_path_to_root',;
+			$criterion = 'calc_path_to_root';
 		}
 		else {
 			$criterion = 'calc_nodes_to_root';
@@ -474,12 +492,29 @@ Get most recent common ancestor of argument nodes.
 
 	sub get_mrca {
 		my ( $tree, $nodes ) = @_;
-		my $mrca;
-		for my $i ( 1 .. $#{$nodes} ) {
-			$mrca ? $mrca = $mrca->get_mrca( $nodes->[$i] ) : $mrca =
-			  $nodes->[0]->get_mrca( $nodes->[$i] );
+		if ( not $nodes or not @{ $nodes } ) {
+			return;
 		}
-		return $mrca;
+		elsif ( scalar @{ $nodes } == 1 ) {
+			return $nodes->[0];
+		}
+		else {
+			my $node1 = shift @{ $nodes };
+			my $node2 = shift @{ $nodes };
+			my $anc1 = $node1->get_ancestors;
+			my $anc2 = $node2->get_ancestors;
+			unshift @{ $anc1 }, $node1;
+			unshift @{ $anc2 }, $node2;
+			TRAVERSAL: for my $i ( 0 .. $#{ $anc1 } ) {
+				for my $j ( 0 .. $#{ $anc2 } ) {
+					if ( $anc1->[$i] == $anc2->[$j] ) {
+						unshift @{ $nodes }, $anc1->[$i];
+						last TRAVERSAL;
+					}
+				}
+			}
+			return $tree->get_mrca( $nodes );
+		}
 	}
 
 =back
@@ -1186,29 +1221,52 @@ Calculates stemminess measure from Rohlf et al. (1990).
 =cut
 
 	sub calc_rohlf_stemminess {
+		# invocant is a tree
 		my $self = shift;
-		if ( !$self->is_ultrametric(0.01) ) {
-			throw 'ObjectMismatch' => 'Rohlf stemminess only possible for ultrametric trees';
-		}
-		my @internals            = @{ $self->get_internals };
-		my $total                = 0;
-		my $one_over_t_minus_two = 1 / ( scalar @internals - 1 );
-		foreach my $node (@internals) {
-			if ( $node->get_parent ) {
-				my $Wj_i   = $node->get_branch_length;
-				my $parent = $node->get_parent;
-				my $hj     = $parent->calc_min_path_to_tips;
+		
+		throw ObjectMismatch => "This algorithm isn't generalized to
+			deal with multifurcations" if $self->calc_resolution < 1;
+		throw ObjectMismatch => "This algorithm requires branch lengths"
+			unless $self->calc_tree_length;
+		
+		# all internal nodes in the tree
+		my @internals = @{ $self->get_internals };
+		
+		# all terminal nodes in the tree
+		my @terminals = @{ $self->get_terminals };
+		
+		# this will become the sum of all STni
+		my $total = 0;
+		
+		# 1/(t-2), by which we multiply total
+		my $one_over_t_minus_two = 1 / ( scalar @terminals - 2 );
+		
+		# iterate over all nodes, as per equation (1)
+			for my $node ( @internals ) {
+			
+			# only process nodes that aren't the root
+			if ( my $parent = $node->get_parent ) {
+				
+				# Wj->i is defined as "the length of the edge
+				# (in time units) between HTU i (a hypothetical
+				# taxonomic unit, i.e. an internal node) and
+				# its ancestor j"
+				my $Wj_i = $node->get_branch_length;
+				
+				# hj is defined as "the 'height' of HTU j (the
+				# time of its origin, a known quantity since we
+				# know the true tree in these simulations)".
+				my $hj   = $parent->calc_path_to_root;
 				if ( !$hj ) {
 					next;
 				}
+				
+				# as per equation (2) in Rohlf et al. (1990)
 				$total += ( $Wj_i / $hj );
 			}
 		}
-		unless ($total) {
-			throw 'ObjectMismatch' => 'it looks like all branches were of length zero';
-		}
-		my $crs = $one_over_t_minus_two * $total;
-		return $crs;
+		# multiply by 1/(t-2) as per equation (1)
+		return $one_over_t_minus_two * $total;
 	}
 
 =item calc_resolution()
@@ -1219,7 +1277,7 @@ Calculates tree resolution.
  Title   : calc_resolution
  Usage   : my $resolution = 
            $tree->calc_resolution;
- Function: Calculates the total number 
+ Function: Calculates the number 
            of internal nodes over the
            total number of internal nodes 
            on a fully bifurcating
@@ -1691,7 +1749,12 @@ Visits nodes in a level order traversal.
 
 	sub visit_level_order {
 		my ( $tree, $sub ) = @_;
-		$tree->get_root->visit_level_order($sub);
+		if ( my $root = $tree->get_root ) {
+			$root->visit_level_order($sub);
+		}
+		else {
+			throw 'BadArgs' => 'Tree has no root';
+		}
 		return $tree;
 	}
 
@@ -2398,7 +2461,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: Tree.pm 1252 2010-03-04 17:31:40Z rvos $
+ $Id: Tree.pm 1302 2010-06-11 15:33:11Z rvos $
 
 =cut
 

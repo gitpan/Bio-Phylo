@@ -1,4 +1,4 @@
-# $Id: Node.pm 1264 2010-03-08 16:15:24Z rvos $
+# $Id: Node.pm 1288 2010-03-29 16:21:54Z rvos $
 package Bio::Phylo::Forest::Node;
 use strict;
 use Bio::Phylo::Factory;
@@ -1089,16 +1089,21 @@ Gets invocant's terminal descendants.
 
 	sub get_terminals {
 		my $self = shift;
-		my @terminals;
-		my $desc = $self->get_descendants;
-		if ( @{$desc} ) {
-			foreach ( @{$desc} ) {
-				if ( $_->is_terminal ) {
-					push @terminals, $_;
+		if ( $self->is_terminal ) {
+			return [ $self ];
+		}
+		else {
+			my @terminals;
+			my $desc = $self->get_descendants;
+			if ( @{$desc} ) {
+				foreach ( @{$desc} ) {
+					if ( $_->is_terminal ) {
+						push @terminals, $_;
+					}
 				}
 			}
+			return \@terminals;
 		}
-		return \@terminals;
 	}
 
 =item get_internals()
@@ -2477,7 +2482,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: Node.pm 1264 2010-03-08 16:15:24Z rvos $
+ $Id: Node.pm 1288 2010-03-29 16:21:54Z rvos $
 
 =cut
 

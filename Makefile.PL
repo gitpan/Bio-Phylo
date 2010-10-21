@@ -1,17 +1,25 @@
-# $Id: Makefile.PL 262 2007-12-15 03:12:17Z rvos $
+# $Id: Makefile.PL 1388 2010-10-21 16:25:27Z rvos $
 use strict;
 use warnings;
 use ExtUtils::MakeMaker;
 use File::Find;
 
-check_prereq( 'SVG', 'Math::Random', 'XML::Twig' );
+check_prereq( qw(
+    SVG
+    Math::Random
+    XML::Twig
+    XML::LibXML
+    Math::CDF
+    List::Util
+    SWF::Builder
+) );
 
 WriteMakefile(
     'NAME'         => 'Bio-Phylo',
-    'AUTHOR'       => 'Rutger Vos <rvosa@interchange.ubc.ca>',
+    'AUTHOR'       => 'Rutger Vos',
     'PL_FILES'     => {},
     'EXE_FILES'    => [],
-    'VERSION_FROM' => 'lib/Bio/Phylo.pm',    
+    'VERSION_FROM' => 'lib/Bio/Phylo.pm',  
     'clean'        => {},    
     'dist'         => { 'COMPRESS' => 'gzip -9f', 'SUFFIX' => 'gz', },
 );

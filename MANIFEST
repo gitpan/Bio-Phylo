@@ -1,5 +1,8 @@
 COPYING
+inheritance.dot
+inheritance.sh
 lib/Bio/Phylo.pm
+lib/Bio/Phylo/EvolutionaryModels.pm
 lib/Bio/Phylo/Factory.pm
 lib/Bio/Phylo/Forest.pm
 lib/Bio/Phylo/Forest/DrawNode.pm
@@ -47,7 +50,14 @@ lib/Bio/Phylo/Taxa/TaxaLinker.pm
 lib/Bio/Phylo/Taxa/Taxon.pm
 lib/Bio/Phylo/Taxa/TaxonLinker.pm
 lib/Bio/Phylo/Treedrawer.pm
+lib/Bio/Phylo/Treedrawer/Abstract.pm
+lib/Bio/Phylo/Treedrawer/Canvas.pm
+lib/Bio/Phylo/Treedrawer/Gif.pm
+lib/Bio/Phylo/Treedrawer/Jpeg.pm
+lib/Bio/Phylo/Treedrawer/Pdf.pm
+lib/Bio/Phylo/Treedrawer/Png.pm
 lib/Bio/Phylo/Treedrawer/Svg.pm
+lib/Bio/Phylo/Treedrawer/Swf.pm
 lib/Bio/Phylo/Unparsers/Mrp.pm
 lib/Bio/Phylo/Unparsers/Newick.pm
 lib/Bio/Phylo/Unparsers/Nexml.pm
@@ -90,6 +100,7 @@ t/24-bioperl-alignio.t
 t/25-dom-mapping.t
 t/26-dom.t
 t/28-reroot.t
+t/29-treemodels.t
 t/perl-critic.t
 t/perlcriticrc
 t/pod-coverage.t

@@ -1,11 +1,36 @@
-# $Id: Treedrawer.pm 1264 2010-03-08 16:15:24Z rvos $
+# $Id: Treedrawer.pm 1290 2010-04-01 13:37:56Z rvos $
 package Bio::Phylo::Treedrawer;
 use strict;
 use Bio::Phylo::Util::Logger;
 use Bio::Phylo::Forest::DrawTree ();
 use Bio::Phylo::Util::Exceptions 'throw';
-use Bio::Phylo::Util::CONSTANT qw(_TREE_ looks_like_number looks_like_object looks_like_hash looks_like_class);
-my @fields = qw(WIDTH HEIGHT MODE SHAPE PADDING NODE_RADIUS TIP_RADIUS TEXT_HORIZ_OFFSET TEXT_VERT_OFFSET TEXT_WIDTH TREE _SCALEX _SCALEY SCALE FORMAT);
+use Bio::Phylo::Util::CONSTANT qw(
+    _TREE_
+    looks_like_number
+    looks_like_object
+    looks_like_hash
+    looks_like_class
+);
+
+my @fields = qw(
+	WIDTH 
+	BRANCH_WIDTH 
+	HEIGHT 
+	MODE 
+	SHAPE 
+	PADDING 
+	NODE_RADIUS 
+	TIP_RADIUS 
+	TEXT_HORIZ_OFFSET 
+	TEXT_VERT_OFFSET 
+	TEXT_WIDTH 
+	TREE 
+	_SCALEX 
+	_SCALEY 
+	SCALE 
+	FORMAT
+	COLLAPSED_CLADE_WIDTH
+);
 
 my $tips = 0.000_000_000_000_01;
 my $logger = Bio::Phylo::Util::Logger->new;
@@ -76,8 +101,8 @@ sub new {
         'MODE'              => 'PHYLO',
         'SHAPE'             => 'CURVY',
         'PADDING'           => 50,
-        'NODE_RADIUS'       => 1,
-        'TIP_RADIUS'        => 1,
+        'NODE_RADIUS'       => 0,
+        'TIP_RADIUS'        => 0,
         'TEXT_HORIZ_OFFSET' => 6,
         'TEXT_VERT_OFFSET'  => 4,
         'TEXT_WIDTH'        => 150,
@@ -86,6 +111,8 @@ sub new {
         '_SCALEY'           => 1,
         'FORMAT'            => 'Svg',
         'SCALE'             => undef,
+        'BRANCH_WIDTH'      => 1,
+        'COLLAPSED_CLADE_WIDTH' => 6,	
     };
     bless $self, $class;
     
@@ -98,6 +125,38 @@ sub new {
         }
     }
     return $self;
+}
+
+sub _cascading_setter {
+    my ( $self, $value ) = @_;
+    my ( $package, $filename, $line, $subroutine ) = caller(1);
+    $subroutine =~ s/.*://;
+    $logger->debug($subroutine);
+    if ( my $tree = $self->get_tree ) {
+	if ( $tree->can($subroutine) ) {
+	    $tree->$subroutine($value);
+	}
+    }
+    $subroutine =~ s/^set_//;
+    $self->{uc $subroutine} = $value;	
+    return $self;
+}
+
+sub _cascading_getter {
+    my ( $self, $invocant ) = @_;
+    my ( $package, $filename, $line, $subroutine ) = caller(1);
+    $subroutine =~ s/.*://;
+    $logger->debug($subroutine);
+    if ( $invocant ) {
+	if ( $invocant->can($subroutine) ) {
+	    my $value = $invocant->$subroutine();
+	    if ( defined $value ) {
+		return $value;
+	    }
+	}
+    }
+    $subroutine =~ s/^get_//;
+    return $self->{uc $subroutine};
 }
 
 =back
@@ -115,8 +174,7 @@ Sets image format.
  Usage   : $treedrawer->set_format('Svg');
  Function: Sets the drawer submodule.
  Returns :
- Args    : Name of an image format (currently 
-           only Svg supported)
+ Args    : Name of an image format
 
 =cut
 
@@ -221,7 +279,7 @@ Sets tree drawing shape.
 
 sub set_shape {
     my ( $self, $shape ) = @_;
-    if ( $shape =~ m/^(?:rect|diag|curvy)$/i ) {
+    if ( $shape =~ m/^(?:rect|diag|curvy)/i ) {
         $self->{'SHAPE'} = uc $shape;
     }
     else {
@@ -250,54 +308,6 @@ sub set_padding {
     }
     else {
     	throw 'BadNumber' => "'$padding' is not a valid padding value";
-    }
-    return $self;
-}
-
-=item set_node_radius()
-
-Sets node radius.
-
- Type    : Mutator
- Title   : set_node_radius
- Usage   : $treedrawer->set_node_radius(20);
- Function: Sets the node radius in pixels.
- Returns :
- Args    : Integer value in pixels.
-
-=cut
-
-sub set_node_radius {
-    my ( $self, $radius ) = @_;
-    if ( looks_like_number $radius && $radius >= 0 ) {
-        $self->{'NODE_RADIUS'} = $radius;
-    }
-    else {
-    	throw 'BadNumber' => "'$radius' is not a valid node radius value";
-    }
-    return $self;
-}
-
-=item set_tip_radius()
-
-Sets tip radius.
-
- Type    : Mutator
- Title   : set_tip_radius
- Usage   : $treedrawer->set_tip_radius(20);
- Function: Sets the tip radius in pixels.
- Returns :
- Args    : Integer value in pixels.
-
-=cut
-
-sub set_tip_radius {
-    my ( $self, $radius ) = @_;
-    if ( looks_like_number $radius && $radius >= 0 ) {
-        $self->{'TIP_RADIUS'} = $radius;
-    }
-    else {
-    	throw 'BadNumber' => "'$radius' is not a valid tip radius value";
     }
     return $self;
 }
@@ -464,6 +474,108 @@ sub set_scale_options {
 
 =back
 
+=head2 CASCADING MUTATORS
+
+=over
+
+=item set_branch_width()
+
+Sets branch width.
+
+ Type    : Mutator
+ Title   : set_branch_width
+ Usage   : $treedrawer->set_branch_width(1);
+ Function: sets the width of branch lines
+ Returns :
+ Args    : Integer width in pixels.
+
+=cut
+
+sub set_branch_width {
+    my ( $self, $width ) = @_;
+    if ( looks_like_number $width && $width > 0 ) {
+        $self->_cascading_setter($width);
+    }
+    else {
+    	throw 'BadNumber' => "'$width' is not a valid branch width";
+    }
+    return $self;
+}
+
+=item set_node_radius()
+
+Sets node radius.
+
+ Type    : Mutator
+ Title   : set_node_radius
+ Usage   : $treedrawer->set_node_radius(20);
+ Function: Sets the node radius in pixels.
+ Returns :
+ Args    : Integer value in pixels.
+
+=cut
+
+sub set_node_radius {
+    my ( $self, $radius ) = @_;
+    if ( looks_like_number $radius && $radius >= 0 ) {
+        $self->_cascading_setter($radius);
+    }
+    else {
+    	throw 'BadNumber' => "'$radius' is not a valid node radius value";
+    }
+    return $self;
+}
+
+=item set_collapsed_clade_width()
+
+Sets collapsed clade width.
+
+ Type    : Mutator
+ Title   : set_collapsed_clade_width
+ Usage   : $treedrawer->set_collapsed_clade_width(6);
+ Function: sets the width of collapsed clade triangles relative to uncollapsed tips
+ Returns :
+ Args    : Positive number
+
+=cut
+
+sub set_collapsed_clade_width {
+    my ( $self, $width ) = @_;
+    if ( looks_like_number $width && $width > 0 ) {
+        $self->_cascading_setter($width);
+    }
+    else {
+    	throw 'BadNumber' => "'$width' is not a valid image width";
+    }
+    return $self;
+}
+
+=item set_tip_radius()
+
+Sets tip radius.
+
+ Type    : Mutator
+ Title   : set_tip_radius
+ Usage   : $treedrawer->set_tip_radius(20);
+ Function: Sets the tip radius in pixels.
+ Returns :
+ Args    : Integer value in pixels.
+
+=cut
+
+sub set_tip_radius {
+    my ( $self, $radius ) = @_;
+    if ( looks_like_number $radius && $radius >= 0 ) {
+        $self->_cascading_setter($radius);
+    }
+    else {
+    	throw 'BadNumber' => "'$radius' is not a valid tip radius value";
+    }
+    return $self;
+}
+
+=back
+
 =head2 ACCESSORS
 
 =over
@@ -472,7 +584,7 @@ sub set_scale_options {
 
 Gets image format.
 
- Type    : Mutator
+ Type    : Accessor
  Title   : get_format
  Usage   : my $format = $treedrawer->get_format;
  Function: Gets the image format.
@@ -487,7 +599,7 @@ sub get_format { shift->{'FORMAT'} }
 
 Gets image width.
 
- Type    : Mutator
+ Type    : Accessor
  Title   : get_width
  Usage   : my $width = $treedrawer->get_width;
  Function: Gets the width of the drawer canvas.
@@ -558,36 +670,6 @@ Gets image padding.
 =cut
 
 sub get_padding { shift->{'PADDING'} }
-
-=item get_node_radius()
-
-Gets node radius.
-
- Type    : Accessor
- Title   : get_node_radius
- Usage   : my $node_radius = $treedrawer->get_node_radius;
- Function: Gets the node radius in pixels.
- Returns : SCALAR
- Args    : None.
-
-=cut
-
-sub get_node_radius { shift->{'NODE_RADIUS'} }
-
-=item get_tip_radius()
-
-Gets tip radius.
-
- Type    : Accessor
- Title   : get_tip_radius
- Usage   : my $tip_radius = $treedrawer->get_tip_radius;
- Function: Gets the tip radius in pixels.
- Returns : SCALAR
- Args    : None.
-
-=cut
-
-sub get_tip_radius { shift->{'TIP_RADIUS'} }
 
 =item get_text_horiz_offset()
 
@@ -674,6 +756,84 @@ Gets time scale option.
 
 sub get_scale_options { shift->{'SCALE'} }
 
+=back
+
+=head2 CASCADING ACCESSORS
+
+=over
+
+=item get_branch_width()
+
+Gets branch width.
+
+ Type    : Accessor
+ Title   : get_branch_width
+ Usage   : my $w = $treedrawer->get_branch_width();
+ Function: gets the width of branch lines
+ Returns :
+ Args    : Integer width in pixels.
+
+=cut
+
+sub get_branch_width { 
+    my $self = shift;
+    return $self->_cascading_getter(@_);
+}
+
+=item get_collapsed_clade_width()
+
+Gets collapsed clade width.
+
+ Type    : Mutator
+ Title   : get_collapsed_clade_width
+ Usage   : $w = $treedrawer->get_collapsed_clade_width();
+ Function: gets the width of collapsed clade triangles relative to uncollapsed tips
+ Returns : Positive number
+ Args    : None
+
+=cut
+
+sub get_collapsed_clade_width { 
+    my $self = shift;
+    return $self->_cascading_getter(@_);
+}
+
+=item get_node_radius()
+
+Gets node radius.
+
+ Type    : Accessor
+ Title   : get_node_radius
+ Usage   : my $node_radius = $treedrawer->get_node_radius;
+ Function: Gets the node radius in pixels.
+ Returns : SCALAR
+ Args    : None.
+
+=cut
+
+sub get_node_radius { 
+    my $self = shift;
+    return $self->_cascading_getter(@_);
+}
+
+=item get_tip_radius()
+
+Gets tip radius.
+
+ Type    : Accessor
+ Title   : get_tip_radius
+ Usage   : my $tip_radius = $treedrawer->get_tip_radius;
+ Function: Gets the tip radius in pixels.
+ Returns : SCALAR
+ Args    : None.
+
+=cut
+
+sub get_tip_radius { 
+    my $self = shift;
+    return $self->_cascading_getter(@_);
+}
+
 =begin comment
 
  Type    : Internal method.
@@ -759,103 +919,67 @@ sub draw {
     $self->_reset_internal($root); 
     
     $self->_compute_rooted_coordinates;
-        
-#     if ( $self->get_mode eq 'CLADO' ) {
-#         $self->_compute_rooted_clado_coordinates;
-#     }
-#     elsif ( $self->get_mode eq 'PHYLO' ) {
-#         $self->_compute_rooted_phylo_coordinates;
-#     }    
     
     return $self->render;
 }
 
 sub _compute_rooted_coordinates {
-	my $td = shift;
-	my $tree = $td->get_tree;
-	my $phylo   = $td->get_mode =~ /^p/i ? 1 : 0;
-	my $padding = $td->get_padding;
-	my $width   = $td->get_width - ( $td->get_text_width + ( $padding * 2 ) );
-	my $height  = $td->get_height - ( $padding * 2 );
-	my ( $tip_counter, $tallest_tip ) = ( 0, 0 );
-	$tree->visit_depth_first(
-		'-pre' => sub {
-			my $node = shift;
-			if ( my $parent = $node->get_parent ) {
-				my $parent_x = $parent->get_x || 0;
-				my $x = $phylo ? $node->get_branch_length || 0 : 1;
-				$node->set_x( $x + $parent_x );
-			}
-			else { 
-				$node->set_x(0); # root
-			}
-		},
-		'-no_daughter' => sub {
-			my $node = shift;
-			$node->set_y( $tip_counter++ );
-			my $x = $node->get_x;
-			$tallest_tip = $x if $x > $tallest_tip;
-		},
-		'-post_daughter' => sub {
-			my $node = shift;
-			my ( $child_count, $child_y ) = ( 0, 0 );
-			for my $child ( @{ $node->get_children } ) {
-				$child_count++;
-				$child_y += $child->get_y;
-			}
-			$node->set_y( $child_y / $child_count );
-		},
-	);
-	$tree->visit(
-		sub {
-			my $node = shift;
-			$node->set_x( $padding + $node->get_x * ( $width / $tallest_tip ) );
-			$node->set_y( $padding + $node->get_y * ( $height / $tip_counter ) );
-			if ( ! $phylo && $node->is_terminal ) {
-				$node->set_x( $padding + $tallest_tip * ( $width / $tallest_tip ) );
-			}
-		}
-	);
+    my $td = shift;
+    my $tree = $td->get_tree;
+    my $phylo   = $td->get_mode =~ /^p/i ? 1 : 0; # phylogram or cladogram
+    my $padding = $td->get_padding;
+    my $width   = $td->get_width - ( $td->get_text_width + ( $padding * 2 ) );
+    my $height  = $td->get_height - ( $padding * 2 );
+    my $cladew  = $td->get_collapsed_clade_width;    
+    my ( $tip_counter, $tallest_tip ) = ( 0, 0 );
+    $tree->visit_depth_first(
+	'-pre' => sub {
+	    my $node = shift;
+	    if ( my $parent = $node->get_parent ) {
+		my $parent_x = $parent->get_x || 0;
+		my $x = $phylo ? $node->get_branch_length || 0 : 1;
+		$node->set_x( $x + $parent_x );
+	    }
+	    else { 
+		$node->set_x(0); # root
+	    }
+	},
+	'-no_daughter' => sub {
+	    my $node = shift;
+	    if ( $node->get_collapsed ) {
+		$tip_counter += ( ($cladew-2) / 2 );
+		$node->set_y( $tip_counter );
+		$tip_counter += ( ($cladew-2) / 2 ) + 1;
+	    }
+	    else {
+		$node->set_y( $tip_counter++ );
+	    }
+	    my $x = $node->get_x;
+	    $tallest_tip = $x if $x > $tallest_tip;
+	},
+	'-post_daughter' => sub {
+	    my $node = shift;
+	    my ( $child_count, $child_y ) = ( 0, 0 );
+	    for my $child ( @{ $node->get_children } ) {
+		$child_count++;
+		$child_y += $child->get_y;
+	    }
+	    $node->set_y( $child_y / $child_count );
+	},
+    );
+    $tree->visit(
+	sub {
+	    my $node = shift;
+	    $node->set_x( $padding + $node->get_x * ( $width / $tallest_tip ) );
+	    $node->set_y( $padding + $node->get_y * ( $height / $tip_counter ) );
+	    if ( ! $phylo && $node->is_terminal ) {
+		$node->set_x( $padding + $tallest_tip * ( $width / $tallest_tip ) );
+	    }
+	}
+    );
+    $td->_set_scaley( $height / $tip_counter );
+    $td->_set_scalex( $width  / $tallest_tip );
 }
-
-# sub _compute_rooted_clado_coordinates {
-# 	my $self = shift;
-# 	my $root = $self->get_tree->get_root;
-#     my $tips = $self->get_tree->calc_number_of_terminals;
-#     my ( $width,   $height )    = ( $self->get_width,   $self->get_height );
-#     my ( $padding, $textwidth ) = ( $self->get_padding, $self->get_text_width );
-#     my $maxpath = $root->calc_max_nodes_to_tips;
-#     $self->_set_scalex(
-#         ( ( $width - ( ( 2 * $padding ) + $textwidth ) ) / $maxpath ) );
-#     $self->_set_scaley( ( ( $height - ( 2 * $padding ) ) / ( $tips + 1 ) ) );
-#     $self->_x_positions_clado;    
-#     $self->_y_terminals(0);
-#     $self->_y_terminals($root);
-#     $self->get_tree->get_root->set_y(0);
-#     $self->_y_internals;	
-# }
-# 
-# sub _compute_rooted_phylo_coordinates {
-# 	my $self = shift;
-# 	my $root = $self->get_tree->get_root;
-#     my $tips = $self->get_tree->calc_number_of_terminals;
-#     my ( $width,   $height )    = ( $self->get_width,   $self->get_height );
-#     my ( $padding, $textwidth ) = ( $self->get_padding, $self->get_text_width );
-#     my $maxpath = $root->calc_max_path_to_tips;
-#     if ( not $maxpath ) {
-#         $logger->warn("no branch lengths on tree, switching to clado mode");
-#         $self->_compute_clado_coordinates;
-#         return;
-#     }
-#     $self->_set_scalex(
-#         ( ( $width - ( ( 2 * $padding ) + $textwidth ) ) / $maxpath ) );
-#     $self->_set_scaley( ( ( $height - ( 2 * $padding ) ) / ( $tips + 1 ) ) );
-#     $self->_x_positions_phylo;    
-#     $self->_y_terminals(0);
-#     $self->_y_terminals($root);
-#     $self->get_tree->get_root->set_y(0);
-#     $self->_y_internals;	
-# }
 
 =item render()
 
@@ -876,7 +1000,7 @@ have already calculated the node coordinates separately.
 =cut
 
 sub render {
-	my $self = shift;
+    my $self = shift;
     my $library = looks_like_class __PACKAGE__ . '::' . ucfirst( lc( $self->get_format ) );
     my $drawer = $library->_new(
         '-tree'   => $self->get_tree,
@@ -910,135 +1034,6 @@ sub _reset_internal {
     }
 }
 
-# =begin comment
-# 
-#  Type    : Internal method.
-#  Title   : _x_positions
-#  Usage   : $treedrawer->_x_positions;
-#  Function:
-#  Returns :
-#  Args    :
-# 
-# =end comment
-# 
-# =cut
-# 
-# sub _x_positions_phylo {
-#     my $self    = shift;
-#     my $tree    = $self->get_tree;
-#     my $root    = $tree->get_root;
-#     my $scalex  = $self->_get_scalex;
-#     my $padding = $self->get_padding;
-#     foreach my $node ( @{ $tree->get_entities } ) {
-#         my $x = ( $node->calc_path_to_root * $scalex ) + $padding;
-#         $node->set_x( $x );
-#     }
-# }
-# 
-# =begin comment
-# 
-#  Type    : Internal method.
-#  Title   : _x_positions_clado
-#  Usage   : $treedrawer->_x_positions_clado;
-#  Function:
-#  Returns :
-#  Args    :
-# 
-# =end comment
-# 
-# =cut
-# 
-# sub _x_positions_clado {
-#     my $self    = shift;
-#     my $tree    = $self->get_tree;
-#     my $root    = $tree->get_root;
-#     my $longest = $root->calc_max_nodes_to_tips;
-#     my $scalex  = $self->_get_scalex;
-#     my $padding = $self->get_padding;
-#     for my $tip ( @{ $tree->get_terminals } ) {
-#         $tip->set_x( $longest * $scalex );
-#     }
-#     for my $internal ( @{ $tree->get_internals } ) {
-#         my $id = $internal->get_id;
-#         my $longest1 = 0;
-#         for my $node ( @{ $tree->get_entities } ) {
-#             my ( $n, $current1 ) = ( $node, 0 );
-#             if ( $n->is_terminal && $n->get_parent ) {
-#                 while ( $n->get_parent ) {
-#                     $current1++;
-#                     $n = $n->get_parent;
-#                     if ( $n->get_id == $id && $current1 > $longest1 ) {
-#                         $longest1 = $current1;
-#                     }
-#                 }
-#             }
-#         }
-#         my $xc = $longest - $longest1;
-#         $internal->set_x( ( $xc * $scalex ) + $padding );
-#     }
-# }
-# 
-# =begin comment
-# 
-#  Type    : Internal method.
-#  Title   : _y_terminals
-#  Usage   : $treedrawer->_y_terminals;
-#  Function:
-#  Returns :
-#  Args    : tree root
-# 
-# =end comment
-# 
-# =cut
-# 
-# {
-# 
-#     sub _y_terminals {
-#         my ($self, $node) = @_;
-#         if ($node == 0) { $tips = 0.000_000_000_000_01; return; }
-#         if ( !$node->get_first_daughter ) {
-#             $tips++;
-#             $node->set_y( ( $tips * $self->_get_scaley ) + $self->get_padding );
-#         }
-#         else {
-#             $node = $node->get_first_daughter;
-#             $self->_y_terminals($node);
-#             while ( $node->get_next_sister ) {
-#                 $node = $node->get_next_sister;
-#                 $self->_y_terminals($node);
-#             }
-#         }
-#     }
-# }
-# 
-# =begin comment
-# 
-#  Type    : Internal method.
-#  Title   : _y_internals
-#  Usage   : $treedrawer->_y_internals;
-#  Function:
-#  Returns :
-#  Args    :
-# 
-# =end comment
-# 
-# =cut
-# 
-# sub _y_internals {
-#     my $self = shift;
-#     my $tree = $self->get_tree;
-#     while ( !$tree->get_root->get_y ) {
-#         foreach my $e ( @{ $tree->get_internals } ) {
-#             my $y1 = $e->get_first_daughter->get_y;
-#             my $y2 = $e->get_last_daughter->get_y;
-#             if ( $y1 && $y2 ) {
-#                 my $y = ( $y1 + $y2 ) / 2;
-#                 $e->set_y( $y );
-#             }
-#         }
-#     }
-# }
-
 =back
 
 =head1 SEE ALSO
@@ -1058,7 +1053,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: Treedrawer.pm 1264 2010-03-08 16:15:24Z rvos $
+ $Id: Treedrawer.pm 1290 2010-04-01 13:37:56Z rvos $
 
 =cut
 

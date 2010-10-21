@@ -50,7 +50,7 @@ For more information about the nexml data standard, visit L<http://www.nexml.org
 
 =head1 REVISION
 
- $Id: Nexml.pm 1260 2010-03-04 23:13:22Z rvos $
+ $Id: Nexml.pm 1302 2010-06-11 15:33:11Z rvos $
 
 =cut
 
@@ -252,8 +252,8 @@ sub _handle_nexml {
 	my ( $project_obj, $project_id ) = $self->_obj_from_elt( $nexml_elt, 'project' );
 	push @{ $self->{'_blocks'} }, $project_obj;
 	$logger->info( $self->_pos . " Processed nexml element" );
-	if ( $nexml_elt->att('version') != 0.8 ) {
-		throw 'BadFormat' => 'Wrong version number, can only handle 0.8: ' . $nexml_elt->att('version');
+	if ( $nexml_elt->att('version') != 0.9 ) {
+		throw 'BadFormat' => 'Wrong version number, can only handle 0.9: ' . $nexml_elt->att('version');
 	}
 }
 
@@ -723,13 +723,13 @@ sub _process_meta {
     }
     my $meta = $factory->create_meta( '-triple' => { $predicate => $object } );
     for my $child_meta_elt ( $meta_elt->children() ) {
-	if ( $child_meta_elt->gi eq 'meta' ) {
-		$meta->add_meta( $self->_process_meta( $child_meta_elt ) );
-	}
-	else {
-		my $lit = Bio::Phylo::NeXML::Meta::XMLLiteral->new($child_meta_elt);
-		$meta->set_triple( $predicate => $lit );
-	}
+		if ( $child_meta_elt->gi eq 'meta' ) {
+			$meta->add_meta( $self->_process_meta( $child_meta_elt ) );
+		}
+		else {
+			my $lit = Bio::Phylo::NeXML::Meta::XMLLiteral->new($child_meta_elt);
+			$meta->set_triple( $predicate => $lit );
+		}
     }
     return $meta;
 }

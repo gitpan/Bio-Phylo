@@ -1,6 +1,11 @@
 package Bio::Phylo::Project;
 use Bio::Phylo::Listable ();
-use Bio::Phylo::Util::CONSTANT qw(:objecttypes looks_like_object looks_like_instance);
+use Bio::Phylo::Util::CONSTANT qw(
+	:namespaces
+	:objecttypes
+	looks_like_object
+	looks_like_instance
+);
 use Bio::Phylo::Util::Exceptions 'throw';
 #use UNIVERSAL 'isa';
 use vars '@ISA';
@@ -53,10 +58,10 @@ sub new {
 	my %args = (
 		'-tag'        => 'nex:nexml',
 		'-attributes' => {
-			'version'   => '0.8',
+			'version'   => '0.9',
 			'generator' => "$class v.$version",			
-			'xmlns'     => 'http://www.nexml.org/1.0',			
-			'xsi:schemaLocation' => 'http://www.nexml.org/1.0 http://www.nexml.org/1.0/nexml.xsd',
+			'xmlns'     => _NS_NEXML_,			
+			'xsi:schemaLocation' => _NS_NEXML_ . ' ' . _NS_NEXML_ . '/nexml.xsd',
 		},
 		'-identifiable' => 0,
 	);
@@ -304,7 +309,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: Project.pm 1259 2010-03-04 23:11:42Z rvos $
+ $Id: Project.pm 1302 2010-06-11 15:33:11Z rvos $
 
 =cut
 

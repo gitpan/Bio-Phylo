@@ -1,4 +1,4 @@
-# $Id: 06-tree.t 1247 2010-03-04 15:47:17Z rvos $
+# $Id: 06-tree.t 1302 2010-06-11 15:33:11Z rvos $
 use strict;
 use Bio::Phylo::Util::CONSTANT 'looks_like_instance';
 use Test::More tests => 48;
@@ -68,7 +68,7 @@ ok( !$unresolved->is_binary,             '18 is binary' );
 ok( !$unresolved->is_ultrametric,        '19 is ultrametric' );
 
 eval { $unresolved->calc_rohlf_stemminess };
-ok( looks_like_instance( $@, 'Bio::Phylo::Util::Exceptions::ObjectMismatch' ), '20 calc rohlf stemminess' );
+ok( looks_like_instance( $@, 'Bio::Phylo::Util::Exceptions::ObjectMismatch' ), '20 calc rohlf stemminess: ' . ref($@));
 
 eval { $unresolved->calc_imbalance };
 ok( looks_like_instance( $@, 'Bio::Phylo::Util::Exceptions::ObjectMismatch' ), '21 calc imbalance' );
@@ -129,7 +129,7 @@ my $undef = $treeset->[3];
 $root = $undef->get_root;
 
 eval { $undef->calc_rohlf_stemminess };
-ok( looks_like_instance( $@, 'Bio::Phylo::Util::Exceptions::ObjectMismatch' ), '44 calc rohlf stemminess' );
+ok( looks_like_instance( $@, 'Bio::Phylo::Util::Exceptions::ObjectMismatch' ), '44 calc rohlf stemminess: ' . ref($@) );
 
 eval { $undef->get('BAD!') };
 ok( looks_like_instance( $@, 'Bio::Phylo::Util::Exceptions::UnknownMethod' ), '45 bad arg get' );
