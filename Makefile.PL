@@ -1,4 +1,4 @@
-# $Id: Makefile.PL 1388 2010-10-21 16:25:27Z rvos $
+# $Id: Makefile.PL 1390 2010-10-21 16:34:07Z rvos $
 use strict;
 use warnings;
 use ExtUtils::MakeMaker;
