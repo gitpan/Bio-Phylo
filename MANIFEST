@@ -1,6 +1,4 @@
 COPYING
-inheritance.dot
-inheritance.sh
 lib/Bio/Phylo.pm
 lib/Bio/Phylo/EvolutionaryModels.pm
 lib/Bio/Phylo/Factory.pm
