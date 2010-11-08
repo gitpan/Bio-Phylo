@@ -1,4 +1,4 @@
-# $Id$
+# $Id: DOM.pm 1401 2010-10-22 15:02:22Z rvos $
 package Bio::Phylo::NeXML::DOM;
 use strict;
 use Bio::Phylo ();

@@ -155,7 +155,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: Svg.pm 1290 2010-04-01 13:37:56Z rvos $
+ $Id: Canvas.pm 1401 2010-10-22 15:02:22Z rvos $
 
 =cut
 

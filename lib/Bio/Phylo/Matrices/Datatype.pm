@@ -1,4 +1,4 @@
-# $Id: Datatype.pm 1247 2010-03-04 15:47:17Z rvos $
+# $Id: Datatype.pm 1453 2010-11-01 00:12:48Z rvos $
 package Bio::Phylo::Matrices::Datatype;
 use Bio::Phylo::NeXML::Writable ();
 use Bio::Phylo::Factory;
@@ -686,7 +686,7 @@ Writes data type definitions to xml
 			my $special = $self->get_ids_for_special_symbols;
 			if ( %{ $special } ) {
 			    my $uss = $fac->create_xmlwritable( '-tag' => 'uncertain_state_set');
-			    my $mbr = $fac->create_xmlwritable( '-tag' => 'member');
+			    my $mbr = $fac->create_xmlwritable( '-tag' => 'member', '-identifiable' => 0 );
 			    $uss->set_attributes(
 					'id'     => "s".$special->{$gap},
 					'symbol' => '-'
@@ -723,7 +723,7 @@ Writes data type definitions to xml
 		my $elt = $fac->create_xmlwritable( '-tag' =>
 		    $polymorphism ? 'polymorphic_state_set' : 'uncertain_state_set'
 		);
-		my $mbr = $fac->create_xmlwritable( '-tag' => 'member');
+		my $mbr = $fac->create_xmlwritable( '-tag' => 'member', '-identifiable' => 0 );
 		$elt->set_attributes( 'id' => $state_id, 'symbol' => $symbol );
 		$xml .= "\n".$elt->get_xml_tag();
 		for ( @mapping ) {
@@ -819,11 +819,11 @@ Analog to to_xml.
 				$uss->set_attributes( 'symbol' => '?' );
 				my $mbr;
 				for (@states) {
-				    $mbr = $dom->create_element('-tag'=>'member');
+				    $mbr = $dom->create_element( '-tag' => 'member', '-identifiable' => 0 );
 				    $mbr->set_attributes( 'state' => $id_for_state->{$_} );
 				    $uss->set_child($mbr);
 				}
-				$mbr = $dom->create_element('-tag'=>'member');
+				$mbr = $dom->create_element( '-tag' => 'member', '-identifiable' => 0 );
 				$mbr->set_attributes( 'state' => 's'.$special->{$gap} );
 				$uss->set_child($mbr);
 				$elt->set_child($uss);
@@ -848,7 +848,7 @@ Analog to to_xml.
 			    $elt->set_attributes( 'id' => $state_id );
 			    $elt->set_attributes( 'symbol' => $symbol );
 	            for my $map ( @mapping ) {
-					my $mbr = $dom->create_element('-tag'=>'member');
+					my $mbr = $dom->create_element( '-tag' => 'member', '-identifiable' => 0 );
 					$mbr->set_attributes('state' => $id_for_state->{ $map } );
 					$elt->set_child($mbr);
 	            }
@@ -887,7 +887,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: Datatype.pm 1247 2010-03-04 15:47:17Z rvos $
+ $Id: Datatype.pm 1453 2010-11-01 00:12:48Z rvos $
 
 =cut
 

@@ -1,4 +1,4 @@
-# $Id: Tree.pm 1302 2010-06-11 15:33:11Z rvos $
+# $Id: Tree.pm 1296 2010-05-10 16:18:34Z rvos $
 package Bio::Phylo::Forest::Tree;
 use strict;
 use Bio::Phylo::Listable ();
@@ -2461,7 +2461,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: Tree.pm 1302 2010-06-11 15:33:11Z rvos $
+ $Id: Tree.pm 1296 2010-05-10 16:18:34Z rvos $
 
 =cut
 

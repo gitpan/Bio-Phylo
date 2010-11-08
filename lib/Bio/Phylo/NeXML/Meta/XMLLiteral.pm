@@ -148,7 +148,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: Annotation.pm 1040 2009-05-28 04:26:49Z rvos $
+ $Id: XMLLiteral.pm 1401 2010-10-22 15:02:22Z rvos $
 
 =cut  
     

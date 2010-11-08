@@ -1,4 +1,4 @@
-#$Id$
+#$Id: Twig.pm 1401 2010-10-22 15:02:22Z rvos $
 package Bio::Phylo::NeXML::DOM::Element::Twig;
 use strict;
 use Bio::Phylo::Util::CONSTANT qw(looks_like_instance looks_like_hash);

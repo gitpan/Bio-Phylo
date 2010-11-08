@@ -212,7 +212,9 @@ Serializes invocant to XML.
 	sub _add_project_metadata {
 		my $self = shift;
 		$self->set_namespaces( 'dc' => _NS_DC_ );
-		$self->add_meta( $fac->create_meta( '-triple' => { 'dc:creator' => $ENV{'USER'} } ) );
+		if ( my $user = $ENV{'USER'} ) {
+			$self->add_meta( $fac->create_meta( '-triple' => { 'dc:creator' => $user } ) );
+		}
 		eval { require DateTime };
 		if ( not $@ ) {
 			$self->add_meta( $fac->create_meta( '-triple' => { 'dc:date' => DateTime->now() } ) );		
@@ -329,7 +331,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: Project.pm 1397 2010-10-22 14:43:24Z rvos $
+ $Id: Project.pm 1450 2010-11-01 00:09:57Z rvos $
 
 =cut
 

@@ -1,4 +1,4 @@
-# $Id: Datum.pm 1247 2010-03-04 15:47:17Z rvos $
+# $Id: Datum.pm 1452 2010-11-01 00:11:59Z rvos $
 package Bio::Phylo::Matrices::Datum;
 use vars '@ISA';
 use strict;
@@ -871,7 +871,7 @@ Serializes datum to nexml format.
 		my $xml = $self->get_xml_tag;
 		
 		if ( not $args{'-compact'} ) {
-		    my $cell = $fac->create_xmlwritable( '-tag' => 'cell' );
+		    my $cell = $fac->create_xmlwritable( '-tag' => 'cell', '-identifiable' => 0 );
 			for my $i ( 0 .. $#char ) {
 			        my ( $c, $s );
 				if ( $missing ne $char[$i] and $gap ne $char[$i] ) {
@@ -902,8 +902,8 @@ Serializes datum to nexml format.
 						$s = $char[$i];
 					}
 				}
-			        $cell->set_attributes( 'char' => $c, 'state' => $s );
-			        $xml .= $cell->get_xml_tag(1);
+			    $cell->set_attributes( 'char' => $c, 'state' => $s );
+			    $xml .= $cell->get_xml_tag(1);
 			}
 		}
 		else {
@@ -1090,7 +1090,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: Datum.pm 1247 2010-03-04 15:47:17Z rvos $
+ $Id: Datum.pm 1452 2010-11-01 00:11:59Z rvos $
 
 =cut
 

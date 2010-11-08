@@ -199,7 +199,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: Factory.pm 1302 2010-06-11 15:33:11Z rvos $
+ $Id: Factory.pm 1247 2010-03-04 15:47:17Z rvos $
 
 =cut
 
