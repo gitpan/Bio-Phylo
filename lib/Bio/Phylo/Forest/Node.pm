@@ -1,4 +1,4 @@
-# $Id: Node.pm 1288 2010-03-29 16:21:54Z rvos $
+# $Id: Node.pm 1468 2010-11-12 23:13:26Z rvos $
 package Bio::Phylo::Forest::Node;
 use strict;
 use Bio::Phylo::Factory;
@@ -2131,37 +2131,6 @@ Clones invocant.
 
 =over
 
-=item to_json()
-
-Serializes object to JSON string
-
- Type    : Serializer
- Title   : to_json()
- Usage   : print $obj->to_json();
- Function: Serializes object to JSON string
- Returns : String 
- Args    : None
- Comments:
-
-=cut
-
-    sub to_json {
-        my $node = shift;
-        my %args = @_;
-        my $extra_attr = \%args;
-        $extra_attr->{'get_branch_length'} = 'length';
-        if ( my @children = @{ $node->get_children } ) {
-            return '{' 
-                . $node->_to_json( $extra_attr )
-                . ',"children":['
-                . ( join ',', map { $_->to_json } @children )
-                . ']}';
-        }
-        else {
-            return '{' . $node->_to_json($extra_attr) . '}';
-        }
-    }
-
 =item to_xml()
 
 Serializes invocant to xml.
@@ -2482,7 +2451,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: Node.pm 1288 2010-03-29 16:21:54Z rvos $
+ $Id: Node.pm 1468 2010-11-12 23:13:26Z rvos $
 
 =cut
 
