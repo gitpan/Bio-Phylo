@@ -1,4 +1,4 @@
-# $Id: Taxa.pm 1235 2010-03-02 16:11:07Z rvos $
+# $Id: Taxa.pm 1485 2010-11-15 14:25:04Z rvos $
 package Bio::Phylo::Taxa;
 use strict;
 use Bio::Phylo::Listable ();
@@ -73,20 +73,20 @@ Taxa constructor.
 
 =cut
 
-    sub new {
-        # could be child class
-        my $class = shift;
-        
-        # notify user
-        $logger->info("constructor called for '$class'");
-        
-        # recurse up inheritance tree, get ID
-        my $self = $class->SUPER::new( '-tag' => 'otus', @_ );
-        
-        # local fields would be set here
-        
-        return $self;
-    }
+#     sub new {
+#         # could be child class
+#         my $class = shift;
+#         
+#         # notify user
+#         $logger->info("constructor called for '$class'");
+#         
+#         # recurse up inheritance tree, get ID
+#         my $self = $class->SUPER::new( '-tag' => __PACKAGE__->_tag, @_ );
+#         
+#         # local fields would be set here
+#         
+#         return $self;
+#     }
 
 =back
 
@@ -371,7 +371,8 @@ Serializes invocant to nexus format.
 
 =cut
 
-    sub _type { $TYPE }
+    sub _type { $TYPE  }
+    sub _tag  { 'otus' }
 
 =back
 
@@ -396,7 +397,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: Taxa.pm 1235 2010-03-02 16:11:07Z rvos $
+ $Id: Taxa.pm 1485 2010-11-15 14:25:04Z rvos $
 
 =cut
 

@@ -67,9 +67,9 @@ eval <<"CODE_TEMPLATE";
  		}		
 		if ( \$verbosity >= \$${method} ) {			
 			my \$log_string;
-			if ( \$filename =~ s/\\Q\$class_dir\\E// ) {
+			if ( substr(\$filename,0,length(\$class_dir)) eq \$class_dir ) {
 				\$log_string = sprintf( "%s %s [\\\$PREFIX/%s, %s] - %s\\n",
-				uc("$method"), \$subroutine, \$filename, \$line, \$msg );
+				uc("$method"), \$subroutine, substr(\$filename,length(\$class_dir)), \$line, \$msg );
 			}
 			else {
 				\$log_string = sprintf( "%s %s [%s, %s] - %s\\n",
@@ -462,6 +462,6 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: Logger.pm 1239 2010-03-03 13:19:56Z rvos $
+ $Id: Logger.pm 1488 2010-11-15 15:15:12Z rvos $
 
 =cut

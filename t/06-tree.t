@@ -1,4 +1,4 @@
-# $Id: 06-tree.t 1247 2010-03-04 15:47:17Z rvos $
+# $Id: 06-tree.t 1302 2010-06-11 15:33:11Z rvos $
 use strict;
 use Bio::Phylo::Util::CONSTANT 'looks_like_instance';
 use Test::More tests => 48;

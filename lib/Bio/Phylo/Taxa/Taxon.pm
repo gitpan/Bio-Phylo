@@ -1,4 +1,4 @@
-# $Id: Taxon.pm 1247 2010-03-04 15:47:17Z rvos $
+# $Id: Taxon.pm 1478 2010-11-15 14:09:12Z rvos $
 package Bio::Phylo::Taxa::Taxon;
 use strict;
 use Bio::Phylo::NeXML::Writable ();
@@ -96,16 +96,16 @@ Taxon constructor.
 
 =cut
 
-    sub new {
-        # could be child class
-        my $class = shift;
-        
-        # notify user
-        $logger->info("constructor called for '$class'");
-        
-        # go up inheritance tree, eventually get an ID
-        return $class->SUPER::new( '-tag' => 'otu', @_ );
-    }
+#     sub new {
+#         # could be child class
+#         my $class = shift;
+#         
+#         # notify user
+#         $logger->info("constructor called for '$class'");
+#         
+#         # go up inheritance tree, eventually get an ID
+#         return $class->SUPER::new( '-tag' => __PACKAGE__->_tag, @_ );
+#     }
 
 =back
 
@@ -323,6 +323,7 @@ Taxon destructor.
 =cut
 
     sub _type { $TYPE_CONSTANT }
+    sub _tag  { 'otu' }
 
 =back
 
@@ -347,7 +348,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: Taxon.pm 1247 2010-03-04 15:47:17Z rvos $
+ $Id: Taxon.pm 1478 2010-11-15 14:09:12Z rvos $
 
 =cut
 

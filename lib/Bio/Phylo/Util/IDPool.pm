@@ -18,7 +18,7 @@ use strict;
 
     sub _reclaim {
         my ( $class, $obj ) = @_;
-        push @reclaim, $obj->get_id;
+#        push @reclaim, $obj->get_id;
     }
 }
 1;
@@ -46,6 +46,6 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: IDPool.pm 1035 2009-05-26 16:50:14Z maj1 $
+ $Id: IDPool.pm 1487 2010-11-15 15:13:58Z rvos $
 
 =cut

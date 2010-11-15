@@ -1,4 +1,4 @@
-# $Id: Forest.pm 1235 2010-03-02 16:11:07Z rvos $
+# $Id: Forest.pm 1489 2010-11-15 15:19:11Z rvos $
 package Bio::Phylo::Forest;
 use strict;
 use Bio::Phylo::Listable ();
@@ -66,21 +66,21 @@ Forest constructor.
 
 =cut
 
-	sub new {
-
-		# could be child class
-		my $class = shift;
-
-		# notify user
-		$logger->info("constructor called for '$class'");
-
-		# recurse up inheritance tree, get ID
-		my $self = $class->SUPER::new( '-tag' => 'trees', @_ );
-
-		# local fields would be set here
-
-		return $self;
-	}
+# 	sub new {
+# 
+# 		# could be child class
+# 		my $class = shift;
+# 
+# 		# notify user
+# 		$logger->info("constructor called for '$class'");
+# 
+# 		# recurse up inheritance tree, get ID
+# 		my $self = $class->SUPER::new( '-tag' => __PACKAGE__->_tag, @_ );
+# 
+# 		# local fields would be set here
+# 
+# 		return $self;
+# 	}
 
 =back
 
@@ -646,6 +646,7 @@ Serializer to nexus format.
 =cut
 
 	sub _type { $CONSTANT_TYPE }
+	sub _tag  { 'trees' }
 
 =back
 
@@ -675,7 +676,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: Forest.pm 1235 2010-03-02 16:11:07Z rvos $
+ $Id: Forest.pm 1489 2010-11-15 15:19:11Z rvos $
 
 =cut
 

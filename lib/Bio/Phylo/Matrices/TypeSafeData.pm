@@ -1,4 +1,4 @@
-# $Id: TypeSafeData.pm 1247 2010-03-04 15:47:17Z rvos $
+# $Id: TypeSafeData.pm 1483 2010-11-15 14:19:17Z rvos $
 package Bio::Phylo::Matrices::TypeSafeData;
 use Bio::Phylo::Listable ();
 use Bio::Phylo::Util::Exceptions 'throw';
@@ -214,7 +214,7 @@ Set data type object.
     sub set_type_object {
         my ( $self, $obj ) = @_;
         $logger->info("setting character type object");
-        $type{$$self} = $obj;
+        $type{$self->get_id} = $obj;
         eval {
             $self->validate
         };
@@ -247,7 +247,15 @@ Get data type.
 
 =cut
 
-    sub get_type { shift->get_type_object->get_type }
+    sub get_type { 
+    	my $to = shift->get_type_object;
+    	if ( $to ) {
+    		return $to->get_type;
+    	}
+    	else {
+    		throw 'API' => "Missing data type object!";
+    	}
+    }
 
 =item get_missing()
 
@@ -262,7 +270,15 @@ Get missing data symbol.
 
 =cut
 
-    sub get_missing { shift->get_type_object->get_missing }
+    sub get_missing { 
+    	my $to = shift->get_type_object;
+    	if ( $to ) {
+    		return $to->get_missing;
+    	}
+    	else {
+    		throw 'API' => "Missing data type object!";
+    	}
+    }
 
 =item get_gap()
 
@@ -307,7 +323,7 @@ Get data type object.
 
 =cut
 
-    sub get_type_object { $type{ ${ $_[0] } } }
+    sub get_type_object { $type{ $_[0]->get_id } }
 
 =back
 
@@ -381,7 +397,7 @@ Validates the object's contents
     
     sub _cleanup {
         my $self = shift;
-        if ( $self and defined( my $id = $$self ) ) {
+        if ( $self and defined( my $id = $self->get_id ) ) {
 	        $logger->debug("cleaning up '$self'");
 	        delete $type{ $self->get_id };
         }
@@ -412,7 +428,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: TypeSafeData.pm 1247 2010-03-04 15:47:17Z rvos $
+ $Id: TypeSafeData.pm 1483 2010-11-15 14:19:17Z rvos $
 
 =cut
 
