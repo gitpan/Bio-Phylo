@@ -1,4 +1,4 @@
-# $Id: CONSTANT.pm 1399 2010-10-22 14:45:17Z rvos $
+# $Id: CONSTANT.pm 1496 2010-11-15 23:25:03Z rvos $
 package Bio::Phylo::Util::CONSTANT;
 use strict;
 use Scalar::Util 'blessed';
@@ -203,11 +203,7 @@ sub looks_like_object($$) {
 }
 
 sub looks_like_implementor($$) {
-	my ( $object, $method ) = @_;
-	if ( blessed $object ) {
-		return $object->can($method);
-	}
-	return;
+	return UNIVERSAL::can($_[0],$_[1]);
 }
 
 sub looks_like_instance($$) {
@@ -365,7 +361,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: CONSTANT.pm 1399 2010-10-22 14:45:17Z rvos $
+ $Id: CONSTANT.pm 1496 2010-11-15 23:25:03Z rvos $
 
 =cut
 

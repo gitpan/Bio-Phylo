@@ -1,4 +1,4 @@
-# $Id: IO.pm 1235 2010-03-02 16:11:07Z rvos $
+# $Id: IO.pm 1500 2010-11-16 19:46:37Z rvos $
 package Bio::Phylo::IO;
 use Bio::Phylo ();
 use Bio::Phylo::Util::CONSTANT qw(looks_like_class looks_like_hash);
@@ -6,7 +6,7 @@ use Bio::Phylo::Util::Exceptions 'throw';
 use IO::File;
 use strict;
 my @parsers        = qw(Newick Nexus Table Taxlist);
-my @unparsers      = qw(Newick Pagel Svg);
+my @unparsers      = qw(Newick Pagel Svg Phylip);
 my $cached_parsers = {};
 
 BEGIN {
@@ -302,7 +302,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>
 
 =head1 REVISION
 
- $Id: IO.pm 1235 2010-03-02 16:11:07Z rvos $
+ $Id: IO.pm 1500 2010-11-16 19:46:37Z rvos $
 
 =cut
 

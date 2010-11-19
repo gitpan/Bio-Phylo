@@ -1,4 +1,4 @@
-# $Id: Node.pm 1479 2010-11-15 14:11:21Z rvos $
+# $Id: Node.pm 1515 2010-11-19 15:15:54Z rvos $
 package Bio::Phylo::Forest::Node;
 use strict;
 use Bio::Phylo::Factory;
@@ -1153,11 +1153,12 @@ Gets invocant's most recent common ancestor shared with argument.
 
 	sub get_mrca {
 		my ( $self, $other_node ) = @_;
-		my $self_anc  = $self->get_ancestors;
-		my $other_anc = $other_node->get_ancestors;
+		my $self_anc  = $self->get_ancestors || [ $self ];
+		my $other_anc = $other_node->get_ancestors || [ $other_node ];
 		for my $i ( 0 .. $#{$self_anc} ) {
+			my $self_anc_id = $self_anc->[$i]->get_id;
 			for my $j ( 0 .. $#{$other_anc} ) {
-				if ( ${ $self_anc->[$i] } == ${ $other_anc->[$j] } ) {
+				if ( $self_anc_id == $other_anc->[$j]->get_id ) {
 					return $self_anc->[$i];
 				}
 			}
@@ -2453,7 +2454,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: Node.pm 1479 2010-11-15 14:11:21Z rvos $
+ $Id: Node.pm 1515 2010-11-19 15:15:54Z rvos $
 
 =cut
 

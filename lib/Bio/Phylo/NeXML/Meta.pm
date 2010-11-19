@@ -80,7 +80,7 @@ as an element called 'meta', with RDFa compliant attributes.
 
 =cut    
 
-    sub new { return shift->SUPER::new( '-tag' => 'meta', @_ ) }   
+#     sub new { return shift->SUPER::new( '-tag' => 'meta', @_ ) }   
     
     my $set_content = sub {
         my ( $self, $content ) = @_;
@@ -294,10 +294,11 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: Meta.pm 1401 2010-10-22 15:02:22Z rvos $
+ $Id: Meta.pm 1501 2010-11-16 19:47:42Z rvos $
 
 =cut    
     
+    sub _tag { 'meta' }
     sub _type { $TYPE_CONSTANT }
     sub _container { $CONTAINER_CONSTANT }    
     sub _cleanup {

@@ -1,4 +1,4 @@
-# $Id: Nexus.pm 1385 2010-10-21 15:51:30Z rvos $
+# $Id: Nexus.pm 1510 2010-11-16 23:42:34Z rvos $
 package Bio::Phylo::Parsers::Nexus;
 use strict;
 use Bio::Phylo::Factory;
@@ -788,7 +788,6 @@ sub _add_matrix_metadata {
 sub _add_tokens_to_row {
 	my ( $self, $tokens ) = @_;
 	my $rowname;
-	$logger->debug("adding tokens to row");
 	for my $token ( @{ $tokens } ) {
 	    $logger->debug("token: $token");
 		last if $token eq ';';
@@ -829,7 +828,6 @@ sub _add_tokens_to_row {
 			else {
 				push @{ $row }, split( //, $token );
 			}
-			$logger->debug("added states to row: $token");
 		}
 	}
 }
@@ -965,7 +963,6 @@ sub _matrix {
             	'-type_object' => $self->_current->get_type_object,
             	'-name'        => $row,       
             );
-            $logger->debug(sprintf("row: %s", join '', @{ $self->{'_matrix'}->{ $row } }));
             my $char = $self->_resolve_ambig( $datum, $self->{'_matrix'}->{ $row } );
             $datum->set_char( $char );
 
@@ -1176,7 +1173,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: Nexus.pm 1385 2010-10-21 15:51:30Z rvos $
+ $Id: Nexus.pm 1510 2010-11-16 23:42:34Z rvos $
 
 =cut
 

@@ -8,6 +8,7 @@ lib/Bio/Phylo/Forest/DrawTree.pm
 lib/Bio/Phylo/Forest/Node.pm
 lib/Bio/Phylo/Forest/Tree.pm
 lib/Bio/Phylo/Generator.pm
+lib/Bio/Phylo/Identifiable.pm
 lib/Bio/Phylo/IO.pm
 lib/Bio/Phylo/Listable.pm
 lib/Bio/Phylo/Manual.pod
@@ -61,6 +62,7 @@ lib/Bio/Phylo/Unparsers/Newick.pm
 lib/Bio/Phylo/Unparsers/Nexml.pm
 lib/Bio/Phylo/Unparsers/Nexus.pm
 lib/Bio/Phylo/Unparsers/Pagel.pm
+lib/Bio/Phylo/Unparsers/Phylip.pm
 lib/Bio/Phylo/Util/CONSTANT.pm
 lib/Bio/Phylo/Util/Exceptions.pm
 lib/Bio/Phylo/Util/IDPool.pm

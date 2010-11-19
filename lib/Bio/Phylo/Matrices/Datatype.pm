@@ -1,4 +1,4 @@
-# $Id: Datatype.pm 1484 2010-11-15 14:23:18Z rvos $
+# $Id: Datatype.pm 1511 2010-11-16 23:43:10Z rvos $
 package Bio::Phylo::Matrices::Datatype;
 use Bio::Phylo::NeXML::Writable ();
 use Bio::Phylo::Factory;
@@ -62,73 +62,33 @@ Datatype constructor.
 =cut
 
     sub new {
-        my $package = shift;
-        my $type = ucfirst( lc( shift ) );
-        if ( not $type ) {
-        	throw 'BadArgs' => "No subtype specified!";
-        }
-        if ( $type eq 'Nucleotide' ) {
-            $logger->warn("'nucleotide' datatype requested, using 'dna'");
-            $type = 'Dna';
-        }
-        my $typeclass = __PACKAGE__ . '::' . $type;
-        my $self      = __PACKAGE__->SUPER::new( '-tag' => __PACKAGE__->_tag ); 
-        eval "require $typeclass"; 
-        if ( $@ ) {
-        	throw 'BadFormat' => "'$type' is not a valid datatype";
-        }
-        else {
-            return $typeclass->_new( $self, @_ );
-        }
-    }
-    
-    sub _new { 
         my $class = shift;
-        my $self  = shift;
-        my ( $lookup, $missing, $gap );
-        {
-            no strict 'refs'; 
-            $lookup  = ${ $class . '::LOOKUP'  };
-            $missing = ${ $class . '::MISSING' }; 
-            $gap     = ${ $class . '::GAP'     };
-            use strict;
+        
+        # constructor called with type string
+        if ( $class eq __PACKAGE__ ) {
+			my $type = ucfirst( lc( shift ) );
+			if ( not $type ) {
+				throw 'BadArgs' => "No subtype specified!";
+			}
+			if ( $type eq 'Nucleotide' ) {
+				$logger->warn("'nucleotide' datatype requested, using 'dna'");
+				$type = 'Dna';
+			}
+			return looks_like_class( __PACKAGE__ . '::' . $type )->SUPER::new(@_);
         }
-        bless $self, $class;
-        $self->set_lookup(  $lookup  ) if defined $lookup;
-        $self->set_missing( $missing ) if defined $missing;
-        $self->set_gap(     $gap     ) if defined $gap;
         
-		# process further args
-		while ( my @args = looks_like_hash @_ ) {
-
-			my $key   = shift @args;
-			my $value = shift @args;
-
-			# notify user
-			$logger->debug("processing arg '$key'");
-
-			# don't access data structures directly, call mutators
-			# in child classes or __PACKAGE__
-			my $mutator = $key;
-			$mutator =~ s/^-/set_/;
-
-			# backward compat fixes:
-			$mutator =~ s/^set_pos$/set_position/;
-			$mutator =~ s/^set_matrix$/set_raw/;
-			
-			# bad argument?
-			eval {
-				$self->$mutator($value);
-			};
-			if ( $@ and not ref $@ and $@ =~ m/^Can't locate object method/ ) {
-				throw 'UnknownMethod' => "Processing argument '$key' as method '$mutator' failed: $@";
-			}
-			elsif ( looks_like_instance $@, 'Bio::Phylo::Util::Exceptions' ) {
-				$@->rethrow;
-			}
-		}         
-        
-        return $self;
+        # constructor called from type subclass
+        else {
+        	my %args = looks_like_hash @_;
+			{
+				no strict 'refs'; 
+				$args{'-lookup'}  = ${ "${class}::LOOKUP"  } if ${ "${class}::LOOKUP"  };
+				$args{'-missing'} = ${ "${class}::MISSING" } if ${ "${class}::MISSING" }; 
+				$args{'-gap'}     = ${ "${class}::GAP"     } if ${ "${class}::GAP"     };
+				use strict;
+			}        	
+        	return $class->SUPER::new(%args);
+        }
     }
 
 =back
@@ -404,7 +364,6 @@ Gets state lookup table.
 
     sub get_lookup {
         my $self = shift;
-        $logger->debug("getting lookup table for state set $self");
         my $id = $self->get_id;
         if ( exists $lookup{$id} ) {
             return $lookup{$id};
@@ -486,15 +445,15 @@ Validates argument.
 =cut
 
     sub is_valid {
-        my $self = shift;        
+        my $self = shift;
         my @data;
         for my $arg ( @_ ) {
-        	if ( looks_like_implementor $arg, 'get_char' ) {
-        		push @data, $arg->get_char;
-        	}
-        	elsif ( looks_like_instance $arg, 'ARRAY' ) {
+        	if ( ref $arg eq 'ARRAY' ) {
         		push @data, @{ $arg };
         	}
+        	elsif ( looks_like_implementor $arg, 'get_char' ) {
+        		push @data, $arg->get_char;
+        	}        	
         	else {
         		if ( length($arg) > 1 ) {
         			push @data, @{ $self->split( $arg ) };
@@ -506,16 +465,12 @@ Validates argument.
         }
         return 1 if not @data;
         my $lookup = $self->get_lookup;
-        my ( $missing, $gap ) = ( $self->get_missing, $self->get_gap );
+        my @symbols = ( $self->get_missing, $self->get_gap, keys %{ $lookup } );
+        my %symbols = map { $_ => 1 } grep { defined $_ } @symbols;
         CHAR_CHECK: for my $char ( @data ) {            
             next CHAR_CHECK if not defined $char;
-            my $uc = uc $char;
-            if ( exists $lookup->{$uc} || ( defined $missing && $uc eq $missing ) || ( defined $gap && $uc eq $gap ) ) {
-                next CHAR_CHECK;
-            }
-            else {
-                return 0;
-            }
+            next CHAR_CHECK if $symbols{uc $char};
+			return 0;
         }
         return 1;
     }
@@ -898,7 +853,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: Datatype.pm 1484 2010-11-15 14:23:18Z rvos $
+ $Id: Datatype.pm 1511 2010-11-16 23:43:10Z rvos $
 
 =cut
 
