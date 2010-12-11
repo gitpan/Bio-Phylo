@@ -1,4 +1,4 @@
-# $Id: 14-nexus.t 1210 2010-02-18 14:00:42Z rvos $
+# $Id: 14-nexus.t 1524 2010-11-25 19:24:12Z rvos $
 use strict;
 #use warnings;
 use Test::More tests => 6;
@@ -254,10 +254,10 @@ print "--------------------------------------------------------------------\n";
 ok( parse( '-format' => 'nexus', '-string' => $testparse_trees ), '2 tree block' );
 print "--------------------------------------------------------------------\n";
 eval { parse( '-format' => 'nexus', '-string' => $testparse_taxa_bad ) };
-ok( $@->isa('Bio::Phylo::Util::Exceptions::BadFormat'), '3 bad ntax' );
+ok( UNIVERSAL::isa($@,'Bio::Phylo::Util::Exceptions::BadFormat'), '3 bad ntax' );
 print "--------------------------------------------------------------------\n";
 eval { parse( '-format' => 'nexus', '-string' => $testparse_bad ) };
-ok( $@->isa('Bio::Phylo::Util::Exceptions::BadFormat' ), '4 bad nchar' );
+ok( UNIVERSAL::isa($@,'Bio::Phylo::Util::Exceptions::BadFormat' ), '4 bad nchar' );
 print "--------------------------------------------------------------------\n";
 eval { parse( '-format' => 'nexus', '-file' => 'DOES_NOT_EXIST' ) };
 ok( $@->isa('Bio::Phylo::Util::Exceptions::FileError'), '5 file error' );

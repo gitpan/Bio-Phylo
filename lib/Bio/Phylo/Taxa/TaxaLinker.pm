@@ -1,4 +1,4 @@
-# $Id: TaxaLinker.pm 1235 2010-03-02 16:11:07Z rvos $
+# $Id: TaxaLinker.pm 1523 2010-11-25 19:21:43Z rvos $
 package Bio::Phylo::Taxa::TaxaLinker;
 use Bio::Phylo ();
 use Bio::Phylo::Mediators::TaxaMediator;
@@ -159,7 +159,6 @@ sub make_taxa {
 
 sub _cleanup { 
     my $self = shift;
-    $logger->debug("cleaning up '$self'"); 
 }
 
 =back
@@ -184,7 +183,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: TaxaLinker.pm 1235 2010-03-02 16:11:07Z rvos $
+ $Id: TaxaLinker.pm 1523 2010-11-25 19:21:43Z rvos $
 
 =cut
 

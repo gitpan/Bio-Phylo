@@ -1,4 +1,4 @@
-# $Id: CONSTANT.pm 1496 2010-11-15 23:25:03Z rvos $
+# $Id: CONSTANT.pm 1522 2010-11-25 19:20:09Z rvos $
 package Bio::Phylo::Util::CONSTANT;
 use strict;
 use Scalar::Util 'blessed';
@@ -222,14 +222,11 @@ sub looks_like_instance($$) {
 }
 
 sub looks_like_hash(@) {
-	my @array = @_;
-	my %hash;
-	eval { %hash = @array };
-	if ( $@ ) {
-		throw 'OddHash' => $@;
+	if ( scalar(@_) % 2 ) {
+		throw 'OddHash' => 'Odd number of elements in hash assignment';
 	}
 	else {
-		return @array;
+		return @_;
 	}
 }
 
@@ -361,7 +358,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: CONSTANT.pm 1496 2010-11-15 23:25:03Z rvos $
+ $Id: CONSTANT.pm 1522 2010-11-25 19:20:09Z rvos $
 
 =cut
 

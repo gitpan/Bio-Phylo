@@ -1,7 +1,7 @@
-# $Id: 09-matrix.t 1471 2010-11-12 23:15:54Z rvos $
+# $Id: 09-matrix.t 1564 2010-12-08 16:53:43Z rvos $
 use strict;
 use Bio::Phylo::Util::CONSTANT 'looks_like_instance';
-use Test::More tests => 29;
+use Test::More 'no_plan';
 use Bio::Phylo::Matrices::Datum;
 use Bio::Phylo::Matrices::Matrix;
 use Bio::Phylo;
@@ -151,3 +151,53 @@ ok($pruned->get_nchar == 1,'28 pruning keeps one char');
 
 my $kept = $prune_candidate->keep_chars([2]);
 ok($pruned->get_nchar == 1,'29 keeping on char');
+
+{
+    my $dna = Bio::Phylo::Matrices::Matrix->new(
+        -type   => 'dna',
+        -matrix => [
+            [ 'a' => qw(A C G T) ],
+            [ 'b' => qw(A G C T) ],
+            [ 'c' => qw(A C G T) ],
+        ],
+    );
+    like( $dna->get_type, qr/dna/i, '30 created dna matrix' );
+    is( $dna->get_nchar, 4, '31 dna matrix has 4 columns');
+    is( $dna->get_ntax, 3, '32 dna matrix has 3 rows');
+    my $freq = $dna->calc_state_frequencies;
+    is( $freq->{$_}, 0.25, "33 state frequency for $_" ) for qw(A C G T);
+    my $abs = $dna->calc_state_counts;
+    is( $abs->{$_}, 3, "34 state count for $_" ) for qw(A C G T);
+    is( $dna->calc_prop_invar, 0.5, "35 half of the sites invariant");
+}
+
+{
+    my $matrix = Bio::Phylo::Matrices::Matrix->new(
+        '-type' => 'dna',
+        '-matrix' => [
+            [ qw'taxon1 G T G T G T G T G T G T G T G T G T G T G T G' ],
+            [ qw'taxon2 A G A G A G A G A G A G A G A G A G A G A G A' ],
+            [ qw'taxon3 T C T C T C T C T C T C T C T C T C T C T C T' ],
+            [ qw'taxon4 T C T C T C T C T C T C T C T C T C T C T C T' ],
+            [ qw'taxon5 A A A A A A A A A A A A A A A A A A A A A A A' ],
+            [ qw'taxon6 C G C G C G C G C G C G C G C G C G C G C G C' ],
+            [ qw'taxon7 A A A A A A A A A A A A A A A A A A A A A A A' ],
+        ]
+    );
+    my $expected = [
+	[ 12, [ 'G', 'A', 'T', 'T', 'A', 'C', 'A' ] ],
+	[ 11, [ 'T', 'G', 'C', 'C', 'A', 'G', 'A' ] ],
+    ];
+    is_deeply( $matrix->calc_distinct_site_patterns, $expected, "36 site patterns" );
+}
+
+{
+    my $matrix = Bio::Phylo::Matrices::Matrix->new(
+        '-type' => 'dna',
+        '-matrix' => [
+            [ qw'taxon1 A C G T C G' ],
+            [ qw'taxon2 A C G T C G' ],
+        ]
+    );
+    is( $matrix->calc_gc_content, 2/3, '37 calc G+C content');
+}

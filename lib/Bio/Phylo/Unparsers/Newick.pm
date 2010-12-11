@@ -1,12 +1,12 @@
-# $Id: Newick.pm 1235 2010-03-02 16:11:07Z rvos $
+# $Id: Newick.pm 1532 2010-11-26 17:20:35Z rvos $
 package Bio::Phylo::Unparsers::Newick;
 use strict;
 use Bio::Phylo::Forest::Tree ();
-use Bio::Phylo::IO ();
+use Bio::Phylo::Unparsers::Abstract;
 use Bio::Phylo::Util::CONSTANT qw(:objecttypes);
 use vars qw(@ISA);
 
-@ISA=qw(Bio::Phylo::IO);
+@ISA=qw(Bio::Phylo::Unparsers::Abstract);
 
 =head1 NAME
 
@@ -48,38 +48,6 @@ call:
 	# specifies a branch length sprintf number formatting template, default is %f
 	-blformat => '%e'
 
-=begin comment
-
- Type    : Constructor
- Title   : _new
- Usage   : my $newick = Bio::Phylo::Unparsers::Newick->_new;
- Function: Initializes a Bio::Phylo::Unparsers::Newick object.
- Returns : A Bio::Phylo::Unparsers::Newick object.
- Args    : none.
-
-=end comment
-
-=cut
-
-sub _new {
-    my $class = shift;
-    my $self  = {};
-    if (@_) {
-        my %opts = @_;
-        foreach my $key ( keys %opts ) {
-            my $localkey = uc $key;
-            $localkey =~ s/-//;
-            unless ( ref $opts{$key} ) {
-                $self->{$localkey} = uc $opts{$key};
-            }
-            else {
-                $self->{$localkey} = $opts{$key};
-            }
-        }
-    }
-    bless $self, $class;
-    return $self;
-}
 
 =begin comment
 
@@ -223,7 +191,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: Newick.pm 1235 2010-03-02 16:11:07Z rvos $
+ $Id: Newick.pm 1532 2010-11-26 17:20:35Z rvos $
 
 =cut
 

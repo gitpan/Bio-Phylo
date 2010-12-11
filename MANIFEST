@@ -36,9 +36,12 @@ lib/Bio/Phylo/NeXML/DOM/Element/Twig.pm
 lib/Bio/Phylo/NeXML/Meta.pm
 lib/Bio/Phylo/NeXML/Meta/XMLLiteral.pm
 lib/Bio/Phylo/NeXML/Writable.pm
+lib/Bio/Phylo/Parsers/Abstract.pm
+lib/Bio/Phylo/Parsers/Fasta.pm
 lib/Bio/Phylo/Parsers/Newick.pm
 lib/Bio/Phylo/Parsers/Nexml.pm
 lib/Bio/Phylo/Parsers/Nexus.pm
+lib/Bio/Phylo/Parsers/Phylip.pm
 lib/Bio/Phylo/Parsers/Table.pm
 lib/Bio/Phylo/Parsers/Taxlist.pm
 lib/Bio/Phylo/Parsers/Tolweb.pm
@@ -57,6 +60,7 @@ lib/Bio/Phylo/Treedrawer/Pdf.pm
 lib/Bio/Phylo/Treedrawer/Png.pm
 lib/Bio/Phylo/Treedrawer/Svg.pm
 lib/Bio/Phylo/Treedrawer/Swf.pm
+lib/Bio/Phylo/Unparsers/Abstract.pm
 lib/Bio/Phylo/Unparsers/Mrp.pm
 lib/Bio/Phylo/Unparsers/Newick.pm
 lib/Bio/Phylo/Unparsers/Nexml.pm
@@ -101,6 +105,8 @@ t/25-dom-mapping.t
 t/26-dom.t
 t/28-reroot.t
 t/29-treemodels.t
+t/31-phylip.t
+t/32-tolweb.t
 t/perl-critic.t
 t/perlcriticrc
 t/pod-coverage.t

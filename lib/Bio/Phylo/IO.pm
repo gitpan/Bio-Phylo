@@ -1,13 +1,10 @@
-# $Id: IO.pm 1500 2010-11-16 19:46:37Z rvos $
+# $Id: IO.pm 1544 2010-12-05 13:14:47Z rvos $
 package Bio::Phylo::IO;
 use Bio::Phylo ();
 use Bio::Phylo::Util::CONSTANT qw(looks_like_class looks_like_hash);
 use Bio::Phylo::Util::Exceptions 'throw';
 use IO::File;
 use strict;
-my @parsers        = qw(Newick Nexus Table Taxlist);
-my @unparsers      = qw(Newick Pagel Svg Phylip);
-my $cached_parsers = {};
 
 BEGIN {
 	use Exporter ();
@@ -163,65 +160,42 @@ Parses a file or string.
 =cut
 
 sub parse {
-	if ( $_[0] and $_[0] eq __PACKAGE__ or ref $_[0] eq __PACKAGE__ ) {
-		shift;
-	}
-	my %opts;
-	if ( @ARGV and not scalar @ARGV % 2 ) {
+	# first argument could be the package name or an object reference
+	# if called as Bio::Phylo::IO->parse or as $io->parse, respectively
+	shift if $_[0] and $_[0] eq __PACKAGE__ or ref $_[0] eq __PACKAGE__;
+	
+	# arguments were provided on the command line, in @ARGV
+	if ( @ARGV ) {
 		my $i = 0;
-		while ( $i < scalar @ARGV ) {
+		while ( $i < @ARGV ) {
 			my ( $key, $value ) = ( $ARGV[$i], $ARGV[ $i + 1 ] );
+			
+			# shell words have no -dash prefix, so we
+			# add it here
 			$key = "-$key" if $key !~ /^-/;
+			
+			# we put @ARGV key/value pairs at the
+			# front of the @_ array
 			unshift @_, $key, $value;
 			$i += 2;
 		}
 	}
-	if ( !@_ || scalar @_ % 2 ) {
-		throw 'OddHash' => 'Odd number of elements in hash assignment';
-	}
-	%opts = looks_like_hash @_;
-	if ( !$opts{'-format'} ) {
-		throw 'BadArgs' => 'no format specified';
-	}
-	if ( !grep ucfirst( $opts{'-format'} ), @parsers ) {
-		throw 'BadFormat' => 'no parser available for specified format.';
-	}
-	if ( not ( $opts{'-file'} or $opts{'-string'} or $opts{'-handle'} or $opts{'-url'} ) ) {
-		throw 'BadArgs' => 'no parseable data source specified.';
-	}
-	my $lib = 'Bio::Phylo::Parsers::' . ucfirst($opts{'-format'});
-    my $parser;
-    if ( exists $cached_parsers->{$lib} ) {
-        $parser = $cached_parsers->{$lib};
-    }
-    else {
-        $parser = looks_like_class( $lib )->_new;
-        $cached_parsers->{$lib} = $parser;
-    }
-    if ( ( $opts{-file} or $opts{-handle} ) and $parser->can('_from_handle') ) {
-		if ( not $opts{'-handle'} ) {
-        	my $fh = IO::File->new;
-        	$fh->open( $opts{-file}, 'r' ) or throw 'FileError' => $!;
-        	$opts{-handle} = $fh;
-		}
-        return $parser->_from_handle(%opts);
-    }
-    elsif ( $opts{'-string'} ) {
-        if ( $parser->can('_from_string') ) {
-        	return $parser->_from_string(%opts);
-        }
-        else {
-        	throw 'BadArgs' => "$opts{-format} parser can't handle strings";
-        }
-    }
-    elsif ( $opts{'-url'} ) {
-        if ( $parser->can('_from_url') ) {
-        	return $parser->_from_url(%opts);
-        }
-        else {
-        	throw 'BadArgs' => "$opts{-format} parser can't handle URLs";
-        }    	
-    }
+	
+	# turn merged @ARGV and @_ arguments into a hash
+	my %opts = looks_like_hash @_;
+	
+	# there must be at least one of these args as a data source
+	my @sources = qw(-file -string -handle -url);
+	my ($source) = grep { defined $_ } @opts{@sources};
+	
+	# check provided arguments
+	throw 'OddHash' => 'Odd number of elements in hash assignment' if ! @_;
+	throw 'BadArgs' => 'No format specified' unless $opts{'-format'};
+	throw 'BadArgs' => 'No parseable data source specified' unless $source;
+
+	# instantiate parser subclass and process data
+	my $lib = 'Bio::Phylo::Parsers::' . ucfirst $opts{'-format'};
+	return looks_like_class( $lib )->_new(@_)->_process;
 }
 
 =item unparse()
@@ -278,21 +252,37 @@ sub DESTROY {
 
 =over
 
+=item L<Bio::Phylo::Parsers::Fasta>
+
 =item L<Bio::Phylo::Parsers::Newick>
 
+=item L<Bio::Phylo::Parsers::Nexml>
+
 =item L<Bio::Phylo::Parsers::Nexus>
+
+=item L<Bio::Phylo::Parsers::Phylip>
+
+=item L<Bio::Phylo::Parsers::Phyloxml>
 
 =item L<Bio::Phylo::Parsers::Table>
 
 =item L<Bio::Phylo::Parsers::Taxlist>
 
+=item L<Bio::Phylo::Parsers::Tolweb>
+
 =item L<Bio::Phylo::Unparsers::Mrp>
 
 =item L<Bio::Phylo::Unparsers::Newick>
 
+=item L<Bio::Phylo::Unparsers::Nexml>
+
 =item L<Bio::Phylo::Unparsers::Nexus>
 
 =item L<Bio::Phylo::Unparsers::Pagel>
+
+=item L<Bio::Phylo::Unparsers::Phylip>
+
+=item L<Bio::Phylo::Unparsers::Phyloxml>
 
 =item L<Bio::Phylo::Manual>
 
@@ -302,7 +292,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>
 
 =head1 REVISION
 
- $Id: IO.pm 1500 2010-11-16 19:46:37Z rvos $
+ $Id: IO.pm 1544 2010-12-05 13:14:47Z rvos $
 
 =cut
 

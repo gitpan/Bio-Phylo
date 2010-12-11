@@ -1,4 +1,4 @@
-# $Id: Matrix.pm 1506 2010-11-16 19:51:08Z rvos $
+# $Id: Matrix.pm 1569 2010-12-09 03:13:37Z rvos $
 package Bio::Phylo::Matrices::Matrix;
 use vars '@ISA';
 use strict;
@@ -639,11 +639,10 @@ Calculates number of characters.
 	sub get_nchar {
 		my $self  = shift;
 		my $nchar = 0;
-#		my $i     = 1;
 		for my $row ( @{ $self->get_entities } ) {
-			my $rowlength = scalar( @{ $row->get_entities } ) + $row->get_position - 1;
-# 			$logger->debug(
-# 				sprintf( "counted %s chars in row %s", $rowlength, $i++ ) );
+			my $offset = $row->get_position - 1;
+			my $rowlength = scalar @{ $row->get_entities };
+			$rowlength += $offset;
 			$nchar = $rowlength if $rowlength > $nchar;
 		}
 		return $nchar;
@@ -723,6 +722,219 @@ Returns matrix case sensitivity interpretation.
 =cut
 
 	sub get_respectcase { $case_sensitivity{ $_[0]->get_id } }
+
+=back
+
+=head2 CALCULATIONS
+
+=over
+
+=item calc_prop_invar()
+
+Calculates proportion of invariant sites.
+
+ Type    : Calculation
+ Title   : calc_prop_invar
+ Usage   : my $pinvar = $matrix->calc_prop_invar;
+ Function: Calculates proportion of invariant sites.
+ Returns : Scalar: a number
+ Args    : Optional:
+           # if true, counts missing (usually the '?' symbol) as a state
+	   # in the final tallies. Otherwise, missing states are ignored
+           -missing => 1
+           # if true, counts gaps (usually the '-' symbol) as a state
+	   # in the final tallies. Otherwise, gap states are ignored
+	   -gap => 1
+
+=cut
+
+	sub calc_prop_invar {
+		my $self  = shift;
+		my $raw   = $self->get_raw;
+		my $ntax  = $self->get_ntax;
+		my $nchar = $self->get_nchar || 1;
+		my %args  = looks_like_hash @_;
+		my @symbols_to_ignore;
+		for my $sym ( qw(missing gap) ) {
+			if ( not exists $args{"-${sym}"} ) {
+				my $method = "get_${sym}";
+				push @symbols_to_ignore, $self->$method;
+			}
+		}
+		my $invar_count;
+		for my $i ( 1 .. $nchar ) {
+			my %seen;
+			for my $j ( 0 .. ($ntax-1) ) {
+				$seen{$raw->[$j]->[$i]}++;
+			}
+			delete @seen{@symbols_to_ignore};
+			my @symbols_in_column = keys %seen;
+			$invar_count++ if scalar(@symbols_in_column) <= 1;
+		}
+		return $invar_count / $nchar;
+	}
+
+=item calc_state_counts()
+
+Calculates occurrences of states.
+
+ Type    : Calculation
+ Title   : calc_state_counts
+ Usage   : my %counts = %{ $matrix->calc_state_counts };
+ Function: Calculates occurrences of states.
+ Returns : Hashref: keys are states, values are counts
+ Args    : Optional - one or more states to focus on
+
+=cut
+
+	sub calc_state_counts {
+		my $self = shift;
+		my %totals;
+		for my $row ( @{ $self->get_entities } ) {
+			my $counts = $row->calc_state_counts(@_);
+			for my $state ( keys %{ $counts } ) {
+				$totals{$state} += $counts->{$state};
+			}
+		}
+		return \%totals;
+	}
+
+
+=item calc_state_frequencies()
+
+Calculates the frequencies of the states observed in the matrix.
+
+ Type    : Calculation
+ Title   : calc_state_frequencies
+ Usage   : my %freq = %{ $object->calc_state_frequencies() };
+ Function: Calculates state frequencies
+ Returns : A hash, keys are state symbols, values are frequencies
+ Args    : Optional:
+           # if true, counts missing (usually the '?' symbol) as a state
+	   # in the final tallies. Otherwise, missing states are ignored
+           -missing => 1
+           # if true, counts gaps (usually the '-' symbol) as a state
+	   # in the final tallies. Otherwise, gap states are ignored
+	   -gap => 1
+ Comments: Throws exception if matrix holds continuous values
+
+=cut
+
+	sub calc_state_frequencies {
+		my $self = shift;		
+		my %result;
+		for my $row ( @{ $self->get_entities } ) {
+			my $freqs = $row->calc_state_frequencies(@_);
+			for my $state ( keys %{ $freqs } ) {
+				$result{$state} += $freqs->{$state};
+			}
+		}
+		my $total = 0;
+		$total += $_ for values %result;
+		if ( $total > 0 ) {
+			for my $state ( keys %result ) {
+				$result{$state} /= $total;
+			}
+		}
+		return \%result;
+	}
+
+=item calc_distinct_site_patterns()
+
+Identifies the distinct distributions of states for all characters and
+counts their occurrences. Returns an array-of-arrays, where the first cell
+of each inner array holds the occurrence count, the second cell holds the
+pattern, i.e. an array of states. For example, for a matrix like this:
+
+ taxon1 GTGTGTGTGTGTGTGTGTGTGTG
+ taxon2 AGAGAGAGAGAGAGAGAGAGAGA
+ taxon3 TCTCTCTCTCTCTCTCTCTCTCT
+ taxon4 TCTCTCTCTCTCTCTCTCTCTCT
+ taxon5 AAAAAAAAAAAAAAAAAAAAAAA
+ taxon6 CGCGCGCGCGCGCGCGCGCGCGC
+ taxon7 AAAAAAAAAAAAAAAAAAAAAAA
+
+The following data structure will be returned:
+
+ [
+	[ 12, [ 'G', 'A', 'T', 'T', 'A', 'C', 'A' ] ],
+	[ 11, [ 'T', 'G', 'C', 'C', 'A', 'G', 'A' ] ]
+ ]
+
+The patterns are sorted from most to least frequently occurring, the states
+for each pattern are in the order of the rows in the matrix. (In other words,
+the original matrix can more or less be reconstructed by inverting the patterns,
+and multiplying them by their occurrence, although the order of the columns
+will be lost.)
+
+ Type    : Calculation
+ Title   : calc_distinct_site_patterns
+ Usage   : my $patterns = $object->calc_distinct_site_patterns;
+ Function: Calculates distinct site patterns.
+ Returns : A multidimensional array, see above.
+ Args    : NONE
+ Comments:
+
+=cut
+	
+	sub calc_distinct_site_patterns {
+		my $self  = shift;
+		my $raw   = $self->get_raw;
+		my $nchar = $self->get_nchar;
+		my $ntax  = $self->get_ntax;
+		my %pattern;
+		for my $i ( 1 .. $nchar ) {
+			my @column;
+			for my $j ( 0 .. ( $ntax - 1 ) ) {
+				push @column, $raw->[$j]->[$i];
+			}
+			my $col_pattern = join ' ', @column;
+			$pattern{$col_pattern}++;
+		}
+		my @pattern_array;
+		for my $key ( keys %pattern ) {
+			my @column = split / /, $key;
+			push @pattern_array, [ $pattern{$key}, \@column ];
+		}
+		my @sorted = sort { $b->[0] <=> $a->[1] } @pattern_array;
+		\@sorted;
+	}
+
+=item calc_gc_content()
+
+Calculates the G+C content as a fraction on the total
+
+ Type    : Calculation
+ Title   : calc_gc_content
+ Usage   : my $fraction = $obj->calc_gc_content;
+ Function: Calculates G+C content
+ Returns : A number between 0 and 1 (inclusive)
+ Args    : Optional:
+           # if true, counts missing (usually the '?' symbol) as a state
+	   # in the final tallies. Otherwise, missing states are ignored
+           -missing => 1
+           # if true, counts gaps (usually the '-' symbol) as a state
+	   # in the final tallies. Otherwise, gap states are ignored
+	   -gap => 1
+ Comments: Throws 'BadArgs' exception if matrix holds anything other than DNA
+           or RNA. The calculation also takes the IUPAC symbol S (which is C|G)
+	   into account, but no other symbols (such as V, for A|C|G);
+
+=cut
+
+	sub calc_gc_content {
+		my $self = shift;
+		my $type = $self->get_type;
+		if ( $type !~ /^(?:d|r)na/i ) {
+			throw 'BadArgs' => "Matrix doesn't contain nucleotides";
+		}
+		my $freq = $self->calc_state_frequencies;
+		my $total = 0;
+		for ( qw(c C g G s S) ) {
+			$total += $freq->{$_} if exists $freq->{$_};
+		}
+		return $total;
+	}
 
 =back
 
@@ -1413,7 +1625,7 @@ Analog to to_xml.
 
 =cut
 
-    sub to_dom {	
+	sub to_dom {	
 		my $self = shift;
 		my $dom = $_[0];
 		my @args = @_;
@@ -1476,10 +1688,10 @@ Analog to to_xml.
 		}
 		$elt->set_child($mx_elt);
 		return $elt;
-    }
+	}
 
-    # returns an array of elements
-    sub _package_char_labels {
+	# returns an array of elements
+	sub _package_char_labels {
 		my ( $self, $dom, $states_id ) = @_;
 		my @elts;
 		my $labels = $self->get_charlabels;
@@ -1493,7 +1705,7 @@ Analog to to_xml.
 		    push @elts, $elt;
 		}	
 		return @elts;
-    }	
+	}	
 	
 	sub _tag       { 'characters' }
 	sub _type      { $CONSTANT_TYPE }
@@ -1538,7 +1750,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: Matrix.pm 1506 2010-11-16 19:51:08Z rvos $
+ $Id: Matrix.pm 1569 2010-12-09 03:13:37Z rvos $
 
 =cut
 

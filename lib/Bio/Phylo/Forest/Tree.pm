@@ -1,11 +1,20 @@
-# $Id: Tree.pm 1480 2010-11-15 14:12:02Z rvos $
+# $Id: Tree.pm 1571 2010-12-11 01:31:19Z rvos $
 package Bio::Phylo::Forest::Tree;
 use strict;
 use Bio::Phylo::Listable ();
 use Bio::Phylo::Forest::Node ();
 use Bio::Phylo::IO qw(unparse);
 use Bio::Phylo::Util::Exceptions 'throw';
-use Bio::Phylo::Util::CONSTANT qw(_TREE_ _FOREST_ _DOMCREATOR_ looks_like_number looks_like_hash looks_like_object);
+use Bio::Phylo::Util::CONSTANT qw(
+	_TREE_
+	_FOREST_
+	_DOMCREATOR_
+	_TAXA_
+	_TAXON_
+	looks_like_number
+	looks_like_hash
+	looks_like_object
+);
 use Bio::Phylo::Factory;
 use Scalar::Util qw(blessed);
 use vars qw(@ISA);
@@ -324,6 +333,47 @@ Sets tree to NOT be the default tree in a forest
 
 =over
 
+=item get_midpoint()
+
+Gets node that divides tree into two distance-balanced partitions.
+
+ Type    : Query
+ Title   : get_midpoint
+ Usage   : my $midpoint = $tree->get_midpoint;
+ Function: Gets node nearest to the middle of the longest path
+ Returns : A Bio::Phylo::Forest::Node object.
+ Args    : NONE
+ Comments: This algorithm was ported from ETE
+
+=cut
+
+	sub get_midpoint {
+		my $self = shift;
+		my $root = $self->get_root;
+		my $nA = $self->get_tallest_tip;
+		my $nB = $nA->get_farthest_node;
+		my $A2B_dist = $nA->calc_path_to_root + $nB->calc_path_to_root;
+		my $outgroup = $nA;
+		my $middist = $A2B_dist / 2;
+		my $cdist = 0;
+		my $current = $nA;
+		while ( $current ) {
+			if ( $cdist > $middist ) {
+				last;
+			}
+			else {
+				if ( my $parent = $current->get_parent ) {
+					$cdist += $current->get_branch_length;
+					$current = $parent;
+				}
+				else {
+					last;
+				}
+			}			
+		}
+		return $current;
+	}
+
 =item get_terminals()
 
 Get terminal nodes.
@@ -472,6 +522,40 @@ Retrieves the node furthest from the root.
 			}
 		}
 		return $tallest;
+	}
+
+=item get_nodes_for_taxa()
+
+Gets node objects for the supplied taxon objects
+
+ Type    : Query
+ Title   : get_nodes_for_taxa
+ Usage   : my @nodes = @{ $tree->get_nodes_for_taxa(\@taxa) };
+ Function: Gets node objects for the supplied taxon objects
+ Returns : array ref of Bio::Phylo::Forest::Node objects
+ Args    : A reference to an array of Bio::Phylo::Taxa::Taxon objects
+           or a Bio::Phylo::Taxa object
+
+=cut
+
+	sub get_nodes_for_taxa {
+		my ( $self, $taxa ) = @_;
+		my ( $is_taxa, $taxa_objs );
+		eval { $is_taxa = looks_like_object $taxa, _TAXA_ };
+		if ( $is_taxa and not $@ ) {
+			$taxa_objs = $taxa->get_entities;
+		}
+		else {
+			$taxa_objs = $taxa;
+		}
+		my %ids = map { $_->get_id => 1 } @{ $taxa_objs };
+		my @nodes;
+		for my $node ( @{ $self->get_entities } ) {
+			if ( my $taxon = $node->get_taxon ) {
+				push @nodes, $node if $ids{$taxon->get_id};
+			}
+		}
+		return \@nodes;
 	}
 
 =item get_mrca()
@@ -747,14 +831,32 @@ Tests if argument (node array ref) forms a clade.
  Function: Tests whether the set of 
            \@tips forms a clade
  Returns : BOOLEAN
- Args    : A reference to an array of 
-           Bio::Phylo::Forest::Node objects.
+ Args    : A reference to an array of Bio::Phylo::Forest::Node objects, or a
+           reference to an array of Bio::Phylo::Taxa::Taxon objects, or a
+	   Bio::Phylo::Taxa object
  Comments:
 
 =cut
 
 	sub is_clade {
-		my ( $tree, $tips ) = @_;
+		my ( $tree, $arg ) = @_;
+		my ( $is_taxa, $is_node_array, $tips );
+		
+		# check if arg is a Taxa object
+		eval { $is_taxa = looks_like_object $arg, _TAXA_ };
+		if ( $is_taxa and not $@ ) {
+			$tips = $tree->get_nodes_for_taxa($arg);
+		}
+		
+		# check if arg is an array of Taxon object
+		eval { $is_node_array = looks_like_object $arg->[0], _TAXON_ };
+		if ( $is_node_array and not $@ ) {
+			$tips = $tree->get_nodes_for_taxa($arg);
+		}
+		else {
+			$tips = $arg; # arg is an array of Node objects
+		}
+		
 		my $mrca;
 		for my $i ( 1 .. $#{$tips} ) {
 			$mrca ? $mrca = $mrca->get_mrca( $tips->[$i] ) : $mrca =
@@ -793,6 +895,193 @@ Tests if tree is a cladogram (i.e. no branch lengths)
 =head2 CALCULATIONS
 
 =over
+
+=item calc_branch_length_distance()
+
+Calculates the Euclidean branch length distance between two trees.
+
+ Type    : Calculation
+ Title   : calc_branch_length_distance
+ Usage   : my $distance = 
+           $tree1->calc_branch_length_distance($tree2);
+ Function: Calculates the Euclidean branch length distance between two trees
+ Returns : SCALAR, number
+ Args    : NONE
+
+=cut
+
+#=item calc_robinson_foulds_distance()
+#
+#Calculates the Robinson and Foulds distance between two trees.
+#
+# Type    : Calculation
+# Title   : calc_robinson_foulds_distance
+# Usage   : my $distance = 
+#           $tree1->calc_robinson_foulds_distance($tree2);
+# Function: Calculates the Robinson and Foulds distance between two trees
+# Returns : SCALAR, number
+# Args    : NONE
+#
+#=cut
+#
+#	sub calc_robinson_foulds_distance {
+#		my ( $self, $other ) = @_;
+#		my $tuples = $self->_calc_branch_diffs($other);
+#		my $sum = 0;
+#		for my $tuple ( @{ $tuples } ) {
+#			my $diff = $tuple->[0] - $tuple->[1];
+#			$sum += abs $diff;
+#		}
+#		return $sum;		
+#	}
+
+
+	sub calc_branch_length_distance {
+		my ( $self, $other ) = @_;
+		my $squared = $self->calc_branch_length_score( $other );
+		return sqrt($squared);
+	}
+
+=item calc_branch_length_score()
+
+Calculates the squared Euclidean branch length distance between two trees.
+
+ Type    : Calculation
+ Title   : calc_branch_length_score
+ Usage   : my $score = 
+           $tree1->calc_branch_length_score($tree2);
+ Function: Calculates the squared Euclidean branch
+           length distance between two trees
+ Returns : SCALAR, number
+ Args    : NONE
+
+=cut
+
+	sub calc_branch_length_score {
+		my ( $self, $other ) = @_;
+		my $tuples = $self->_calc_branch_diffs($other);
+		my $sum = 0;
+		for my $tuple ( @{ $tuples } ) {
+			my $diff = ( $tuple->[0] || 0 ) - ( $tuple->[1] || 0 );
+			$sum += $diff ** 2;
+		}
+		return $sum;
+	}
+
+=begin comment
+
+Returns an array of triples, with the first element of each triple representing
+the length of the branch subtending a particular split on the invocant, 
+the second element the length of the same branch on argument, and the third
+element a boolean to indicate whether the split was present in both trees. If a
+particular split is found on one tree but not in the other, a value of zero
+is used for the missing split.
+
+ Type    : Calculation
+ Title   : calc_branch_diffs
+ Usage   : my $triples = 
+           $tree1->calc_branch_diffs($tree2);
+ Function: Creates two-dimensional array of equivalent branch lengths
+ Returns : Two-dimensional array (triples)
+ Args    : NONE
+
+=end comment
+
+=cut
+
+        sub _calc_branch_diffs {
+                my ( $self, $other ) = @_;
+		
+		# we create an anonymous subroutine which
+		# we will apply to $self and $other
+                my $length_for_split_creator = sub {
+			
+			# so this will be $self and $other
+                        my $tree = shift;
+			
+			# keys will be hashed, comma-separated tip names,
+			# values will be branch lengths
+                        my %length_for_split;
+			
+			# this will assemble the comma-separated,
+			# hashed tip names
+                        my %hash_for_node;
+			
+			# post-order traversal, so tips are processed first
+                        $tree->visit_depth_first( '-post' => sub {
+                                my $node = shift;
+                                my $id = $node->get_id;
+                                my @children = @{ $node->get_children };
+                                my $hash;
+				
+				# we only enter into this case AFTER tips
+				# have been processed, so %hash_for_node
+				# values will be assigned for all children
+                                if ( @children ) {
+					
+					# these will be growing lists from
+					# tips to root
+                                        my $unsorted = join ',', map { $hash_for_node{$_->get_id} } @children;
+					
+					# we need to split, sort and join
+					# so that splits where the subtended,
+					# higher topology is different still
+					# yield the same concatenated hash
+					$hash = join ',', sort { $a cmp $b } split /,/, $unsorted;
+					
+					# coerce to a numeric type
+					$length_for_split{$hash} = $node->get_branch_length;
+                                }
+                                else {
+					# this is how we ensure that every
+					# tip name is a single, unique line.
+					# Digest::MD5 was in CORE since 5.7
+					require Digest::MD5;
+                                        $hash = Digest::MD5::md5($node->get_name);
+                                }
+				
+				# store for the next recursion
+                                $hash_for_node{$id} = $hash;
+			} );
+			
+			# this is the return value for the anonymous sub			
+                        return %length_for_split;
+                };
+		
+		# here we execute the anonymous sub. twice.
+                my %lengths_self = $length_for_split_creator->($self);
+                my %lengths_other = $length_for_split_creator->($other);
+		my @tuples;
+		
+		# first visit the splits in $self, which will identify
+		# those it shares with $other and those missing in $other
+		for my $split ( keys %lengths_self ) {
+			my $tuple;
+			if ( exists $lengths_other{$split} ) {
+				$tuple = [
+					$lengths_self{$split},
+					$lengths_other{$split} || 0,
+					1
+				];
+			}
+			else {
+				$tuple = [
+					$lengths_self{$split},
+					0,
+					0
+				];
+			}
+			push @tuples, $tuple;
+		}
+		
+		# then check if there are splits in $other but not in $self
+		for my $split ( keys %lengths_other ) {
+			if ( not exists $lengths_self{$split} ) {
+				push @tuples, [ 0, $lengths_other{$split}, 1 ];
+			}
+		}
+		return \@tuples;
+        }
 
 =item calc_tree_length()
 
@@ -909,6 +1198,39 @@ Calculates the number of internal nodes.
 		my $self   = shift;
 		my $numint = scalar @{ $self->get_internals };
 		return $numint;
+	}
+
+=item calc_number_of_cherries()
+
+Calculates the number of cherries, i.e. the number of nodes that subtend
+exactly two tips. See for applications of this metric:
+L<http://dx.doi.org/10.1016/S0025-5564(99)00060-7>
+
+ Type    : Calculation
+ Title   : calc_number_of_cherries
+ Usage   : my $number_of_cherries = 
+           $tree->calc_number_of_cherries;
+ Function: Calculates the number of cherries
+ Returns : INT
+ Args    : NONE
+
+=cut
+
+	sub calc_number_of_cherries {
+		my $self = shift;
+		my %cherry;
+		for my $tip ( @{ $self->get_terminals } ) {
+			if ( my $parent = $tip->get_parent ) {
+				if ( $parent->is_preterminal ) {
+					my $children = $parent->get_children;
+					if ( scalar @{ $children } == 2 ) {
+						$cherry{ $parent->get_id }++;
+					}
+				}
+			}
+		}
+		my @cherry_ids = keys %cherry;
+		return scalar @cherry_ids;
 	}
 
 =item calc_total_paths()
@@ -1297,7 +1619,7 @@ Calculates tree resolution.
 
 =item calc_branching_times()
 
-Calculates branching times.
+Calculates cumulative branching times.
 
  Type    : Calculation
  Title   : calc_branching_times
@@ -1324,14 +1646,93 @@ Calculates branching times.
 			throw 'ObjectMismatch' => 'tree isn\'t ultrametric, results would be meaningless';
 		}
 		else {
-			my ( $i, @temp ) = 0;
-			foreach ( @{ $self->get_internals } ) {
-				$temp[$i] = [ $_, $_->calc_path_to_root ];
-				$i++;
-			}
+			my @temp;
+			my $seen_tip = 0;
+			$self->visit_depth_first(
+				'-pre' => sub {
+					my $node = shift;
+					if ( not $seen_tip or $node->is_internal ) {
+						my $bt = $node->get_branch_length;
+						if ( my $parent = $node->get_parent ) {
+							$bt += $parent->get_generic('bt');						
+						}
+						$node->set_generic( 'bt' => $bt );
+						push @temp, [ $node, $bt ];
+						if ( $node->is_terminal ) {
+							$seen_tip++;
+						}
+					}
+				}
+			);
 			@branching_times = sort { $a->[1] <=> $b->[1] } @temp;
 		}
 		return \@branching_times;
+	}
+
+=item calc_waiting_times()
+
+Calculates intervals between splits.
+
+ Type    : Calculation
+ Title   : calc_waiting_times
+ Usage   : my $waitings = 
+           $tree->calc_waiting_times;
+ Function: Returns a two-dimensional array. 
+           The first dimension consists of 
+           the "records", so that in the 
+           second dimension $AoA[$first][0] 
+           contains the internal node references, 
+           and $AoA[$first][1] the waiting 
+           time of the internal node. The 
+           records are orderered from root to 
+           tips by time from the origin.
+ Returns : SCALAR[][] or FALSE
+ Args    : NONE
+
+=cut
+	
+	sub calc_waiting_times {
+		my $self = shift;
+		my $times = $self->calc_branching_times;
+		for ( my $i = $#{ $times }; $i > 0; $i-- ) {
+			$times->[$i]->[1] -= $times->[$i-1]->[1];
+		}
+		return $times;
+	}
+
+=item calc_node_ages()
+
+Calculates node ages.
+
+ Type    : Calculation
+ Title   : calc_node_ages
+ Usage   : $tree->calc_node_ages;
+ Function: Calculates the age of all the nodes in the tree (i.e. the distance
+           from the tips) and assigns these to the 'age' slot, such that,
+	   after calling this method, the age of any one node can be retrieved
+	   by calling $node->get_generic('age');
+ Returns : The invocant
+ Args    : NONE
+ Comments: This method computes, in a sense, the opposite of
+           calc_branching_times: here, we compute the distance from the tips
+	   (i.e. how long ago the split occurred), whereas calc_branching_times
+	   calculates the distance from the root.
+
+=cut
+
+	sub calc_node_ages {
+		my $self = shift;
+		$self->visit_depth_first(
+			'-post' => sub {
+				my $node = shift;
+				my $age = 0;
+				if ( my $child = $node->get_child(0) ) {
+					$age = $child->get_generic('age') + $child->get_branch_length;
+				}
+				$node->set_generic( 'age' => $age );
+			}
+		);
+		return $self;
 	}
 
 =item calc_ltt()
@@ -1391,28 +1792,10 @@ Calculates the symmetric difference metric between invocant and argument.
 
 	sub calc_symdiff {
 		my ( $tree, $other_tree ) = @_;
-		my ( $symdiff, @clades1, @clades2 ) = (0);
-		foreach my $node ( @{ $tree->get_internals } ) {
-			my $tips = join ' ',
-			  sort { $a cmp $b } map { $_->get_name } @{ $node->get_terminals };
-			push @clades1, $tips;
-		}
-		foreach my $node ( @{ $other_tree->get_internals } ) {
-			my $tips = join ' ',
-			  sort { $a cmp $b } map { $_->get_name } @{ $node->get_terminals };
-			push @clades2, $tips;
-		}
-	  OUTER: foreach my $outer (@clades1) {
-			foreach my $inner (@clades2) {
-				next OUTER if $outer eq $inner;
-			}
-			$symdiff++;
-		}
-	  OUTER: foreach my $outer (@clades2) {
-			foreach my $inner (@clades1) {
-				next OUTER if $outer eq $inner;
-			}
-			$symdiff++;
+		my $tuples = $tree->_calc_branch_diffs( $other_tree );
+		my $symdiff = 0;
+		for my $tuple ( @{ $tuples } ) {
+			$symdiff++ unless $tuple->[2];
 		}
 		return $symdiff;
 	}
@@ -1765,6 +2148,134 @@ Visits nodes in a level order traversal.
 
 =over
 
+=item chronompl()
+
+Modifies branch lengths using the mean path lengths method of
+Britton et al. (2002). For more about this method, see:
+L<http://dx.doi.org/10.1016/S1055-7903(02)00268-3>
+
+ Type    : Tree manipulator
+ Title   : chronompl
+ Usage   : $tree->chronompl;
+ Function: Makes tree ultrametric using MPL method
+ Returns : The modified, now ultrametric invocant.
+ Args    : NONE
+ Comments: 
+
+=cut
+
+	sub chronompl {
+		my $self = shift;
+		$self->visit_depth_first(
+			'-post' => sub {
+				my $node = shift;
+				my %paths;
+				my $children = $node->get_children;
+				for my $child ( @{ $children } ) {
+					my $cp = $child->get_generic('paths');
+					my $bl = $child->get_branch_length;
+					for my $id ( keys %{ $cp  } ) {
+						$paths{$id} = $cp->{$id} + $bl;
+					}
+				}
+				if ( not scalar @{ $children } ) {
+					$paths{$node->get_id} = 0;
+				}
+				$node->set_generic('paths' => \%paths);
+				my $total = 0;
+				$total += $_ for values %paths;
+				my $mean = $total / scalar keys %paths;
+				$node->set_generic('age' => $mean);
+			}
+		);
+		return $self->agetobl;
+	}
+
+=item grafenbl()
+
+Computes and assigns branch lengths using Grafen's method, which makes
+node ages proportional to clade size. For more about this method, see:
+L<http://dx.doi.org/10.1098/rstb.1989.0106>
+
+ Type    : Tree manipulator
+ Title   : grafenbl
+ Usage   : $tree->grafenbl;
+ Function: Assigns branch lengths using Grafen's method
+ Returns : The modified, now ultrametric invocant.
+ Args    : Optional, a power ('rho') to which all node ages are raised
+ Comments: 
+
+=cut
+
+	sub grafenbl {
+		my ( $self, $rho ) = @_;
+		my $total = 0;
+		$self->visit_depth_first(
+			'-post' => sub {
+				my $node = shift;
+				if ( $node->is_terminal ) {
+					$node->set_generic( 'adjntips' => 0 );
+					$node->set_generic( 'ntips' => 1 );
+				}
+				else {
+					my $children = $node->get_children;
+					my $ntips = 0;
+					for my $child ( @{ $children } ) {
+						$ntips += $child->get_generic('ntips');
+					}
+					$node->set_generic( 'ntips' => $ntips );
+					$node->set_generic( 'adjntips' => $ntips - 1 );
+					$total = $ntips if $node->is_root;					
+				}
+			}
+		);
+		$self->visit(
+			sub {
+				my $node = shift;
+				if ( $total ) {
+					my $age = $node->get_generic('adjntips') / $total;
+					if ( $rho ) {
+						$age = $age ** $rho;
+					}
+					$node->set_generic( 'age' => $age );
+				}
+			}
+		);
+		return $self->agetobl;
+	}
+
+=item agetobl()
+
+Converts node ages to branch lengths
+
+ Type    : Tree manipulator
+ Title   : agetobl
+ Usage   : $tree->agetobl;
+ Function: Converts node ages to branch lengths
+ Returns : The modified invocant.
+ Args    : NONE
+ Comments: This method uses ages as assigned to the generic 'age' slot
+           on the nodes in the trees. I.e. for each node in the tree,
+	   $node->get_generic('age') must return a number
+
+=cut
+
+	sub agetobl {
+		my $self = shift;
+		for my $node ( @{ $self->get_entities } ) {
+			if ( my $parent = $node->get_parent ) {
+				my $mp = $node->get_generic('age') || 0;
+				my $pmp = $parent->get_generic('age');
+				$node->set_branch_length( $pmp - $mp );
+			}
+			else {
+				$node->set_branch_length(0);
+			}
+		}
+		return $self;		
+	}
+
+
 =item ultrametricize()
 
 Sets all root-to-tip path lengths equal.
@@ -2023,6 +2534,54 @@ Converts negative branch lengths to zero.
 			}
 		}
 		return $tree;
+	}
+
+=item ladderize()
+
+Sorts nodes in ascending (or descending) order of number of children.
+
+ Type    : Tree manipulator
+ Title   : ladderize
+ Usage   : $tree->ladderize(1);
+ Function: Sorts nodes
+ Returns : The modified invocant.
+ Args    : Optional, a true value to reverse the sort order
+
+=cut
+
+	sub ladderize {
+		my ( $self, $right ) = @_;
+		my %child_count;
+		$self->visit_depth_first(
+			'-post' => sub {
+				my $node = shift;
+				my $id = $node->get_id;
+				my @children = @{ $node->get_children };
+				my $count = 1;
+				for my $child ( @children ) {
+					$count += $child_count{$child->get_id};
+				}
+				$child_count{$id} = $count;
+				my @sorted;
+				if ( $right ) {
+					@sorted = map { $_->[0] }
+						sort { $b->[1] <=> $a->[1] }
+						map { [ $_, $child_count{$_->get_id} ] }
+						@children;
+				}
+				else {
+					@sorted = map { $_->[0] }
+						sort { $a->[1] <=> $b->[1] }
+						map { [ $_, $child_count{$_->get_id} ] }
+						@children;					
+				}
+				for my $i ( 0 .. $#sorted ) {
+					$node->insert_at_index($sorted[$i],$i);
+				}
+			}				
+			
+		);
+		return $self;
 	}
 
 =item exponentiate()
@@ -2439,7 +2998,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: Tree.pm 1480 2010-11-15 14:12:02Z rvos $
+ $Id: Tree.pm 1571 2010-12-11 01:31:19Z rvos $
 
 =cut
 

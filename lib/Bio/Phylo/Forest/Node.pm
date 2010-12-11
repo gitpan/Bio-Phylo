@@ -1,4 +1,4 @@
-# $Id: Node.pm 1515 2010-11-19 15:15:54Z rvos $
+# $Id: Node.pm 1556 2010-12-08 14:42:22Z rvos $
 package Bio::Phylo::Forest::Node;
 use strict;
 use Bio::Phylo::Factory;
@@ -951,6 +951,62 @@ Gets invocant's ancestors.
 		}
 	}
 
+=item get_root()
+
+Gets root relative to the invocant, i.e. by walking up the path of ancestors
+
+ Type    : Query
+ Title   : get_root
+ Usage   : my $root = $node->get_root;
+ Function: Gets root relative to the invocant
+ Returns : Bio::Phylo::Forest::Node           
+ Args    : NONE
+
+=cut
+
+	sub get_root {
+		my $self = shift;
+		if ( my $anc = $self->get_ancestors ) {
+			return $anc->[-1];
+		}
+		else {
+			return $self;
+		}
+	}
+
+=item get_farthest_node()
+
+Gets node farthest away from the invocant. By default this is nodal distance,
+but when supplied an optional true argument it is based on patristic distance
+instead.
+
+ Type    : Query
+ Title   : get_farthest_node
+ Usage   : my $farthest = $node->get_farthest_node;
+ Function: Gets node farthest away from the invocant.
+ Returns : Bio::Phylo::Forest::Node           
+ Args    : Optional, TRUE value to use patristic instead of nodal distance
+
+=cut
+
+	sub get_farthest_node {
+		my ( $self, $patristic ) = @_;
+		my $criterion = $patristic ? 'patristic' : 'nodal';
+		my $method = sprintf 'calc_%s_distance', $criterion;
+		my $root = $self->get_root;
+		if ( my $terminals = $root->get_terminals ) {
+			my ( $furthest_distance, $furthest_node ) = ( 0 );
+			for my $tip ( @{ $terminals } ) {
+				my $distance = $self->$method($tip);
+				if ( $distance > $furthest_distance ) {
+					$furthest_distance = $distance;
+					$furthest_node = $tip;
+				}
+			}
+			return $furthest_node;
+		}
+	}
+
 =item get_sisters()
 
 Gets invocant's sisters.
@@ -1290,6 +1346,30 @@ Tests if invocant is an internal node.
 
 	sub is_internal {
 		return !!shift->get_first_daughter;
+	}
+
+=item is_preterminal()
+
+Tests if all direct descendents are terminal
+
+ Type    : Test
+ Title   : is_preterminal
+ Usage   : if ( $node->is_preterminal ) {
+              # do something
+           }
+ Function: Returns true if all direct descendents are terminal
+ Returns : BOOLEAN
+ Args    : NONE
+
+=cut
+
+	sub is_preterminal {
+		my $self = shift;
+		my $children = $self->get_children;
+		for my $child ( @{ $children } ) {
+			return 0 if $child->is_internal;
+		}
+		return !! scalar @{ $children };
 	}
 	
 =item is_first()
@@ -2454,7 +2534,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: Node.pm 1515 2010-11-19 15:15:54Z rvos $
+ $Id: Node.pm 1556 2010-12-08 14:42:22Z rvos $
 
 =cut
 

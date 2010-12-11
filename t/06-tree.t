@@ -1,7 +1,7 @@
-# $Id: 06-tree.t 1302 2010-06-11 15:33:11Z rvos $
+# $Id: 06-tree.t 1566 2010-12-09 02:51:34Z rvos $
 use strict;
 use Bio::Phylo::Util::CONSTANT 'looks_like_instance';
-use Test::More tests => 48;
+use Test::More 'no_plan';
 use Bio::Phylo::IO qw(parse unparse);
 use Bio::Phylo::Forest::Node;
 use Bio::Phylo::Forest::Tree;
@@ -145,6 +145,74 @@ $cyclical->insert($node1);
 $cyclical->insert($node2);
 ok( $cyclical->get_root, '47 no root in cycle' );
 ok( $tree->DESTROY, '48 destroy' );
+
+my $left  = '((((A,B),C),D),E);';
+my $right = '(E,(D,(C,(A,B))));';
+my $ladder = parse( '-format' => 'newick', '-string' => $left )->first;
+ok( $ladder->ladderize->to_newick eq $right, '49 ladderize' );
+
+{
+    my $n1 = '((C:0,(B:0,A:0):7):3,D:0):0;';
+    my $n2 = '(((A:0,B:0):4,C:0):6,D:0):0;';
+    my $n3 = '((A,B,C),D);';
+    my $t1 = parse( '-format' => 'newick', '-string' => $n1 )->first;
+    my $t2 = parse( '-format' => 'newick', '-string' => $n2 )->first;
+    my $t3 = parse( '-format' => 'newick', '-string' => $n3 )->first;
+    ok( $t1->calc_branch_length_score( $t2 ) == 18, "50 branch length score" );
+    ok( $t1->calc_symdiff( $t2 ) == 0, "51 calc symdiff" );
+    ok( $t1->calc_symdiff( $t3 ) == 1, "52 calc symdiff" );
+}
+
+{
+    my $newick = '(((a:100,b:1)n1:1,c:1)n2:1,((((d:1,e:1)n3:1,f:1)n4:1,g:1)n5:1,h:1)n6:1)n7:0;';
+    my $tree = parse( '-format' => 'newick', '-string' => $newick )->first;
+    my $focal = $tree->get_by_name('b');
+    my $farthest_nodal = $focal->get_farthest_node;
+    my $fn_name = $farthest_nodal->get_name;
+    ok( ( $fn_name eq 'd' or $fn_name eq 'e' ), "53 farthest by nodal" );
+    my $farthest_patristic = $focal->get_farthest_node(1);
+    my $fp_name = $farthest_patristic->get_name;
+    ok( $fp_name eq 'a', "54 farthest by patristic");
+    ok( $tree->get_midpoint->get_name eq 'n1', "55 gets midpoint node");
+}
+
+{
+    my $newick = '((a:1,b:1)n1:1,c:2)n2:0;';
+    my $tree = parse( '-format' => 'newick', '-string' => $newick )->first;
+    $tree->calc_node_ages;
+    is( $tree->get_by_name('n1')->get_generic('age'), 1, "56 calc node age" );
+    is( $tree->get_by_name('n2')->get_generic('age'), 2, "57 calc node age" );    
+}
+
+
+{
+    my $newick = '((a:1,b:1)n1:1,(c:2,d:2))n2:0;';
+    my $tree = parse( '-format' => 'newick', '-string' => $newick )->first;
+    is( $tree->calc_number_of_cherries, 2, "58 calc number of cherries" );
+}
+
+{
+    my $newick = '((a:1,b:1)n1:1,(c:2,d:2)n2:1)n3:0;';
+    my $tree = parse( '-format' => 'newick', '-string' => $newick )->first;
+    $tree->chronompl;
+    is ( $tree->get_by_name('n1')->get_branch_length, 1.5, '59 chronompl' );
+    is ( $tree->get_by_name('n2')->get_branch_length, 0.5, '60 chronompl' );
+}
+
+{
+    my $newick = '((((A,B),C),(D,F)),E);';
+    my $tree = parse( '-format' => 'newick', '-string' => $newick )->first;
+    ok( $tree->is_ultrametric, '61 grafen branch lengths' );
+}
+
+{
+    my $newick = '((((((A:6,B:6):5,C:11):4,D:15):3,E:18):2,F:20):1,G:21):0;';
+    my $tree = parse( '-format' => 'newick', '-string' => $newick )->first;
+    my $bt = $tree->calc_waiting_times;
+    for my $i ( 0 .. $#{ $bt } ) {
+        is( $bt->[$i]->[1], $i, '62 waiting times' );
+    }
+}
 __DATA__
 ((H:1,I:1):1,(G:1,(F:0.01,(E:0.3,(D:2,(C:0.1,(A:1,B:1)cherry:1):1):1):1):1):1):0;
 (H:1,(G:1,(F:1,((C:1,(A:1,B:1):1):1,(D:1,E:1):1):1):1):1):0;

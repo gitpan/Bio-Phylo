@@ -1,11 +1,11 @@
-# $Id: Nexus.pm 1235 2010-03-02 16:11:07Z rvos $
+# $Id: Nexus.pm 1532 2010-11-26 17:20:35Z rvos $
 package Bio::Phylo::Unparsers::Nexus;
 use strict;
-use Bio::Phylo::IO ();
+use Bio::Phylo::Unparsers::Abstract;
 use Bio::Phylo::Util::CONSTANT qw(:objecttypes);
 use Bio::Phylo::Util::Exceptions 'throw';
 use vars qw(@ISA);
-@ISA=qw(Bio::Phylo::IO);
+@ISA=qw(Bio::Phylo::Unparsers::Abstract);
 
 =head1 NAME
 
@@ -36,39 +36,6 @@ directly. You can pass the following additional arguments to the unparse call:
 	
 	# for backward compatibility:
 	-phylo => $matrix	
-
-=begin comment
-
- Type    : Constructor
- Title   : _new
- Usage   : my $nex = Bio::Phylo::Unparsers::Nexus->_new;
- Function: Initializes a Bio::Phylo::Unparsers::Nexus object.
- Returns : A Bio::Phylo::Unparsers::Nexus object.
- Args    : none.
-
-=end comment
-
-=cut
-
-sub _new {
-    my $class = shift;
-    my $self  = {};
-    if (@_) {
-        my %opts = @_;
-        foreach my $key ( keys %opts ) {
-            my $localkey = uc $key;
-            $localkey =~ s/-//;
-            unless ( ref $opts{$key} ) {
-                $self->{$localkey} = uc $opts{$key};
-            }
-            else {
-                $self->{$localkey} = $opts{$key};
-            }
-        }
-    }
-    bless $self, $class;
-    return $self;
-}
 
 =begin comment
 
@@ -156,7 +123,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: Nexus.pm 1235 2010-03-02 16:11:07Z rvos $
+ $Id: Nexus.pm 1532 2010-11-26 17:20:35Z rvos $
 
 =cut
 
