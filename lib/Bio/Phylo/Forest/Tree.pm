@@ -1,4 +1,4 @@
-# $Id: Tree.pm 1571 2010-12-11 01:31:19Z rvos $
+# $Id: Tree.pm 1581 2010-12-14 20:35:50Z rvos $
 package Bio::Phylo::Forest::Tree;
 use strict;
 use Bio::Phylo::Listable ();
@@ -719,28 +719,27 @@ Test if tree is ultrametric.
 =cut
 
 	sub is_ultrametric {
-		my ( $tree, $margin ) = @_;
-		if ( !$margin ) {
-			$margin = 0;
-		}
-		my @paths;
-		foreach ( @{ $tree->get_terminals } ) {
-			push @paths, $_->calc_path_to_root;
-		}
-		for my $i ( 0 .. $#paths ) {
-			for my $j ( ( $i + 1 ) .. $#paths ) {
-				my $diff;
-				if ( $paths[$i] < $paths[$j] ) {
-					$diff = $paths[$i] / $paths[$j];
+		my $tree = shift;
+		my $margin = shift || 0;
+		my ( @tips, %path );
+		$tree->visit_depth_first(
+			'-pre' => sub {
+				my $node = shift;				
+				if ( my $parent = $node->get_parent ) {
+					$path{ $node->get_id } = $path{ $parent->get_id } + ( $node->get_branch_length || 0 );
 				}
 				else {
-					if ( $paths[$i] ) {
-						$diff = $paths[$j] / $paths[$i];
-					}
+					$path{ $node->get_id } = $node->get_branch_length || 0;
 				}
-				if ( $diff && ( 1 - $diff ) > $margin ) {
-					return;
-				}
+				push @tips, $node if $node->is_terminal;
+			}
+		);
+		for my $i ( 0 .. ( $#tips - 1 ) ) {
+			my $id1 = $tips[$i]->get_id;
+			PATH : for my $j ( $i + 1 .. $#tips ) {
+				my $id2 = $tips[$j]->get_id;
+				next PATH unless $path{$id2};
+				return 0 if abs(1 - $path{$id1} / $path{$id2}) > $margin;
 			}
 		}
 		return 1;
@@ -2998,7 +2997,7 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =head1 REVISION
 
- $Id: Tree.pm 1571 2010-12-11 01:31:19Z rvos $
+ $Id: Tree.pm 1581 2010-12-14 20:35:50Z rvos $
 
 =cut
 

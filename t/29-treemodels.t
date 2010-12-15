@@ -35,6 +35,7 @@ Bio::Phylo::EvolutionaryModels->import('sample');
     ok(looks_like_object($tree,_TREE_), "object is a tree");
     my $tipcount = scalar @{ $tree->get_terminals };
     is(10,$tipcount, "crb tree has ${tipcount}==10 tips");
+    ok($tree->is_ultrametric(0.01), 'crb tree is ultrametric');
 }
 
 # Example B
@@ -55,12 +56,12 @@ Bio::Phylo::EvolutionaryModels->import('sample');
         ok( looks_like_object($sample,_FOREST_), "b sample is a forest" );
     };
     is( scalar @{ $sample }, 5, "b sample has 5 trees" );
-    SKIP : {
-	skip "trees have 11 tips instead of 10", scalar @{ $sample };
-	for my $t ( @{ $sample } ) {
-	    is( scalar @{ $t->get_terminals }, 10, "b tree has 10 tips" ); 
-	}
-    };
+    for my $t ( @{ $sample } ) {
+        is( scalar @{ $t->get_terminals }, 10, "b tree has 10 tips" ); 
+    }
+    for my $t ( @{ $sample } ) {
+	ok( $t->is_ultrametric(0.01), "b tree is ultrametric" );
+    }
 }
 
 # Example C
@@ -69,28 +70,30 @@ Bio::Phylo::EvolutionaryModels->import('sample');
 # NB: we must specify an nstar here, an appropriate choice will depend on the
 # birth_rate and death_rate we are giving the model
 {
-    my ( $sample, $stats ) = sample(
+    my ( $forest, $stats ) = sample(
         'sample_size'       => 5,
         'tree_size'         => 10,
         'threads'           => 1,
         'algorithm'         => 'bd',
+	'output_format'     => 'forest',
         'algorithm_options' => { 'rate'       => 1, 'nstar'      => 30 },
         'model_options'     => { 'birth_rate' => 1, 'death_rate' => .8 },    
         'model' => \&Bio::Phylo::EvolutionaryModels::constant_rate_birth_death,
     );
-    eval {
-        # I'd like to make the sample a forest object
-        ok( looks_like_object($sample,_FOREST_), "bd sample is a forest" ); 
-    };
+    ok( looks_like_object($forest,_FOREST_), "bd sample is a forest" ); 
+    my $sample = $forest->get_entities;
+    is( scalar @{ $sample }, 5, "bd sample has 5 trees" );
     SKIP : {
-	skip "off-by-one error, number of trees is 6";
-	is( scalar @{ $sample }, 5, "bd sample has 5 trees" );
-    };
-    SKIP : {
-	skip "trees have too many tips", scalar @{ $sample };
+	skip "bd trees have too many tips", scalar @{ $sample };
 	for my $t ( @{ $sample } ) {
 	    my $count = scalar @{ $t->get_terminals };
 	    is( $count, 10, "bd tree has ${count}==10 tips" );
+	}
+    };
+    SKIP : {
+	skip "bd trees aren't ultrametric", scalar @{ $sample };
+	for my $t ( @{ $sample } ) {
+	    ok( $t->is_ultrametric, "bd tree is ultrametric");
 	}
     };
 }
@@ -113,25 +116,30 @@ Bio::Phylo::EvolutionaryModels->import('sample');
         'sampling_probability' => [ .5, .3, .2 ],
     };
                        
-    my ( $sample, $stats ) = sample(
+    my ( $forest, $stats ) = sample(
         'sample_size'       => 5,
         'tree_size'         => 10,
         'algorithm'         => 'incomplete_sampling_bd',
         'algorithm_options' => $algorithm_options,
+	'output_format'     => 'forest',
         'model_options'     => { 'birth_rate' => 1, 'death_rate' => .8 },
         'model' => \&Bio::Phylo::EvolutionaryModels::constant_rate_birth_death,    
     );
-    eval {
-        # I'd like to make the sample a forest object
-        ok( looks_like_object $sample, _FOREST_ );
-    };
-    is( scalar @{ $sample }, 5 );
+    ok( looks_like_object( $forest, _FOREST_ ), "isb sample is forest" );
+    my $sample = $forest->get_entities;
+    is( scalar @{ $sample }, 5, "isb sample has 5 trees" );
     SKIP : {
-	skip "trees have too many tips", scalar @{ $sample };
+	skip "isb trees have too many tips", scalar @{ $sample };
         for my $t ( @{ $sample } ) {
             my $count = scalar @{ $t->get_terminals };
             is( $count, 10, "isb tree has ${count}==10 tips" );
         }
+    };
+    SKIP : {
+	skip "isb trees aren't ultrametric", scalar @{ $sample };
+	for my $t ( @{ $sample } ) {
+	    ok( $t->is_ultrametric, "isb tree is ultrametric" );
+	}
     };
 }
 
@@ -148,41 +156,44 @@ Bio::Phylo::EvolutionaryModels->import('sample');
     };
      
     # Then we produce our sample
-    my ( $sample, $stats ) = sample(
+    my ( $forest, $stats ) = sample(
         'sample_size'       => 5,
         'tree_size'         => 10,
         'algorithm'         => 'memoryless_b',
+	'output_format'     => 'forest',
         'model_options'     => { 'birth_rate'   => 1 },
         'algorithm_options' => { 'pendant_dist' => $random_pendant_function },
         'model' => \&Bio::Phylo::EvolutionaryModels::constant_rate_birth,    
-    );
-    
-    eval {
-        # I'd like to make the sample a forest object
-        ok( looks_like_object( $sample, _FOREST_ ), 'mb result is a forest' );
-    };
+    );    
+    ok( looks_like_object( $forest, _FOREST_ ), 'mb result is a forest' );
+    my $sample = $forest->get_entities;
     is( scalar @{ $sample }, 5, "mb sample has 5 trees" );
     for my $t ( @{ $sample } ) {
         is( scalar @{ $t->get_terminals }, 10, "mb tree has 10 tips" );
-    }    
+    }
+    for my $t ( @{ $sample } ) {
+	ok( $t->is_ultrametric(0.01), "mb tree is ultrametric" );
+    }
 }
 
 # Example F
 # Sample 5 trees with ten species from a constant birth death rate model using
 # the constant_rate_bd algorithm
 {
-    my ( $sample ) = sample(
+    my ( $forest ) = sample(
         'sample_size'   => 5,
         'tree_size'     => 10,
+	'output_format' => 'forest',
         'algorithm'     => 'constant_rate_bd',
         'model_options' => { 'birth_rate' => 1, 'death_rate' => .8 }
     );
-    eval {
-        # I'd like to make the sample a forest object
-        ok( looks_like_object $sample, _FOREST_ );
-    };
+    ok( looks_like_object( $forest, _FOREST_ ), 'crb sample is forest' );
+    my $sample = $forest->get_entities;
     is( scalar @{ $sample }, 5, "crb sample has 5 trees" );
     for my $t ( @{ $sample } ) {
         is( scalar @{ $t->get_terminals }, 10, "crb tree has 10 tips" );
+    }
+    for my $t ( @{ $sample } ) {
+	ok( $t->is_ultrametric(0.01), 'crb tree is ultrametric' );
     }
 }
