@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               Bio-Phylo
-version:            0.34
+version:            0.35
 abstract:           ~
 author:
     - Rutger Vos

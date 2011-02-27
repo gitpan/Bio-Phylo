@@ -1,4 +1,4 @@
-# $Id: Tree.pm 1581 2010-12-14 20:35:50Z rvos $
+# $Id: Tree.pm 1593 2011-02-27 15:26:04Z rvos $
 package Bio::Phylo::Forest::Tree;
 use strict;
 use Bio::Phylo::Listable ();
@@ -2995,9 +2995,18 @@ Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
 =back
 
+=head1 CITATION
+
+If you use Bio::Phylo in published research, please cite it:
+
+B<Rutger A Vos>, B<Jason Caravas>, B<Klaas Hartmann>, B<Mark A Jensen>
+and B<Chase Miller>, 2011. Bio::Phylo - phyloinformatic analysis using Perl.
+I<BMC Bioinformatics> B<12>:63.
+L<http://dx.doi.org/10.1186/1471-2105-12-63>
+
 =head1 REVISION
 
- $Id: Tree.pm 1581 2010-12-14 20:35:50Z rvos $
+ $Id: Tree.pm 1593 2011-02-27 15:26:04Z rvos $
 
 =cut
 
