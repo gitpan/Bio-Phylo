@@ -1,4 +1,4 @@
-# $Id: Tree.pm 1593 2011-02-27 15:26:04Z rvos $
+# $Id: Tree.pm 1620 2011-03-19 15:21:57Z rvos $
 package Bio::Phylo::Forest::Tree;
 use strict;
 use Bio::Phylo::Listable ();
@@ -14,9 +14,11 @@ use Bio::Phylo::Util::CONSTANT qw(
 	looks_like_number
 	looks_like_hash
 	looks_like_object
+	looks_like_implementor
 );
 use Bio::Phylo::Factory;
 use Scalar::Util qw(blessed);
+use List::Util qw(sum);
 use vars qw(@ISA);
 
 # classic @ISA manipulation, not using 'base'
@@ -2583,6 +2585,59 @@ Sorts nodes in ascending (or descending) order of number of children.
 		return $self;
 	}
 
+=item sort_tips()
+
+Sorts nodes in (an approximation of) the provided ordering. Given an array
+reference of taxa, an array reference of name strings or a taxa object, this
+method attempts to order the tips in the same way. It does this by recursively
+computing the rank for all internal nodes by taking the average rank of its
+children. This results in the following orderings:
+
+ (a,b,c,d,e,f); => $tree->sort_tips( [ qw(a c b f d e) ] ) => (a,c,b,f,d,e);
+ 
+ (a,b,(c,d),e,f); => $tree->sort_tips( [ qw(a b e d c f) ] ); => (a,b,(e,(d,c)),f);
+ 
+ ((a,b),((c,d),e),f); => $tree->sort_tips( [ qw(a e d c b f) ] ); => ((e,(d,c)),(a,b),f);
+
+ Type    : Tree manipulator
+ Title   : sort_tips
+ Usage   : $tree->sort_tips($ordering);
+ Function: Sorts nodes
+ Returns : The modified invocant.
+ Args    : Required, an array reference (or taxa object) whose ordering to match
+
+=cut
+	
+	sub sort_tips {
+		my ( $self, $taxa ) = @_;
+		my @taxa = UNIVERSAL::can( $taxa, 'get_entities' ) ? @{ $taxa->get_entities } : @{ $taxa };
+		my @names = map { UNIVERSAL::can( $_, 'get_name' ) ? $_->get_name : $_ } @taxa;
+		my $i = 1;
+		my %rank = map { $_ => $i++ } @names;
+		$self->visit_depth_first(
+			'-post' => sub {
+				my $node = shift;
+				my @children = @{ $node->get_children };
+				if ( @children ) {
+					my @ranks = map { $_->get_generic('rank') } @children;
+					my $sum = sum @ranks;
+					my $mean = $sum / scalar(@ranks);
+					$node->set_generic( 'rank' => $mean );
+					$node->clear;
+					$node->insert(
+						sort {
+							$a->get_generic('rank') <=> $b->get_generic('rank')
+						} @children
+					);
+				}
+				else {
+					$node->set_generic( 'rank' => $rank{ $node->get_name } );
+				}
+			}
+		);
+		return $self->_analyze;
+	}
+
 =item exponentiate()
 
 Raises branch lengths to argument.
@@ -3006,7 +3061,7 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =head1 REVISION
 
- $Id: Tree.pm 1593 2011-02-27 15:26:04Z rvos $
+ $Id: Tree.pm 1620 2011-03-19 15:21:57Z rvos $
 
 =cut
 

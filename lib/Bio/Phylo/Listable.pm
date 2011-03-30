@@ -1,4 +1,4 @@
-# $Id: Listable.pm 1593 2011-02-27 15:26:04Z rvos $
+# $Id: Listable.pm 1629 2011-03-30 16:52:06Z rvos $
 package Bio::Phylo::Listable;
 use strict;
 use vars qw(@ISA);
@@ -226,7 +226,7 @@ Prunes the container's contents specified by an array reference of indices.
 
  Type    : Mutator
  Title   : prune_entities
- Usage   : $list->keep_entities([9,7,7,6]);
+ Usage   : $list->prune_entities([9,7,7,6]);
  Function: Prunes a subset of contents
  Returns : A Bio::Phylo::Listable object.
  Args    : An array reference of indices
@@ -1220,7 +1220,7 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =head1 REVISION
 
- $Id: Listable.pm 1593 2011-02-27 15:26:04Z rvos $
+ $Id: Listable.pm 1629 2011-03-30 16:52:06Z rvos $
 
 =cut
 

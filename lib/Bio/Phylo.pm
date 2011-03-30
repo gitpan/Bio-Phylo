@@ -1,4 +1,4 @@
-# $Id: Phylo.pm 1593 2011-02-27 15:26:04Z rvos $
+# $Id: Phylo.pm 1641 2011-03-30 17:27:58Z rvos $
 package Bio::Phylo;
 use strict;
 
@@ -33,9 +33,9 @@ BEGIN {
 require Bio::Phylo::Mediators::TaxaMediator;  
 
 # Include the revision number from subversion in $VERSION
-my $rev = '$Id: Phylo.pm 1593 2011-02-27 15:26:04Z rvos $';
+my $rev = '$Id: Phylo.pm 1641 2011-03-30 17:27:58Z rvos $';
 $rev =~ s/^[^\d]+(\d+)\b.*$/$1/;
-$VERSION = "0.35";
+$VERSION = "0.36";
 $VERSION .= "_$rev";
 {
     my $taxamediator = 'Bio::Phylo::Mediators::TaxaMediator';
@@ -212,7 +212,7 @@ argument "-name" in the constructor.
 					$@->rethrow;
 				}
 				elsif ( not ref($@) and $@ =~ /^Can't locate object method / ) {
-					throw 'BadArgs' => "The named argument '${key}' cannot be passed to the constructor";
+					throw 'BadArgs' => "The named argument '${key}' cannot be passed to the constructor of ${class}";
 				}
 				else {
 					throw 'Generic' => $@;
@@ -953,7 +953,7 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =head1 REVISION
 
- $Id: Phylo.pm 1593 2011-02-27 15:26:04Z rvos $
+ $Id: Phylo.pm 1641 2011-03-30 17:27:58Z rvos $
 
 =cut
 

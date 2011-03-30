@@ -9,6 +9,8 @@ my %class = (
     'taxon'       => 'Bio::Phylo::Taxa::Taxon',
     'datum'       => 'Bio::Phylo::Matrices::Datum',
     'matrix'      => 'Bio::Phylo::Matrices::Matrix',
+    'characters'  => 'Bio::Phylo::Matrices::Characters',
+    'character'   => 'Bio::Phylo::Matrices::Character',
     'forest'      => 'Bio::Phylo::Forest',
     'node'        => 'Bio::Phylo::Forest::Node',
     'tree'        => 'Bio::Phylo::Forest::Tree',
@@ -16,20 +18,19 @@ my %class = (
     'drawer'      => 'Bio::Phylo::Treedrawer',
     'treedrawer'  => 'Bio::Phylo::Treedrawer',    
     'project'     => 'Bio::Phylo::Project',
-#    'dictionary'  => 'Bio::Phylo::Dictionary',
     'annotation'  => 'Bio::Phylo::Annotation',
     'set'         => 'Bio::Phylo::Set',
     'generator'   => 'Bio::Phylo::Generator',
     'xmlwritable' => 'Bio::Phylo::NeXML::Writable',
     'xmlliteral'  => 'Bio::Phylo::NeXML::Meta::XMLLiteral',
     'meta'        => 'Bio::Phylo::NeXML::Meta',
-#    'client'      => 'Bio::Phylo::PhyloWS::Client',
-#    'server'      => 'Bio::Phylo::PhyloWS::Server',  
-#    'resource'    => 'Bio::Phylo::PhyloWS::Resource',    
-#    'description' => 'Bio::Phylo::PhyloWS::Resource::Description',
     'dom'         => 'Bio::Phylo::NeXML::DOM',
     'document'    => 'Bio::Phylo::NeXML::DOM::Document',
     'element'     => 'Bio::Phylo::NeXML::DOM::Element',
+#    'client'      => 'Bio::Phylo::PhyloWS::Client',
+#    'server'      => 'Bio::Phylo::PhyloWS::Server',  
+#    'resource'    => 'Bio::Phylo::PhyloWS::Resource',    
+#    'description' => 'Bio::Phylo::PhyloWS::Resource::Description',    
 );
 
 =head1 NAME
@@ -208,7 +209,7 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =head1 REVISION
 
- $Id: Factory.pm 1593 2011-02-27 15:26:04Z rvos $
+ $Id: Factory.pm 1622 2011-03-23 15:02:21Z rvos $
 
 =cut
 

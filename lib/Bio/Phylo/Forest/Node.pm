@@ -1,4 +1,4 @@
-# $Id: Node.pm 1593 2011-02-27 15:26:04Z rvos $
+# $Id: Node.pm 1614 2011-03-18 12:25:45Z rvos $
 package Bio::Phylo::Forest::Node;
 use strict;
 use Bio::Phylo::Factory;
@@ -1302,6 +1302,47 @@ Returns the tree invocant belongs to
         return $tree{$id};
     }
 
+=item get_subtree()
+
+Returns the tree subtended by the invocant
+
+ Type    : Query
+ Title   : get_subtree
+ Usage   : my $tree = $node->get_subtree;
+ Function: Returns the tree subtended by the invocant
+ Returns : Bio::Phylo::Forest::Tree
+ Args    : NONE
+
+=cut
+
+    sub get_subtree {
+	my $self = shift;
+	my $tree = $fac->create_tree;
+	$self->visit_depth_first(
+		'-pre' => sub {
+			my $node = shift;
+			my $clone = $node->clone;
+			$node->set_generic( 'clone' => $clone );
+			$tree->insert( $clone );
+			if ( my $parent = $node->get_parent ) {
+				if ( my $pclone = $node->get_generic('clone') ) {
+					$clone->set_parent( $pclone );
+				}
+				else {
+					$clone->set_parent;
+				}
+			}			
+			
+		},
+		'-post' => sub {
+			my $node = shift;
+			my $gen = $node->get_generic;
+			delete $gen->{'clone'};
+		}
+	);
+	return $tree->_analyze;
+    }
+
 =back
 
 =head2 TESTS
@@ -2543,7 +2584,7 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =head1 REVISION
 
- $Id: Node.pm 1593 2011-02-27 15:26:04Z rvos $
+ $Id: Node.pm 1614 2011-03-18 12:25:45Z rvos $
 
 =cut
 

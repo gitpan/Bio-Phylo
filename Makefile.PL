@@ -1,4 +1,4 @@
-# $Id: Makefile.PL 1390 2010-10-21 16:34:07Z rvos $
+# $Id: Makefile.PL 1625 2011-03-24 00:32:55Z rvos $
 use strict;
 use warnings;
 use ExtUtils::MakeMaker;
@@ -12,6 +12,7 @@ check_prereq( qw(
     Math::CDF
     List::Util
     SWF::Builder
+    XML::XML2JSON
 ) );
 
 WriteMakefile(

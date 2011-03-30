@@ -1,4 +1,4 @@
-# $Id: TypeSafeData.pm 1593 2011-02-27 15:26:04Z rvos $
+# $Id: TypeSafeData.pm 1635 2011-03-30 17:03:04Z rvos $
 package Bio::Phylo::Matrices::TypeSafeData;
 use Bio::Phylo::Listable ();
 use Bio::Phylo::Util::Exceptions 'throw';
@@ -65,7 +65,17 @@ TypeSafeData constructor.
         if ( not $args{'-type'} and not $args{'-type_object'} ) {
         	$logger->info("No data type provided, will use 'standard'");
         	unshift @_, '-type', 'standard';
-        } 
+        }
+	
+	if ( $args{'-characters'} ) {
+	    if ( $args{'-type'} ) {
+		$args{'-characters'}->set_type( $args{'-type'} );
+	    }
+	    elsif ( $args{'-type_object'} ) {
+		$args{'-characters'}->set_type_object( $args{'-type_object'} );
+	    }
+	}
+	
         # notify user
         $logger->debug("constructor called for '$class'");
 
@@ -386,13 +396,17 @@ Validates the object's contents
  Function: Validates the object's contents
  Returns : True or throws Bio::Phylo::Util::Exceptions::InvalidData
  Args    : None
- Comments: This is an interface method, i.e. this class doesn't
+ Comments: This is an abstract method, i.e. this class doesn't
            implement the method, child classes have to
 
 =cut
 
     sub validate {
-    	throw 'NotImplemented' => 'Not implemented!';
+    	shift->_validate;
+    }
+    
+    sub _validate {
+	throw 'NotImplemented' => 'Not implemented!';
     }
     
     sub _cleanup {
@@ -437,7 +451,7 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =head1 REVISION
 
- $Id: TypeSafeData.pm 1593 2011-02-27 15:26:04Z rvos $
+ $Id: TypeSafeData.pm 1635 2011-03-30 17:03:04Z rvos $
 
 =cut
 
