@@ -1,10 +1,10 @@
 --- #YAML:1.0
 name:               Bio-Phylo
-version:            0.36
+version:            0.37
 abstract:           ~
 author:
     - Rutger Vos
-license:            unknown
+license:            perl
 distribution_type:  module
 configure_requires:
     ExtUtils::MakeMaker:  0

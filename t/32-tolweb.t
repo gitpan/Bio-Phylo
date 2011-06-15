@@ -1,7 +1,8 @@
 use Test::More;
+
 BEGIN {
     eval { require XML::Twig };
-    if ( $@ ) {
+    if ($@) {
         plan 'skip_all' => 'XML::Twig not installed';
     }
     else {
@@ -10,15 +11,14 @@ BEGIN {
 }
 use Bio::Phylo::IO 'parse';
 my $string = do { local $/; <DATA> };
-
 my $obj;
 ok( $obj = parse( '-format' => 'tolweb', '-string' => $string ) );
 isa_ok( $obj->[0], 'Bio::Phylo::Forest' );
-
 my $proj;
-ok( $proj = parse( '-format' => 'tolweb', '-string' => $string, '-as_project' => 1 ) );
+ok( $proj =
+      parse( '-format' => 'tolweb', '-string' => $string, '-as_project' => 1 )
+);
 isa_ok( $proj, 'Bio::Phylo::Project' );
-
 __DATA__
 <?xml version="1.0" standalone="yes"?>
 

@@ -1,9 +1,8 @@
 package Bio::Phylo::Factory;
 use strict;
-use vars '$AUTOLOAD';
 use Bio::Phylo::Util::Exceptions 'throw';
 use Bio::Phylo::Util::CONSTANT qw'looks_like_hash looks_like_class';
-
+our $AUTOLOAD;
 my %class = (
     'taxa'        => 'Bio::Phylo::Taxa',
     'taxon'       => 'Bio::Phylo::Taxa::Taxon',
@@ -16,7 +15,7 @@ my %class = (
     'tree'        => 'Bio::Phylo::Forest::Tree',
     'logger'      => 'Bio::Phylo::Util::Logger',
     'drawer'      => 'Bio::Phylo::Treedrawer',
-    'treedrawer'  => 'Bio::Phylo::Treedrawer',    
+    'treedrawer'  => 'Bio::Phylo::Treedrawer',
     'project'     => 'Bio::Phylo::Project',
     'annotation'  => 'Bio::Phylo::Annotation',
     'set'         => 'Bio::Phylo::Set',
@@ -27,10 +26,11 @@ my %class = (
     'dom'         => 'Bio::Phylo::NeXML::DOM',
     'document'    => 'Bio::Phylo::NeXML::DOM::Document',
     'element'     => 'Bio::Phylo::NeXML::DOM::Element',
-#    'client'      => 'Bio::Phylo::PhyloWS::Client',
-#    'server'      => 'Bio::Phylo::PhyloWS::Server',  
-#    'resource'    => 'Bio::Phylo::PhyloWS::Resource',    
-#    'description' => 'Bio::Phylo::PhyloWS::Resource::Description',    
+
+    #    'client'      => 'Bio::Phylo::PhyloWS::Client',
+    #    'server'      => 'Bio::Phylo::PhyloWS::Server',
+    #    'resource'    => 'Bio::Phylo::PhyloWS::Resource',
+    #    'description' => 'Bio::Phylo::PhyloWS::Resource::Description',
 );
 
 =head1 NAME
@@ -77,9 +77,9 @@ Factory constructor.
 
 =cut
 
-sub new { 
+sub new {
     my $class = shift;
-    if ( @_ ) {
+    if (@_) {
         my %args = looks_like_hash @_;
         while ( my ( $key, $value ) = each %args ) {
             if ( looks_like_class $value ) {
@@ -139,24 +139,24 @@ sub register_class {
     my ( $self, @args ) = @_;
     my ( $short, $class );
     if ( @args == 1 ) {
-	$class = $args[0];
+        $class = $args[0];
     }
     else {
-	( $short, $class ) = @args;
+        ( $short, $class ) = @args;
     }
     my $path = $class;
     $path =~ s|::|/|g;
     $path .= '.pm';
     if ( not $INC{$path} ) {
         eval { require $path };
-	    if ( $@ ) {
-		throw 'ExtensionError' => "Can't register $class - $@";
-	    }        
+        if ($@) {
+            throw 'ExtensionError' => "Can't register $class - $@";
+        }
     }
     if ( not defined $short ) {
-	$short = $class;
-	$short =~ s/.*://;
-	$short = lc $short;
+        $short = $class;
+        $short =~ s/.*://;
+        $short = lc $short;
     }
     $class{$short} = $class;
     return $self;
@@ -165,12 +165,12 @@ sub register_class {
 sub AUTOLOAD {
     my $self   = shift;
     my $method = $AUTOLOAD;
-    $method    =~ s/.*://;
-    my $type   = $method;
+    $method =~ s/.*://;
+    my $type = $method;
     $type =~ s/^create_//;
     if ( exists $class{$type} ) {
         my $class = $class{$type};
-        my $path = $class;
+        my $path  = $class;
         $path =~ s|::|/|g;
         $path .= '.pm';
         if ( not $INC{$path} ) {
@@ -209,8 +209,7 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =head1 REVISION
 
- $Id: Factory.pm 1622 2011-03-23 15:02:21Z rvos $
+ $Id: Factory.pm 1660 2011-04-02 18:29:40Z rvos $
 
 =cut
-
 1;

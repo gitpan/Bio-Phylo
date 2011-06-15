@@ -1,12 +1,8 @@
-# $Id: Fasta.pm 1593 2011-02-27 15:26:04Z rvos $
+# $Id: Fasta.pm 1660 2011-04-02 18:29:40Z rvos $
 package Bio::Phylo::Parsers::Fasta;
 use strict;
+use base 'Bio::Phylo::Parsers::Abstract';
 use Bio::Phylo::Util::Exceptions 'throw';
-use Bio::Phylo::Parsers::Abstract;
-use vars qw(@ISA);
-
-# classic @ISA manipulation, not using 'base'
-@ISA = qw(Bio::Phylo::Parsers::Abstract);
 
 =head1 NAME
 
@@ -45,20 +41,21 @@ sub _parse {
     my $self = shift;
     my $fh   = $self->_handle;
     my $fac  = $self->_factory;
-    my $type = $self->_args->{'-type'} or throw 'BadArgs' => 'No data type specified!';    
+    my $type = $self->_args->{'-type'}
+      or throw 'BadArgs' => 'No data type specified!';
     my $matrix = $fac->create_matrix( '-type' => $type );
     my ( $seq, $datum );
-    while(<$fh>) {
+    while (<$fh>) {
         chomp;
         my $line = $_;
         if ( $line =~ />(\S+)/ ) {
-            my $name = $1;            
+            my $name = $1;
             if ( $seq && $datum ) {
                 $matrix->insert( $datum->set_char($seq) );
             }
             $datum = $fac->create_datum(
-                '-type' => $type,
-                '-name' => $name,
+                '-type'    => $type,
+                '-name'    => $name,
                 '-generic' => { 'fasta_def_line' => $line }
             );
             $seq = '';
@@ -67,11 +64,11 @@ sub _parse {
             $seq .= $line;
         }
     }
-    # within the loop, insertions are triggered by encountering the next definition line,
-    # hence, the last $datum needs to be inserted explicitly when we leave the loop
+
+# within the loop, insertions are triggered by encountering the next definition line,
+# hence, the last $datum needs to be inserted explicitly when we leave the loop
     $matrix->insert( $datum->set_char($seq) );
     return $matrix;
-	
 }
 
 # podinherit_insert_token
@@ -102,8 +99,7 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =head1 REVISION
 
- $Id: Fasta.pm 1593 2011-02-27 15:26:04Z rvos $
+ $Id: Fasta.pm 1660 2011-04-02 18:29:40Z rvos $
 
 =cut
-
 1;

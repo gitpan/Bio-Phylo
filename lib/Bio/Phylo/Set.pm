@@ -1,9 +1,7 @@
 package Bio::Phylo::Set;
 use strict;
-use vars '@ISA';
-use Bio::Phylo::Listable ();
-use Bio::Phylo::Util::CONSTANT '_NONE_';
-@ISA=qw(Bio::Phylo::Listable);
+use base 'Bio::Phylo::Listable';
+use Bio::Phylo::Util::CONSTANT qw'_NONE_ _SET_';
 
 =head1 NAME
 
@@ -58,13 +56,14 @@ for more information on how to use this feature.
  		   in the constructor, you would pass -value => $val
 
 =cut
-
 {
     my $NONE = _NONE_;
-#     sub new {
-#         return shift->SUPER::new( '-tag' => 'class', @_ );
-#     }
-    
+    my $TYPE = _SET_;
+
+    #     sub new {
+    #         return shift->SUPER::new( '-tag' => 'class', @_ );
+    #     }
+
 =back
 
 =head2 TESTS
@@ -83,17 +82,16 @@ Tests if argument can be inserted in invocant.
  Args    : An $obj to test
 
 =cut    
-
     sub can_contain {
         my ( $self, @obj ) = @_;
-        for my $obj ( @obj ) {
+        for my $obj (@obj) {
             return 0 if ref $obj;
         }
-        return 1;        
+        return 1;
     }
     sub _container { $NONE }
-    sub _type { $NONE }
-    sub _tag { 'class' }
+    sub _type      { $TYPE }
+    sub _tag       { 'set' }
 }
 
 =back
@@ -131,8 +129,7 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =head1 REVISION
 
- $Id: Set.pm 1593 2011-02-27 15:26:04Z rvos $
+ $Id: Set.pm 1660 2011-04-02 18:29:40Z rvos $
 
 =cut
-
 1;

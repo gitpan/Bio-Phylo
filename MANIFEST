@@ -62,9 +62,12 @@ lib/Bio/Phylo/Treedrawer/Gif.pm
 lib/Bio/Phylo/Treedrawer/Jpeg.pm
 lib/Bio/Phylo/Treedrawer/Pdf.pm
 lib/Bio/Phylo/Treedrawer/Png.pm
+lib/Bio/Phylo/Treedrawer/Processing.pm
 lib/Bio/Phylo/Treedrawer/Svg.pm
 lib/Bio/Phylo/Treedrawer/Swf.pm
 lib/Bio/Phylo/Unparsers/Abstract.pm
+lib/Bio/Phylo/Unparsers/Fasta.pm
+lib/Bio/Phylo/Unparsers/Json.pm
 lib/Bio/Phylo/Unparsers/Mrp.pm
 lib/Bio/Phylo/Unparsers/Newick.pm
 lib/Bio/Phylo/Unparsers/Nexml.pm
@@ -73,9 +76,11 @@ lib/Bio/Phylo/Unparsers/Pagel.pm
 lib/Bio/Phylo/Unparsers/Phylip.pm
 lib/Bio/Phylo/Unparsers/Phyloxml.pm
 lib/Bio/Phylo/Util/CONSTANT.pm
+lib/Bio/Phylo/Util/Dependency.pm
 lib/Bio/Phylo/Util/Exceptions.pm
 lib/Bio/Phylo/Util/IDPool.pm
 lib/Bio/Phylo/Util/Logger.pm
+lib/Bio/Phylo/Util/OptionalInterface.pm
 lib/Bio/Phylo/Util/StackTrace.pm
 LICENSE
 Makefile.PL
@@ -114,6 +119,8 @@ t/30-phyloxml.t
 t/31-phylip.t
 t/32-tolweb.t
 t/34-json.t
+t/35-processing.t
+t/36-sets.t
 t/perl-critic.t
 t/perlcriticrc
 t/pod-coverage.t

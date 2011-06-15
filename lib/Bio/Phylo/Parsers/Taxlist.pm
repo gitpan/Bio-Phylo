@@ -1,9 +1,7 @@
-# $Id: Taxlist.pm 1593 2011-02-27 15:26:04Z rvos $
+# $Id: Taxlist.pm 1660 2011-04-02 18:29:40Z rvos $
 package Bio::Phylo::Parsers::Taxlist;
 use strict;
-use Bio::Phylo::Parsers::Abstract;
-use vars qw(@ISA);
-@ISA=qw(Bio::Phylo::Parsers::Abstract);
+use base 'Bio::Phylo::Parsers::Abstract';
 
 =head1 NAME
 
@@ -22,16 +20,16 @@ Bio::Phylo::IO->parse call:
 =cut
 
 sub _parse {
-	my $self = shift;
-	my $fh   = $self->_handle;
-	my $fac  = $self->_factory;
-	my $taxa = $fac->create_taxa;
-	local $/ = $self->_args->{'-fieldsep'} || "\n";
-	while(<$fh>) {
-		chomp;
-		$taxa->insert( $fac->create_taxon( '-name' => $_ ) );
-	}
-	return $taxa;
+    my $self = shift;
+    my $fh   = $self->_handle;
+    my $fac  = $self->_factory;
+    my $taxa = $fac->create_taxa;
+    local $/ = $self->_args->{'-fieldsep'} || "\n";
+    while (<$fh>) {
+        chomp;
+        $taxa->insert( $fac->create_taxon( '-name' => $_ ) );
+    }
+    return $taxa;
 }
 
 # podinherit_insert_token
@@ -62,8 +60,7 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =head1 REVISION
 
- $Id: Taxlist.pm 1593 2011-02-27 15:26:04Z rvos $
+ $Id: Taxlist.pm 1660 2011-04-02 18:29:40Z rvos $
 
 =cut
-
 1;

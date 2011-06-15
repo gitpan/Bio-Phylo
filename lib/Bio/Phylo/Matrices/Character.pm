@@ -1,9 +1,7 @@
 package Bio::Phylo::Matrices::Character;
 use strict;
+use base 'Bio::Phylo::Matrices::TypeSafeData';
 use Bio::Phylo::Util::CONSTANT qw'_CHARACTER_ _CHARACTERS_';
-use Bio::Phylo::Matrices::TypeSafeData;
-use vars '@ISA';
-@ISA=qw(Bio::Phylo::Matrices::TypeSafeData);
 
 =head1 NAME
 
@@ -48,7 +46,6 @@ sub to_xml {
     }
     return $self->SUPER::to_xml;
 }
-
 sub _validate  { 1 }
 sub _container { _CHARACTERS_ }
 sub _type      { _CHARACTER_ }
@@ -87,8 +84,7 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =head1 REVISION
 
- $Id: Character.pm 1646 2011-03-30 17:43:19Z rvos $
+ $Id: Character.pm 1660 2011-04-02 18:29:40Z rvos $
 
 =cut
-
 1;

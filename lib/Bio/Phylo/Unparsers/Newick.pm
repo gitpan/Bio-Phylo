@@ -1,12 +1,9 @@
-# $Id: Newick.pm 1593 2011-02-27 15:26:04Z rvos $
+# $Id: Newick.pm 1660 2011-04-02 18:29:40Z rvos $
 package Bio::Phylo::Unparsers::Newick;
 use strict;
-use Bio::Phylo::Forest::Tree ();
-use Bio::Phylo::Unparsers::Abstract;
-use Bio::Phylo::Util::CONSTANT qw(:objecttypes);
-use vars qw(@ISA);
-
-@ISA=qw(Bio::Phylo::Unparsers::Abstract);
+use base 'Bio::Phylo::Unparsers::Abstract';
+use Bio::Phylo::Forest::Tree;
+use Bio::Phylo::Util::CONSTANT ':objecttypes';
 
 =head1 NAME
 
@@ -71,13 +68,15 @@ sub _to_string {
     if ( $type == _TREE_ ) {
         my $root = $tree->get_root;
         my %args;
-        for my $key ( qw(TRANSLATE TIPNAMES NHXKEYS NODELABELS BLFORMAT NHXSTYLE) ) {
+        for
+          my $key (qw(TRANSLATE TIPNAMES NHXKEYS NODELABELS BLFORMAT NHXSTYLE))
+        {
             if ( my $val = $self->{$key} ) {
                 my $arg = '-' . lc($key);
                 $args{$arg} = $val;
             }
-        } 
-        return $root->to_newick( %args );
+        }
+        return $root->to_newick(%args);
     }
     elsif ( $type == _FOREST_ ) {
         my $forest = $tree;
@@ -85,36 +84,38 @@ sub _to_string {
         for my $tree ( @{ $forest->get_entities } ) {
             my $root = $tree->get_root;
             my %args;
-            for my $key ( qw(TRANSLATE TIPNAMES NHXKEYS NODELABELS BLFORMAT NHXSTYLE) ) {
+            for my $key (
+                qw(TRANSLATE TIPNAMES NHXKEYS NODELABELS BLFORMAT NHXSTYLE))
+            {
                 if ( my $val = $self->{$key} ) {
                     my $arg = '-' . lc($key);
                     $args{$arg} = $val;
                 }
-            } 
-            $newick .= $root->to_newick( %args ) . "\n";        
+            }
+            $newick .= $root->to_newick(%args) . "\n";
         }
         return $newick;
     }
     elsif ( $type == _PROJECT_ ) {
         my $project = $tree;
-        my $newick = "";
-        
+        my $newick  = "";
         for my $forest ( @{ $project->get_forests } ) {
             for my $tree ( @{ $forest->get_entities } ) {
                 my $root = $tree->get_root;
                 my %args;
-                for my $key ( qw(TRANSLATE TIPNAMES NHXKEYS NODELABELS BLFORMAT NHXSTYLE) ) {
+                for my $key (
+                    qw(TRANSLATE TIPNAMES NHXKEYS NODELABELS BLFORMAT NHXSTYLE))
+                {
                     if ( my $val = $self->{$key} ) {
                         my $arg = '-' . lc($key);
                         $args{$arg} = $val;
                     }
-                } 
-                $newick .= $root->to_newick( %args ) . "\n";        
+                }
+                $newick .= $root->to_newick(%args) . "\n";
             }
         }
-        
         return $newick;
-    }    
+    }
 }
 
 =begin comment
@@ -131,11 +132,10 @@ sub _to_string {
 =end comment
 
 =cut
-
 {
     my $string = q{};
-    #no warnings 'uninitialized';
 
+    #no warnings 'uninitialized';
     sub __to_string {
         my ( $self, $tree, $n ) = @_;
         if ( !$n->get_parent ) {
@@ -143,7 +143,7 @@ sub _to_string {
                 $string = $n->get_name . ':' . $n->get_branch_length . ';';
             }
             else {
-                $string = $n->get_name ? $n->get_name . ';' : ';';
+                $string = defined $n->get_name ? $n->get_name . ';' : ';';
             }
         }
         elsif ( !$n->get_previous_sister ) {
@@ -200,8 +200,7 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =head1 REVISION
 
- $Id: Newick.pm 1593 2011-02-27 15:26:04Z rvos $
+ $Id: Newick.pm 1660 2011-04-02 18:29:40Z rvos $
 
 =cut
-
 1;

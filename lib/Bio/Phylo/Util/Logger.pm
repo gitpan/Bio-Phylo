@@ -1,57 +1,47 @@
 package Bio::Phylo::Util::Logger;
 use strict;
+use base 'Exporter';
 use File::Spec;
+
 #use Filter::Simple;
 use Bio::Phylo::Util::CONSTANT qw'looks_like_hash looks_like_instance';
 use Bio::Phylo::Util::Exceptions 'throw';
 use Config;
-use vars qw(
-	$volume
-	$class_dir
-	$file
-	$VERBOSE
-	$AUTOLOAD
-	$TRACEBACK
-	@ISA
-	@EXPORT_OK
-	%EXPORT_TAGS
-);
+our ( $volume, $class_dir, $file, $VERBOSE, $AUTOLOAD, $TRACEBACK, @EXPORT_OK,
+    %EXPORT_TAGS );
 
 BEGIN {
-	require Exporter;
-	@ISA = qw(Exporter);
-	@EXPORT_OK = qw(DEBUG INFO WARN ERROR FATAL);
-	%EXPORT_TAGS = ( 'levels' => [ @EXPORT_OK ] );
-	my $class_file = __FILE__;
-	( $volume, $class_dir, $file ) = File::Spec->splitpath( $class_file );
-	
-	# By default, the logger formats its messages to show where the logging
-	# method (i.e. debug, info, warn, error or fatal) was called, (e.g in
-	# the synopsis the $logger->info method was called in Bio/Phylo.pm on
-	# line 280). However, in some cases you may want to have the message be
-	# formatted to originate earlier in the call stack. An example of
-	# this is in Bio::Phylo::Util::Exceptions, which calls $logger->error
-	# automatically every time an exception is thrown. This behaviour would
-	# not be very useful if the resulting message is shown to originate from
-	# within the "throw" method - so instead it seems to originate from
-	# where the exception was thrown, i.e. one frame up in the call stack.
-	# This behaviour can be achieved by changing the value of the
-	# $Bio::Phylo::Util::Logger::TRACEBACK variable. For each increment in
-	# that variable, the logger moves one frame up in the call stack.	
-	$TRACEBACK = 0;
-	$class_dir =~ s/Bio.Phylo.Util.?$//;
+    @EXPORT_OK = qw(DEBUG INFO WARN ERROR FATAL);
+    %EXPORT_TAGS = ( 'levels' => [@EXPORT_OK] );
+    my $class_file = __FILE__;
+    ( $volume, $class_dir, $file ) = File::Spec->splitpath($class_file);
+
+    # By default, the logger formats its messages to show where the logging
+    # method (i.e. debug, info, warn, error or fatal) was called, (e.g in
+    # the synopsis the $logger->info method was called in Bio/Phylo.pm on
+    # line 280). However, in some cases you may want to have the message be
+    # formatted to originate earlier in the call stack. An example of
+    # this is in Bio::Phylo::Util::Exceptions, which calls $logger->error
+    # automatically every time an exception is thrown. This behaviour would
+    # not be very useful if the resulting message is shown to originate from
+    # within the "throw" method - so instead it seems to originate from
+    # where the exception was thrown, i.e. one frame up in the call stack.
+    # This behaviour can be achieved by changing the value of the
+    # $Bio::Phylo::Util::Logger::TRACEBACK variable. For each increment in
+    # that variable, the logger moves one frame up in the call stack.
+    $TRACEBACK = 0;
+    $class_dir =~ s/Bio.Phylo.Util.?$//;
+
 #	printf STDERR "[ %s starting, will use PREFIX=%s where applicable ]\n", __PACKAGE__, $class_dir;
 }
-
-{	
-	my $self;	
-	my %VERBOSE;
-	my @listeners;	
-	my ( $fatal, $error, $warn, $info, $debug ) = ( 0 .. 4 );		
-	$VERBOSE = $warn;	
-
-	for my $method ( qw(fatal error warn info debug) ) {
-eval <<"CODE_TEMPLATE";	
+{
+    my $self;
+    my %VERBOSE;
+    my @listeners;
+    my ( $fatal, $error, $warn, $info, $debug ) = ( 0 .. 4 );
+    $VERBOSE = $warn;
+    for my $method (qw(fatal error warn info debug)) {
+        eval <<"CODE_TEMPLATE";
 	sub $method {
 		my ( \$self, \$msg ) = \@_;
 		my ( \$package, \$file1up, \$line1up, \$subroutine ) = caller( \$TRACEBACK + 1 );
@@ -82,105 +72,109 @@ eval <<"CODE_TEMPLATE";
 		return \$self;	
 	}	
 CODE_TEMPLATE
-	}
-	
-	sub new {
-		my $package = shift;
-		
-		# singleton object
-		if ( not $self ) {
-			$self = \$package;
-			bless $self, $package;
-		}
-		
-		# process args
-		$self->VERBOSE(@_) if @_;
-		
-		# done
-		return $self;
-	}
-	
-	sub set_listeners {
-		my ( $self, @args ) = @_;
-		for my $arg ( @args ) {
-			if ( looks_like_instance $arg, 'CODE' ) {
-				push @listeners, $arg;
-			}
-			else {
-				throw 'BadArgs' => "$arg not a CODE reference";
-			}
-		}
-		return $self;
-	}
-	
-	sub PREFIX { 
-		my ( $self, $prefix ) = @_;
-		$class_dir = $prefix if $prefix;
-		return $class_dir;
-	}
-	
-	sub VERBOSE {
-		my $self = shift;
-		if (@_) {
-			my %opt = looks_like_hash @_;
-			if ( defined $opt{'-level'} ) {
-				
-				# check validity
-				if ( $opt{'-level'} > $debug xor $opt{'-level'} < $fatal ) {
-					throw 'OutOfBounds' => "'-level' can be between $fatal and $debug, not $opt{'-level'}";
-				}				
-				
-				if ( $opt{'-class'} ) {
-					$VERBOSE{ $opt{'-class'} } = $opt{'-level'};
-					$self->info("Changed verbosity for class $opt{'-class'} to $opt{'-level'}");
-				}
-				elsif ( $opt{'-method'} ) {
-					$VERBOSE{ $opt{'-method'} } = $opt{'-level'};
-					$self->info("Changed verbosity for method $opt{'-method'} to $opt{'-level'}");				
-				}
-				else {
-					$VERBOSE = $opt{'-level'};				
-					$self->info("Changed global verbosity to $VERBOSE");
-				}
-			}
-		}
-		return $VERBOSE;
-	}	
-	
-	sub DESTROY {} # empty destructor so we don't go up inheritance tree at the end
-	# log levels
-	sub FATAL () { 0 }
-	sub ERROR () { 1 }
-	sub WARN  () { 2 }
-	sub INFO  () { 3 }
-	sub DEBUG () { 4 }
-# source filtering to get rid of all logger calls.
-# This doesn't seem to improve performance by much
-# and the regexes might not work if there are 
-# parentheses inside the logging string so this is
-# highly experimental. Also, it requires modules
-# to "use" Bio::Phylo::Util::Logger explicitly instead
-# of calling get_logger up the inheritance tree. All
-# in all this is pretty useless and buggy at this point
-# so let's just comment this out.
-# 	FILTER {
-# 		my $debug_regex = '$logger->debug(';
-# 		my $info_regex  = '$logger->info(';		
-# 		my $warn_regex  = '$logger->warn(';		
-# 		my $error_regex = '$logger->error(';				
-# 		my $fatal_regex = '$logger->fatal(';						
-# 
-# 		s/\Q$debug_regex\E[^\)]+?\);//g unless $ENV{'BIO_PHYLO_LOGGING'};
-# 		s/\Q$info_regex\E[^\)]+?\);//g  unless $ENV{'BIO_PHYLO_LOGGING'};
-# 		s/\Q$warn_regex\E[^\)]+?\);//g  unless $ENV{'BIO_PHYLO_LOGGING'};
-# 		s/\Q$error_regex\E[^\)]+?\);//g unless $ENV{'BIO_PHYLO_LOGGING'};
-# 		s/\Q$fatal_regex\E[^\)]+?\);//g unless $ENV{'BIO_PHYLO_LOGGING'};
-# 
-# 	};
-	
-}
+    }
 
-1;		
+    sub new {
+        my $package = shift;
+
+        # singleton object
+        if ( not $self ) {
+            $self = \$package;
+            bless $self, $package;
+        }
+
+        # process args
+        $self->VERBOSE(@_) if @_;
+
+        # done
+        return $self;
+    }
+
+    sub set_listeners {
+        my ( $self, @args ) = @_;
+        for my $arg (@args) {
+            if ( looks_like_instance $arg, 'CODE' ) {
+                push @listeners, $arg;
+            }
+            else {
+                throw 'BadArgs' => "$arg not a CODE reference";
+            }
+        }
+        return $self;
+    }
+
+    sub PREFIX {
+        my ( $self, $prefix ) = @_;
+        $class_dir = $prefix if $prefix;
+        return $class_dir;
+    }
+
+    sub VERBOSE {
+        my $self = shift;
+        if (@_) {
+            my %opt = looks_like_hash @_;
+            if ( defined $opt{'-level'} ) {
+
+                # check validity
+                if ( $opt{'-level'} > $debug xor $opt{'-level'} < $fatal ) {
+                    throw 'OutOfBounds' =>
+"'-level' can be between $fatal and $debug, not $opt{'-level'}";
+                }
+                if ( $opt{'-class'} ) {
+                    $VERBOSE{ $opt{'-class'} } = $opt{'-level'};
+                    $self->info(
+"Changed verbosity for class $opt{'-class'} to $opt{'-level'}"
+                    );
+                }
+                elsif ( $opt{'-method'} ) {
+                    $VERBOSE{ $opt{'-method'} } = $opt{'-level'};
+                    $self->info(
+"Changed verbosity for method $opt{'-method'} to $opt{'-level'}"
+                    );
+                }
+                else {
+                    $VERBOSE = $opt{'-level'};
+                    $self->info("Changed global verbosity to $VERBOSE");
+                }
+            }
+        }
+        return $VERBOSE;
+    }
+
+    sub DESTROY {
+    }    # empty destructor so we don't go up inheritance tree at the end
+         # log levels
+    sub FATAL () { 0 }
+    sub ERROR () { 1 }
+    sub WARN ()  { 2 }
+    sub INFO ()  { 3 }
+    sub DEBUG () { 4 }
+
+    # source filtering to get rid of all logger calls.
+    # This doesn't seem to improve performance by much
+    # and the regexes might not work if there are
+    # parentheses inside the logging string so this is
+    # highly experimental. Also, it requires modules
+    # to "use" Bio::Phylo::Util::Logger explicitly instead
+    # of calling get_logger up the inheritance tree. All
+    # in all this is pretty useless and buggy at this point
+    # so let's just comment this out.
+    # 	FILTER {
+    # 		my $debug_regex = '$logger->debug(';
+    # 		my $info_regex  = '$logger->info(';
+    # 		my $warn_regex  = '$logger->warn(';
+    # 		my $error_regex = '$logger->error(';
+    # 		my $fatal_regex = '$logger->fatal(';
+    #
+    # 		s/\Q$debug_regex\E[^\)]+?\);//g unless $ENV{'BIO_PHYLO_LOGGING'};
+    # 		s/\Q$info_regex\E[^\)]+?\);//g  unless $ENV{'BIO_PHYLO_LOGGING'};
+    # 		s/\Q$warn_regex\E[^\)]+?\);//g  unless $ENV{'BIO_PHYLO_LOGGING'};
+    # 		s/\Q$error_regex\E[^\)]+?\);//g unless $ENV{'BIO_PHYLO_LOGGING'};
+    # 		s/\Q$fatal_regex\E[^\)]+?\);//g unless $ENV{'BIO_PHYLO_LOGGING'};
+    #
+    # 	};
+}
+1;
 
 =head1 NAME
 
@@ -495,6 +489,6 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =head1 REVISION
 
- $Id: Logger.pm 1593 2011-02-27 15:26:04Z rvos $
+ $Id: Logger.pm 1660 2011-04-02 18:29:40Z rvos $
 
 =cut

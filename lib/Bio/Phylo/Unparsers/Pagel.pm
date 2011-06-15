@@ -1,11 +1,8 @@
-# $Id: Pagel.pm 1593 2011-02-27 15:26:04Z rvos $
+# $Id: Pagel.pm 1660 2011-04-02 18:29:40Z rvos $
 package Bio::Phylo::Unparsers::Pagel;
 use strict;
-use Bio::Phylo::Forest::Tree ();
-use Bio::Phylo::Unparsers::Abstract;
-use vars qw(@ISA);
-
-@ISA=qw(Bio::Phylo::Unparsers::Abstract);
+use base 'Bio::Phylo::Unparsers::Abstract';
+use Bio::Phylo::Forest::Tree;
 
 =head1 NAME
 
@@ -70,8 +67,8 @@ sub _to_string {
     my ( $charcounter, $string ) = 0;
     foreach my $node ( @{ $tree->get_entities } ) {
         if ( $node->get_parent ) {
-            $string .=
-              $node->get_internal_name . ',' . $node->get_parent->get_internal_name . ',';
+            $string .= $node->get_internal_name . ','
+              . $node->get_parent->get_internal_name . ',';
             if ( $node->get_branch_length ) {
                 $string .= sprintf( "%f", $node->get_branch_length );
             }
@@ -125,8 +122,7 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =head1 REVISION
 
- $Id: Pagel.pm 1593 2011-02-27 15:26:04Z rvos $
+ $Id: Pagel.pm 1660 2011-04-02 18:29:40Z rvos $
 
 =cut
-
 1;

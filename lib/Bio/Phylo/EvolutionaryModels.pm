@@ -1,21 +1,19 @@
 package Bio::Phylo::EvolutionaryModels;
+use strict;
+use base 'Exporter';
 use Bio::Phylo::Forest::Tree;
 use Bio::Phylo::Forest;
-use Math::CDF qw[qnorm qbeta];
-use strict;
-use List::Util qw[min max];
-use POSIX qw(ceil floor);
-use Config; #Use to check whether multi-threading is available
+use Math::CDF qw'qnorm qbeta';
+use List::Util qw'min max';
+use POSIX qw'ceil floor';
+use Config;    #Use to check whether multi-threading is available
 
 BEGIN {
+
     # set the version for version checking
     use Bio::Phylo; our $VERSION = $Bio::Phylo::VERSION;
-    
-    # classic subroutine exporting
-    use Exporter   ();
-    our (@ISA, @EXPORT_OK);
-    @ISA       = qw(Exporter);
-    @EXPORT_OK = qw(&sample &constant_rate_birth &constant_rate_birth_death);
+    our @EXPORT_OK =
+      qw(&sample &constant_rate_birth &constant_rate_birth_death);
 }
 
 =head1 NAME
@@ -203,120 +201,149 @@ From a code perspective this function (sample):
  Reformats data
 
 =cut
-
 my @threads;
 
 sub sample {
-
-    my %options = @_;
-    my %methods_require = (b => ['rate'], 
-                           bd => ['rate','nstar'],
-                           incomplete_sampling_bd => ['rate','nstar','mstar','sampling_probability'],
-                           memoryless_b => ['pendant_dist'],
-                           constant_rate_bd => [],
-                           );
+    my %options         = @_;
+    my %methods_require = (
+        b  => ['rate'],
+        bd => [ 'rate', 'nstar' ],
+        incomplete_sampling_bd =>
+          [ 'rate', 'nstar', 'mstar', 'sampling_probability' ],
+        memoryless_b     => ['pendant_dist'],
+        constant_rate_bd => [],
+    );
 
     #Default is to sample a single tree
-    $options{sample_size} = 1 unless defined $options{sample_size}; 
-    
+    $options{sample_size} = 1 unless defined $options{sample_size};
+
     #Default is to use a single thread
     $options{threads} = 1 unless defined $options{threads};
-    
+
     #Check that multiple threads are actually supported
-    if ($options{threads} > 1 && !$Config{useithreads}) {
-        Bio::Phylo::Util::Exceptions::BadArgs->throw(
-            'error' => "your perl installation does not support multiple threads");
+    if ( $options{threads} > 1 && !$Config{useithreads} ) {
+        Bio::Phylo::Util::Exceptions::BadArgs->throw( 'error' =>
+              "your perl installation does not support multiple threads" );
     }
 
     #Check an algorithm was specified
-    unless (defined $options{algorithm}) {
+    unless ( defined $options{algorithm} ) {
         Bio::Phylo::Util::Exceptions::BadArgs->throw(
-            'error' => "an algorithm type must be specified");
+            'error' => "an algorithm type must be specified" );
     }
 
-    #Check the algorithm type is valid                           
-    unless (defined $methods_require{$options{algorithm}}) {
+    #Check the algorithm type is valid
+    unless ( defined $methods_require{ $options{algorithm} } ) {
         Bio::Phylo::Util::Exceptions::BadFormat->throw(
-            'error' => "'$options{algorithm}' is not a valid algorithm");
-    }        
-    
+            'error' => "'$options{algorithm}' is not a valid algorithm" );
+    }
+
     #Check the algorithm options
-    foreach (@{$methods_require{$options{algorithm}}}) {
-        unless (defined $options{algorithm_options}->{$_}) {
-        Bio::Phylo::Util::Exceptions::BadArgs->throw(
-            'error' => "'$_' must be specified for the '$options{algorithm}' algorithm");
-        }    
+    foreach ( @{ $methods_require{ $options{algorithm} } } ) {
+        unless ( defined $options{algorithm_options}->{$_} ) {
+            Bio::Phylo::Util::Exceptions::BadArgs->throw( 'error' =>
+"'$_' must be specified for the '$options{algorithm}' algorithm"
+            );
+        }
     }
 
-    #If we are doing incomplete taxon sampling the sampling probability must be specified    
-    if (defined $options{incomplete_sampling} && $options{incomplete_sampling} && !(defined $options{algorithm_options}->{sampling_probability})) {
-        Bio::Phylo::Util::Exceptions::BadArgs->throw(
-            'error' => "'sampling_probability' must be specified for post hoc incomplete sampling to be applied");
+#If we are doing incomplete taxon sampling the sampling probability must be specified
+    if (   defined $options{incomplete_sampling}
+        && $options{incomplete_sampling}
+        && !( defined $options{algorithm_options}->{sampling_probability} ) )
+    {
+        Bio::Phylo::Util::Exceptions::BadArgs->throw( 'error' =>
+"'sampling_probability' must be specified for post hoc incomplete sampling to be applied"
+        );
     }
 
-    #Check that a model has been specified    
-    unless (defined $options{model} || $options{algorithm} eq 'constant_rate_bd') {
+    #Check that a model has been specified
+    unless ( defined $options{model}
+        || $options{algorithm} eq 'constant_rate_bd' )
+    {
         Bio::Phylo::Util::Exceptions::BadArgs->throw(
-            'error' => "a model must be specified");
-    }        
-    
+            'error' => "a model must be specified" );
+    }
+
     #Get a function pointer for the algorithm
-    my $algorithm = 'sample_'.$options{algorithm};
+    my $algorithm = 'sample_' . $options{algorithm};
     $algorithm = \&$algorithm;
-    
     my @output;
+
     #Run the algorithm, different method for multiple threads
-    if ($options{threads} > 1) {
+    if ( $options{threads} > 1 ) {
         require threads;
         require threads::shared;
-        @output = ([],[]);
-                $SIG{'KILL'} = sub { foreach (@threads) { $_->kill('KILL')->detach(); }; threads->exit(); };
+        @output = ( [], [] );
+        $SIG{'KILL'} = sub {
+            foreach (@threads) { $_->kill('KILL')->detach(); }
+            threads->exit();
+        };
+
         #Start the threads
-        for ((1..$options{threads})) {
+        for ( ( 1 .. $options{threads} ) ) {
             @_ = ();
+
             #Note the list context of the return argument here determines
             #the data type returned from the thread.
-            ($threads[$_-1]) = threads->new(\&_sample_newick, %options, sample_size => ceil($options{sample_size}/$options{threads}));     
+            ( $threads[ $_ - 1 ] ) = threads->new( \&_sample_newick, %options,
+                sample_size => ceil( $options{sample_size} / $options{threads} )
+            );
         }
 
         #Wait for them to finish and combine the data
-        for ((1..$options{threads})) {
-            until ($threads[$_-1]->is_joinable()) { sleep(0.1); }
-            my @thread_data = $threads[$_-1]->join;
-            for (my $index = 0; $index < scalar @thread_data; $index++) {
+        for ( ( 1 .. $options{threads} ) ) {
+            until ( $threads[ $_ - 1 ]->is_joinable() ) { sleep(0.1); }
+            my @thread_data = $threads[ $_ - 1 ]->join;
+            for ( my $index = 0 ; $index < scalar @thread_data ; $index++ ) {
                 $output[$index] = [] if scalar @output < $index;
-                $output[$index] = [@{$output[$index]}, @{$thread_data[$index]}];                
+                $output[$index] =
+                  [ @{ $output[$index] }, @{ $thread_data[$index] } ];
             }
         }
-        
+
         #Turn newick strings back into tree objects
-        unless (defined $options{output_format} && $options{output_format} eq 'newick') {
+        unless ( defined $options{output_format}
+            && $options{output_format} eq 'newick' )
+        {
+
             #Convert to newick trees
-            for (my $index = 0; $index < scalar @{$output[0]}; $index++) {
-                $output[0]->[$index] = Bio::Phylo::IO->parse(-format => 'newick',-string => $output[0]->[$index] )->first; 
+            for ( my $index = 0 ; $index < scalar @{ $output[0] } ; $index++ ) {
+                $output[0]->[$index] = Bio::Phylo::IO->parse(
+                    -format => 'newick',
+                    -string => $output[0]->[$index]
+                )->first;
             }
         }
-    } else {
+    }
+    else {
+
         #Get the samples
-        @output =  &$algorithm(%options);
-        
+        @output = &$algorithm(%options);
+
         #Turn into newick trees if requested
-        if (defined $options{output_format} && $options{output_format} eq 'newick') {
+        if ( defined $options{output_format}
+            && $options{output_format} eq 'newick' )
+        {
+
             #Convert to newick trees
-            for (my $index = 0; $index < scalar @{$output[0]}; $index++) {
-                $output[0]->[$index] = $output[0]->[$index]->to_newick('-nodelabels' => 1); 
+            for ( my $index = 0 ; $index < scalar @{ $output[0] } ; $index++ ) {
+                $output[0]->[$index] =
+                  $output[0]->[$index]->to_newick( '-nodelabels' => 1 );
             }
         }
-        elsif (defined $options{output_format} && $options{output_format} eq 'forest') {
+        elsif ( defined $options{output_format}
+            && $options{output_format} eq 'forest' )
+        {
+
             # save as a forest
             my $forest = Bio::Phylo::Forest->new;
-            for (my $index = 0; $index < scalar @{$output[0]}; $index++) {
-                $forest->insert($output[0]->[$index]);
+            for ( my $index = 0 ; $index < scalar @{ $output[0] } ; $index++ ) {
+                $forest->insert( $output[0]->[$index] );
             }
             $output[0] = $forest;
         }
     }
-
     return @output;
 }
 
@@ -333,22 +360,22 @@ sub sample {
 =end comment
 
 =cut 
-   
-sub _sample_newick {
-    my %options = @_;
 
-    my $algorithm = 'sample_'.$options{algorithm};
+sub _sample_newick {
+    my %options   = @_;
+    my $algorithm = 'sample_' . $options{algorithm};
 
     # Thread 'cancellation' signal handler
     $SIG{'KILL'} = sub { threads->exit(); };
-
     $algorithm = \&$algorithm;
+
     #Perform the sampling
-    my @output = (&$algorithm(%options));
-    
+    my @output = ( &$algorithm(%options) );
+
     #Convert to newick trees
-    for (my $index = 0; $index < scalar @{$output[0]}; $index++) {
-        $output[0]->[$index] = $output[0]->[$index]->to_newick('-nodelabels' => 1); 
+    for ( my $index = 0 ; $index < scalar @{ $output[0] } ; $index++ ) {
+        $output[0]->[$index] =
+          $output[0]->[$index]->to_newick( '-nodelabels' => 1 );
     }
     return @output;
 }
@@ -377,59 +404,62 @@ Sample from any birth model
 
 sub sample_b {
     my %options = @_;
-    
+
     #The sample of trees
     my @sample;
-    
+
     #A list of the expected number of samples
     my @expected_summary;
-    
     my $model = $options{model};
-    my $rate = $options{algorithm_options}->{rate};
-    
+    my $rate  = $options{algorithm_options}->{rate};
+
     #While we have insufficient samples
-    while (scalar @sample < $options{sample_size}) {
+    while ( scalar @sample < $options{sample_size} ) {
+
         #Generate a candidate model run
-        my $candidate = &$model(%{$options{model_options}},
-                                tree_size => $options{tree_size});    
+        my $candidate = &$model( %{ $options{model_options} },
+            tree_size => $options{tree_size} );
+
         #Check that the tree has no extinctions
-        unless ($candidate->is_ultrametric(1e-6)) {
+        unless ( $candidate->is_ultrametric(1e-6) ) {
             Bio::Phylo::Util::Exceptions::BadFormat->throw(
-                'error' => "the model must be a pure birth process");
+                'error' => "the model must be a pure birth process" );
         }
 
         #Get the lineage through time data
-        my ($time,$count) = lineage_through_time($candidate);
-    
-        #The expected number of samples we want 
+        my ( $time, $count ) = lineage_through_time($candidate);
+
+        #The expected number of samples we want
         my $expected_samples = $rate * ( $time->[-1] - $time->[-2] );
-        
-        push (@expected_summary, $expected_samples);
+        push( @expected_summary, $expected_samples );
 
         #Get the random number of samples from this candidate tree
-        while ($expected_samples > 0) {
+        while ( $expected_samples > 0 ) {
+
             #If the number of samples remaining is greater than one
             #we take a sample, otherwise we take a sample with probability
             #according to the remaining number of samples
-            if ($expected_samples > 1 || rand(1) < $expected_samples) {
+            if ( $expected_samples > 1 || rand(1) < $expected_samples ) {
                 my $tree = copy_tree($candidate);
-                #Truncate the tree at a random point during which it had tree_size species
-                truncate_tree_time($tree,    ($time->[-1] - $time->[-2])*rand(1) + $time->[-2] );
-                #Add the tree to our sample    
-                push(@sample,$tree);
 
-                #Update the sample counter (for GUI or other applications that want to know how 
-                #many samples have been obtained)
-                if (defined $options{counter}) {
+      #Truncate the tree at a random point during which it had tree_size species
+                truncate_tree_time( $tree,
+                    ( $time->[-1] - $time->[-2] ) * rand(1) + $time->[-2] );
+
+                #Add the tree to our sample
+                push( @sample, $tree );
+
+ #Update the sample counter (for GUI or other applications that want to know how
+ #many samples have been obtained)
+                if ( defined $options{counter} ) {
                     my $counter = $options{counter};
                     &$counter(1);
                 }
             }
             $expected_samples--;
         }
-
     }
-    return (\@sample,\@expected_summary);         
+    return ( \@sample, \@expected_summary );
 }
 
 =item sample_bd()
@@ -460,63 +490,73 @@ sub sample_bd {
     #Convenience variables
     my $model = $options{model};
     my $nstar = $options{algorithm_options}->{nstar};
-    my $rate = $options{algorithm_options}->{rate};
-
+    my $rate  = $options{algorithm_options}->{rate};
 
     #While we have insufficient samples
-    while (scalar @sample < $options{sample_size}) {
+    while ( scalar @sample < $options{sample_size} ) {
+
         #Generate a candidate model run
-        my $candidate = &$model(%{$options{model_options}},
-                                tree_size => $nstar);    
+        my $candidate =
+          &$model( %{ $options{model_options} }, tree_size => $nstar );
 
         #Get the lineage through time data
-        my ($time,$count) = lineage_through_time($candidate);
+        my ( $time, $count ) = lineage_through_time($candidate);
 
-        #Reorganise the lineage through time data
-        #@duration contains the length of the intervals with the right number of species
-        #@start contains the starting times of these intervals
-        #@prob contains the cumulative probability of each interval being selected
-        #$total_duration contains the sum of the interval lengths
-        my (@duration, @start, @prob, $total_duration);
-        for (my $index = 0; $index < scalar @{$time} - 1; $index++) {
+#Reorganise the lineage through time data
+#@duration contains the length of the intervals with the right number of species
+#@start contains the starting times of these intervals
+#@prob contains the cumulative probability of each interval being selected
+#$total_duration contains the sum of the interval lengths
+        my ( @duration, @start, @prob, $total_duration );
+        for ( my $index = 0 ; $index < scalar @{$time} - 1 ; $index++ ) {
             if ( $count->[$index] == $options{tree_size} ) {
-                push(@duration, $time->[$index+1] - $time->[$index]);
-                push(@start, $time->[$index]);
+                push( @duration, $time->[ $index + 1 ] - $time->[$index] );
+                push( @start,    $time->[$index] );
                 $total_duration += $duration[-1];
-                push(@prob, $total_duration);
+                push( @prob, $total_duration );
             }
         }
-        no warnings 'uninitialized'; # FIXME
+        no warnings 'uninitialized';    # FIXME
         next if $total_duration == 0;
         use warnings;
-        for (my $index = 0; $index < scalar @prob; $index++) { $prob[$index] /= $total_duration; }
-    
-        #The expected number of samples we want 
+        for ( my $index = 0 ; $index < scalar @prob ; $index++ ) {
+            $prob[$index] /= $total_duration;
+        }
+
+        #The expected number of samples we want
         my $expected_samples = $rate * $total_duration;
-        
-        push (@expected_summary, $expected_samples);
+        push( @expected_summary, $expected_samples );
 
         #Get the random number of samples from this candidate tree
-        while ($expected_samples > 0) {
+        while ( $expected_samples > 0 ) {
+
             #If the number of samples remaining is greater than one
             #we take a sample, otherwise we take a sample with probability
             #according to the remaining number of samples
-            if ($expected_samples > 1 || rand(1) < $expected_samples) {
+            if ( $expected_samples > 1 || rand(1) < $expected_samples ) {
                 my $tree = copy_tree($candidate);
 
                 #Get a random interval
                 my $interval_choice = rand(1);
                 my $interval;
-                for ($interval = 0; $interval_choice > $prob[$interval]; $interval++) {}
+                for (
+                    $interval = 0 ;
+                    $interval_choice > $prob[$interval] ;
+                    $interval++
+                  )
+                {
+                }
 
                 #Truncate the tree at a random point during this interval
-                truncate_tree_time($tree,    $duration[$interval]*rand(1) + $start[$interval] );
-                #Add the tree to our sample    
-                push(@sample,$tree);
+                truncate_tree_time( $tree,
+                    $duration[$interval] * rand(1) + $start[$interval] );
 
-                #Update the sample counter (for GUI or other applications that want to know how 
-                #many samples have been obtained)
-                if (defined $options{counter}) {
+                #Add the tree to our sample
+                push( @sample, $tree );
+
+ #Update the sample counter (for GUI or other applications that want to know how
+ #many samples have been obtained)
+                if ( defined $options{counter} ) {
                     my $counter = $options{counter};
                     &$counter(1);
                 }
@@ -524,7 +564,7 @@ sub sample_bd {
             $expected_samples--;
         }
     }
-    return (\@sample,\@expected_summary);         
+    return ( \@sample, \@expected_summary );
 }
 
 =item sample_incomplete_sampling_bd()
@@ -555,131 +595,154 @@ sampling_probability
 
 sub sample_incomplete_sampling_bd {
     my %options = @_;
-#    %options = (%options, %{$options{algorithm_options}});    
+
+    #    %options = (%options, %{$options{algorithm_options}});
     #The sample of trees
     my @sample;
-    
+
     #A list of the expected number of samples
     my @expected_summary;
-    
-#     #Convenience variables
-     my $model = $options{model};
-     my $nstar = $options{algorithm_options}->{nstar};
-     my $mstar = $options{algorithm_options}->{mstar};
-     my $rate = $options{algorithm_options}->{rate};
-     my $sampling_probability = $options{algorithm_options}->{sampling_probability};
+
+    #     #Convenience variables
+    my $model = $options{model};
+    my $nstar = $options{algorithm_options}->{nstar};
+    my $mstar = $options{algorithm_options}->{mstar};
+    my $rate  = $options{algorithm_options}->{rate};
+    my $sampling_probability =
+      $options{algorithm_options}->{sampling_probability};
 
     #If sampling_probability is a list check it's length
-    if (ref $sampling_probability && scalar @{$sampling_probability} != ($mstar-$options{tree_size}+1)) {
-        Bio::Phylo::Util::Exceptions::BadArgs->throw(
-            'error' => "'sampling_probability' must be a scalar or a list with m_star-tree_size+1 items");
-    }
-    
-    #If a single sampling probability was given we calculate the 
-    #probability of sub-sampling given numbers of species. 
-    unless (ref $sampling_probability) {
-        my $p = $sampling_probability;
-        my @vec;
-	my $total = 0;
-        foreach (($options{tree_size}..$mstar)) {
-            #The probability of sampling tree_size species from a tree containing $_ species 
-            push(@vec, nchoosek($_,$options{tree_size})*($p**$options{tree_size})*((1-$p)**($_-$options{tree_size})));
-	    $total += $vec[-1];
-        }
-	for (my $ii = 0; $ii < scalar @vec; $ii++) { $vec[$ii] /= $total; }
-        $sampling_probability = \@vec;
+    if ( ref $sampling_probability
+        && scalar @{$sampling_probability} !=
+        ( $mstar - $options{tree_size} + 1 ) )
+    {
+        Bio::Phylo::Util::Exceptions::BadArgs->throw( 'error' =>
+"'sampling_probability' must be a scalar or a list with m_star-tree_size+1 items"
+        );
     }
 
+    #If a single sampling probability was given we calculate the
+    #probability of sub-sampling given numbers of species.
+    unless ( ref $sampling_probability ) {
+        my $p = $sampling_probability;
+        my @vec;
+        my $total = 0;
+        foreach ( ( $options{tree_size} .. $mstar ) ) {
+
+#The probability of sampling tree_size species from a tree containing $_ species
+            push( @vec,
+                nchoosek( $_, $options{tree_size} ) *
+                  ( $p**$options{tree_size} ) *
+                  ( ( 1 - $p )**( $_ - $options{tree_size} ) ) );
+            $total += $vec[-1];
+        }
+        for ( my $ii = 0 ; $ii < scalar @vec ; $ii++ ) { $vec[$ii] /= $total; }
+        $sampling_probability = \@vec;
+    }
 
     #We now normalise the sampling_probability list so that it sums to unity
     #this allows comparable sampling rates to be used here and in sample_bd
     my $total_sp = 0;
-    foreach (@{$sampling_probability}) { $total_sp += $_; }
-    
-    no warnings; # FIXME
-    foreach (my $index = 1..scalar @{$sampling_probability}) {
-        no warnings; # FIXME
-        $sampling_probability->[$index-1] /= $total_sp;
+    foreach ( @{$sampling_probability} ) { $total_sp += $_; }
+    no warnings;    # FIXME
+    foreach ( my $index = 1 .. scalar @{$sampling_probability} ) {
+        no warnings;    # FIXME
+        $sampling_probability->[ $index - 1 ] /= $total_sp;
         use warnings;
     }
     use warnings;
-    
+
     #While we have insufficient samples
-    while (scalar @sample < $options{sample_size}) {
+    while ( scalar @sample < $options{sample_size} ) {
+
         #Generate a candidate model run
-        my $candidate = &$model(%{$options{model_options}},
-                                tree_size => $nstar);    
+        my $candidate =
+          &$model( %{ $options{model_options} }, tree_size => $nstar );
 
-		#Get the lineage through time data
-        my ($time,$count) = lineage_through_time($candidate);
-
-		my @size_stats;
-
-        for (my $index = 0; $index < scalar @{$time} - 1; $index++) {
-            no warnings 'uninitialized'; # FIXME
+        #Get the lineage through time data
+        my ( $time, $count ) = lineage_through_time($candidate);
+        my @size_stats;
+        for ( my $index = 0 ; $index < scalar @{$time} - 1 ; $index++ ) {
+            no warnings 'uninitialized';    # FIXME
             if ( $count->[$index] >= $options{tree_size} ) {
-				$size_stats[$count->[$index]-$options{tree_size}] += $time->[$index]*$sampling_probability->[$count->[$index]-$options{tree_size}];
-			}
-		}
+                $size_stats[ $count->[$index] - $options{tree_size} ] +=
+                  $time->[$index] *
+                  $sampling_probability->[ $count->[$index] -
+                  $options{tree_size} ];
+            }
+        }
 
-        #Reorganise the lineage through time data
-        #@duration contains the length of intervals with more than tree_size species
-        #@start contains the starting times of these intervals
-        #@prob contains the cumulative probability of each interval being selected
-        #$total_prob contains the sum of @prob before normalisation
-        my (@duration, @start, @prob, $total_prob);
-		$total_prob = 0;
-        for (my $index = 0; $index < scalar @{$time} - 1; $index++) {
+    #Reorganise the lineage through time data
+    #@duration contains the length of intervals with more than tree_size species
+    #@start contains the starting times of these intervals
+    #@prob contains the cumulative probability of each interval being selected
+    #$total_prob contains the sum of @prob before normalisation
+        my ( @duration, @start, @prob, $total_prob );
+        $total_prob = 0;
+        for ( my $index = 0 ; $index < scalar @{$time} - 1 ; $index++ ) {
             if ( $count->[$index] >= $options{tree_size} ) {
-                push(@duration, $time->[$index+1] - $time->[$index]);
-                push(@start, $time->[$index]);
-                no warnings 'uninitialized'; # FIXME
-                $total_prob += $duration[-1]*$sampling_probability->[$count->[$index]-$options{tree_size}];
-                push(@prob, $total_prob);
+                push( @duration, $time->[ $index + 1 ] - $time->[$index] );
+                push( @start,    $time->[$index] );
+                no warnings 'uninitialized';    # FIXME
+                $total_prob +=
+                  $duration[-1] *
+                  $sampling_probability->[ $count->[$index] -
+                  $options{tree_size} ];
+                push( @prob, $total_prob );
             }
         }
         next if $total_prob == 0;
-	
-        for (my $index = 0; $index < scalar @prob; $index++) { $prob[$index] /= $total_prob; }
-        #The expected number of samples we want 
+        for ( my $index = 0 ; $index < scalar @prob ; $index++ ) {
+            $prob[$index] /= $total_prob;
+        }
+
+        #The expected number of samples we want
         my $expected_samples = $rate * $total_prob;
-        push (@expected_summary, $expected_samples);
-		$expected_samples = $options{sample_size}- scalar @sample if $expected_samples > $options{sample_size}- scalar @sample;
+        push( @expected_summary, $expected_samples );
+        $expected_samples = $options{sample_size} - scalar @sample
+          if $expected_samples > $options{sample_size} - scalar @sample;
+
         #Get the random number of samples from this candidate tree
-        while ($expected_samples > 0) {
+        while ( $expected_samples > 0 ) {
+
             #If the number of samples remaining is greater than one
             #we take a sample, otherwise we take a sample with probability
             #according to the remaining number of samples
-            if ($expected_samples > 1 || rand(1) < $expected_samples) {
+            if ( $expected_samples > 1 || rand(1) < $expected_samples ) {
                 my $tree = copy_tree($candidate);
-                
+
                 #Get a random interval
                 my $interval_choice = rand(1);
                 my $interval;
-                for ($interval = 0; $interval_choice > $prob[$interval]; $interval++) {}
+                for (
+                    $interval = 0 ;
+                    $interval_choice > $prob[$interval] ;
+                    $interval++
+                  )
+                {
+                }
 
                 #Truncate the tree at a random point during this interval
-                truncate_tree_time($tree, $duration[$interval]*rand(1) + $start[$interval] );
-				
+                truncate_tree_time( $tree,
+                    $duration[$interval] * rand(1) + $start[$interval] );
+
                 #Remove random species so it has the right size
-                truncate_tree_size($tree, $options{tree_size});
+                truncate_tree_size( $tree, $options{tree_size} );
 
-                #Add the tree to our sample    
-                push(@sample,$tree);
+                #Add the tree to our sample
+                push( @sample, $tree );
 
-                #Update the sample counter (for GUI or other applications that want to know how 
-                #many samples have been obtained)
-                if (defined $options{counter}) {
+ #Update the sample counter (for GUI or other applications that want to know how
+ #many samples have been obtained)
+                if ( defined $options{counter} ) {
                     my $counter = $options{counter};
                     &$counter(1);
                 }
-	
             }
             $expected_samples--;
         }
     }
-
-    return (\@sample,\@expected_summary);         
+    return ( \@sample, \@expected_summary );
 }
 
 =item sample_memoryless_b()
@@ -704,50 +767,51 @@ edges.
 
 sub sample_memoryless_b {
     my %options = @_;
-    
+
     #The sample of trees
     my @sample;
 
     #A list of the expected number of samples
     my @expected_summary;
-    
+
     #The user specified functions
-    my $model = $options{model};    
+    my $model        = $options{model};
     my $pendant_dist = $options{algorithm_options}->{pendant_dist};
-    
+
     #While we have insufficient samples
-    while (scalar @sample < $options{sample_size}) {
-        
+    while ( scalar @sample < $options{sample_size} ) {
+
         #Generate a tree ending just after the last speciation event
-        my $tree = &$model(%{$options{model_options}},
-                           tree_size => $options{tree_size});
+        my $tree = &$model( %{ $options{model_options} },
+            tree_size => $options{tree_size} );
 
         #Check that the tree has no extinctions
-        unless ($tree->is_ultrametric(1e-6)) {
+        unless ( $tree->is_ultrametric(1e-6) ) {
             Bio::Phylo::Util::Exceptions::BadFormat->throw(
-                'error' => "the model must be a pure birth process");
+                'error' => "the model must be a pure birth process" );
         }
-                           
-        #Get the random length to add after the last speciation event
-        my $pendant_add = &$pendant_dist(%{$options{model_options}},tree_size => $options{tree_size});
-        
-        #Add the final length
-        foreach (@{$tree->get_terminals}) {
-            $_->set_branch_length($_->get_branch_length+$pendant_add);    
-        }
-        
-        #Add to the sample
-        push(@sample,$tree);
-        push(@expected_summary,1);
 
-        #Update the sample counter (for GUI or other applications that want to know how 
-        #many samples have been obtained)
-        if (defined $options{counter}) {
+        #Get the random length to add after the last speciation event
+        my $pendant_add = &$pendant_dist( %{ $options{model_options} },
+            tree_size => $options{tree_size} );
+
+        #Add the final length
+        foreach ( @{ $tree->get_terminals } ) {
+            $_->set_branch_length( $_->get_branch_length + $pendant_add );
+        }
+
+        #Add to the sample
+        push( @sample,           $tree );
+        push( @expected_summary, 1 );
+
+ #Update the sample counter (for GUI or other applications that want to know how
+ #many samples have been obtained)
+        if ( defined $options{counter} ) {
             my $counter = $options{counter};
             &$counter(1);
         }
     }
-    return (\@sample,\@expected_summary);         
+    return ( \@sample, \@expected_summary );
 }
 
 =item sample_constant_rate_bd()
@@ -772,103 +836,123 @@ sub sample_constant_rate_bd {
     my %options = @_;
 
     #Store parameters in shorter variables (for clarity)
-    my ($br, $dr, $n) = ($options{model_options}->{birth_rate}, $options{model_options}->{death_rate}, $options{tree_size});
-
-    my @sample;    
+    my ( $br, $dr, $n ) = (
+        $options{model_options}->{birth_rate},
+        $options{model_options}->{death_rate},
+        $options{tree_size}
+    );
+    my @sample;
 
     #Loop for sampling each tree
-    while (scalar @sample < $options{sample_size}) {
-
+    while ( scalar @sample < $options{sample_size} ) {
         my @nodes;
 
-        
-        #Compute the random tree age from the inverse CDF (different formulas for
-        #birth rate == death rate and otherwise)
+       #Compute the random tree age from the inverse CDF (different formulas for
+       #birth rate == death rate and otherwise)
         my $tree_age;
+
         #The uniform random variable
         my $r = rand;
-        if ($br == $dr) {
-            $tree_age = 1/($br*($r**(-1/$n)-1));
-        } else {
-            $tree_age = 1/($br-$dr)*log((1-$dr/$br*$r**(1/$n))/(1-$r**(1/$n)));
+        if ( $br == $dr ) {
+            $tree_age = 1 / ( $br * ( $r**( -1 / $n ) - 1 ) );
         }
-    
+        else {
+            $tree_age =
+              1 /
+              ( $br - $dr ) *
+              log(
+                ( 1 - $dr / $br * $r**( 1 / $n ) ) / ( 1 - $r**( 1 / $n ) ) );
+        }
+
         #Find the random speciation times
         my @speciation;
-        foreach (0..($n-2)) {
-            if ($br == $dr) {
+        foreach ( 0 .. ( $n - 2 ) ) {
+            if ( $br == $dr ) {
                 my $r = rand;
-                $speciation[$_] = $r*$tree_age/(1+$br*$tree_age*(1-$r));
-            } else {
+                $speciation[$_] =
+                  $r * $tree_age / ( 1 + $br * $tree_age * ( 1 - $r ) );
+            }
+            else {
+
                 #Two repeated parts of the inverse CDF for clarity
-                my $a = $br-$dr*exp(($dr-$br)*$tree_age);
-                my $b = (1-exp(($dr-$br)*$tree_age))*rand;
+                my $a = $br - $dr * exp( ( $dr - $br ) * $tree_age );
+                my $b = ( 1 - exp( ( $dr - $br ) * $tree_age ) ) * rand;
+
                 #The random speciation time from the inverse CDF
-                $speciation[$_] = 1/($br-$dr)*log(($a-$dr*$b)/($a-$br*$b));
+                $speciation[$_] =
+                  1 /
+                  ( $br - $dr ) *
+                  log( ( $a - $dr * $b ) / ( $a - $br * $b ) );
             }
         }
-        
+
         #Create the initial terminals and a vector for their ages
         my @terminals;
         my @ages;
-        foreach (0..($n-1)) {
+        foreach ( 0 .. ( $n - 1 ) ) {
+
             #Add a new terminal
             $terminals[$_] = Bio::Phylo::Forest::Node->new();
-            $terminals[$_]->set_name('ID'.$_);
-            $ages[$_] = 0;        
-        }    
-        
+            $terminals[$_]->set_name( 'ID' . $_ );
+            $ages[$_] = 0;
+        }
         @nodes = @terminals;
-    
+
         #Sort the speciation times
         my @sorted_speciation = sort { $a <=> $b } @speciation;
+
         #Make a hash for easily finding the index of a given speciation event
         my %speciation_hash;
-        foreach (0..($n-2)) { $speciation_hash{$speciation[$_]} = $_; }
-        
+        foreach ( 0 .. ( $n - 2 ) ) {
+            $speciation_hash{ $speciation[$_] } = $_;
+        }
+
         #Construct the tree
-        foreach my $index (0..($n-2)) {
+        foreach my $index ( 0 .. ( $n - 2 ) ) {
+
             #Create the parent node
             my $parent = Bio::Phylo::Forest::Node->new();
-            $parent->set_name('ID'.($n+$index));
-            push(@nodes,$parent);
+            $parent->set_name( 'ID' . ( $n + $index ) );
+            push( @nodes, $parent );
+
             #An index for this speciation event back into the unsorted vectors
-            my $spec_index = $speciation_hash{$sorted_speciation[$index]};
+            my $spec_index = $speciation_hash{ $sorted_speciation[$index] };
 
             #Add the children to the parent node
-            $parent->set_child($terminals[$spec_index]);
-            $terminals[$spec_index]->set_parent($parent);    
-            $parent->set_child($terminals[$spec_index+1]);
-            $terminals[$spec_index+1]->set_parent($parent);
-            
+            $parent->set_child( $terminals[$spec_index] );
+            $terminals[$spec_index]->set_parent($parent);
+            $parent->set_child( $terminals[ $spec_index + 1 ] );
+            $terminals[ $spec_index + 1 ]->set_parent($parent);
+
             #Set the children's branch lengths
-            $terminals[$spec_index]->set_branch_length($sorted_speciation[$index]-$ages[$spec_index]);    
-            $terminals[$spec_index+1]->set_branch_length($sorted_speciation[$index]-$ages[$spec_index+1]);
-            
-            #Replace the two terminals with the new one    
-            splice(@terminals,$spec_index,2,$parent);
-            splice(@ages,$spec_index,2,$sorted_speciation[$index]);
-            
+            $terminals[$spec_index]->set_branch_length(
+                $sorted_speciation[$index] - $ages[$spec_index] );
+            $terminals[ $spec_index + 1 ]->set_branch_length(
+                $sorted_speciation[$index] - $ages[ $spec_index + 1 ] );
+
+            #Replace the two terminals with the new one
+            splice( @terminals, $spec_index, 2, $parent );
+            splice( @ages,      $spec_index, 2, $sorted_speciation[$index] );
+
             #Update the mapping for the sorted speciation times
-            foreach (keys %speciation_hash) { $speciation_hash{$_}-- if $speciation_hash{$_} > $spec_index; }    
-            
+            foreach ( keys %speciation_hash ) {
+                $speciation_hash{$_}-- if $speciation_hash{$_} > $spec_index;
+            }
         }
-        
+
         #Add the nodes to a tree
         my $tree = Bio::Phylo::Forest::Tree->new();
-        foreach (reverse(@nodes)) { $tree->insert($_); }
+        foreach ( reverse(@nodes) ) { $tree->insert($_); }
+        push( @sample, $tree );
 
-        push(@sample,$tree);
-
-        #Update the sample counter (for GUI or other applications that want to know how 
-        #many samples have been obtained)
-        if (defined $options{counter}) {
+ #Update the sample counter (for GUI or other applications that want to know how
+ #many samples have been obtained)
+        if ( defined $options{counter} ) {
             my $counter = $options{counter};
             &$counter(1);
         }
-
     }
-    return (\@sample,[]);
+    return ( \@sample, [] );
 }
 
 =back
@@ -911,7 +995,7 @@ A constant rate birth model (Yule/ERM)
 sub constant_rate_birth {
     my %options = @_;
     $options{death_rate} = 0;
-    return constant_rate_birth_death(%options);    
+    return constant_rate_birth_death(%options);
 }
 
 =item external_model()
@@ -935,10 +1019,13 @@ these.
 
 sub external_model {
     my %options = @_;
-    my $choice = int(rand(scalar @{$options{trees}}));
+    my $choice  = int( rand( scalar @{ $options{trees} } ) );
 
     #Pick a newick string and turn it in to a Bio::Phylo::Forest::Tree object
-    my $tree =  Bio::Phylo::IO->parse(-format => 'newick',-string => $options{trees}->[$choice] )->first; 
+    my $tree = Bio::Phylo::IO->parse(
+        -format => 'newick',
+        -string => $options{trees}->[$choice]
+    )->first;
     return $tree;
 }
 
@@ -963,20 +1050,22 @@ A constant rate birth and death model
 
 sub constant_rate_birth_death {
     my %options = @_;
-    
+
     #Check that we have a termination condition
-    unless (defined $options{tree_size} xor defined $options{tree_age}) {
+    unless ( defined $options{tree_size} xor defined $options{tree_age} ) {
+
         #Error here.
-        return undef;    
+        return undef;
     }
-    
+
     #Set the undefined condition to infinity
     $options{tree_size} = 1e6 unless defined $options{tree_size};
-    $options{tree_age} = 1e6 unless defined $options{tree_age};
-    
+    $options{tree_age}  = 1e6 unless defined $options{tree_age};
+
     #Set default rates
-    $options{birth_rate} = 1 unless defined ($options{birth_rate});
-    delete $options{death_rate} if defined ($options{death_rate}) && $options{death_rate} == 0;
+    $options{birth_rate} = 1 unless defined( $options{birth_rate} );
+    delete $options{death_rate}
+      if defined( $options{death_rate} ) && $options{death_rate} == 0;
 
     #Each node gets an ID number this tracks these
     my $node_id = 0;
@@ -985,89 +1074,104 @@ sub constant_rate_birth_death {
     my $tree = Bio::Phylo::Forest::Tree->new();
     my $root = Bio::Phylo::Forest::Node->new();
     $root->set_branch_length(0);
-    $root->set_name('ID'.$node_id++);
+    $root->set_name( 'ID' . $node_id++ );
     $tree->insert($root);
     my @terminals = ($root);
-
-    my ($next_extinction, $next_speciation); 
-    my $time = 0;
+    my ( $next_extinction, $next_speciation );
+    my $time      = 0;
     my $tree_size = 1;
+
     #Check whether we have a non-zero root edge
-    if (defined $options{root_edge} && $options{root_edge}) {
+    if ( defined $options{root_edge} && $options{root_edge} ) {
+
         #Non-zero root. We set the time to the first speciation event
-        $next_speciation = -log(rand)/$options{birth_rate}/$tree_size;    
-    } else {
+        $next_speciation = -log(rand) / $options{birth_rate} / $tree_size;
+    }
+    else {
+
         #Zero root, we want a speciation event straight away
         $next_speciation = 0;
-    }    
-    #Time of the first extinction event. If no extinction we always 
-    #set the extinction event after the current speciation event
-     if (defined $options{death_rate}) {
-         $next_extinction = -log(rand)/$options{death_rate}/$tree_size; 
-     } else {
-         $next_extinction = $next_speciation + 1; 
-     }    
-    
-    #While the tree has not become extinct and the termination criterion 
-    #has not been achieved we create new speciation and extinction events 
-    while ($tree_size > 0 && $tree_size < $options{tree_size} && $time < $options{tree_age}) {
+    }
 
-        
+    #Time of the first extinction event. If no extinction we always
+    #set the extinction event after the current speciation event
+    if ( defined $options{death_rate} ) {
+        $next_extinction = -log(rand) / $options{death_rate} / $tree_size;
+    }
+    else {
+        $next_extinction = $next_speciation + 1;
+    }
+
+    #While the tree has not become extinct and the termination criterion
+    #has not been achieved we create new speciation and extinction events
+    while ($tree_size > 0
+        && $tree_size < $options{tree_size}
+        && $time < $options{tree_age} )
+    {
+
         #Add the time since the last event to all terminal species
         foreach (@terminals) {
-            $_->set_branch_length($_->get_branch_length + min($next_extinction,$next_speciation,$options{tree_age}-$time));    
-        } 
-        
+            $_->set_branch_length(
+                $_->get_branch_length + min(
+                    $next_extinction, $next_speciation,
+                    $options{tree_age} - $time
+                )
+            );
+        }
+
         #Update the time
-        $time += min($next_extinction,$next_speciation);
+        $time += min( $next_extinction, $next_speciation );
 
-        #If the tree exceeds the time limit we are done        
-        return $tree if ($time > $options{tree_age});
+        #If the tree exceeds the time limit we are done
+        return $tree if ( $time > $options{tree_age} );
 
-        #Get the species effected by this event and remove it from the terminals list
-        my $effected = splice(@terminals,int(rand(scalar @terminals)),1);
-        
+   #Get the species effected by this event and remove it from the terminals list
+        my $effected =
+          splice( @terminals, int( rand( scalar @terminals ) ), 1 );
+
         #If we have a speciation event we add two new species
-        if ($next_speciation < $next_extinction || !defined $next_extinction) {
-            foreach (1,2) {
+        if ( $next_speciation < $next_extinction || !defined $next_extinction )
+        {
+            foreach ( 1, 2 ) {
+
                 #Create a new species
                 my $child = Bio::Phylo::Forest::Node->new();
-                $child->set_name('ID'.$node_id++);
+                $child->set_name( 'ID' . $node_id++ );
+
                 #Give it a zero edge length
                 $child->set_branch_length(0);
+
                 #Add it as a child to the speciating species
                 $effected->set_child($child);
+
                 #Add it to the tree
                 $tree->insert($child);
-                #Add it to the terminals list
-                push(@terminals,$child);        
-            }
-        } 
-        
-        #We calculate the time that the next extinction and speciation
-        #events will occur (only the earliest of these will actually 
-        #happen). NB: this approach is only appropriate for models where
-        #speciation and extinction times are exponentially distributed.     
 
+                #Add it to the terminals list
+                push( @terminals, $child );
+            }
+        }
+
+        #We calculate the time that the next extinction and speciation
+        #events will occur (only the earliest of these will actually
+        #happen). NB: this approach is only appropriate for models where
+        #speciation and extinction times are exponentially distributed.
         #Windows sometimes returns 0 values for rand...
-        my ($r1, $r2) = (0,0);
+        my ( $r1, $r2 ) = ( 0, 0 );
         $r1 = rand until $r1;
         $r2 = rand until $r2;
-
-        $tree_size = scalar @terminals;    
+        $tree_size = scalar @terminals;
         return $tree unless $tree_size;
-        
-        $next_speciation = -log($r1)/$options{birth_rate}/$tree_size;
-         if (defined $options{death_rate}) {
-             $next_extinction = -log($r2)/$options{death_rate}/$tree_size; 
-         } else {
-             $next_extinction = $next_speciation + 1; 
-         }    
-
+        $next_speciation = -log($r1) / $options{birth_rate} / $tree_size;
+        if ( defined $options{death_rate} ) {
+            $next_extinction = -log($r2) / $options{death_rate} / $tree_size;
+        }
+        else {
+            $next_extinction = $next_speciation + 1;
+        }
     }
     return $tree;
 }
-
 
 =item evolving_speciation_rate()
 
@@ -1093,20 +1197,21 @@ distributed noise factor.
 
 sub evolving_speciation_rate {
     my %options = @_;
-    
+
     #Check that we have a termination condition
-    unless (defined $options{tree_size} xor defined $options{tree_age}) {
+    unless ( defined $options{tree_size} xor defined $options{tree_age} ) {
+
         #Error here.
-        return undef;    
+        return undef;
     }
-    
+
     #Set the undefined condition to infinity
     $options{tree_size} = 1e6 unless defined $options{tree_size};
-    $options{tree_age} = 1e6 unless defined $options{tree_age};
-    
+    $options{tree_age}  = 1e6 unless defined $options{tree_age};
+
     #Set default rates
-    $options{birth_rate} = 1 unless defined ($options{birth_rate});
-    $options{evolving_std} = 1 unless defined ($options{evolving_std});
+    $options{birth_rate}   = 1 unless defined( $options{birth_rate} );
+    $options{evolving_std} = 1 unless defined( $options{evolving_std} );
 
     #Each node gets an ID number this tracks these
     my $node_id = 0;
@@ -1115,95 +1220,105 @@ sub evolving_speciation_rate {
     my $tree = Bio::Phylo::Forest::Tree->new();
     my $root = Bio::Phylo::Forest::Node->new();
     $root->set_branch_length(0);
-    $root->set_name('ID'.$node_id++);
-
+    $root->set_name( 'ID' . $node_id++ );
     $tree->insert($root);
-    my @terminals = ($root);
-    my @birth_rates = ($options{birth_rate});
-    my $net_rate = $options{birth_rate};
-
-    my $next_speciation; 
-    my $time = 0;
+    my @terminals   = ($root);
+    my @birth_rates = ( $options{birth_rate} );
+    my $net_rate    = $options{birth_rate};
+    my $next_speciation;
+    my $time      = 0;
     my $tree_size = 1;
+
     #Check whether we have a non-zero root edge
-    if (defined $options{root_edge} && $options{root_edge}) {
+    if ( defined $options{root_edge} && $options{root_edge} ) {
+
         #Non-zero root. We set the time to the first speciation event
-        $next_speciation = -log(rand)/$options{birth_rate}/$tree_size;    
-    } else {
+        $next_speciation = -log(rand) / $options{birth_rate} / $tree_size;
+    }
+    else {
+
         #Zero root, we want a speciation event straight away
         $next_speciation = 0;
-    }    
+    }
 
     #While we haven't reached termination
-    while ($tree_size < $options{tree_size} && $time < $options{tree_age}) {
+    while ( $tree_size < $options{tree_size} && $time < $options{tree_age} ) {
 
-        
         #Add the time since the last event to all terminal species
         foreach (@terminals) {
-            $_->set_branch_length($_->get_branch_length + min($next_speciation,$options{tree_age}-$time));    
-        } 
-        
+            $_->set_branch_length( $_->get_branch_length +
+                  min( $next_speciation, $options{tree_age} - $time ) );
+        }
+
         #Update the time
         $time += $next_speciation;
 
-        #If the tree exceeds the time limit we are done        
-        return $tree if ($time > $options{tree_age});
+        #If the tree exceeds the time limit we are done
+        return $tree if ( $time > $options{tree_age} );
 
-        #Get the species effected by this event 
-	my $rand_select = rand($net_rate);
-	my $selected = 0;
-	for (; $selected < scalar @terminals && $rand_select > $birth_rates[$selected]; $selected++) 
-	{ $rand_select -= $birth_rates[$selected]; }
+        #Get the species effected by this event
+        my $rand_select = rand($net_rate);
+        my $selected    = 0;
+        for (
+            ;
+            $selected < scalar @terminals
+            && $rand_select > $birth_rates[$selected] ;
+            $selected++
+          )
+        {
+            $rand_select -= $birth_rates[$selected];
+        }
 
-	#Remove it from the terminals list
-	my $effected = splice(@terminals,$selected,1);
-	my $effected_rate = splice(@birth_rates,$selected,1);
-	
-	#Update the net speciation rate
-	$net_rate -= $effected_rate;	
-        
+        #Remove it from the terminals list
+        my $effected      = splice( @terminals,   $selected, 1 );
+        my $effected_rate = splice( @birth_rates, $selected, 1 );
+
+        #Update the net speciation rate
+        $net_rate -= $effected_rate;
+
         #If we have a speciation event we add two new species
-            foreach (1,2) {
-                #Create a new species
-                my $child = Bio::Phylo::Forest::Node->new();
-                $child->set_name('ID'.$node_id++);
-                #Give it a zero edge length
-                $child->set_branch_length(0);
-                #Add it as a child to the speciating species
-                $effected->set_child($child);
-                #Add it to the tree
-                $tree->insert($child);
-                #Add it to the terminals list
-                push(@terminals,$child);
-		#New speciation rate
-		my $new_speciation_rate = $effected_rate*(1+qnorm(rand)*$options{evolving_std});
-		if ($new_speciation_rate < 0) { $new_speciation_rate = 0; };
-		push(@birth_rates,$new_speciation_rate);
-		$net_rate += $new_speciation_rate;
-            }
-        
-	
-#	$net_rate = 0;
-#	foreach (@birth_rates) { $net_rate += $_; }
+        foreach ( 1, 2 ) {
 
+            #Create a new species
+            my $child = Bio::Phylo::Forest::Node->new();
+            $child->set_name( 'ID' . $node_id++ );
+
+            #Give it a zero edge length
+            $child->set_branch_length(0);
+
+            #Add it as a child to the speciating species
+            $effected->set_child($child);
+
+            #Add it to the tree
+            $tree->insert($child);
+
+            #Add it to the terminals list
+            push( @terminals, $child );
+
+            #New speciation rate
+            my $new_speciation_rate =
+              $effected_rate * ( 1 + qnorm(rand) * $options{evolving_std} );
+            if ( $new_speciation_rate < 0 ) { $new_speciation_rate = 0; }
+            push( @birth_rates, $new_speciation_rate );
+            $net_rate += $new_speciation_rate;
+        }
+
+        #	$net_rate = 0;
+        #	foreach (@birth_rates) { $net_rate += $_; }
         #Windows sometimes returns 0 values for rand...
-        my ($r1, $r2) = (0,0);
+        my ( $r1, $r2 ) = ( 0, 0 );
         $r1 = rand until $r1;
+        $tree_size = scalar @terminals;
 
-        $tree_size = scalar @terminals;    
-
-	#If all species have stopped speciating (unlikely)
-	if ($net_rate == 0) {
-		return $tree; 
-	}
-
-        $next_speciation = -log($r1)/$net_rate/$tree_size;
-
+        #If all species have stopped speciating (unlikely)
+        if ( $net_rate == 0 ) {
+            return $tree;
+        }
+        $next_speciation = -log($r1) / $net_rate / $tree_size;
         return $tree unless $tree_size;
     }
     return $tree;
 }
-
 
 =item beta_binomial()
 
@@ -1226,20 +1341,21 @@ An evolutionary model featuring evolving speciation rates. From Blum2007
 
 sub beta_binomial {
     my %options = @_;
-    
+
     #Check that we have a termination condition
-    unless (defined $options{tree_size} xor defined $options{tree_age}) {
+    unless ( defined $options{tree_size} xor defined $options{tree_age} ) {
+
         #Error here.
-        return undef;    
+        return undef;
     }
-    
+
     #Set the undefined condition to infinity
     $options{tree_size} = 1e6 unless defined $options{tree_size};
-    $options{tree_age} = 1e6 unless defined $options{tree_age};
-    
+    $options{tree_age}  = 1e6 unless defined $options{tree_age};
+
     #Set default rates
-    $options{birth_rate} = 1 unless defined ($options{birth_rate});
-    $options{model_param} = 0 unless defined ($options{model_param});
+    $options{birth_rate}  = 1 unless defined( $options{birth_rate} );
+    $options{model_param} = 0 unless defined( $options{model_param} );
 
     #Each node gets an ID number this tracks these
     my $node_id = 0;
@@ -1248,92 +1364,101 @@ sub beta_binomial {
     my $tree = Bio::Phylo::Forest::Tree->new();
     my $root = Bio::Phylo::Forest::Node->new();
     $root->set_branch_length(0);
-    $root->set_name('ID'.$node_id++);
-
+    $root->set_name( 'ID' . $node_id++ );
     $tree->insert($root);
-    my @terminals = ($root);
-    my @birth_rates = ($options{birth_rate});
-    my $net_rate = $options{birth_rate};
-
-    my $next_speciation; 
-    my $time = 0;
+    my @terminals   = ($root);
+    my @birth_rates = ( $options{birth_rate} );
+    my $net_rate    = $options{birth_rate};
+    my $next_speciation;
+    my $time      = 0;
     my $tree_size = 1;
+
     #Check whether we have a non-zero root edge
-    if (defined $options{root_edge} && $options{root_edge}) {
+    if ( defined $options{root_edge} && $options{root_edge} ) {
+
         #Non-zero root. We set the time to the first speciation event
-        $next_speciation = -log(rand)/$options{birth_rate}/$tree_size;    
-    } else {
+        $next_speciation = -log(rand) / $options{birth_rate} / $tree_size;
+    }
+    else {
+
         #Zero root, we want a speciation event straight away
         $next_speciation = 0;
-    }    
+    }
 
     #While we haven't reached termination
-    while ($tree_size < $options{tree_size} && $time < $options{tree_age}) {
+    while ( $tree_size < $options{tree_size} && $time < $options{tree_age} ) {
 
-        
         #Add the time since the last event to all terminal species
         foreach (@terminals) {
-            $_->set_branch_length($_->get_branch_length + min($next_speciation,$options{tree_age}-$time));    
-        } 
-        
+            $_->set_branch_length( $_->get_branch_length +
+                  min( $next_speciation, $options{tree_age} - $time ) );
+        }
+
         #Update the time
         $time += $next_speciation;
 
-        #If the tree exceeds the time limit we are done        
-        return $tree if ($time > $options{tree_age});
+        #If the tree exceeds the time limit we are done
+        return $tree if ( $time > $options{tree_age} );
 
-        #Get the species effected by this event 
-	my $rand_select = rand($net_rate);
-	my $selected = 0;
-	for (; $selected < scalar @terminals && $rand_select > $birth_rates[$selected]; $selected++) 
-	{ $rand_select -= $birth_rates[$selected]; }
+        #Get the species effected by this event
+        my $rand_select = rand($net_rate);
+        my $selected    = 0;
+        for (
+            ;
+            $selected < scalar @terminals
+            && $rand_select > $birth_rates[$selected] ;
+            $selected++
+          )
+        {
+            $rand_select -= $birth_rates[$selected];
+        }
 
-	#Remove it from the terminals list
-        my $effected = splice(@terminals,$selected,1);
-	my $effected_rate = splice(@birth_rates,$selected,1);
-	
-	my $p = qbeta(rand,$options{model_param}+1,$options{model_param}+1);
-       
+        #Remove it from the terminals list
+        my $effected      = splice( @terminals,   $selected, 1 );
+        my $effected_rate = splice( @birth_rates, $selected, 1 );
+        my $p =
+          qbeta( rand, $options{model_param} + 1, $options{model_param} + 1 );
+
         #If we have a speciation event we add two new species
-            foreach (1,2) {
-                #Create a new species
-                my $child = Bio::Phylo::Forest::Node->new();
-                $child->set_name('ID'.$node_id++);
-                #Give it a zero edge length
-                $child->set_branch_length(0);
-                #Add it as a child to the speciating species
-                $effected->set_child($child);
-                #Add it to the tree
-                $tree->insert($child);
-                #Add it to the terminals list
-                push(@terminals,$child);
-		#New speciation rate
-		my $new_speciation_rate = $effected_rate*$p;
-		$p = 1-$p;
-		if ($new_speciation_rate < 0) { $new_speciation_rate = 0; };
-		push(@birth_rates,$new_speciation_rate);
-            }
-        
-	
+        foreach ( 1, 2 ) {
+
+            #Create a new species
+            my $child = Bio::Phylo::Forest::Node->new();
+            $child->set_name( 'ID' . $node_id++ );
+
+            #Give it a zero edge length
+            $child->set_branch_length(0);
+
+            #Add it as a child to the speciating species
+            $effected->set_child($child);
+
+            #Add it to the tree
+            $tree->insert($child);
+
+            #Add it to the terminals list
+            push( @terminals, $child );
+
+            #New speciation rate
+            my $new_speciation_rate = $effected_rate * $p;
+            $p = 1 - $p;
+            if ( $new_speciation_rate < 0 ) { $new_speciation_rate = 0; }
+            push( @birth_rates, $new_speciation_rate );
+        }
 
         #Windows sometimes returns 0 values for rand...
-        my ($r1, $r2) = (0,0);
+        my ( $r1, $r2 ) = ( 0, 0 );
         $r1 = rand until $r1;
+        $tree_size = scalar @terminals;
 
-        $tree_size = scalar @terminals;    
-
-	#If all species have stopped speciating (unlikely)
-	if ($net_rate == 0) {
-		return $tree; 
-	}
-
-        $next_speciation = -log($r1)/$net_rate/$tree_size;
-
+        #If all species have stopped speciating (unlikely)
+        if ( $net_rate == 0 ) {
+            return $tree;
+        }
+        $next_speciation = -log($r1) / $net_rate / $tree_size;
         return $tree unless $tree_size;
     }
     return $tree;
 }
-
 
 =back
 
@@ -1366,9 +1491,10 @@ sub beta_binomial {
 =cut 
 
 sub copy_tree {
-    return     Bio::Phylo::IO->parse(
-    -format => 'newick',
-    -string => shift->to_newick( '-nodelabels' => 1 ) )->first;
+    return Bio::Phylo::IO->parse(
+        -format => 'newick',
+        -string => shift->to_newick( '-nodelabels' => 1 )
+    )->first;
 }
 
 =begin comment
@@ -1386,29 +1512,32 @@ sub copy_tree {
 =cut 
 
 sub truncate_tree_time {
-    #$node and $time are used only by this function recursively
-    my ($tree, $age, $node, $time) = @_;
 
-    #If node and time weren't specified we are starting from the root 
+    #$node and $time are used only by this function recursively
+    my ( $tree, $age, $node, $time ) = @_;
+
+    #If node and time weren't specified we are starting from the root
     $node = $tree->get_root unless defined $node;
     $time = 0 unless defined $time;
-    
+
     #If we are truncating this branch
-    if ($time + $node->get_branch_length >= $age) {
-	
-		#Collapse the node unless it is terminal
-		$node->collapse unless $node->is_terminal();
-		#Set the branch length appropriately
-		$node->set_branch_length($age-$time);
+    if ( $time + $node->get_branch_length >= $age ) {
+
+        #Collapse the node unless it is terminal
+        $node->collapse unless $node->is_terminal();
+
+        #Set the branch length appropriately
+        $node->set_branch_length( $age - $time );
         return;
-    } 
-    
+    }
+
     #If this node has no children we are done
     return if $node->is_terminal();
-    
+
     #Call the function recursively on the children
-    foreach (@{$node->get_children}) {
-        truncate_tree_time($tree,$age,$_,$time+$node->get_branch_length());
+    foreach ( @{ $node->get_children } ) {
+        truncate_tree_time( $tree, $age, $_,
+            $time + $node->get_branch_length() );
     }
 }
 
@@ -1427,51 +1556,56 @@ sub truncate_tree_time {
 =cut 
 
 sub truncate_tree_size {
-    my ($tree, $size) = @_;
-
-    my @terminals = @{$tree->get_terminals};
+    my ( $tree, $size ) = @_;
+    my @terminals = @{ $tree->get_terminals };
     my @names;
 
     #Calculate the tree height and node distances from the root
     #much more efficient to do this in one hit than repeatedly
     #calling the analogous functions on the tree
     _calc_node_properties($tree);
-  
+
     #Only push species that are extant and store the number of those
-#    my $tree_height = $tree->get_tallest_tip->calc_path_to_root;
+    #    my $tree_height = $tree->get_tallest_tip->calc_path_to_root;
     my $tree_height = $tree->get_root->get_generic('tree_height');
-    foreach (@terminals) { 
-	if (abs(($_->get_generic('root_distance')-$tree_height)/$tree_height) < 1e-6) {
-		push(@names,$_->get_name); 
-	}
+    foreach (@terminals) {
+        if (
+            abs(
+                ( $_->get_generic('root_distance') - $tree_height ) /
+                  $tree_height
+            ) < 1e-6
+          )
+        {
+            push( @names, $_->get_name );
+        }
     }
-	if (@names < $size) { print "Internal error\n"; } 
-
+    if ( @names < $size ) { print "Internal error\n"; }
     my %deletions;
-    
-    while (scalar (keys %deletions) < @names-$size) {
-        $deletions{$names[int(rand(@names))]} = 1;
-    } 
-    $tree = prune_tips($tree,[keys %deletions]);
-
-return $tree;
+    while ( scalar( keys %deletions ) < @names - $size ) {
+        $deletions{ $names[ int( rand(@names) ) ] } = 1;
+    }
+    $tree = prune_tips( $tree, [ keys %deletions ] );
+    return $tree;
 }
 
 sub _get_ultrametric_size {
-
-    my ($tree, $size) = @_;
-
-    my @terminals = @{$tree->get_terminals};
+    my ( $tree, $size ) = @_;
+    my @terminals = @{ $tree->get_terminals };
     _calc_node_properties($tree);
     my @names;
     my $tree_height = $tree->get_root->get_generic('tree_height');
-   foreach (@terminals) { 
-	if (abs(($_->get_generic('root_distance')-$tree_height)/$tree_height) < 1e-6) {
-		push(@names,$_->get_name); 
-	}
+    foreach (@terminals) {
+        if (
+            abs(
+                ( $_->get_generic('root_distance') - $tree_height ) /
+                  $tree_height
+            ) < 1e-6
+          )
+        {
+            push( @names, $_->get_name );
+        }
     }
     return scalar @names;
-
 }
 
 =begin comment
@@ -1492,25 +1626,26 @@ sub _get_ultrametric_size {
 
 sub remove_extinct_species {
     my $tree = shift;
+
     #Calculate the tree height and node distances from the root
     #much more efficient to do this in one hit than repeatedly
     #calling the analogous functions on the tree
     _calc_node_properties($tree);
-    
     my $height = $tree->get_root->get_generic('tree_height');
     return unless $height > 0;
-    
     my $leaves = $tree->get_terminals;
     return unless $leaves;
-    
     my @remove;
-    
-    foreach (@{$leaves}) {
-        unless (abs(($_->get_generic('root_distance')-$height)/$height) < 1e-6) {
-            push(@remove,$_->get_name);
-        }    
+    foreach ( @{$leaves} ) {
+
+        unless (
+            abs( ( $_->get_generic('root_distance') - $height ) / $height ) <
+            1e-6 )
+        {
+            push( @remove, $_->get_name );
+        }
     }
-    $tree = prune_tips($tree,\@remove);
+    $tree = prune_tips( $tree, \@remove );
     return $tree;
 }
 
@@ -1541,7 +1676,7 @@ sub prune_tips {
         -post => sub {
             my $node = shift;
             if ( $node->is_terminal ) {
-                if (not $keep{ $node->get_name }) {
+                if ( not $keep{ $node->get_name } ) {
                     $node->set_parent();
                     $self->delete($node);
                 }
@@ -1551,9 +1686,9 @@ sub prune_tips {
                 for my $tip ( @{ $node->get_terminals } ) {
                     $seen_tip_to_keep++ if $keep{ $tip->get_name };
                 }
-                if (not $seen_tip_to_keep) {
+                if ( not $seen_tip_to_keep ) {
                     $node->set_parent();
-                    $self->delete($node);    
+                    $self->delete($node);
                 }
             }
         }
@@ -1578,30 +1713,34 @@ sub prune_tips {
 
 sub lineage_through_time {
     my $tree = shift;
-    my ($speciation, $extinction) = _recursive_ltt_helper($tree);
+    my ( $speciation, $extinction ) = _recursive_ltt_helper($tree);
     my @speciation = sort { $a <=> $b } @{$speciation};
     my @extinction = sort { $a <=> $b } @{$extinction};
-    
-    my @time = (0);
-    my @count = (1);
-    my $n_species = 1;
-    
-    my $end_time = max(@speciation,@extinction);
-    return ([],[]) if ($end_time == 0);
-    
-    #We remove any extinction events occurring at the very end of the tree (as they are not real extinctions)
-    while (scalar @extinction && ($end_time-$extinction[-1])/$end_time < 1e-6) { pop @extinction; }
-    
-    while (scalar @speciation || scalar @extinction) {
-        if (scalar @extinction == 0 || (scalar @speciation && $speciation[0] < $extinction[0])) {
-            push(@count,++$n_species);
-            push(@time,shift(@speciation));
-        } else {
-            push(@count,--$n_species);
-            push(@time,shift(@extinction));
-        }    
+    my @time       = (0);
+    my @count      = (1);
+    my $n_species  = 1;
+    my $end_time = max( @speciation, @extinction );
+    return ( [], [] ) if ( $end_time == 0 );
+
+#We remove any extinction events occurring at the very end of the tree (as they are not real extinctions)
+    while ( scalar @extinction
+        && ( $end_time - $extinction[-1] ) / $end_time < 1e-6 )
+    {
+        pop @extinction;
     }
-    return (\@time,\@count);
+    while ( scalar @speciation || scalar @extinction ) {
+        if ( scalar @extinction == 0
+            || ( scalar @speciation && $speciation[0] < $extinction[0] ) )
+        {
+            push( @count, ++$n_species );
+            push( @time,  shift(@speciation) );
+        }
+        else {
+            push( @count, --$n_species );
+            push( @time,  shift(@extinction) );
+        }
+    }
+    return ( \@time, \@count );
 }
 
 =begin comment
@@ -1619,26 +1758,24 @@ sub lineage_through_time {
 =cut 
 
 sub _recursive_ltt_helper {
-    my ($tree, $node, $time) = @_;
-    
+    my ( $tree, $node, $time ) = @_;
+
     #If we are being invoked at the root level
     $node = $tree->get_root unless defined $node;
     $time = 0 unless defined $time;
-    
+
     #The new time
     $time += $node->get_branch_length;
-    
-    return ([],[$time]) if ($node->is_terminal);
-
+    return ( [], [$time] ) if ( $node->is_terminal );
     my @speciation;
     my @extinction;
-    foreach (@{$node->get_children}) {
-        my ($spec,$ext) = _recursive_ltt_helper($tree,$_,$time);
-        @speciation = (@speciation,@{$spec});
-        @extinction = (@extinction,@{$ext});
-    }    
-    push(@speciation,$time);
-    return (\@speciation,\@extinction);
+    foreach ( @{ $node->get_children } ) {
+        my ( $spec, $ext ) = _recursive_ltt_helper( $tree, $_, $time );
+        @speciation = ( @speciation, @{$spec} );
+        @extinction = ( @extinction, @{$ext} );
+    }
+    push( @speciation, $time );
+    return ( \@speciation, \@extinction );
 }
 
 =begin comment
@@ -1655,34 +1792,35 @@ sub _recursive_ltt_helper {
 =cut
 
 sub _calc_node_properties {
-    my ($node, $root_distance);
+    my ( $node, $root_distance );
     my $tree = shift;
-    
     my $root = $tree->get_root;
-    
+
     #Check whether we were given a node and distance
-    if (scalar @_) {
-        $node = shift;
+    if ( scalar @_ ) {
+        $node          = shift;
         $root_distance = shift;
-    #Otherwise the root is the default        
-    } else {
+
+        #Otherwise the root is the default
+    }
+    else {
         $node = $root;
-        $root->set_generic(tree_height => 0);
+        $root->set_generic( tree_height => 0 );
         $root_distance = 0;
     }
-    
-    $node->set_generic(root_distance => $root_distance);
-    if ($root_distance > $root->get_generic('tree_height')) { $root->set_generic(tree_height => $root_distance); }
-
+    $node->set_generic( root_distance => $root_distance );
+    if ( $root_distance > $root->get_generic('tree_height') ) {
+        $root->set_generic( tree_height => $root_distance );
+    }
     my $terminal_count = 0;
-    my $children = $node->get_children;
-    if (defined $children) {
-        foreach (@{$children}) {
-            _calc_node_properties($tree,$_,$root_distance + $_->get_branch_length());
+    my $children       = $node->get_children;
+    if ( defined $children ) {
+        foreach ( @{$children} ) {
+            _calc_node_properties( $tree, $_,
+                $root_distance + $_->get_branch_length() );
         }
-    }    
+    }
 }
-
 
 =begin comment
 
@@ -1698,16 +1836,13 @@ sub _calc_node_properties {
 =cut 
 
 sub nchoosek {
-    my ($n, $k) = @_;
+    my ( $n, $k ) = @_;
     my $r = 1;
-    return 0 if ($k > $n || $k < 0); 
-    for (my $d=1; $d <= $k; $d++) {
+    return 0 if ( $k > $n || $k < 0 );
+    for ( my $d = 1 ; $d <= $k ; $d++ ) {
         $r *= $n--;
         $r /= $d;
     }
     return $r;
 }
-
-
-
 1;

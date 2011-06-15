@@ -1,9 +1,8 @@
-# $Id: Standard.pm 1593 2011-02-27 15:26:04Z rvos $
+# $Id: Standard.pm 1660 2011-04-02 18:29:40Z rvos $
 package Bio::Phylo::Matrices::Datatype::Standard;
-use Bio::Phylo::Matrices::Datatype ();
 use strict;
-use vars qw($LOOKUP @ISA $MISSING $GAP);
-@ISA = qw(Bio::Phylo::Matrices::Datatype);
+use base 'Bio::Phylo::Matrices::Datatype';
+our ( $LOOKUP, $MISSING, $GAP );
 
 =head1 NAME
 
@@ -45,23 +44,20 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =head1 REVISION
 
- $Id: Standard.pm 1593 2011-02-27 15:26:04Z rvos $
+ $Id: Standard.pm 1660 2011-04-02 18:29:40Z rvos $
 
 =cut
-
 $LOOKUP = {
-    '0' => [ '0' ],
-    '1' => [ '1' ],
-    '2' => [ '2' ],
-    '3' => [ '3' ],
-    '4' => [ '4' ],
-    '5' => [ '5' ],
-    '6' => [ '6' ],
-    '7' => [ '7' ],
-    '8' => [ '8' ],
-    '9' => [ '9' ],
+    '0' => ['0'],
+    '1' => ['1'],
+    '2' => ['2'],
+    '3' => ['3'],
+    '4' => ['4'],
+    '5' => ['5'],
+    '6' => ['6'],
+    '7' => ['7'],
+    '8' => ['8'],
+    '9' => ['9'],
 };
-
 $MISSING = '?';
-
 1;

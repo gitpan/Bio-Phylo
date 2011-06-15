@@ -1,4 +1,4 @@
-# $Id: Makefile.PL 1625 2011-03-24 00:32:55Z rvos $
+# $Id: Makefile.PL 1661 2011-04-02 20:17:45Z rvos $
 use strict;
 use warnings;
 use ExtUtils::MakeMaker;
@@ -13,6 +13,8 @@ check_prereq( qw(
     List::Util
     SWF::Builder
     XML::XML2JSON
+    PDF::API2
+    GD
 ) );
 
 WriteMakefile(
@@ -20,7 +22,8 @@ WriteMakefile(
     'AUTHOR'       => 'Rutger Vos',
     'PL_FILES'     => {},
     'EXE_FILES'    => [],
-    'VERSION_FROM' => 'lib/Bio/Phylo.pm',  
+    'VERSION_FROM' => 'lib/Bio/Phylo.pm',
+    'LICENSE'      => 'perl',
     'clean'        => {},    
     'dist'         => { 'COMPRESS' => 'gzip -9f', 'SUFFIX' => 'gz', },
 );

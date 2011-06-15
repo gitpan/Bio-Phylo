@@ -1,32 +1,26 @@
-# $Id: Listable.pm 1629 2011-03-30 16:52:06Z rvos $
+# $Id: Listable.pm 1660 2011-04-02 18:29:40Z rvos $
 package Bio::Phylo::Listable;
 use strict;
-use vars qw(@ISA);
-use Scalar::Util qw(blessed weaken);
+use base 'Bio::Phylo::NeXML::Writable';
+use Scalar::Util qw'blessed weaken';
 use Bio::Phylo::Util::Exceptions 'throw';
-use Bio::Phylo::NeXML::Writable ();
-use Bio::Phylo::Util::CONSTANT qw(:all);
-use Bio::Phylo::Factory ();
-
-# classic @ISA manipulation, not using 'base'
-@ISA = qw(Bio::Phylo::NeXML::Writable);
+use Bio::Phylo::Util::CONSTANT qw':all';
+use Bio::Phylo::Factory;
 {
+    my $logger = __PACKAGE__->get_logger;
+    my $fac    = Bio::Phylo::Factory->new;
+    my ( $DATUM, $NODE, $MATRIX, $TREE ) =
+      ( _DATUM_, _NODE_, _MATRIX_, _TREE_ );
 
-	my $logger = __PACKAGE__->get_logger;
-	my $fac    = Bio::Phylo::Factory->new;
-	
-	my ( $DATUM,  $NODE,  $MATRIX,  $TREE  ) = 
-	   ( _DATUM_, _NODE_, _MATRIX_, _TREE_ );
-
-	# $fields array necessary for object destruction
-	my @fields = \( 
-		my ( 
-			%entities, # XXX strong reference
-			%index,
-			%listeners,
-			%sets,
-		) 
-	);
+    # $fields array necessary for object destruction
+    my @fields = \(
+        my (
+            %entities,    # XXX strong reference
+            %index,
+            %listeners,
+            %sets,
+        )
+    );
 
 =head1 NAME
 
@@ -65,21 +59,21 @@ Listable object constructor.
 
 =cut
 
-#	sub new {
-#
-#		# could be child class
-#		my $class = shift;
-#
-#		# notify user
-#		$logger->info("constructor called for '$class'");
-#
-#		# recurse up inheritance tree, get ID
-#		my $self = $class->SUPER::new(@_);
-#
-#		# local fields would be set here
-#
-#		return $self;
-#	}
+    #	sub new {
+    #
+    #		# could be child class
+    #		my $class = shift;
+    #
+    #		# notify user
+    #		$logger->info("constructor called for '$class'");
+    #
+    #		# recurse up inheritance tree, get ID
+    #		my $self = $class->SUPER::new(@_);
+    #
+    #		# local fields would be set here
+    #
+    #		return $self;
+    #	}
 
 =back
 
@@ -99,25 +93,25 @@ Pushes an object into its container.
  Args    : A Bio::Phylo::* object.
 
 =cut
-
-	sub insert {
-		my ( $self, @obj ) = @_;
-		if ( @obj and $self->can_contain( @obj ) ) {
-			$logger->info("inserting '@obj' in '$self'");
-			my $id = $self->get_id;
-			push @{ $entities{$id} }, @obj;
-			for my $obj ( @obj ) {
-				if ( looks_like_implementor( $obj, '_set_container' ) ) {
-					$obj->_set_container( $self );
-				}
-			}
-			$self->notify_listeners( 'insert', @obj ) if $listeners{$id} and @{ $listeners{$id} };
-			return $self;
-		}
-		else {
-			throw 'ObjectMismatch' => "Failed insertion: [@obj] in [$self]";
-		}
-	}
+    sub insert {
+        my ( $self, @obj ) = @_;
+        if ( @obj and $self->can_contain(@obj) ) {
+            $logger->info("inserting '@obj' in '$self'");
+            my $id = $self->get_id;
+            push @{ $entities{$id} }, @obj;
+            for my $obj (@obj) {
+                if ( looks_like_implementor( $obj, '_set_container' ) ) {
+                    $obj->_set_container($self);
+                }
+            }
+            $self->notify_listeners( 'insert', @obj )
+              if $listeners{$id} and @{ $listeners{$id} };
+            return $self;
+        }
+        else {
+            throw 'ObjectMismatch' => "Failed insertion: [@obj] in [$self]";
+        }
+    }
 
 =item insert_at_index()
 
@@ -132,22 +126,23 @@ Inserts argument object in container at argument index.
 
 =cut    
 
-	sub insert_at_index {
-		my ( $self, $obj, $index ) = @_;
-		$logger->debug("inserting '$obj' in '$self' at index $index");
-		if ( defined $obj and $self->can_contain($obj) ) {
-			my $id = $self->get_id;
-			$entities{$id}->[$index] = $obj;
-			if ( looks_like_implementor( $obj, '_set_container' ) ) {
-				$obj->_set_container($self);
-			}
-			$self->notify_listeners( 'insert_at_index', $obj ) if $listeners{$id} and @{ $listeners{$id} };			
-			return $self;
-		}
-		else {
-			throw 'ObjectMismatch' => 'Failed insertion!';
-		}
-	}
+    sub insert_at_index {
+        my ( $self, $obj, $index ) = @_;
+        $logger->debug("inserting '$obj' in '$self' at index $index");
+        if ( defined $obj and $self->can_contain($obj) ) {
+            my $id = $self->get_id;
+            $entities{$id}->[$index] = $obj;
+            if ( looks_like_implementor( $obj, '_set_container' ) ) {
+                $obj->_set_container($self);
+            }
+            $self->notify_listeners( 'insert_at_index', $obj )
+              if $listeners{$id} and @{ $listeners{$id} };
+            return $self;
+        }
+        else {
+            throw 'ObjectMismatch' => 'Failed insertion!';
+        }
+    }
 
 =item delete()
 
@@ -174,29 +169,32 @@ Deletes argument from container.
 
 =cut
 
-	sub delete {
-		my ( $self, $obj ) = @_;
-		my $id = $self->get_id;
-		if ( $self->can_contain($obj) ) {
-			my $object_id = $obj->get_id;	
-			my $occurence_counter = 0;
-			if ( my $i = $index{$id} ) {
-				for my $j ( 0 .. $i ) {
-					if ( $entities{$id}->[$j]->get_id == $object_id ) {
-						$occurence_counter++;
-					}
-				}
-			}
-			my @modified = grep { $_->get_id != $object_id } @{ $entities{$id} };
-			$entities{$id} = \@modified;
-			$index{$id} -= $occurence_counter;
-		}
-		else {
-			throw 'ObjectMismatch' => "Invocant object cannot contain argument object";
-		}
-		$self->notify_listeners( 'delete', $obj ) if $listeners{$id} and @{ $listeners{$id} };		
-		return $self;
-	}
+    sub delete {
+        my ( $self, $obj ) = @_;
+        my $id = $self->get_id;
+        if ( $self->can_contain($obj) ) {
+            my $object_id         = $obj->get_id;
+            my $occurence_counter = 0;
+            if ( my $i = $index{$id} ) {
+                for my $j ( 0 .. $i ) {
+                    if ( $entities{$id}->[$j]->get_id == $object_id ) {
+                        $occurence_counter++;
+                    }
+                }
+            }
+            my @modified =
+              grep { $_->get_id != $object_id } @{ $entities{$id} };
+            $entities{$id} = \@modified;
+            $index{$id} -= $occurence_counter;
+        }
+        else {
+            throw 'ObjectMismatch' =>
+              "Invocant object cannot contain argument object";
+        }
+        $self->notify_listeners( 'delete', $obj )
+          if $listeners{$id} and @{ $listeners{$id} };
+        return $self;
+    }
 
 =item clear()
 
@@ -212,13 +210,14 @@ Empties container object.
 
 =cut
 
-	sub clear {
-		my $self = shift;
-		my $id = $self->get_id;
-		$entities{$id} = [];
-		$self->notify_listeners( 'clear' ) if $listeners{$id} and @{ $listeners{$id} };
-		return $self;
-	}
+    sub clear {
+        my $self = shift;
+        my $id   = $self->get_id;
+        $entities{$id} = [];
+        $self->notify_listeners('clear')
+          if $listeners{$id} and @{ $listeners{$id} };
+        return $self;
+    }
 
 =item prune_entities()
 
@@ -233,16 +232,16 @@ Prunes the container's contents specified by an array reference of indices.
 
 =cut
 
-	sub prune_entities {
-		my ( $self, @indices ) = @_;
-		my %indices = map { $_ => 1 } @indices;
-		my $last_index = $self->last_index;
-		my @keep;
-		for my $i ( 0 .. $last_index ) {
-			push @keep, $i if not exists $indices{$i};
-		}
-		return $self->keep_entities(\@keep);
-	}
+    sub prune_entities {
+        my ( $self, @indices ) = @_;
+        my %indices = map { $_ => 1 } @indices;
+        my $last_index = $self->last_index;
+        my @keep;
+        for my $i ( 0 .. $last_index ) {
+            push @keep, $i if not exists $indices{$i};
+        }
+        return $self->keep_entities( \@keep );
+    }
 
 =item keep_entities()
 
@@ -257,15 +256,15 @@ Keeps the container's contents specified by an array reference of indices.
 
 =cut
 
-	sub keep_entities {
-		my ( $self, $indices_array_ref ) = @_;
-		my $id = $self->get_id;
-		my $ent = $entities{$id};
-		my @contents = @{ $ent };
-		my @pruned = @contents[ @{ $indices_array_ref } ];
-		$entities{$id} = \@pruned;		
-		return $self;
-	}
+    sub keep_entities {
+        my ( $self, $indices_array_ref ) = @_;
+        my $id       = $self->get_id;
+        my $ent      = $entities{$id};
+        my @contents = @{$ent};
+        my @pruned   = @contents[ @{$indices_array_ref} ];
+        $entities{$id} = \@pruned;
+        return $self;
+    }
 
 =item get_entities()
 
@@ -281,9 +280,9 @@ Returns a reference to an array of objects contained by the listable object.
 
 =cut
 
-	sub get_entities {
-		return $entities{$_[0]->get_id} || [];
-	}
+    sub get_entities {
+        return $entities{ $_[0]->get_id } || [];
+    }
 
 =item get_index_of()
 
@@ -300,16 +299,16 @@ or undef if the list doesn't contain the argument
 
 =cut
 
-	sub get_index_of {
-		my ( $self, $obj ) = @_;
-		my $id = $obj->get_id;
-		my $i = 0;
-		for my $ent ( @{ $self->get_entities } ) {
-			return $i if $ent->get_id == $id;
-			$i++;
-		}
-		return;
-	}
+    sub get_index_of {
+        my ( $self, $obj ) = @_;
+        my $id = $obj->get_id;
+        my $i  = 0;
+        for my $ent ( @{ $self->get_entities } ) {
+            return $i if $ent->get_id == $id;
+            $i++;
+        }
+        return;
+    }
 
 =item get_by_index()
 
@@ -332,27 +331,27 @@ Gets element at index from container.
 
 =cut
 
-	sub get_by_index {
-		my $self  = shift;
-		my $entities = $self->get_entities;
-		my @range = @_;
-		if ( scalar @range > 1 ) {
-			my @returnvalue;
-			eval { @returnvalue = @{ $entities }[@range] };
-			if ($@) {
-				throw 'OutOfBounds' => 'index out of bounds';
-			}
-			return \@returnvalue;
-		}
-		else {
-			my $returnvalue;
-			eval { $returnvalue = $entities->[ $range[0] ] };
-			if ($@) {
-				throw 'OutOfBounds' => 'index out of bounds';
-			}
-			return $returnvalue;
-		}
-	}
+    sub get_by_index {
+        my $self     = shift;
+        my $entities = $self->get_entities;
+        my @range    = @_;
+        if ( scalar @range > 1 ) {
+            my @returnvalue;
+            eval { @returnvalue = @{$entities}[@range] };
+            if ($@) {
+                throw 'OutOfBounds' => 'index out of bounds';
+            }
+            return \@returnvalue;
+        }
+        else {
+            my $returnvalue;
+            eval { $returnvalue = $entities->[ $range[0] ] };
+            if ($@) {
+                throw 'OutOfBounds' => 'index out of bounds';
+            }
+            return $returnvalue;
+        }
+    }
 
 =item get_by_regular_expression()
 
@@ -377,24 +376,24 @@ Gets elements that match regular expression from container.
 
 =cut
 
-	sub get_by_regular_expression {
-		my $self = shift;
-		my %o    = looks_like_hash @_;
-		my @matches;
-		for my $e ( @{ $self->get_entities } ) {
-			if ( $o{-match} && looks_like_instance( $o{-match}, 'Regexp' ) ) {
-				if (   $e->get( $o{-value} )
-					&& $e->get( $o{-value} ) =~ $o{-match} )
-				{
-					push @matches, $e;
-				}
-			}
-			else {
-				throw 'BadArgs' => 'need a regular expression to evaluate';
-			}
-		}
-		return \@matches;
-	}
+    sub get_by_regular_expression {
+        my $self = shift;
+        my %o    = looks_like_hash @_;
+        my @matches;
+        for my $e ( @{ $self->get_entities } ) {
+            if ( $o{-match} && looks_like_instance( $o{-match}, 'Regexp' ) ) {
+                if (   $e->get( $o{-value} )
+                    && $e->get( $o{-value} ) =~ $o{-match} )
+                {
+                    push @matches, $e;
+                }
+            }
+            else {
+                throw 'BadArgs' => 'need a regular expression to evaluate';
+            }
+        }
+        return \@matches;
+    }
 
 =item get_by_value()
 
@@ -425,49 +424,49 @@ Gets elements that meet numerical rule from container.
 
 =cut
 
-	sub get_by_value {
-		my $self = shift;
-		my %o    = looks_like_hash @_;
-		my @results;
-		for my $e ( @{ $self->get_entities } ) {
-			if ( $o{ -eq } ) {
-				if (   $e->get( $o{-value} )
-					&& $e->get( $o{-value} ) == $o{ -eq } )
-				{
-					push @results, $e;
-				}
-			}
-			if ( $o{ -le } ) {
-				if (   $e->get( $o{-value} )
-					&& $e->get( $o{-value} ) <= $o{ -le } )
-				{
-					push @results, $e;
-				}
-			}
-			if ( $o{ -lt } ) {
-				if (   $e->get( $o{-value} )
-					&& $e->get( $o{-value} ) < $o{ -lt } )
-				{
-					push @results, $e;
-				}
-			}
-			if ( $o{ -ge } ) {
-				if (   $e->get( $o{-value} )
-					&& $e->get( $o{-value} ) >= $o{ -ge } )
-				{
-					push @results, $e;
-				}
-			}
-			if ( $o{ -gt } ) {
-				if (   $e->get( $o{-value} )
-					&& $e->get( $o{-value} ) > $o{ -gt } )
-				{
-					push @results, $e;
-				}
-			}
-		}
-		return \@results;
-	}
+    sub get_by_value {
+        my $self = shift;
+        my %o    = looks_like_hash @_;
+        my @results;
+        for my $e ( @{ $self->get_entities } ) {
+            if ( $o{-eq} ) {
+                if (   $e->get( $o{-value} )
+                    && $e->get( $o{-value} ) == $o{-eq} )
+                {
+                    push @results, $e;
+                }
+            }
+            if ( $o{-le} ) {
+                if (   $e->get( $o{-value} )
+                    && $e->get( $o{-value} ) <= $o{-le} )
+                {
+                    push @results, $e;
+                }
+            }
+            if ( $o{-lt} ) {
+                if (   $e->get( $o{-value} )
+                    && $e->get( $o{-value} ) < $o{-lt} )
+                {
+                    push @results, $e;
+                }
+            }
+            if ( $o{-ge} ) {
+                if (   $e->get( $o{-value} )
+                    && $e->get( $o{-value} ) >= $o{-ge} )
+                {
+                    push @results, $e;
+                }
+            }
+            if ( $o{-gt} ) {
+                if (   $e->get( $o{-value} )
+                    && $e->get( $o{-value} ) > $o{-gt} )
+                {
+                    push @results, $e;
+                }
+            }
+        }
+        return \@results;
+    }
 
 =item get_by_name()
 
@@ -484,20 +483,21 @@ Gets first element that has argument name
 
 =cut
 
-	sub get_by_name {
-		my ( $self, $name ) = @_;
-		if ( not defined $name or ref $name ) {
-			throw 'BadString' => "Can't search on name '$name'";
-		}
-		for my $obj ( @{ $self->get_entities } ) {
-			my $obj_name = $obj->get_name;
-			if ( $obj_name and $name eq $obj_name ) {
-				return $obj;
-			}
-#			return $obj if $name eq $obj->get_name;
-		}
-		return;
-	}
+    sub get_by_name {
+        my ( $self, $name ) = @_;
+        if ( not defined $name or ref $name ) {
+            throw 'BadString' => "Can't search on name '$name'";
+        }
+        for my $obj ( @{ $self->get_entities } ) {
+            my $obj_name = $obj->get_name;
+            if ( $obj_name and $name eq $obj_name ) {
+                return $obj;
+            }
+
+            #			return $obj if $name eq $obj->get_name;
+        }
+        return;
+    }
 
 =back
 
@@ -519,12 +519,12 @@ Jumps to the first element contained by the listable object.
 
 =cut
 
-	sub first {
-		my $self = shift;
-		my $id   = $self->get_id;
-		$index{$id} = 0;
-		return $entities{$id}->[0];
-	}
+    sub first {
+        my $self = shift;
+        my $id   = $self->get_id;
+        $index{$id} = 0;
+        return $entities{$id}->[0];
+    }
 
 =item last()
 
@@ -540,12 +540,12 @@ Jumps to the last element contained by the listable object.
 
 =cut
 
-	sub last {
-		my $self = shift;
-		my $id   = $self->get_id;
-		$index{$id} = $#{ $entities{$id} };
-		return $entities{$id}->[-1];
-	}
+    sub last {
+        my $self = shift;
+        my $id   = $self->get_id;
+        $index{$id} = $#{ $entities{$id} };
+        return $entities{$id}->[-1];
+    }
 
 =item current()
 
@@ -561,14 +561,14 @@ Returns the current focal element of the listable object.
 
 =cut
 
-	sub current {
-		my $self = shift;
-		my $id   = $self->get_id;
-		if ( !defined $index{$id} ) {
-			$index{$id} = 0;
-		}
-		return $entities{$id}->[ $index{$id} ];
-	}
+    sub current {
+        my $self = shift;
+        my $id   = $self->get_id;
+        if ( !defined $index{$id} ) {
+            $index{$id} = 0;
+        }
+        return $entities{$id}->[ $index{$id} ];
+    }
 
 =item next()
 
@@ -584,21 +584,21 @@ Returns the next focal element of the listable object.
 
 =cut
 
-	sub next {
-		my $self = shift;
-		my $id   = $self->get_id;
-		if ( !defined $index{$id} ) {
-			$index{$id} = 0;
-			return $entities{$id}->[ $index{$id} ];
-		}
-		elsif ( ( $index{$id} + 1 ) <= $#{ $entities{$id} } ) {
-			$index{$id}++;
-			return $entities{$id}->[ $index{$id} ];
-		}
-		else {
-			return;
-		}
-	}
+    sub next {
+        my $self = shift;
+        my $id   = $self->get_id;
+        if ( !defined $index{$id} ) {
+            $index{$id} = 0;
+            return $entities{$id}->[ $index{$id} ];
+        }
+        elsif ( ( $index{$id} + 1 ) <= $#{ $entities{$id} } ) {
+            $index{$id}++;
+            return $entities{$id}->[ $index{$id} ];
+        }
+        else {
+            return;
+        }
+    }
 
 =item previous()
 
@@ -614,22 +614,22 @@ Returns the previous element of the listable object.
 
 =cut
 
-	sub previous {
-		my $self = shift;
-		my $id   = $self->get_id;
+    sub previous {
+        my $self = shift;
+        my $id   = $self->get_id;
 
-		# either undef or 0
-		if ( !$index{$id} ) {
-			return;
-		}
-		elsif ( 1 <= $index{$id} ) {
-			$index{$id}--;
-			return $entities{$id}->[ $index{$id} ];
-		}
-		else {
-			return;
-		}
-	}
+        # either undef or 0
+        if ( !$index{$id} ) {
+            return;
+        }
+        elsif ( 1 <= $index{$id} ) {
+            $index{$id}--;
+            return $entities{$id}->[ $index{$id} ];
+        }
+        else {
+            return;
+        }
+    }
 
 =item current_index()
 
@@ -644,8 +644,7 @@ Returns the current internal index of the container.
  Args    : none.
 
 =cut
-
-	sub current_index { $index{ ${ $_[0] } } || 0 }
+    sub current_index { $index{ ${ $_[0] } } || 0 }
 
 =item last_index()
 
@@ -660,8 +659,7 @@ Returns the highest valid index of the container.
  Args    : none.
 
 =cut
-
-	sub last_index { $#{ $entities{ ${ $_[0] } } } }
+    sub last_index { $#{ $entities{ ${ $_[0] } } } }
 
 =back
 
@@ -686,18 +684,18 @@ code reference on each.
 
 =cut
 
-	sub visit {
-		my ( $self, $code ) = @_;
-		if ( looks_like_instance( $code, 'CODE' ) ) {
-			for ( @{ $self->get_entities } ) {
-				$code->($_);
-			}
-		}
-		else {
-			throw 'BadArgs' => "\"$code\" is not a CODE reference!";
-		}
-		return $self;
-	}
+    sub visit {
+        my ( $self, $code ) = @_;
+        if ( looks_like_instance( $code, 'CODE' ) ) {
+            for ( @{ $self->get_entities } ) {
+                $code->($_);
+            }
+        }
+        else {
+            throw 'BadArgs' => "\"$code\" is not a CODE reference!";
+        }
+        return $self;
+    }
 
 =back
 
@@ -721,24 +719,25 @@ Tests whether the container object contains the argument object.
 
 =cut
 
-	sub contains {
-		my ( $self, $obj ) = @_;
-		if ( blessed $obj ) {
-			my $id = $obj->get_id;
-			for my $ent ( @{ $self->get_entities } ) {
-				next     if not $ent;
-				return 1 if $ent->get_id == $id;
-			}
-			return 0;
-		}
-		else {
-			#throw 'BadArgs' => "\"$obj\" is not a blessed object!";
-			for my $ent ( @{ $self->get_entities } ) {
-				next if not $ent;
-				return 1 if $ent eq $obj
-			} 
-		}
-	}
+    sub contains {
+        my ( $self, $obj ) = @_;
+        if ( blessed $obj ) {
+            my $id = $obj->get_id;
+            for my $ent ( @{ $self->get_entities } ) {
+                next if not $ent;
+                return 1 if $ent->get_id == $id;
+            }
+            return 0;
+        }
+        else {
+
+            #throw 'BadArgs' => "\"$obj\" is not a blessed object!";
+            for my $ent ( @{ $self->get_entities } ) {
+                next if not $ent;
+                return 1 if $ent eq $obj;
+            }
+        }
+    }
 
 =item can_contain()
 
@@ -753,27 +752,27 @@ Tests if argument can be inserted in container.
 
 =cut
 
-	sub can_contain {
-		my ( $self, @obj ) = @_;
-		$logger->info("checking if '$self' can contain '@obj'");
-		for my $obj ( @obj ) {
-			my ( $self_type, $obj_container );
-			eval {
-				$self_type     = $self->_type;
-				$obj_container = $obj->_container;
-			};			
-			if ( $@ or $self_type != $obj_container ) {
-				if ( not $@ ) {
-					$logger->info(" $self $self_type != $obj $obj_container");
-				}
-				else {
-					$logger->info($@);
-				}
-				return 0;
-			}
-		}
-		return 1;
-	}
+    sub can_contain {
+        my ( $self, @obj ) = @_;
+        $logger->info("checking if '$self' can contain '@obj'");
+        for my $obj (@obj) {
+            my ( $self_type, $obj_container );
+            eval {
+                $self_type     = $self->_type;
+                $obj_container = $obj->_container;
+            };
+            if ( $@ or $self_type != $obj_container ) {
+                if ( not $@ ) {
+                    $logger->info(" $self $self_type != $obj $obj_container");
+                }
+                else {
+                    $logger->info($@);
+                }
+                return 0;
+            }
+        }
+        return 1;
+    }
 
 =back
 
@@ -796,19 +795,19 @@ Attaches a listener (code ref) which is executed when contents change.
 
 =cut
 
-	sub set_listener {
-		my ( $self, $listener ) = @_;
-		my $id = $self->get_id;
-		if ( not $listeners{$id} ) {
-			$listeners{$id} = [];
-		}
-		if ( looks_like_instance( $listener, 'CODE' ) ) {
-			push @{ $listeners{$id} }, $listener;
-		}
-		else {
-			throw 'BadArgs' => "$listener not a CODE reference";
-		}	
-	}
+    sub set_listener {
+        my ( $self, $listener ) = @_;
+        my $id = $self->get_id;
+        if ( not $listeners{$id} ) {
+            $listeners{$id} = [];
+        }
+        if ( looks_like_instance( $listener, 'CODE' ) ) {
+            push @{ $listeners{$id} }, $listener;
+        }
+        else {
+            throw 'BadArgs' => "$listener not a CODE reference";
+        }
+    }
 
 =item notify_listeners()
 
@@ -824,16 +823,16 @@ Notifies listeners of changed contents.
 
 =cut
 
-	sub notify_listeners {
-		my ( $self, @args ) = @_;
-		my $id = $self->get_id;
-		if ( $listeners{$id} ) {
-			for my $l ( @{ $listeners{$id} } ) {
-				$l->( $self, @args );
-			}
-		}
-		return $self;
-	}
+    sub notify_listeners {
+        my ( $self, @args ) = @_;
+        my $id = $self->get_id;
+        if ( $listeners{$id} ) {
+            for my $l ( @{ $listeners{$id} } ) {
+                $l->( $self, @args );
+            }
+        }
+        return $self;
+    }
 
 =item clone()
 
@@ -849,29 +848,27 @@ Clones container.
 
 =cut
 
-	sub clone {
-		my $self = shift;
-		$logger->info("cloning $self");
-		my %subs = @_;
-		
-		# some extra logic to copy characters from source to target
-		if ( not exists $subs{'insert'} ) {
-			$subs{'insert'} = sub {
-				my ( $obj, $clone ) = @_;
-				my $clone_id = $clone->get_id;
-				for my $ent ( @{ $obj->get_entities } ) {
-					my $copy = $ent;
-					if ( looks_like_implementor( $ent, 'clone' ) ) {
-						$copy = $ent->clone;
-					}
-					push @{ $entities{$clone_id} }, $copy;
-				}
-			};	
-		}
-		
-		return $self->SUPER::clone(%subs);
-	
-	}
+    sub clone {
+        my $self = shift;
+        $logger->info("cloning $self");
+        my %subs = @_;
+
+        # some extra logic to copy characters from source to target
+        if ( not exists $subs{'insert'} ) {
+            $subs{'insert'} = sub {
+                my ( $obj, $clone ) = @_;
+                my $clone_id = $clone->get_id;
+                for my $ent ( @{ $obj->get_entities } ) {
+                    my $copy = $ent;
+                    if ( looks_like_implementor( $ent, 'clone' ) ) {
+                        $copy = $ent->clone;
+                    }
+                    push @{ $entities{$clone_id} }, $copy;
+                }
+            };
+        }
+        return $self->SUPER::clone(%subs);
+    }
 
 =item cross_reference()
 
@@ -893,50 +890,53 @@ C<$taxon-E<gt>get_data> field.
 
 =cut
 
-	sub cross_reference {
-		my ( $self, $taxa ) = @_;
-		my ( $selfref, $taxref ) = ( ref $self, ref $taxa );
-		if ( looks_like_implementor($taxa, 'get_entities') ) {
-			my $ents = $self->get_entities;
-			if ( $ents && @{$ents} ) {
-				foreach ( @{$ents} ) {
-					if ( looks_like_implementor($_,'get_name') && looks_like_implementor($_,'set_taxon') ) {
-						my $tax = $taxa->get_entities;
-						if ( $tax && @{$tax} ) {
-							foreach my $taxon ( @{$tax} ) {
-								if ( not $taxon->get_name or not $_->get_name )
-								{
-									next;
-								}
-								if ( $taxon->get_name eq $_->get_name ) {
-									$_->set_taxon($taxon);
-									if ( $_->_type == $DATUM ) {
-										$taxon->set_data($_);
-									}
-									if ( $_->_type == $NODE ) {
-										$taxon->set_nodes($_);
-									}
-								}
-							}
-						}
-					}
-					else {
-						throw 'ObjectMismatch' => "$selfref can't link to $taxref";
-					}
-				}
-			}
-			if ( $self->_type == $TREE ) {
-				$self->_get_container->set_taxa($taxa);
-			}
-			elsif ( $self->_type == $MATRIX ) {
-				$self->set_taxa($taxa);
-			}
-			return $self;
-		}
-		else {
-			throw 'ObjectMismatch' => "$taxref does not contain taxa";
-		}
-	}
+    sub cross_reference {
+        my ( $self, $taxa ) = @_;
+        my ( $selfref, $taxref ) = ( ref $self, ref $taxa );
+        if ( looks_like_implementor( $taxa, 'get_entities' ) ) {
+            my $ents = $self->get_entities;
+            if ( $ents && @{$ents} ) {
+                foreach ( @{$ents} ) {
+                    if (   looks_like_implementor( $_, 'get_name' )
+                        && looks_like_implementor( $_, 'set_taxon' ) )
+                    {
+                        my $tax = $taxa->get_entities;
+                        if ( $tax && @{$tax} ) {
+                            foreach my $taxon ( @{$tax} ) {
+                                if ( not $taxon->get_name or not $_->get_name )
+                                {
+                                    next;
+                                }
+                                if ( $taxon->get_name eq $_->get_name ) {
+                                    $_->set_taxon($taxon);
+                                    if ( $_->_type == $DATUM ) {
+                                        $taxon->set_data($_);
+                                    }
+                                    if ( $_->_type == $NODE ) {
+                                        $taxon->set_nodes($_);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    else {
+                        throw 'ObjectMismatch' =>
+                          "$selfref can't link to $taxref";
+                    }
+                }
+            }
+            if ( $self->_type == $TREE ) {
+                $self->_get_container->set_taxa($taxa);
+            }
+            elsif ( $self->_type == $MATRIX ) {
+                $self->set_taxa($taxa);
+            }
+            return $self;
+        }
+        else {
+            throw 'ObjectMismatch' => "$taxref does not contain taxa";
+        }
+    }
 
 =back
 
@@ -966,25 +966,25 @@ Consult the documentation for L<Bio::Phylo::Set> for a code sample.
 
 =cut
 
-	# here we create a listener that updates the set
-	# object when the associated container changes
-	my $create_set_listeners = sub {
-		my ( $self, $set ) = @_;
-		my $listener = sub {
-			my ( $listable, $method, $obj ) = @_;
-			if ( $method eq 'delete' ) {
-				$listable->remove_from_set( $obj, $set );
-			}
-			elsif ( $method eq 'clear' ) {
-				$set->clear;
-			}						
-		};
-		return $listener;
-	};
+    # here we create a listener that updates the set
+    # object when the associated container changes
+    my $create_set_listeners = sub {
+        my ( $self, $set ) = @_;
+        my $listener = sub {
+            my ( $listable, $method, $obj ) = @_;
+            if ( $method eq 'delete' ) {
+                $listable->remove_from_set( $obj, $set );
+            }
+            elsif ( $method eq 'clear' ) {
+                $set->clear;
+            }
+        };
+        return $listener;
+    };
 
     sub add_set {
         my ( $self, $set ) = @_;
-        my $listener = $create_set_listeners->($self,$set);
+        my $listener = $create_set_listeners->( $self, $set );
         $self->set_listener($listener);
         my $id = $self->get_id;
         $sets{$id} = {} if not $sets{$id};
@@ -1006,11 +1006,11 @@ Consult the documentation for L<Bio::Phylo::Set> for a code sample.
 
     sub remove_set {
         my ( $self, $set ) = @_;
-        my $id = $self->get_id;        
+        my $id = $self->get_id;
         $sets{$id} = {} if not $sets{$id};
         my $setid = $set->get_id;
         delete $sets{$id}->{$setid};
-        return $self;        
+        return $self;
     }
 
 =item get_sets()
@@ -1026,7 +1026,7 @@ Consult the documentation for L<Bio::Phylo::Set> for a code sample.
 
     sub get_sets {
         my $self = shift;
-        my $id = $self->get_id;        
+        my $id   = $self->get_id;
         $sets{$id} = {} if not $sets{$id};
         return [ values %{ $sets{$id} } ];
     }
@@ -1050,15 +1050,15 @@ Consult the documentation for L<Bio::Phylo::Set> for a code sample.
 =cut 
 
     sub is_in_set {
-        my ( $self, $obj, $set ) = @_;
-        if ( $sets{ $self->get_id }->{ $set->get_id } ) {
+        my ( $self, $obj, $set ) = @_;        
+        if ( looks_like_object($set,_SET_) and $sets{ $self->get_id }->{ $set->get_id } ) {
             my $i = $self->get_index_of($obj);
             if ( defined $i ) {
                 return $set->get_by_index($i) ? 1 : 0;
             }
             else {
                 $logger->warn("Container doesn't contain that object.");
-            }            
+            }
         }
         else {
             $logger->warn("That set is not associated with this container.");
@@ -1083,19 +1083,21 @@ Consult the documentation for L<Bio::Phylo::Set> for a code sample.
     sub add_to_set {
         my ( $self, $obj, $set ) = @_;
         my $id = $self->get_id;
-        $sets{$id} = {} if not $sets{$id};        
+        $sets{$id} = {} if not $sets{$id};
         my $i = $self->get_index_of($obj);
         if ( defined $i ) {
             $set->insert_at_index( 1 => $i );
             my $set_id = $set->get_id;
             if ( not exists $sets{$id}->{$set_id} ) {
-            	my $listener = $create_set_listeners->($self,$set);
-            	$self->set_listener($listener);
+                my $listener = $create_set_listeners->( $self, $set );
+                $self->set_listener($listener);
             }
             $sets{$id}->{$set_id} = $set;
         }
         else {
-            $logger->warn("Container doesn't contain the object you're adding to the set.");
+            $logger->warn(
+                "Container doesn't contain the object you're adding to the set."
+            );
         }
         return $self;
     }
@@ -1118,17 +1120,57 @@ Consult the documentation for L<Bio::Phylo::Set> for a code sample.
     sub remove_from_set {
         my ( $self, $obj, $set ) = @_;
         my $id = $self->get_id;
-        $sets{$id} = {} if not $sets{$id};        
+        $sets{$id} = {} if not $sets{$id};
         my $i = $self->get_index_of($obj);
         if ( defined $i ) {
             $set->insert_at_index( $i => 0 );
             $sets{$id}->{ $set->get_id } = $set;
-        }   
+        }
         else {
-        	$logger->warn("Container doesn't contain the object you're adding to the set.");
+            $logger->warn(
+                "Container doesn't contain the object you're adding to the set."
+            );
         }
         return $self;
     }
+
+=item sets_to_xml()
+
+Returns string representation of sets
+
+ Type    : Accessor
+ Title   : sets_to_xml
+ Usage   : my $str = $obj->sets_to_xml;
+ Function: Gets xml string
+ Returns : Scalar
+ Args    : None
+
+=cut
+
+    sub sets_to_xml {
+	my $self = shift;
+	my $xml = '';
+	if ( $self->can('get_sets') ) {
+	    for my $set ( @{ $self->get_sets } ) {
+		my %contents;
+		for my $ent ( @{ $self->get_entities } ) {
+		    if ( $self->is_in_set($ent,$set) ) {
+			my $tag = $ent->get_tag;
+			$contents{$tag} = [] if not $contents{$tag};
+			push @{ $contents{$tag} }, $ent->get_xml_id;
+		    }
+		}
+		for my $key ( keys %contents ) {
+		    my @ids = @{ $contents{$key} };
+		    $contents{$key} = join ' ', @ids;
+		}
+		$set->set_attributes(%contents);
+		$xml .= "\n" . $set->to_xml;
+	    }
+	}
+	return $xml;
+    }
+
 
 =begin comment
 
@@ -1142,23 +1184,23 @@ Consult the documentation for L<Bio::Phylo::Set> for a code sample.
 =end comment
 
 =cut
+    {
+        no warnings 'recursion';
 
-{
-	no warnings 'recursion';
-	sub _cleanup {
-		my $self = shift;
-		my $id = $self->get_id;
-		for my $field (@fields) {
-			delete $field->{$id};
-		}
-	}
-}
+        sub _cleanup {
+            my $self = shift;
+            my $id   = $self->get_id;
+            for my $field (@fields) {
+                delete $field->{$id};
+            }
+        }
+    }
 
 =back
 
 =cut
 
-# podinherit_insert_token
+    # podinherit_insert_token
 
 =head1 SEE ALSO
 
@@ -1220,9 +1262,8 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =head1 REVISION
 
- $Id: Listable.pm 1629 2011-03-30 16:52:06Z rvos $
+ $Id: Listable.pm 1660 2011-04-02 18:29:40Z rvos $
 
 =cut
-
 }
 1;

@@ -1,10 +1,7 @@
 package Bio::Phylo::Unparsers::Abstract;
 use strict;
-use Bio::Phylo::IO ();
+use base 'Bio::Phylo::IO';
 use Bio::Phylo::Util::Logger;
-use vars qw(@ISA);
-@ISA=qw(Bio::Phylo::IO);
-
 my $logger = Bio::Phylo::Util::Logger->new;
 
 =head1 NAME
@@ -17,27 +14,26 @@ This package is subclassed by all other packages within Bio::Phylo::Unparsers::.
 There is no direct usage.
 
 =cut
-
 sub _logger { $logger }
 
 sub _new {
-	my $class = shift;
-	my $self  = {};
-	if (@_) {
-		my %opts = @_;
-		for my $key ( keys %opts ) {
-			my $localkey = uc $key;
-			$localkey =~ s/-//;
-			unless ( ref $opts{$key} ) {
-				$self->{$localkey} = uc $opts{$key};
-			}
-			else {
-				$self->{$localkey} = $opts{$key};
-			}
-		}
-	}
-	bless $self, $class;
-	return $self;
+    my $class = shift;
+    my $self  = {};
+    if (@_) {
+        my %opts = @_;
+        for my $key ( keys %opts ) {
+            my $localkey = uc $key;
+            $localkey =~ s/-//;
+            unless ( ref $opts{$key} ) {
+                $self->{$localkey} = uc $opts{$key};
+            }
+            else {
+                $self->{$localkey} = $opts{$key};
+            }
+        }
+    }
+    bless $self, $class;
+    return $self;
 }
 
 # podinherit_insert_token
@@ -68,8 +64,7 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =head1 REVISION
 
- $Id: Abstract.pm 1593 2011-02-27 15:26:04Z rvos $
+ $Id: Abstract.pm 1660 2011-04-02 18:29:40Z rvos $
 
 =cut
-
 1;

@@ -1,8 +1,7 @@
-# $Id: Custom.pm 1593 2011-02-27 15:26:04Z rvos $
+# $Id: Custom.pm 1660 2011-04-02 18:29:40Z rvos $
 package Bio::Phylo::Matrices::Datatype::Custom;
 use strict;
-use vars qw(@ISA);
-@ISA = qw(Bio::Phylo::Matrices::Datatype);
+use base 'Bio::Phylo::Matrices::Datatype';
 
 =head1 NAME
 
@@ -44,18 +43,16 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =head1 REVISION
 
- $Id: Custom.pm 1593 2011-02-27 15:26:04Z rvos $
+ $Id: Custom.pm 1660 2011-04-02 18:29:40Z rvos $
 
 =cut
-
-sub _new { 
-        my $class = shift;
-        my $self  = shift;
-        my %args  = @_;
-        die if not $args{'-lookup'};
-        bless $self, $class; 
-        $self->set_lookup( $args{'-lookup'} );
-        return $self;
+sub _new {
+    my $class = shift;
+    my $self  = shift;
+    my %args  = @_;
+    die if not $args{'-lookup'};
+    bless $self, $class;
+    $self->set_lookup( $args{'-lookup'} );
+    return $self;
 }
-
 1;

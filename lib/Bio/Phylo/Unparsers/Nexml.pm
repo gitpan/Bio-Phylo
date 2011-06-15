@@ -1,17 +1,11 @@
-# $Id: Nexml.pm 1593 2011-02-27 15:26:04Z rvos $
+# $Id: Nexml.pm 1660 2011-04-02 18:29:40Z rvos $
 # Subversion: $Rev: 190 $
 package Bio::Phylo::Unparsers::Nexml;
 use strict;
-use Bio::Phylo::Unparsers::Abstract;
-use Bio::Phylo::Util::CONSTANT qw(:objecttypes looks_like_object);
+use base 'Bio::Phylo::Unparsers::Abstract';
+use Bio::Phylo::Util::CONSTANT qw':objecttypes looks_like_object';
 use Bio::Phylo::Util::Exceptions 'throw';
-use vars qw(@ISA);
-@ISA = qw(Bio::Phylo::Unparsers::Abstract);
-
-eval { require XML::Twig };
-if ( $@ ) {
-	throw 'ExtensionError' => "Error loading the XML::Twig extension: $@";
-}
+use Bio::Phylo::Util::Dependency 'XML::Twig';
 
 =head1 NAME
 
@@ -38,80 +32,87 @@ to NeXML.
 =cut
 
 sub _to_string {
-	my $self     = shift;
-	my $taxa_obj = $self->{'PHYLO'};
-	if ( $taxa_obj->can('_type') && $taxa_obj->_type == _PROJECT_ ) {
-	    return $taxa_obj->to_xml;
-	}
-	if ( $taxa_obj->can('_type') && $taxa_obj->_type == _DESCRIPTION_ ) {
-	    return $taxa_obj->to_xml;
-	}	
-	if ( $taxa_obj->can('_type') && $taxa_obj->_type != _TAXA_ ) {
-		if ( $taxa_obj->can('make_taxa') ) {
-			my $obj = $taxa_obj->make_taxa;
-			my $attached_obj = $taxa_obj;
-			for my $contained_obj ( @{ $attached_obj->get_entities } ) {
-				if ( $contained_obj->_type == _DATUM_ ) {
-					$contained_obj->set_name();
-				}
-				else {
-					for my $node ( @{ $contained_obj->get_entities } ) {
-						$node->set_name();
-					}
-				}
-			}
-			$taxa_obj = $obj;
-		}
-		else {
-			throw 'ObjectMismatch' => "Object ($taxa_obj) is not a taxa object,\n and doesn't link to one";
-		}
-	}
-# 	else {
-# 		throw 'ObjectMismatch' => "Can't serialize $taxa_obj to nexml";
-# 	}
-	my $parse_twig = XML::Twig->new;
-	my $nexml_twig = XML::Twig->new;
-	my $nexml_root = XML::Twig::Elt->new(
-		'nex:nexml',
-		{
-			'xmlns:nex'          => 'http://www.nexml.org/2009',
-			'version'            => '1.0',
-			'generator'          => __PACKAGE__ . ' v.' . $Bio::Phylo::VERSION,
-			'xmlns:xsi'          => 'http://www.w3.org/2001/XMLSchema-instance',
-			'xsi:schemaLocation' => 'http://www.nexml.org/2009 http://www.nexml.org/1.0/nexml.xsd',
-		}
-	);
-	eval {
-		my $taxa_elt = $parse_twig->parse($taxa_obj->to_xml(%{$self->{TAXA_ARGS}}));
-		$taxa_elt->root->paste($nexml_root);
-	};
-	die $@, $taxa_obj->to_xml(${$self->{TAXA_ARGS}}) if $@;
+    my $self     = shift;
+    my $taxa_obj = $self->{'PHYLO'};
+    if ( $taxa_obj->can('_type') && $taxa_obj->_type == _PROJECT_ ) {
+        return $taxa_obj->to_xml;
+    }
+    if ( $taxa_obj->can('_type') && $taxa_obj->_type == _DESCRIPTION_ ) {
+        return $taxa_obj->to_xml;
+    }
+    if ( $taxa_obj->can('_type') && $taxa_obj->_type != _TAXA_ ) {
+        if ( $taxa_obj->can('make_taxa') ) {
+            my $obj          = $taxa_obj->make_taxa;
+            my $attached_obj = $taxa_obj;
+            for my $contained_obj ( @{ $attached_obj->get_entities } ) {
+                if ( $contained_obj->_type == _DATUM_ ) {
+                    $contained_obj->set_name();
+                }
+                else {
+                    for my $node ( @{ $contained_obj->get_entities } ) {
+                        $node->set_name();
+                    }
+                }
+            }
+            $taxa_obj = $obj;
+        }
+        else {
+            throw 'ObjectMismatch' =>
+"Object ($taxa_obj) is not a taxa object,\n and doesn't link to one";
+        }
+    }
 
+    # 	else {
+    # 		throw 'ObjectMismatch' => "Can't serialize $taxa_obj to nexml";
+    # 	}
+    my $parse_twig = XML::Twig->new;
+    my $nexml_twig = XML::Twig->new;
+    my $nexml_root = XML::Twig::Elt->new(
+        'nex:nexml',
+        {
+            'xmlns:nex' => 'http://www.nexml.org/2009',
+            'version'   => '1.0',
+            'generator' => __PACKAGE__ . ' v.' . $Bio::Phylo::VERSION,
+            'xmlns:xsi' => 'http://www.w3.org/2001/XMLSchema-instance',
+            'xsi:schemaLocation' =>
+              'http://www.nexml.org/2009 http://www.nexml.org/1.0/nexml.xsd',
+        }
+    );
+    eval {
+        my $taxa_elt =
+          $parse_twig->parse( $taxa_obj->to_xml( %{ $self->{TAXA_ARGS} } ) );
+        $taxa_elt->root->paste($nexml_root);
+    };
+    die $@, $taxa_obj->to_xml( ${ $self->{TAXA_ARGS} } ) if $@;
     if ( $taxa_obj->get_matrices ) {
         for my $characters_obj ( reverse @{ $taxa_obj->get_matrices } ) {
             eval {
-                my $characters_elt = $parse_twig->parse($characters_obj->to_xml(%{$self->{MATRIX_ARGS}})); 
+                my $characters_elt =
+                  $parse_twig->parse(
+                    $characters_obj->to_xml( %{ $self->{MATRIX_ARGS} } ) );
                 $characters_elt->root->paste( 'last_child', $nexml_root );
             };
-            die $@, $characters_obj->to_xml(%{$self->{MATRIX_ARGS}}) if $@;
+            die $@, $characters_obj->to_xml( %{ $self->{MATRIX_ARGS} } ) if $@;
         }
-	}
-	if ( $taxa_obj->get_forests ) {
-        for my $forest_obj ( reverse @{ $taxa_obj->get_forests } ) {		
+    }
+    if ( $taxa_obj->get_forests ) {
+        for my $forest_obj ( reverse @{ $taxa_obj->get_forests } ) {
             eval {
-                my $forest_elt = $parse_twig->parse($forest_obj->to_xml(%{$self->{FOREST_ARGS}}));
+                my $forest_elt =
+                  $parse_twig->parse(
+                    $forest_obj->to_xml( %{ $self->{FOREST_ARGS} } ) );
                 $forest_elt->root->paste( 'last_child', $nexml_root );
             };
-            die $@, $forest_obj->to_xml(%{$self->{FOREST_ARGS}}) if $@;
+            die $@, $forest_obj->to_xml( %{ $self->{FOREST_ARGS} } ) if $@;
         }
-	}
-	$nexml_twig->set_root($nexml_root);
-	$nexml_twig->set_xml_version('1.0');
-	$nexml_twig->set_encoding('ISO-8859-1');
-	$nexml_twig->set_pretty_print('indented');
-	$nexml_twig->set_empty_tag_style('normal');	
-	my $nexml_string = $nexml_twig->sprint();
-	return $nexml_string;
+    }
+    $nexml_twig->set_root($nexml_root);
+    $nexml_twig->set_xml_version('1.0');
+    $nexml_twig->set_encoding('ISO-8859-1');
+    $nexml_twig->set_pretty_print('indented');
+    $nexml_twig->set_empty_tag_style('normal');
+    my $nexml_string = $nexml_twig->sprint();
+    return $nexml_string;
 }
 
 # podinherit_insert_token
@@ -145,10 +146,7 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =head1 REVISION
 
- $Id: Nexml.pm 1593 2011-02-27 15:26:04Z rvos $
+ $Id: Nexml.pm 1660 2011-04-02 18:29:40Z rvos $
 
 =cut
-
 1;
-
-

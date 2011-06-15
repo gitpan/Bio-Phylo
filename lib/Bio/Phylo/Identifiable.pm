@@ -39,16 +39,15 @@ that need unique identifiers.
 =cut
 
 sub new {
-		my $class = shift;
-		
-        # happens only and exactly once because this
-	    # root class is visited from every constructor
-        my $self = Bio::Phylo::Util::IDPool->_initialize();
+    my $class = shift;
 
-        # bless in child class, not __PACKAGE__
-        bless $self, $class; 
-        
-        return $self;
+    # happens only and exactly once because this
+    # root class is visited from every constructor
+    my $self = Bio::Phylo::Util::IDPool->_initialize();
+
+    # bless in child class, not __PACKAGE__
+    bless $self, $class;
+    return $self;
 }
 
 =item get_id()
@@ -64,15 +63,15 @@ Gets invocant's UID.
 
 =cut
 
-    sub get_id {
-		my ($self) = @_;
-		if ( UNIVERSAL::isa( $self, 'SCALAR' ) ) {
-			return $$self;
-		}
-		else {
-			throw 'API' => "Not a SCALAR reference";
-		}
+sub get_id {
+    my ($self) = @_;
+    if ( UNIVERSAL::isa( $self, 'SCALAR' ) ) {
+        return $$self;
     }
+    else {
+        throw 'API' => "Not a SCALAR reference";
+    }
+}
 
 =back
 
@@ -94,5 +93,4 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
  $Id: Identifiable.pm 1593 2011-02-27 15:26:04Z rvos $
 
 =cut
-
 1;

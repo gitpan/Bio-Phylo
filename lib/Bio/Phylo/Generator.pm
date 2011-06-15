@@ -1,21 +1,15 @@
-# $Id: Generator.pm 1593 2011-02-27 15:26:04Z rvos $
+# $Id: Generator.pm 1660 2011-04-02 18:29:40Z rvos $
 package Bio::Phylo::Generator;
 use strict;
 use Bio::Phylo::Util::CONSTANT 'looks_like_hash';
 use Bio::Phylo::Util::Exceptions 'throw';
-use Bio::Phylo::Factory;
 use Bio::Phylo::Util::Logger;
-
-eval { require Math::Random };
-if ( $@ ) {
-	throw 'ExtensionError' => "Error loading the Math::Random extension: $@";
-}
+use Bio::Phylo::Util::Dependency 'Math::Random';
+use Bio::Phylo::Factory;
 Math::Random->import(qw'random_exponential random_uniform');
-
 {
-
-	my $logger  = Bio::Phylo::Util::Logger->new;
-	my $factory = Bio::Phylo::Factory->new;
+    my $logger  = Bio::Phylo::Util::Logger->new;
+    my $factory = Bio::Phylo::Factory->new;
 
 =head1 NAME
 
@@ -58,19 +52,18 @@ Generator constructor.
 
 =cut
 
-	sub new {
+    sub new {
 
-		# could be child class
-		my $class = shift;
+        # could be child class
+        my $class = shift;
 
-		# notify user
-		$logger->info("constructor called for '$class'");
+        # notify user
+        $logger->info("constructor called for '$class'");
 
-		# the object turns out to be stateless
-		my $self = bless \$class, $class;
-
-		return $self;
-	}
+        # the object turns out to be stateless
+        my $self = bless \$class, $class;
+        return $self;
+    }
 
 =back
 
@@ -103,112 +96,111 @@ object populated with Yule/Hey trees.
 
 =cut
 
-	sub _yule_rand_bl {
-		my $i = shift;
-		return random_exponential( 1, 1 / ( $i + 1 ) );
-	}
-	sub _hey_rand_bl {
-		my $i = shift;
-		random_exponential( 1, ( 1 / ( $i * ( $i + 1 ) ) ) );
-	}
-	
-	sub _make_split {
-		my ( $parent, $length, $fac, $nodes ) = @_;
-		my @tips;
-		for ( 1 .. 2 ) {
-			my $node = $fac->create_node;
-			$node->set_branch_length($length);
-			$node->set_parent($parent);
-			$nodes->{$node->get_id} = $node;
-			push @tips, $node;
-		}
-		return @tips;
-	}
-	
-	sub gen_rand_pure_birth {
-		my $random  = shift;
-		my %options = looks_like_hash @_;
-		my $model = $options{'-model'};
-		if ( $model =~ m/yule/i ) {
-			return $random->_gen_pure_birth(
-				'-blgen' => \&_yule_rand_bl,
-				@_,
-			);
-		}
-		elsif ( $model =~ m/hey/i ) {
-			return $random->_gen_pure_birth(
-				'-blgen' => \&_hey_rand_bl,
-				@_,
-			);			
-		}
-		else {
-			throw 'BadFormat' => "model '$model' not implemented";
-		}		
-	}
+    sub _yule_rand_bl {
+        my $i = shift;
+        return random_exponential( 1, 1 / ( $i + 1 ) );
+    }
 
-	sub _gen_pure_birth {
-		my $random   = shift;
-		my %options  = looks_like_hash @_;
-		my $factory  = $options{'-factory'} || $factory;
-		my $blgen    = $options{'-blgen'};
-		my $killrate = $options{'-killrate'} || 0;
-		my $ntips    = $options{'-tips'}     || 10;
-		my $ntrees   = $options{'-trees'}    || 10;
+    sub _hey_rand_bl {
+        my $i = shift;
+        random_exponential( 1, ( 1 / ( $i * ( $i + 1 ) ) ) );
+    }
 
-		my $forest = $factory->create_forest;
-		for ( 0 .. ( $ntrees - 1 ) ) {
+    sub _make_split {
+        my ( $parent, $length, $fac, $nodes ) = @_;
+        my @tips;
+        for ( 1 .. 2 ) {
+            my $node = $fac->create_node;
+            $node->set_branch_length($length);
+            $node->set_parent($parent);
+            $nodes->{ $node->get_id } = $node;
+            push @tips, $node;
+        }
+        return @tips;
+    }
 
-			# instantiate root node
-			my $root = $factory->create_node;
-			$root->set_branch_length(0);
-			my %nodes = ( $root->get_id => $root );
+    sub gen_rand_pure_birth {
+        my $random  = shift;
+        my %options = looks_like_hash @_;
+        my $model   = $options{'-model'};
+        if ( $model =~ m/yule/i ) {
+            return $random->_gen_pure_birth(
+                '-blgen' => \&_yule_rand_bl,
+                @_,
+            );
+        }
+        elsif ( $model =~ m/hey/i ) {
+            return $random->_gen_pure_birth(
+                '-blgen' => \&_hey_rand_bl,
+                @_,
+            );
+        }
+        else {
+            throw 'BadFormat' => "model '$model' not implemented";
+        }
+    }
 
-			# make the first split, insert new tips in @tips, from
-			# which we will draw (without replacement) a new tip
-			# to split until we've reached target number
-			push my @tips, _make_split($root,$blgen->(1),$factory,\%nodes);
+    sub _gen_pure_birth {
+        my $random   = shift;
+        my %options  = looks_like_hash @_;
+        my $factory  = $options{'-factory'} || $factory;
+        my $blgen    = $options{'-blgen'};
+        my $killrate = $options{'-killrate'} || 0;
+        my $ntips    = $options{'-tips'} || 10;
+        my $ntrees   = $options{'-trees'} || 10;
+        my $forest   = $factory->create_forest;
+        for ( 0 .. ( $ntrees - 1 ) ) {
 
-			# start growing the tree
-			my $i = 2;
-			my @extinct;
-			while ( 1 ) {
-				if ( rand(1) < $killrate ) {
-					my $extinct_index = int rand scalar @tips;
-					my $extinct = splice @tips, $extinct_index, 1;
-					push @extinct, $extinct;
-					delete $nodes{$extinct->get_id};
-				}				
+            # instantiate root node
+            my $root = $factory->create_node;
+            $root->set_branch_length(0);
+            my %nodes = ( $root->get_id => $root );
 
-				# obtain candidate parent of current split
-				my $parent;
-				( $parent, @tips ) = _fetch_equiprobable(@tips);
+            # make the first split, insert new tips in @tips, from
+            # which we will draw (without replacement) a new tip
+            # to split until we've reached target number
+            push my @tips, _make_split( $root, $blgen->(1), $factory, \%nodes );
 
-				# generate branch length
-				my $bl = $blgen->($i++);
+            # start growing the tree
+            my $i = 2;
+            my @extinct;
+            while (1) {
+                if ( rand(1) < $killrate ) {
+                    my $extinct_index = int rand scalar @tips;
+                    my $extinct = splice @tips, $extinct_index, 1;
+                    push @extinct, $extinct;
+                    delete $nodes{ $extinct->get_id };
+                }
 
-				# stretch all remaining tips to the present
-				for my $tip (@tips) {
-					my $oldbl = $tip->get_branch_length;
-					$tip->set_branch_length($oldbl + $bl);
-				}
-				
-				# add new nodes to tips array
-				push @tips, _make_split($parent,$bl,$factory,\%nodes);
-				last if scalar @tips >= $ntips;
-			}
-			my $tree = $factory->create_tree;
-			$tree->insert(
-				map  { $_->[0] }
-				sort { $a->[1] <=> $b->[1] }
-				map  { [ $_, $_->get_id ] }
-				values %nodes
-			);
-			$tree->prune_tips(\@extinct);
-			$tree->_analyze;
-			$forest->insert($tree);
-		}
-		return $forest;
-	}
+                # obtain candidate parent of current split
+                my $parent;
+                ( $parent, @tips ) = _fetch_equiprobable(@tips);
+
+                # generate branch length
+                my $bl = $blgen->( $i++ );
+
+                # stretch all remaining tips to the present
+                for my $tip (@tips) {
+                    my $oldbl = $tip->get_branch_length;
+                    $tip->set_branch_length( $oldbl + $bl );
+                }
+
+                # add new nodes to tips array
+                push @tips, _make_split( $parent, $bl, $factory, \%nodes );
+                last if scalar @tips >= $ntips;
+            }
+            my $tree = $factory->create_tree;
+            $tree->insert(
+                map  { $_->[0] }
+                sort { $a->[1] <=> $b->[1] }
+                map  { [ $_, $_->get_id ] } values %nodes
+            );
+            $tree->prune_tips( \@extinct );
+            $tree->_analyze;
+            $forest->insert($tree);
+        }
+        return $forest;
+    }
 
 =item gen_rand_birth_death()
 
@@ -235,15 +227,15 @@ object populated under a birth/death model
 
 =cut
 
-	sub gen_rand_birth_death {
-		my $random  = shift;
-		my %options = looks_like_hash @_;
-		return $random->_gen_pure_birth(
-			'-blgen'    => \&_yule_rand_bl,
-			'-killrate' => $options{'-killrate'} || 0.2,
-			@_,
-		);		
-	}
+    sub gen_rand_birth_death {
+        my $random  = shift;
+        my %options = looks_like_hash @_;
+        return $random->_gen_pure_birth(
+            '-blgen'    => \&_yule_rand_bl,
+            '-killrate' => $options{'-killrate'} || 0.2,
+            @_,
+        );
+    }
 
 =item gen_exp_pure_birth()
 
@@ -272,36 +264,36 @@ not sampled from a distribution).
 
 =cut
 
-	sub _yule_exp_bl {
-		my $i = shift;
-		return 1 / ( $i + 1 );
-	}
-	
-	sub _hey_exp_bl {
-		my $i = shift;
-		return 1 / ( $i * ( $i + 1 ) );
-	}
-	
-	sub gen_exp_pure_birth {
-		my $random  = shift;
-		my %options = looks_like_hash @_;
-		my $model = $options{'-model'};
-		if ( $model =~ m/yule/i ) {
-			return $random->_gen_pure_birth(
-				'-blgen' => \&_yule_exp_bl,
-				@_,
-			);
-		}
-		elsif ( $model =~ m/hey/i ) {
-			return $random->_gen_pure_birth(
-				'-blgen' => \&_hey_exp_bl,
-				@_,
-			);			
-		}
-		else {
-			throw 'BadFormat' => "model '$model' not implemented";
-		}		
-	}
+    sub _yule_exp_bl {
+        my $i = shift;
+        return 1 / ( $i + 1 );
+    }
+
+    sub _hey_exp_bl {
+        my $i = shift;
+        return 1 / ( $i * ( $i + 1 ) );
+    }
+
+    sub gen_exp_pure_birth {
+        my $random  = shift;
+        my %options = looks_like_hash @_;
+        my $model   = $options{'-model'};
+        if ( $model =~ m/yule/i ) {
+            return $random->_gen_pure_birth(
+                '-blgen' => \&_yule_exp_bl,
+                @_,
+            );
+        }
+        elsif ( $model =~ m/hey/i ) {
+            return $random->_gen_pure_birth(
+                '-blgen' => \&_hey_exp_bl,
+                @_,
+            );
+        }
+        else {
+            throw 'BadFormat' => "model '$model' not implemented";
+        }
+    }
 
 =item gen_coalescent()
 
@@ -324,60 +316,57 @@ in the previous generation for any pair of alleles is 1 / ( 2 * popsize ).
 	   Optional: -factory => a Bio::Phylo::Factory object
 
 =cut
-	
-	sub gen_coalescent {
-		my $self    = shift;
-		my %args    = looks_like_hash @_;
-		my $popsize = $args{'-popsize'} || 100;
-		my $ntips   = $args{'-tips'}    || 10;
-		my $ntrees  = $args{'-trees'}   || 10;
-		my $factory = $args{'-factory'} || $factory;
-		my $forest  = $factory->create_forest;
-		my $cutoff  = 1 / ( 2 * $popsize );		
-		for my $i ( 1 .. $ntrees ) {
-			my $ngen = 1;
-			my ( @tips, @nodes );
-			push @tips, $factory->create_node() for 1 .. $ntips;
-			
-			# starting from a pool of all tips, we iterate over all
-			# possible pairs, and for each pair we test to see if
-			# the coalesce at generation $ngen, at probability
-			# 1/2N. When they do, we create a parent for the pair,
-			# take the pair out of the pool and put the parent in it
-			while ( scalar @tips > 1 ) {
-				my $poolsize = $#tips;
-				my $j = 0;
-				while ( $j < $poolsize ) {
-					my $k = $j + 1;
-					while ( $k <= $poolsize ) {
-						my $rand = random_uniform();
-						if ( $rand <= $cutoff ) {
-							my $tip2 = splice @tips, $k, 1;
-							my $tip1 = splice @tips, $j, 1;
-							my $parent = $factory->create_node(
-								'-generic' => { 'age' => $ngen }
-							);
-							unshift @nodes,
-								$tip1->set_parent($parent),
-								$tip2->set_parent($parent);
-							push @tips, $parent;
-							$poolsize--;
-						}
-						$k++;
-						
-					}
-					$j++;
-				}
-				$ngen++;
-			}
-			push @nodes, shift @tips;
-			my $tree = $factory->create_tree()->insert(@nodes);
-			$tree->agetobl;
-			$forest->insert($tree);			
-		}
-		return $forest;
-	}
 
+    sub gen_coalescent {
+        my $self    = shift;
+        my %args    = looks_like_hash @_;
+        my $popsize = $args{'-popsize'} || 100;
+        my $ntips   = $args{'-tips'} || 10;
+        my $ntrees  = $args{'-trees'} || 10;
+        my $factory = $args{'-factory'} || $factory;
+        my $forest  = $factory->create_forest;
+        my $cutoff  = 1 / ( 2 * $popsize );
+        for my $i ( 1 .. $ntrees ) {
+            my $ngen = 1;
+            my ( @tips, @nodes );
+            push @tips, $factory->create_node() for 1 .. $ntips;
+
+            # starting from a pool of all tips, we iterate over all
+            # possible pairs, and for each pair we test to see if
+            # the coalesce at generation $ngen, at probability
+            # 1/2N. When they do, we create a parent for the pair,
+            # take the pair out of the pool and put the parent in it
+            while ( scalar @tips > 1 ) {
+                my $poolsize = $#tips;
+                my $j        = 0;
+                while ( $j < $poolsize ) {
+                    my $k = $j + 1;
+                    while ( $k <= $poolsize ) {
+                        my $rand = random_uniform();
+                        if ( $rand <= $cutoff ) {
+                            my $tip2 = splice @tips, $k, 1;
+                            my $tip1 = splice @tips, $j, 1;
+                            my $parent = $factory->create_node(
+                                '-generic' => { 'age' => $ngen } );
+                            unshift @nodes,
+                              $tip1->set_parent($parent),
+                              $tip2->set_parent($parent);
+                            push @tips, $parent;
+                            $poolsize--;
+                        }
+                        $k++;
+                    }
+                    $j++;
+                }
+                $ngen++;
+            }
+            push @nodes, shift @tips;
+            my $tree = $factory->create_tree()->insert(@nodes);
+            $tree->agetobl;
+            $forest->insert($tree);
+        }
+        return $forest;
+    }
 
 =item gen_equiprobable()
 
@@ -395,64 +384,61 @@ such that all shapes are equally probable.
 	   Optional: -factory => a Bio::Phylo::Factory object
 
 =cut
-	
-	sub _fetch_equiprobable {
-		my @tips = @_;
-		my $tip_index = int rand scalar @tips;
-		my $tip = splice @tips, $tip_index, 1;
-		return $tip, @tips;
-	}	
-	
-	sub _fetch_balanced {
-		return @_;
-	}
-	
-	sub _fetch_ladder {
-		my $tip = pop;
-		return $tip, @_;
-	}
 
-	sub _gen_simple {
-		my $random  = shift;
-		my %options = looks_like_hash @_;
-		my $fetcher = $options{'-fetcher'};
-		my $factory = $options{'-factory'} || $factory;
-		my $ntrees  = $options{'-trees'}   || 1;
-		my $ntips   = $options{'-tips'}    || 10;
-		my $forest  = $factory->create_forest;
-		for my $i ( 1 .. $ntrees ) {
-			my $tree = $factory->create_tree;
-			my ( @tips, @nodes );
-			
-			# each iteration, we will remove two "tips" from this
-			# and add their newly created parent to it
-			push @tips, $factory->create_node(
-				'-branch_length' => 1,
-			) for ( 1 .. $ntips );			
-			
-			# this stays above 0 because the root ends up in it
-			while( @tips > 1 ) {
-				my $parent = $factory->create_node(
-					'-branch_length' => 1,
-				);
-				$tree->insert($parent);
-				for ( 1 .. 2 ) {
-					my $tip;
-					( $tip, @tips ) = $fetcher->(@tips);
-					$tree->insert($tip->set_parent($parent));
-				}
-				
-				# the parent becomes a new candidate tip
-				push @tips, $parent;
-			}
-			$forest->insert($tree);
-		}
-		return $forest;
-	}	
-	
-	sub gen_equiprobable {
-		return _gen_simple( @_, '-fetcher' => \&_fetch_equiprobable );
-	}			
+    sub _fetch_equiprobable {
+        my @tips      = @_;
+        my $tip_index = int rand scalar @tips;
+        my $tip       = splice @tips, $tip_index, 1;
+        return $tip, @tips;
+    }
+
+    sub _fetch_balanced {
+        return @_;
+    }
+
+    sub _fetch_ladder {
+        my $tip = pop;
+        return $tip, @_;
+    }
+
+    sub _gen_simple {
+        my $random  = shift;
+        my %options = looks_like_hash @_;
+        my $fetcher = $options{'-fetcher'};
+        my $factory = $options{'-factory'} || $factory;
+        my $ntrees  = $options{'-trees'} || 1;
+        my $ntips   = $options{'-tips'} || 10;
+        my $forest  = $factory->create_forest;
+        for my $i ( 1 .. $ntrees ) {
+            my $tree = $factory->create_tree;
+            my ( @tips, @nodes );
+
+            # each iteration, we will remove two "tips" from this
+            # and add their newly created parent to it
+            push @tips, $factory->create_node( '-branch_length' => 1, )
+              for ( 1 .. $ntips );
+
+            # this stays above 0 because the root ends up in it
+            while ( @tips > 1 ) {
+                my $parent = $factory->create_node( '-branch_length' => 1, );
+                $tree->insert($parent);
+                for ( 1 .. 2 ) {
+                    my $tip;
+                    ( $tip, @tips ) = $fetcher->(@tips);
+                    $tree->insert( $tip->set_parent($parent) );
+                }
+
+                # the parent becomes a new candidate tip
+                push @tips, $parent;
+            }
+            $forest->insert($tree);
+        }
+        return $forest;
+    }
+
+    sub gen_equiprobable {
+        return _gen_simple( @_, '-fetcher' => \&_fetch_equiprobable );
+    }
 
 =item gen_balanced()
 
@@ -470,9 +456,9 @@ This method creates the most balanced topology possible given the number of tips
 
 =cut
 
-	sub gen_balanced {
-		return _gen_simple( @_, '-fetcher' => \&_fetch_balanced );
-	}
+    sub gen_balanced {
+        return _gen_simple( @_, '-fetcher' => \&_fetch_balanced );
+    }
 
 =item gen_ladder()
 
@@ -490,9 +476,9 @@ This method creates a ladder tree for the number of tips
 
 =cut
 
-	sub gen_ladder {
-		return _gen_simple( @_, '-fetcher' => \&_fetch_ladder );
-	}
+    sub gen_ladder {
+        return _gen_simple( @_, '-fetcher' => \&_fetch_ladder );
+    }
 
 =back
 
@@ -517,9 +503,8 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =head1 REVISION
 
- $Id: Generator.pm 1593 2011-02-27 15:26:04Z rvos $
+ $Id: Generator.pm 1660 2011-04-02 18:29:40Z rvos $
 
 =cut
-
 }
 1;

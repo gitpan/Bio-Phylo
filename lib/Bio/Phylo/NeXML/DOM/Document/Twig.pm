@@ -1,4 +1,4 @@
-#$Id: Twig.pm 1593 2011-02-27 15:26:04Z rvos $
+#$Id: Twig.pm 1660 2011-04-02 18:29:40Z rvos $
 
 =head1 NAME
 
@@ -20,21 +20,13 @@ C<XML::Twig> package.
 Mark A. Jensen ( maj -at- fortinbras -dot- us )
 
 =cut
-
 package Bio::Phylo::NeXML::DOM::Document::Twig;
 use strict;
+use Bio::Phylo::Util::Exceptions 'throw';
+use Bio::Phylo::Util::Dependency 'XML::Twig';
 use Bio::Phylo::NeXML::DOM::Document;
-use Bio::Phylo::Util::Exceptions qw(throw);
-use Bio::Phylo::Util::CONSTANT qw(looks_like_instance);
-use vars qw(@ISA);
-
-BEGIN {
-    eval { require XML::Twig };
-    if ( $@ ) {
-	throw 'ExtensionError' => "Failed to load XML::Twig: $@";
-    }
-    @ISA = qw( Bio::Phylo::NeXML::DOM::Document XML::Twig );
-}
+use Bio::Phylo::Util::CONSTANT 'looks_like_instance';
+use base qw'Bio::Phylo::NeXML::DOM::Document XML::Twig';
 
 =head2 Constructor
 
@@ -52,7 +44,7 @@ BEGIN {
 =cut
 
 sub new {
-    my ($class, @args) = @_;
+    my ( $class, @args ) = @_;
     my $self = XML::Twig->new();
     $self->set_encoding();
     bless $self, $class;
@@ -71,7 +63,7 @@ sub new {
 =cut
 
 sub parse_document {
-    my ($class, $text) = @_;
+    my ( $class, $text ) = @_;
     my $self = XML::Twig->new();
     $self->parse($text);
     bless $self, $class;
@@ -98,7 +90,7 @@ sub parse_document {
 =cut
 
 sub set_encoding {
-    my ($self, $encoding, @args) = @_;
+    my ( $self, $encoding, @args ) = @_;
     $self->set_encoding($encoding);
     return 1;
 }
@@ -130,17 +122,18 @@ sub get_encoding {
 =cut
 
 sub set_root {
-    my ($self, $root) = @_;
+    my ( $self, $root ) = @_;
     if ( looks_like_instance $root, 'XML::Twig::Elt' ) {
-	XML::Twig::set_root($self, $root);
-	# manage ids
-	for ($root->descendants_or_self) {
-	    ${$self->{twig_id_list}}{$_->att('id')} = $_ if $_->att('id');
-	}
-	return 1;
+        XML::Twig::set_root( $self, $root );
+
+        # manage ids
+        for ( $root->descendants_or_self ) {
+            ${ $self->{twig_id_list} }{ $_->att('id') } = $_ if $_->att('id');
+        }
+        return 1;
     }
     else {
-	throw 'ObjectMisMatch' => 'Argument is not an XML::Twig::Elt';
+        throw 'ObjectMisMatch' => 'Argument is not an XML::Twig::Elt';
     }
 }
 
@@ -194,7 +187,7 @@ sub get_element_by_id {
 =cut
 
 sub get_elements_by_tagname {
-    my ($self, $tagname, @args) = @_;
+    my ( $self, $tagname, @args ) = @_;
     return $self->get_root->get_elements_by_tagname($tagname);
 }
 
@@ -216,7 +209,7 @@ sub get_elements_by_tagname {
 =cut
 
 sub to_xml {
-    my ($self, @args) = @_;
+    my ( $self, @args ) = @_;
     return $self->sprint(@args);
 }
 
@@ -232,5 +225,4 @@ I<BMC Bioinformatics> B<12>:63.
 L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =cut
-
 1;

@@ -1,13 +1,12 @@
-# $Id: TaxaLinker.pm 1593 2011-02-27 15:26:04Z rvos $
+# $Id: TaxaLinker.pm 1660 2011-04-02 18:29:40Z rvos $
 package Bio::Phylo::Taxa::TaxaLinker;
-use Bio::Phylo ();
+use Bio::Phylo;
 use Bio::Phylo::Mediators::TaxaMediator;
 use Bio::Phylo::Util::Exceptions 'throw';
-use Bio::Phylo::Util::CONSTANT qw(_TAXA_ looks_like_object);
+use Bio::Phylo::Util::CONSTANT qw'_TAXA_ looks_like_object';
 use strict;
-
-my $logger   = Bio::Phylo->get_logger;
-my $mediator = 'Bio::Phylo::Mediators::TaxaMediator';
+my $logger        = Bio::Phylo->get_logger;
+my $mediator      = 'Bio::Phylo::Mediators::TaxaMediator';
 my $TYPE_CONSTANT = _TAXA_;
 
 =head1 NAME
@@ -52,13 +51,13 @@ Associates invocant with Bio::Phylo::Taxa argument.
 
 sub set_taxa {
     my ( $self, $taxa ) = @_;
-	if ( $taxa and looks_like_object $taxa, $TYPE_CONSTANT ) {
-		$logger->info("setting taxa '$taxa'");
-		$mediator->set_link( 
-			'-one'  => $taxa, 
-			'-many' => $self,
-		);
-	}
+    if ( $taxa and looks_like_object $taxa, $TYPE_CONSTANT ) {
+        $logger->info("setting taxa '$taxa'");
+        $mediator->set_link(
+            '-one'  => $taxa,
+            '-many' => $self,
+        );
+    }
     else {
         $logger->info("re-setting taxa link");
         $mediator->remove_link( '-many' => $self );
@@ -81,10 +80,10 @@ Removes association between invocant and Bio::Phylo::Taxa object.
 =cut
 
 sub unset_taxa {
-	my $self = shift;
-	$logger->info( "unsetting taxa" );
-	$self->set_taxa();
-	return $self;
+    my $self = shift;
+    $logger->info("unsetting taxa");
+    $self->set_taxa();
+    return $self;
 }
 
 =back
@@ -131,7 +130,7 @@ Performs sanity check on taxon relationships.
 =cut
 
 sub check_taxa {
-	throw 'NotImplemented' => 'Not implemented!';
+    throw 'NotImplemented' => 'Not implemented!';
 }
 
 =item make_taxa()
@@ -148,16 +147,16 @@ Creates a taxa block from the objects contents if none exists yet.
 =cut
 
 sub make_taxa {
-	my $self = shift;
-	if ( my $taxa = $self->get_taxa ) {
-		return $taxa;
-	}
-	else {
-		throw 'NotImplemented' => 'Not implemented!';
-	}
+    my $self = shift;
+    if ( my $taxa = $self->get_taxa ) {
+        return $taxa;
+    }
+    else {
+        throw 'NotImplemented' => 'Not implemented!';
+    }
 }
 
-sub _cleanup { 
+sub _cleanup {
     my $self = shift;
 }
 
@@ -192,8 +191,7 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =head1 REVISION
 
- $Id: TaxaLinker.pm 1593 2011-02-27 15:26:04Z rvos $
+ $Id: TaxaLinker.pm 1660 2011-04-02 18:29:40Z rvos $
 
 =cut
-
 1;

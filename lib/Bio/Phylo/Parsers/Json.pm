@@ -1,18 +1,10 @@
-# $Id: Json.pm 1624 2011-03-24 00:23:25Z rvos $
+# $Id: Json.pm 1660 2011-04-02 18:29:40Z rvos $
 package Bio::Phylo::Parsers::Json;
 use strict;
+use base 'Bio::Phylo::Parsers::Abstract';
 use Bio::Phylo::IO 'parse';
-use Bio::Phylo::Parsers::Abstract;
 use Bio::Phylo::Util::Exceptions 'throw';
-use vars qw(@ISA);
-
-# classic @ISA manipulation, not using 'base'
-@ISA = qw(Bio::Phylo::Parsers::Abstract);
-
-eval { require XML::XML2JSON };
-if ( $@ ) {
-    throw 'ExtensionError' => "Error loading the XML::XML2JSON extension: $@";
-}
+use Bio::Phylo::Util::Dependency 'XML::XML2JSON';
 
 =head1 NAME
 
@@ -62,8 +54,7 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =head1 REVISION
 
- $Id: Json.pm 1624 2011-03-24 00:23:25Z rvos $
+ $Id: Json.pm 1660 2011-04-02 18:29:40Z rvos $
 
 =cut
-
 1;

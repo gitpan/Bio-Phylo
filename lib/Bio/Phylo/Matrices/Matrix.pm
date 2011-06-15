@@ -1,53 +1,27 @@
-# $Id: Matrix.pm 1634 2011-03-30 17:02:17Z rvos $
+# $Id: Matrix.pm 1660 2011-04-02 18:29:40Z rvos $
 package Bio::Phylo::Matrices::Matrix;
-use vars '@ISA';
 use strict;
+use base qw'Bio::Phylo::Matrices::TypeSafeData Bio::Phylo::Taxa::TaxaLinker';
+use Bio::Phylo::Util::OptionalInterface 'Bio::Align::AlignI';
+use Bio::Phylo::Util::CONSTANT qw':objecttypes /looks_like/';
+use Bio::Phylo::Util::Exceptions qw'throw';
+use Bio::Phylo::NeXML::Writable;
+use Bio::Phylo::Matrices::Datum;
+use Bio::Phylo::IO qw'unparse';
 use Bio::Phylo::Factory;
-use Bio::Phylo::Taxa::TaxaLinker;
-use Bio::Phylo::IO qw(unparse);
-use Bio::Phylo::Util::CONSTANT qw(
-	:objecttypes 
-	looks_like_hash 
-	looks_like_instance 
-	looks_like_number
-	looks_like_object
-);
-use Bio::Phylo::Util::Exceptions qw(throw);
-use Bio::Phylo::NeXML::Writable ();
-use Bio::Phylo::Matrices::TypeSafeData ();
-use Bio::Phylo::Matrices::Datum ();
-@ISA = qw(
-  Bio::Phylo::Matrices::TypeSafeData
-  Bio::Phylo::Taxa::TaxaLinker
-);
-
-eval { require Bio::Align::AlignI };
-if ( not $@ ) {
-	push @ISA, 'Bio::Align::AlignI';
-}
-else {
-	undef($@);
-}
 my $LOADED_WRAPPERS = 0;
-
-
 {
-	my $CONSTANT_TYPE      = _MATRIX_;
-	my $CONSTANT_CONTAINER = _MATRICES_;
-	my $logger             = __PACKAGE__->get_logger;
-	my $factory            = Bio::Phylo::Factory->new;
-	my @inside_out_arrays  = \(
-		my (
-			%type,  
-			%charlabels,
-			%statelabels,
-			%gapmode,
-			%matchchar,
-			%polymorphism,
-			%case_sensitivity,
-			%characters,
-		)
-	);
+    my $CONSTANT_TYPE      = _MATRIX_;
+    my $CONSTANT_CONTAINER = _MATRICES_;
+    my $logger             = __PACKAGE__->get_logger;
+    my $factory            = Bio::Phylo::Factory->new;
+    my @inside_out_arrays  = \(
+        my (
+            %type,             %charlabels, %statelabels,
+            %gapmode,          %matchchar,  %polymorphism,
+            %case_sensitivity, %characters,
+        )
+    );
 
 =head1 NAME
 
@@ -172,46 +146,27 @@ Matrix constructor.
 
 =cut
 
-	sub new {
+    sub new {
 
-		# could be child class
-		my $class = shift;
+        # could be child class
+        my $class = shift;
 
-		# notify user
-		$logger->info("constructor called for '$class'");
-		
-		if ( not $LOADED_WRAPPERS ) {
-			eval do { local $/; <DATA> };
-			die $@ if $@;
-			$LOADED_WRAPPERS++;
-		}		
+        # notify user
+        $logger->info("constructor called for '$class'");
+        if ( not $LOADED_WRAPPERS ) {
+            eval do { local $/; <DATA> };
+            die $@ if $@;
+            $LOADED_WRAPPERS++;
+        }
 
-		# go up inheritance tree, eventually get an ID
-		my $self = $class->SUPER::new(
-			'-characters' => $factory->create_characters,
-			'-listener'   => sub {
-				my $self = shift;
-				my $nchar = $self->get_nchar;
-				my $characters = $self->get_characters;
-				my @chars = @{ $characters->get_entities };
-				my @defined = grep { defined $_ } @chars;
-				if ( scalar @defined != $nchar ) {
-					for my $i ( 0 .. ( $nchar - 1 ) ) {
-						if ( not $chars[$i] ) {
-							$characters->insert_at_index( $factory->create_character, $i );
-						}
-					}
-				}
-				@chars = @{ $characters->get_entities };
-				if ( scalar(@chars) > $nchar ) {
-					$characters->prune_entities([$nchar .. $#chars]);
-				}
-			},
-			@_
-		);
-		
-		return $self;
-	}
+        # go up inheritance tree, eventually get an ID
+        my $self = $class->SUPER::new(
+            '-characters' => $factory->create_characters,
+            '-listener'   => \&_update_characters,
+            @_
+        );
+        return $self;
+    }
 
 =item new_from_bioperl()
 
@@ -229,46 +184,52 @@ Matrix constructor from Bio::Align::AlignI argument.
  Args    : An alignment that implements Bio::Align::AlignI
 
 =cut
-	
-	sub new_from_bioperl {
-	    my ( $class, $aln, @args ) = @_;
-		if ( looks_like_instance( $aln, 'Bio::Align::AlignI' ) ) {
-		    $aln->unmatch;
-		    $aln->map_chars('\.','-');
-		    my @seqs = $aln->each_seq;
-		    my ( $type, $missing, $gap, $matchchar ); 
-		    if ( $seqs[0] ) {
-		    	$type = $seqs[0]->alphabet || $seqs[0]->_guess_alphabet || 'dna';
-		    }
-		    else {
-		    	$type = 'dna';
-		    }
-			my $self = $factory->create_matrix( 
-				'-type' => $type,
-				'-special_symbols' => {
-			    	'-missing'   => $aln->missing_char || '?',
-			    	'-matchchar' => $aln->match_char   || '.',
-			    	'-gap'       => $aln->gap_char     || '-',					
-				},
-				@args 
-			);			
-			# XXX create raw getter/setter pairs for annotation, accession, consensus_meta source
-			for my $field ( qw(description accession id annotation consensus_meta score source) ) {
-				$self->$field( $aln->$field );
-			}			
-			my $to = $self->get_type_object;			
-            for my $seq ( @seqs ) {
-            	my $datum = Bio::Phylo::Matrices::Datum->new_from_bioperl(
-            		$seq, '-type_object' => $to
-            	);                                         	
+
+    sub new_from_bioperl {
+        my ( $class, $aln, @args ) = @_;
+        if ( looks_like_instance( $aln, 'Bio::Align::AlignI' ) ) {
+            $aln->unmatch;
+            $aln->map_chars( '\.', '-' );
+            my @seqs = $aln->each_seq;
+            my ( $type, $missing, $gap, $matchchar );
+            if ( $seqs[0] ) {
+                $type =
+                     $seqs[0]->alphabet
+                  || $seqs[0]->_guess_alphabet
+                  || 'dna';
+            }
+            else {
+                $type = 'dna';
+            }
+            my $self = $factory->create_matrix(
+                '-type'            => $type,
+                '-special_symbols' => {
+                    '-missing'   => $aln->missing_char || '?',
+                    '-matchchar' => $aln->match_char   || '.',
+                    '-gap'       => $aln->gap_char     || '-',
+                },
+                @args
+            );
+
+# XXX create raw getter/setter pairs for annotation, accession, consensus_meta source
+            for my $field (
+                qw(description accession id annotation consensus_meta score source)
+              )
+            {
+                $self->$field( $aln->$field );
+            }
+            my $to = $self->get_type_object;
+            for my $seq (@seqs) {
+                my $datum = Bio::Phylo::Matrices::Datum->new_from_bioperl( $seq,
+                    '-type_object' => $to );
                 $self->insert($datum);
             }
             return $self;
-		}
-		else {
-			throw 'ObjectMismatch' => 'Not a bioperl alignment!';
-		}
-	}
+        }
+        else {
+            throw 'ObjectMismatch' => 'Not a bioperl alignment!';
+        }
+    }
 
 =back
 
@@ -299,56 +260,69 @@ Sets three special symbols in one call
 
 =cut
 
-	sub set_special_symbols {
-		my $self = shift;
-		my %args;
-		if ( ( @_ == 1 && ref($_[0]) eq 'HASH' && ( %args = %{$_[0]} ) ) || ( %args = looks_like_hash @_ ) ) {
-			if ( ! defined $args{'-missing'} || ! defined $args{'-gap'} || ! defined $args{'-matchchar'} ) {
-				throw 'BadArgs' => 'Need -missing => $x, -gap => $y, -matchchar => $z arguments, not '."@_";
-			}
-			my %values = map { $_ => 1 } values %args;
-			my @values = keys %values;
-			if ( scalar @values < 3 ) {
-				throw 'BadArgs' => 'Symbols must be distinct, not ' . join(', ', values %args);
-			}
-			my %old_special_symbols = ( 
-				$self->get_missing   => 'set_missing',
-				$self->get_gap       => 'set_gap',
-				$self->get_matchchar => 'set_matchchar',
-			);	
-			my %new_special_symbols = (
-				$args{'-missing'}    => 'set_missing',
-				$args{'-gap'}        => 'set_gap',
-				$args{'-matchchar'}  => 'set_matchchar',
-			);
-			my %dummies;
-			while ( %new_special_symbols ) {
-				for my $sym ( keys %new_special_symbols ) {
-					if ( not $old_special_symbols{$sym} ) {
-						my $method = $new_special_symbols{$sym};
-						$self->$method($sym);
-						delete $new_special_symbols{$sym};
-					}
-					elsif ( $old_special_symbols{$sym} eq $new_special_symbols{$sym} ) {
-						delete $new_special_symbols{$sym};
-					}
-					else {
-						DUMMY: for my $dummy ( qw(! @ $ % ^ & *) ) {
-							if ( ! $new_special_symbols{$dummy} && ! $old_special_symbols{$dummy} && ! $dummies{$dummy} ) {
-								my $method = $old_special_symbols{$sym};
-								$self->$method($dummy);
-								$dummies{$dummy} = 1;
-								delete $old_special_symbols{$sym};
-								$old_special_symbols{$dummy} = $method;
-								last DUMMY;
-							}
-						}
-					}
-				}
-			}
-		}
-		return $self;
-	}
+    sub set_special_symbols {
+        my $self = shift;
+        my %args;
+        if (   ( @_ == 1 && ref( $_[0] ) eq 'HASH' && ( %args = %{ $_[0] } ) )
+            || ( %args = looks_like_hash @_ ) )
+        {
+            if (   !defined $args{'-missing'}
+                || !defined $args{'-gap'}
+                || !defined $args{'-matchchar'} )
+            {
+                throw 'BadArgs' =>
+'Need -missing => $x, -gap => $y, -matchchar => $z arguments, not '
+                  . "@_";
+            }
+            my %values = map { $_ => 1 } values %args;
+            my @values = keys %values;
+            if ( scalar @values < 3 ) {
+                throw 'BadArgs' => 'Symbols must be distinct, not '
+                  . join( ', ', values %args );
+            }
+            my %old_special_symbols = (
+                $self->get_missing   => 'set_missing',
+                $self->get_gap       => 'set_gap',
+                $self->get_matchchar => 'set_matchchar',
+            );
+            my %new_special_symbols = (
+                $args{'-missing'}   => 'set_missing',
+                $args{'-gap'}       => 'set_gap',
+                $args{'-matchchar'} => 'set_matchchar',
+            );
+            my %dummies;
+            while (%new_special_symbols) {
+                for my $sym ( keys %new_special_symbols ) {
+                    if ( not $old_special_symbols{$sym} ) {
+                        my $method = $new_special_symbols{$sym};
+                        $self->$method($sym);
+                        delete $new_special_symbols{$sym};
+                    }
+                    elsif ( $old_special_symbols{$sym} eq
+                        $new_special_symbols{$sym} )
+                    {
+                        delete $new_special_symbols{$sym};
+                    }
+                    else {
+                      DUMMY: for my $dummy (qw(! @ $ % ^ & *)) {
+                            if (   !$new_special_symbols{$dummy}
+                                && !$old_special_symbols{$dummy}
+                                && !$dummies{$dummy} )
+                            {
+                                my $method = $old_special_symbols{$sym};
+                                $self->$method($dummy);
+                                $dummies{$dummy} = 1;
+                                delete $old_special_symbols{$sym};
+                                $old_special_symbols{$dummy} = $method;
+                                last DUMMY;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return $self;
+    }
 
 =item set_statelabels()
 
@@ -369,27 +343,31 @@ Sets argument state labels.
 
 =cut
 
-	sub set_statelabels {
-		my ( $self, $statelabels ) = @_;
-		
-		# it's an array ref, but what about its contents?
-		if ( looks_like_instance( $statelabels, 'ARRAY' ) ) {
-			for my $col ( @{$statelabels} ) {
-				if ( not looks_like_instance( $col, 'ARRAY') ) {
-					throw 'BadArgs' => "statelabels must be a two dimensional array ref";
-				}
-			}
-		}
+    sub set_statelabels {
+        my ( $self, $statelabels ) = @_;
 
-		# it's defined but not an array ref
-		elsif ( defined $statelabels && ! looks_like_instance( $statelabels, 'ARRAY' ) ) {
-			throw 'BadArgs' => "statelabels must be a two dimensional array ref";
-		}
+        # it's an array ref, but what about its contents?
+        if ( looks_like_instance( $statelabels, 'ARRAY' ) ) {
+            for my $col ( @{$statelabels} ) {
+                if ( not looks_like_instance( $col, 'ARRAY' ) ) {
+                    throw 'BadArgs' =>
+                      "statelabels must be a two dimensional array ref";
+                }
+            }
+        }
 
-		# it's either a valid array ref, or nothing, i.e. a reset
-		$statelabels{$self->get_id} = $statelabels || [];
-		return $self;		
-	}
+        # it's defined but not an array ref
+        elsif ( defined $statelabels
+            && !looks_like_instance( $statelabels, 'ARRAY' ) )
+        {
+            throw 'BadArgs' =>
+              "statelabels must be a two dimensional array ref";
+        }
+
+        # it's either a valid array ref, or nothing, i.e. a reset
+        $statelabels{ $self->get_id } = $statelabels || [];
+        return $self;
+    }
 
 =item set_characters()
 
@@ -405,13 +383,13 @@ Normally you never have to use this.
 
 =cut
 
-	sub set_characters {
-		my ( $self, $characters ) = @_;
-		if ( looks_like_object $characters, _CHARACTERS_ ) {
-			$characters{ $self->get_id } = $characters;
-		}
-		return $self;
-	}
+    sub set_characters {
+        my ( $self, $characters ) = @_;
+        if ( looks_like_object $characters, _CHARACTERS_ ) {
+            $characters{ $self->get_id } = $characters;
+        }
+        return $self;
+    }
 
 =item set_charlabels()
 
@@ -426,30 +404,33 @@ Sets argument character labels.
 
 =cut
 
-	sub set_charlabels {
-		my ( $self, $charlabels ) = @_;
+    sub set_charlabels {
+        my ( $self, $charlabels ) = @_;
 
-		# it's an array ref, but what about its contents?
-		if ( looks_like_instance( $charlabels, 'ARRAY' ) ) {
-			for my $label ( @{$charlabels} ) {
-				if ( ref $label ) {
-					throw 'BadArgs' => "charlabels must be an array ref of scalars";
-				}
-			}
-		}
+        # it's an array ref, but what about its contents?
+        if ( looks_like_instance( $charlabels, 'ARRAY' ) ) {
+            for my $label ( @{$charlabels} ) {
+                if ( ref $label ) {
+                    throw 'BadArgs' =>
+                      "charlabels must be an array ref of scalars";
+                }
+            }
+        }
 
-		# it's defined but not an array ref
-		elsif ( defined $charlabels && ! looks_like_instance( $charlabels, 'ARRAY' ) ) {
-			throw 'BadArgs' => "charlabels must be an array ref of scalars";
-		}
+        # it's defined but not an array ref
+        elsif ( defined $charlabels
+            && !looks_like_instance( $charlabels, 'ARRAY' ) )
+        {
+            throw 'BadArgs' => "charlabels must be an array ref of scalars";
+        }
 
-		# it's either a valid array ref, or nothing, i.e. a reset
-		my @characters = @{ $self->get_characters->get_entities };
-		for my $i ( 0 .. $#{ $charlabels } ) {
-			$characters[$i]->set_name( $charlabels->[$i] );
-		}
-		return $self;
-	}
+        # it's either a valid array ref, or nothing, i.e. a reset
+        my @characters = @{ $self->get_characters->get_entities };
+        for my $i ( 0 .. $#{$charlabels} ) {
+            $characters[$i]->set_name( $charlabels->[$i] );
+        }
+        return $self;
+    }
 
 =item set_gapmode()
 
@@ -464,11 +445,11 @@ Defines matrix gapmode.
 
 =cut
 
-	sub set_gapmode {
-		my ( $self, $gapmode ) = @_;
-		$gapmode{$self->get_id} = !!$gapmode;
-		return $self;
-	}
+    sub set_gapmode {
+        my ( $self, $gapmode ) = @_;
+        $gapmode{ $self->get_id } = !!$gapmode;
+        return $self;
+    }
 
 =item set_matchchar()
 
@@ -483,21 +464,23 @@ Assigns match symbol.
 
 =cut
 
-	sub set_matchchar {
-		my ( $self, $match ) = @_;
-		my $missing = $self->get_missing;
-		my $gap     = $self->get_gap;
-		if ( $match eq $missing ) {
-			throw 'BadArgs' => "Match character '$match' already in use as missing character";
-		}
-		elsif ( $match eq $gap ) {
-			throw 'BadArgs' => "Match character '$match' already in use as gap character";
-		}
-		else {
-			$matchchar{$self->get_id} = $match;
-		}
-		return $self;
-	}
+    sub set_matchchar {
+        my ( $self, $match ) = @_;
+        my $missing = $self->get_missing;
+        my $gap     = $self->get_gap;
+        if ( $match eq $missing ) {
+            throw 'BadArgs' =>
+              "Match character '$match' already in use as missing character";
+        }
+        elsif ( $match eq $gap ) {
+            throw 'BadArgs' =>
+              "Match character '$match' already in use as gap character";
+        }
+        else {
+            $matchchar{ $self->get_id } = $match;
+        }
+        return $self;
+    }
 
 =item set_polymorphism()
 
@@ -513,11 +496,11 @@ Defines matrix 'polymorphism' interpretation.
 
 =cut
 
-	sub set_polymorphism {
-		my ( $self, $poly ) = @_;
-		$polymorphism{$self->get_id} = !!$poly;
-		return $self;
-	}
+    sub set_polymorphism {
+        my ( $self, $poly ) = @_;
+        $polymorphism{ $self->get_id } = !!$poly;
+        return $self;
+    }
 
 =item set_raw()
 
@@ -533,35 +516,36 @@ Set contents using two-dimensional array argument.
 
 =cut
 
-	sub set_raw {
-		my ( $self, $raw ) = @_;
-		if ( defined $raw ) {
-			if ( looks_like_instance( $raw, 'ARRAY' ) ) {
-				my @rows;
-				for my $row ( @{$raw} ) {
-					if ( defined $row ) {
-						if ( looks_like_instance( $row, 'ARRAY' ) ) {
-							my $matrixrow = $factory->create_datum(
-								'-type_object' => $self->get_type_object,
-								'-name'        => $row->[0],
-								'-char' => join( ' ', @$row[ 1 .. $#{$row} ] ),
-							);
-							push @rows, $matrixrow;
-						}
-						else {
-							throw 'BadArgs' => "Raw matrix row must be an array reference";
-						}
-					}
-				}
-				$self->clear;
-				$self->insert($_) for @rows;
-			}
-			else {
-				throw 'BadArgs' => "Raw matrix must be an array reference";
-			}
-		}
-		return $self;
-	}
+    sub set_raw {
+        my ( $self, $raw ) = @_;
+        if ( defined $raw ) {
+            if ( looks_like_instance( $raw, 'ARRAY' ) ) {
+                my @rows;
+                for my $row ( @{$raw} ) {
+                    if ( defined $row ) {
+                        if ( looks_like_instance( $row, 'ARRAY' ) ) {
+                            my $matrixrow = $factory->create_datum(
+                                '-type_object' => $self->get_type_object,
+                                '-name'        => $row->[0],
+                                '-char' => join( ' ', @$row[ 1 .. $#{$row} ] ),
+                            );
+                            push @rows, $matrixrow;
+                        }
+                        else {
+                            throw 'BadArgs' =>
+                              "Raw matrix row must be an array reference";
+                        }
+                    }
+                }
+                $self->clear;
+                $self->insert($_) for @rows;
+            }
+            else {
+                throw 'BadArgs' => "Raw matrix must be an array reference";
+            }
+        }
+        return $self;
+    }
 
 =item set_respectcase()
 
@@ -577,11 +561,11 @@ Defines matrix case sensitivity interpretation.
 
 =cut
 
-	sub set_respectcase {
-		my ( $self, $case_sensitivity ) = @_;
-		$case_sensitivity{$self->get_id} = !!$case_sensitivity;
-		return $self;
-	}
+    sub set_respectcase {
+        my ( $self, $case_sensitivity ) = @_;
+        $case_sensitivity{ $self->get_id } = !!$case_sensitivity;
+        return $self;
+    }
 
 =back
 
@@ -602,14 +586,14 @@ Retrieves hash ref for missing, gap and matchchar symbols
 
 =cut
 
-	sub get_special_symbols {
-		my $self = shift;
-		return {
-			'-missing'   => $self->get_missing,
-			'-matchchar' => $self->get_matchchar,
-			'-gap'       => $self->get_gap
-		};
-	}
+    sub get_special_symbols {
+        my $self = shift;
+        return {
+            '-missing'   => $self->get_missing,
+            '-matchchar' => $self->get_matchchar,
+            '-gap'       => $self->get_gap
+        };
+    }
 
 =item get_characters()
 
@@ -624,10 +608,10 @@ Retrieves characters object.
 
 =cut
 
-	sub get_characters {
-		my $self = shift;
-		return $characters{ $self->get_id };
-	}
+    sub get_characters {
+        my $self = shift;
+        return $characters{ $self->get_id };
+    }
 
 =item get_statelabels()
 
@@ -641,8 +625,7 @@ Retrieves state labels.
  Args    : None.
 
 =cut
-
-	sub get_statelabels { $statelabels{ $_[0]->get_id } || [] }
+    sub get_statelabels { $statelabels{ $_[0]->get_id } || [] }
 
 =item get_charlabels()
 
@@ -657,11 +640,12 @@ Retrieves character labels.
 
 =cut
 
-	sub get_charlabels {
-		my $self = shift;
-		my @labels = map { $_->get_name } @{ $self->get_characters->get_entities };
-		return \@labels;
-	}
+    sub get_charlabels {
+        my $self = shift;
+        my @labels =
+          map { $_->get_name } @{ $self->get_characters->get_entities };
+        return \@labels;
+    }
 
 =item get_gapmode()
 
@@ -675,8 +659,7 @@ Returns matrix gapmode.
  Args    : none
 
 =cut
-
-	sub get_gapmode { $gapmode{ $_[0]->get_id } }
+    sub get_gapmode { $gapmode{ $_[0]->get_id } }
 
 =item get_matchchar()
 
@@ -690,8 +673,7 @@ Returns matrix match character.
  Args    : none
 
 =cut
-
-	sub get_matchchar { $matchchar{ $_[0]->get_id } || '.' }
+    sub get_matchchar { $matchchar{ $_[0]->get_id } || '.' }
 
 =item get_nchar()
 
@@ -707,17 +689,17 @@ Calculates number of characters.
 
 =cut
 
-	sub get_nchar {
-		my $self  = shift;
-		my $nchar = 0;
-		for my $row ( @{ $self->get_entities } ) {
-			my $offset = $row->get_position - 1;
-			my $rowlength = scalar @{ $row->get_entities };
-			$rowlength += $offset;
-			$nchar = $rowlength if $rowlength > $nchar;
-		}
-		return $nchar;
-	}
+    sub get_nchar {
+        my $self  = shift;
+        my $nchar = 0;
+        for my $row ( @{ $self->get_entities } ) {
+            my $offset    = $row->get_position - 1;
+            my $rowlength = scalar @{ $row->get_entities };
+            $rowlength += $offset;
+            $nchar = $rowlength if $rowlength > $nchar;
+        }
+        return $nchar;
+    }
 
 =item get_ntax()
 
@@ -731,8 +713,7 @@ Calculates number of taxa (rows) in matrix.
  Args    : none
 
 =cut
-
-	sub get_ntax { scalar @{ shift->get_entities } }
+    sub get_ntax { scalar @{ shift->get_entities } }
 
 =item get_polymorphism()
 
@@ -747,8 +728,7 @@ Returns matrix 'polymorphism' interpretation.
  Args    : none
 
 =cut
-
-	sub get_polymorphism { $polymorphism{ $_[0]->get_id } }
+    sub get_polymorphism { $polymorphism{ $_[0]->get_id } }
 
 =item get_raw()
 
@@ -765,18 +745,18 @@ Retrieves a 'raw' (two-dimensional array) representation of the matrix's content
 
 =cut
 
-	sub get_raw {
-		my $self = shift;
-		my @raw;
-		for my $row ( @{ $self->get_entities } ) {
-			my @row;
-			push @row, $row->get_name;
-			my @char = $row->get_char;
-			push @row, @char;
-			push @raw, \@row;
-		}
-		return \@raw;
-	}
+    sub get_raw {
+        my $self = shift;
+        my @raw;
+        for my $row ( @{ $self->get_entities } ) {
+            my @row;
+            push @row, $row->get_name;
+            my @char = $row->get_char;
+            push @row, @char;
+            push @raw, \@row;
+        }
+        return \@raw;
+    }
 
 =item get_respectcase()
 
@@ -791,8 +771,7 @@ Returns matrix case sensitivity interpretation.
  Args    : none
 
 =cut
-
-	sub get_respectcase { $case_sensitivity{ $_[0]->get_id } }
+    sub get_respectcase { $case_sensitivity{ $_[0]->get_id } }
 
 =back
 
@@ -819,31 +798,31 @@ Calculates proportion of invariant sites.
 
 =cut
 
-	sub calc_prop_invar {
-		my $self  = shift;
-		my $raw   = $self->get_raw;
-		my $ntax  = $self->get_ntax;
-		my $nchar = $self->get_nchar || 1;
-		my %args  = looks_like_hash @_;
-		my @symbols_to_ignore;
-		for my $sym ( qw(missing gap) ) {
-			if ( not exists $args{"-${sym}"} ) {
-				my $method = "get_${sym}";
-				push @symbols_to_ignore, $self->$method;
-			}
-		}
-		my $invar_count;
-		for my $i ( 1 .. $nchar ) {
-			my %seen;
-			for my $j ( 0 .. ($ntax-1) ) {
-				$seen{$raw->[$j]->[$i]}++;
-			}
-			delete @seen{@symbols_to_ignore};
-			my @symbols_in_column = keys %seen;
-			$invar_count++ if scalar(@symbols_in_column) <= 1;
-		}
-		return $invar_count / $nchar;
-	}
+    sub calc_prop_invar {
+        my $self  = shift;
+        my $raw   = $self->get_raw;
+        my $ntax  = $self->get_ntax;
+        my $nchar = $self->get_nchar || 1;
+        my %args  = looks_like_hash @_;
+        my @symbols_to_ignore;
+        for my $sym (qw(missing gap)) {
+            if ( not exists $args{"-${sym}"} ) {
+                my $method = "get_${sym}";
+                push @symbols_to_ignore, $self->$method;
+            }
+        }
+        my $invar_count;
+        for my $i ( 1 .. $nchar ) {
+            my %seen;
+            for my $j ( 0 .. ( $ntax - 1 ) ) {
+                $seen{ $raw->[$j]->[$i] }++;
+            }
+            delete @seen{@symbols_to_ignore};
+            my @symbols_in_column = keys %seen;
+            $invar_count++ if scalar(@symbols_in_column) <= 1;
+        }
+        return $invar_count / $nchar;
+    }
 
 =item calc_state_counts()
 
@@ -858,18 +837,17 @@ Calculates occurrences of states.
 
 =cut
 
-	sub calc_state_counts {
-		my $self = shift;
-		my %totals;
-		for my $row ( @{ $self->get_entities } ) {
-			my $counts = $row->calc_state_counts(@_);
-			for my $state ( keys %{ $counts } ) {
-				$totals{$state} += $counts->{$state};
-			}
-		}
-		return \%totals;
-	}
-
+    sub calc_state_counts {
+        my $self = shift;
+        my %totals;
+        for my $row ( @{ $self->get_entities } ) {
+            my $counts = $row->calc_state_counts(@_);
+            for my $state ( keys %{$counts} ) {
+                $totals{$state} += $counts->{$state};
+            }
+        }
+        return \%totals;
+    }
 
 =item calc_state_frequencies()
 
@@ -891,24 +869,24 @@ Calculates the frequencies of the states observed in the matrix.
 
 =cut
 
-	sub calc_state_frequencies {
-		my $self = shift;		
-		my %result;
-		for my $row ( @{ $self->get_entities } ) {
-			my $freqs = $row->calc_state_frequencies(@_);
-			for my $state ( keys %{ $freqs } ) {
-				$result{$state} += $freqs->{$state};
-			}
-		}
-		my $total = 0;
-		$total += $_ for values %result;
-		if ( $total > 0 ) {
-			for my $state ( keys %result ) {
-				$result{$state} /= $total;
-			}
-		}
-		return \%result;
-	}
+    sub calc_state_frequencies {
+        my $self = shift;
+        my %result;
+        for my $row ( @{ $self->get_entities } ) {
+            my $freqs = $row->calc_state_frequencies(@_);
+            for my $state ( keys %{$freqs} ) {
+                $result{$state} += $freqs->{$state};
+            }
+        }
+        my $total = 0;
+        $total += $_ for values %result;
+        if ( $total > 0 ) {
+            for my $state ( keys %result ) {
+                $result{$state} /= $total;
+            }
+        }
+        return \%result;
+    }
 
 =item calc_distinct_site_patterns()
 
@@ -947,29 +925,29 @@ will be lost.)
  Comments:
 
 =cut
-	
-	sub calc_distinct_site_patterns {
-		my $self  = shift;
-		my $raw   = $self->get_raw;
-		my $nchar = $self->get_nchar;
-		my $ntax  = $self->get_ntax;
-		my %pattern;
-		for my $i ( 1 .. $nchar ) {
-			my @column;
-			for my $j ( 0 .. ( $ntax - 1 ) ) {
-				push @column, $raw->[$j]->[$i];
-			}
-			my $col_pattern = join ' ', @column;
-			$pattern{$col_pattern}++;
-		}
-		my @pattern_array;
-		for my $key ( keys %pattern ) {
-			my @column = split / /, $key;
-			push @pattern_array, [ $pattern{$key}, \@column ];
-		}
-		my @sorted = sort { $b->[0] <=> $a->[1] } @pattern_array;
-		\@sorted;
-	}
+
+    sub calc_distinct_site_patterns {
+        my $self  = shift;
+        my $raw   = $self->get_raw;
+        my $nchar = $self->get_nchar;
+        my $ntax  = $self->get_ntax;
+        my %pattern;
+        for my $i ( 1 .. $nchar ) {
+            my @column;
+            for my $j ( 0 .. ( $ntax - 1 ) ) {
+                push @column, $raw->[$j]->[$i];
+            }
+            my $col_pattern = join ' ', @column;
+            $pattern{$col_pattern}++;
+        }
+        my @pattern_array;
+        for my $key ( keys %pattern ) {
+            my @column = split / /, $key;
+            push @pattern_array, [ $pattern{$key}, \@column ];
+        }
+        my @sorted = sort { $b->[0] <=> $a->[1] } @pattern_array;
+        \@sorted;
+    }
 
 =item calc_gc_content()
 
@@ -993,19 +971,19 @@ Calculates the G+C content as a fraction on the total
 
 =cut
 
-	sub calc_gc_content {
-		my $self = shift;
-		my $type = $self->get_type;
-		if ( $type !~ /^(?:d|r)na/i ) {
-			throw 'BadArgs' => "Matrix doesn't contain nucleotides";
-		}
-		my $freq = $self->calc_state_frequencies;
-		my $total = 0;
-		for ( qw(c C g G s S) ) {
-			$total += $freq->{$_} if exists $freq->{$_};
-		}
-		return $total;
-	}
+    sub calc_gc_content {
+        my $self = shift;
+        my $type = $self->get_type;
+        if ( $type !~ /^(?:d|r)na/i ) {
+            throw 'BadArgs' => "Matrix doesn't contain nucleotides";
+        }
+        my $freq  = $self->calc_state_frequencies;
+        my $total = 0;
+        for (qw(c C g G s S)) {
+            $total += $freq->{$_} if exists $freq->{$_};
+        }
+        return $total;
+    }
 
 =back
 
@@ -1029,25 +1007,25 @@ the supplied (zero-based) indices.
 
 =cut
 
-	sub keep_chars {
-		my ( $self, $indices_array_ref ) = @_;
-		my @indices = @{ $indices_array_ref };
-		my $clone = $self->clone;
-		for my $seq ( @{ $clone->get_entities } ) {
-			$seq->keep_entities(\@indices);
-			my @anno = @{ $seq->get_annotations };	
-			if ( @anno ) {
-				my @re_anno = @anno[@indices];
-				$seq->set_annotations(@re_anno);
-			}			
-		}
-		my @labels = @{ $clone->get_charlabels };
-		if ( @labels ) {
-			my @re_labels = @labels[@indices];
-			$clone->set_charlabels(\@re_labels);
-		}		
-		return $clone;
-	}
+    sub keep_chars {
+        my ( $self, $indices_array_ref ) = @_;
+        my @indices = @{$indices_array_ref};
+        my $clone   = $self->clone;
+        for my $seq ( @{ $clone->get_entities } ) {
+            $seq->keep_entities( \@indices );
+            my @anno = @{ $seq->get_annotations };
+            if (@anno) {
+                my @re_anno = @anno[@indices];
+                $seq->set_annotations(@re_anno);
+            }
+        }
+        my @labels = @{ $clone->get_charlabels };
+        if (@labels) {
+            my @re_labels = @labels[@indices];
+            $clone->set_charlabels( \@re_labels );
+        }
+        return $clone;
+    }
 
 =item prune_chars()
 
@@ -1065,16 +1043,16 @@ the supplied (zero-based) indices.
 
 =cut
 
-	sub prune_chars {
-		my ( $self, $indices ) = @_;
-		my $nchar = $self->get_nchar;
-		my %indices = map { $_=>1 } @{ $indices };
-		my @keep;
-		for my $i ( 0 .. ( $nchar - 1 ) ) {
-			push @keep, $i if not exists $indices{$i};
-		}
-		return $self->keep_chars(\@keep);
-	}
+    sub prune_chars {
+        my ( $self, $indices ) = @_;
+        my $nchar = $self->get_nchar;
+        my %indices = map { $_ => 1 } @{$indices};
+        my @keep;
+        for my $i ( 0 .. ( $nchar - 1 ) ) {
+            push @keep, $i if not exists $indices{$i};
+        }
+        return $self->keep_chars( \@keep );
+    }
 
 =item bootstrap()
 
@@ -1100,15 +1078,15 @@ Creates bootstrapped clone.
 
 =cut
 
-	sub bootstrap {
-		my $self = shift;
-		my $gen = shift || sub { int(rand(shift)) };
-		my $nchar = $self->get_nchar;
-		my @indices;
-		push @indices, $gen->($nchar) for ( 1 .. $nchar );
-		@indices = sort { $a <=> $b } @indices;
-		return $self->keep_chars(\@indices);
-	}
+    sub bootstrap {
+        my $self  = shift;
+        my $gen   = shift || sub { int( rand(shift) ) };
+        my $nchar = $self->get_nchar;
+        my @indices;
+        push @indices, $gen->($nchar) for ( 1 .. $nchar );
+        @indices = sort { $a <=> $b } @indices;
+        return $self->keep_chars( \@indices );
+    }
 
 =item jackknife()
 
@@ -1135,20 +1113,21 @@ Creates jackknifed clone.
 
 =cut
 
-	sub jackknife {
-		my ( $self, $prop ) = @_;
-		if ( not looks_like_number $prop or $prop >= 1 or $prop < 0 ) {
-			throw 'BadNumber' => "Jackknifing proportion must be a number between 0 and 1";
-		}
-		my $gen = $_[2] || sub { int(rand(shift)) };
-		my $nchar = $self->get_nchar;
-		my ( %indices, @indices );
-		while ( scalar keys %indices < ( $nchar - int( $nchar * $prop ) ) ) {
-			$indices{ $gen->($nchar) } = 1;
-		}
-		@indices = sort { $a <=> $b } keys %indices;
-		return $self->keep_chars(\@indices);
-	}
+    sub jackknife {
+        my ( $self, $prop ) = @_;
+        if ( not looks_like_number $prop or $prop >= 1 or $prop < 0 ) {
+            throw 'BadNumber' =>
+              "Jackknifing proportion must be a number between 0 and 1";
+        }
+        my $gen = $_[2] || sub { int( rand(shift) ) };
+        my $nchar = $self->get_nchar;
+        my ( %indices, @indices );
+        while ( scalar keys %indices < ( $nchar - int( $nchar * $prop ) ) ) {
+            $indices{ $gen->($nchar) } = 1;
+        }
+        @indices = sort { $a <=> $b } keys %indices;
+        return $self->keep_chars( \@indices );
+    }
 
 =item clone()
 
@@ -1163,22 +1142,20 @@ Clones invocant.
 
 =cut
 
-	sub clone {
-		my $self = shift;
-		$logger->info("cloning $self");
-		my %subs = @_;
-				
-		# we'll clone datum objects, so no raw copying
-		$subs{'set_raw'} = sub {};
-		
-		# we'll use the set/get_special_symbols method
-		$subs{'set_missing'}   = sub {};
-		$subs{'set_gap'}       = sub {};
-		$subs{'set_matchchar'} = sub {};
-		
-		return $self->SUPER::clone(%subs);
-	
-	} 
+    sub clone {
+        my $self = shift;
+        $logger->info("cloning $self");
+        my %subs = @_;
+
+        # we'll clone datum objects, so no raw copying
+        $subs{'set_raw'} = sub { };
+
+        # we'll use the set/get_special_symbols method
+        $subs{'set_missing'}   = sub { };
+        $subs{'set_gap'}       = sub { };
+        $subs{'set_matchchar'} = sub { };
+        return $self->SUPER::clone(%subs);
+    }
 
 =item insert()
 
@@ -1195,34 +1172,36 @@ Insert argument in invocant.
 
 =cut
 
-	sub insert {
-		my ( $self, $obj ) = @_;
-		my $obj_container;
-		eval { $obj_container = $obj->_container };
-		if ( $@ || $obj_container != $self->_type ) {
-			throw 'ObjectMismatch' => 'object not a datum object!';
-		}
-		$logger->info("inserting '$obj' in '$self'");
-		if ( !$self->get_type_object->is_same( $obj->get_type_object ) ) {
-			throw 'ObjectMismatch' => 'object is of wrong data type';
-		}
-		my $taxon1 = $obj->get_taxon;
-		for my $ents ( @{ $self->get_entities } ) {
-			if ( $obj->get_id == $ents->get_id ) {
-				throw 'ObjectMismatch' => 'row already inserted';
-			}
-			if ($taxon1) {
-				my $taxon2 = $ents->get_taxon;
-				if ( $taxon2 && $taxon1->get_id == $taxon2->get_id ) {
-					$logger->warn('datum linking to same taxon already existed, concatenating instead');
-					$ents->concat($obj);
-					return $self;
-				}
-			}
-		}
-		$self->SUPER::insert( $obj );
-		return $self;
-	}
+    sub insert {
+        my ( $self, $obj ) = @_;
+        my $obj_container;
+        eval { $obj_container = $obj->_container };
+        if ( $@ || $obj_container != $self->_type ) {
+            throw 'ObjectMismatch' => 'object not a datum object!';
+        }
+        $logger->info("inserting '$obj' in '$self'");
+        if ( !$self->get_type_object->is_same( $obj->get_type_object ) ) {
+            throw 'ObjectMismatch' => 'object is of wrong data type';
+        }
+        my $taxon1 = $obj->get_taxon;
+        for my $ents ( @{ $self->get_entities } ) {
+            if ( $obj->get_id == $ents->get_id ) {
+                throw 'ObjectMismatch' => 'row already inserted';
+            }
+            if ($taxon1) {
+                my $taxon2 = $ents->get_taxon;
+                if ( $taxon2 && $taxon1->get_id == $taxon2->get_id ) {
+                    $logger->warn(
+'datum linking to same taxon already existed, concatenating instead'
+                    );
+                    $ents->concat($obj);
+                    return $self;
+                }
+            }
+        }
+        $self->SUPER::insert($obj);
+        return $self;
+    }
 
 =begin comment
 
@@ -1241,9 +1220,9 @@ Validates the object's contents.
 
 =cut
 
-	sub _validate {
-		shift->visit( sub { shift->validate } );
-	}
+    sub _validate {
+        shift->visit( sub { shift->validate } );
+    }
 
 =item compress_lookup()
 
@@ -1258,23 +1237,23 @@ Removes unused states from lookup table
 
 =cut
 
-	sub compress_lookup {
-		my $self = shift;
-		my $to = $self->get_type_object;
-		my $lookup = $to->get_lookup;
-		my %seen;
-		for my $row ( @{ $self->get_entities } ) {
-			my @char = $row->get_char;
-			$seen{$_}++ for (@char);
-		}
-		for my $state ( keys %{ $lookup } ) {
-			if ( not exists $seen{$state} ) {
-				delete $lookup->{$state};
-			}
-		}
-		$to->set_lookup($lookup);
-		return $self;
-	}
+    sub compress_lookup {
+        my $self   = shift;
+        my $to     = $self->get_type_object;
+        my $lookup = $to->get_lookup;
+        my %seen;
+        for my $row ( @{ $self->get_entities } ) {
+            my @char = $row->get_char;
+            $seen{$_}++ for (@char);
+        }
+        for my $state ( keys %{$lookup} ) {
+            if ( not exists $seen{$state} ) {
+                delete $lookup->{$state};
+            }
+        }
+        $to->set_lookup($lookup);
+        return $self;
+    }
 
 =item check_taxa()
 
@@ -1291,38 +1270,38 @@ Validates taxa associations.
 
 =cut
 
-	sub check_taxa {
-		my $self = shift;
+    sub check_taxa {
+        my $self = shift;
 
-		# is linked to taxa
-		if ( my $taxa = $self->get_taxa ) {
-			my %taxa =
-			  map { $_->get_internal_name => $_ } @{ $taxa->get_entities };
-		  ROW_CHECK: for my $row ( @{ $self->get_entities } ) {
-				if ( my $taxon = $row->get_taxon ) {
-					next ROW_CHECK if exists $taxa{ $taxon->get_name };
-				}
-				my $name = $row->get_name;
-				if ( exists $taxa{$name} ) {
-					$row->set_taxon( $taxa{$name} );
-				}
-				else {
-					my $taxon = $factory->create_taxon( -name => $name );
-					$taxa{$name} = $taxon;
-					$taxa->insert($taxon);
-					$row->set_taxon($taxon);
-				}
-			}
-		}
+        # is linked to taxa
+        if ( my $taxa = $self->get_taxa ) {
+            my %taxa =
+              map { $_->get_internal_name => $_ } @{ $taxa->get_entities };
+          ROW_CHECK: for my $row ( @{ $self->get_entities } ) {
+                if ( my $taxon = $row->get_taxon ) {
+                    next ROW_CHECK if exists $taxa{ $taxon->get_name };
+                }
+                my $name = $row->get_name;
+                if ( exists $taxa{$name} ) {
+                    $row->set_taxon( $taxa{$name} );
+                }
+                else {
+                    my $taxon = $factory->create_taxon( -name => $name );
+                    $taxa{$name} = $taxon;
+                    $taxa->insert($taxon);
+                    $row->set_taxon($taxon);
+                }
+            }
+        }
 
-		# not linked
-		else {
-			for my $row ( @{ $self->get_entities } ) {
-				$row->set_taxon();
-			}
-		}
-		return $self;
-	}
+        # not linked
+        else {
+            for my $row ( @{ $self->get_entities } ) {
+                $row->set_taxon();
+            }
+        }
+        return $self;
+    }
 
 =item make_taxa()
 
@@ -1337,25 +1316,25 @@ Creates a taxa block from the objects contents if none exists yet.
 
 =cut
 
-	sub make_taxa {
-		my $self = shift;
-		if ( my $taxa = $self->get_taxa ) {
-			return $taxa;
-		}
-		else {
-			my %taxa;
-			my $taxa = $factory->create_taxa;
-			for my $row ( @{ $self->get_entities } ) {
-				my $name = $row->get_internal_name;
-				if ( not $taxa{$name} ) {
-					$taxa{$name} = $factory->create_taxon( '-name' => $name );
-				}
-			}
-			$taxa->insert( map { $taxa{$_} } sort { $a cmp $b } keys %taxa );
-			$self->set_taxa( $taxa );
-			return $taxa;
-		}
-	}
+    sub make_taxa {
+        my $self = shift;
+        if ( my $taxa = $self->get_taxa ) {
+            return $taxa;
+        }
+        else {
+            my %taxa;
+            my $taxa = $factory->create_taxa;
+            for my $row ( @{ $self->get_entities } ) {
+                my $name = $row->get_internal_name;
+                if ( not $taxa{$name} ) {
+                    $taxa{$name} = $factory->create_taxon( '-name' => $name );
+                }
+            }
+            $taxa->insert( map { $taxa{$_} } sort { $a cmp $b } keys %taxa );
+            $self->set_taxa($taxa);
+            return $taxa;
+        }
+    }
 
 =back
 
@@ -1377,87 +1356,87 @@ Serializes matrix to nexml format.
 
 =cut
 
-	sub to_xml {
-		my $self = shift;		
-		$logger->debug("writing $self to xml");
-		my ( %args, $ids_for_states );
-		if ( @_ ) {
-			%args = @_;
-		}
-		
-		# creating opening tag
-		my $type = $self->get_type;
-		my $verbosity = $args{'-compact'} ? 'Seqs' : 'Cells';
-		my $xsi_type = 'nex:' . ucfirst($type) . $verbosity;
-		$self->set_attributes( 'xsi:type' => $xsi_type );
-		my $xml = $self->get_xml_tag;		
-		$logger->debug("created opening tag $xml");
-		
-		# normalizing symbol table
-		my $normalized = $self->_normalize_symbols;
-		$logger->debug("normalized symbols");
-		
-		# the format block
-		$xml .= '<format>';
-		$logger->debug($xml);
-		my $to = $self->get_type_object;
-		$ids_for_states = $to->get_ids_for_states(1);
-		
-		# write state definitions 
-		# this calls Datatype::to_xml method
-		#  
-		$xml .= $to->to_xml($normalized,$self->get_polymorphism);
-		$logger->debug($xml);
-		
-		$xml .= $self->get_characters->to_xml;
-		$xml .= "\n</format>";
-		
-		# the matrix block
-		$xml .= "\n<matrix>";
-		my @char_ids = map { $_->get_xml_id } @{ $self->get_characters->get_entities };
-		
-		# write rows
-		my $special = $self->get_type_object->get_ids_for_special_symbols(1);
-		for my $row ( @{ $self->get_entities } ) {
-			$xml .= "\n" . $row->to_xml(
-				'-states'  => $ids_for_states,
-				'-chars'   => \@char_ids,
-				'-symbols' => $normalized,
-				'-special' => $special,
-				%args,
-			);
-		}
-		$xml .= "\n</matrix>";
-		$xml .= "\n" . sprintf( '</%s>', $self->get_tag );
-		return $xml;
-	}
-        
-        # what this does:
-        # numerical states are their own keys; also want numerical 
-        # representations for non-numerical states..."normalization"
-        # provides this mapping....
+    sub to_xml {
+        my $self = shift;
+        $logger->debug("writing $self to xml");
+        my ( %args, $ids_for_states );
+        if (@_) {
+            %args = @_;
+        }
 
-	sub _normalize_symbols {
-		my $self = shift;
-		$logger->debug("normalizing symbols");
-		if ( $self->get_type =~ /^standard$/i ) {
-			my $to = $self->get_type_object;
-			my $lookup = $self->get_lookup;
-			my @states = keys %{ $lookup };
-			if ( my @letters = sort { $a cmp $b } grep { /[a-z]/i } @states ) {
-				my @numbers  = sort { $a <=> $b } grep { /^\d+$/ } @states;
-				my $i = $numbers[-1];
-				my %map = map { $_ => ++$i } @letters;
-				return \%map;
-			}
-			else {
-				return {};
-			}
-		}
-		else {
-			return {};
-		}
-	}
+        # creating opening tag
+        my $type      = $self->get_type;
+        my $verbosity = $args{'-compact'} ? 'Seqs' : 'Cells';
+        my $xsi_type  = 'nex:' . ucfirst($type) . $verbosity;
+        $self->set_attributes( 'xsi:type' => $xsi_type );
+        my $xml = $self->get_xml_tag;
+        $logger->debug("created opening tag $xml");
+
+        # normalizing symbol table
+        my $normalized = $self->_normalize_symbols;
+        $logger->debug("normalized symbols");
+
+        # the format block
+        $xml .= '<format>';
+        $logger->debug($xml);
+        my $to = $self->get_type_object;
+        $ids_for_states = $to->get_ids_for_states(1);
+
+        # write state definitions
+        # this calls Datatype::to_xml method
+        #
+        $xml .= $to->to_xml( $normalized, $self->get_polymorphism );
+        $logger->debug($xml);
+        $xml .= $self->get_characters->to_xml;
+        $xml .= "\n</format>";
+
+        # the matrix block
+        $xml .= "\n<matrix>";
+        my @char_ids =
+          map { $_->get_xml_id } @{ $self->get_characters->get_entities };
+
+        # write rows
+        my $special = $self->get_type_object->get_ids_for_special_symbols(1);
+        for my $row ( @{ $self->get_entities } ) {
+            $xml .= "\n"
+              . $row->to_xml(
+                '-states'  => $ids_for_states,
+                '-chars'   => \@char_ids,
+                '-symbols' => $normalized,
+                '-special' => $special,
+                %args,
+              );
+        }
+        $xml .= "\n</matrix>";
+        $xml .= "\n" . sprintf( '</%s>', $self->get_tag );
+        return $xml;
+    }
+
+    # what this does:
+    # numerical states are their own keys; also want numerical
+    # representations for non-numerical states..."normalization"
+    # provides this mapping....
+    sub _normalize_symbols {
+        my $self = shift;
+        $logger->debug("normalizing symbols");
+        if ( $self->get_type =~ /^standard$/i ) {
+            my $to     = $self->get_type_object;
+            my $lookup = $self->get_lookup;
+            my @states = keys %{$lookup};
+            if ( my @letters = sort { $a cmp $b } grep { /[a-z]/i } @states ) {
+                my @numbers = sort { $a <=> $b } grep { /^\d+$/ } @states;
+                my $i       = $numbers[-1];
+                my %map     = map { $_ => ++$i } @letters;
+                return \%map;
+            }
+            else {
+                return {};
+            }
+        }
+        else {
+            return {};
+        }
+    }
 
 =item to_nexus()
 
@@ -1503,155 +1482,164 @@ Serializes matrix to nexus format.
 
 =cut
 
-	sub to_nexus {
-		my $self   = shift;
-		$logger->info("writing to nexus: $self");
-		my %args   = @_;
-		my $nchar  = $self->get_nchar;
-		my $string = sprintf "BEGIN %s;\n",
-		  $args{'-data_block'} ? 'DATA' : 'CHARACTERS';
-		$string .=
-		    "[! Characters block written by "
-		  . ref($self) . " "
-		  . $self->VERSION . " on "
-		  . localtime() . " ]\n";
+    sub to_nexus {
+        my $self = shift;
+        $logger->info("writing to nexus: $self");
+        my %args   = @_;
+        my $nchar  = $self->get_nchar;
+        my $string = sprintf "BEGIN %s;\n",
+          $args{'-data_block'} ? 'DATA' : 'CHARACTERS';
+        $string .=
+            "[! Characters block written by "
+          . ref($self) . " "
+          . $self->VERSION . " on "
+          . localtime() . " ]\n";
 
-		# write links
-		if ( $args{'-links'} ) {
-			$string .= sprintf "\tTITLE %s;\n", $self->get_internal_name;
-			$string .= sprintf "\tLINK TAXA=%s;\n",
-			  $self->get_taxa->get_internal_name
-			  if $self->get_taxa;
-		}
+        # write links
+        if ( $args{'-links'} ) {
+            $string .= sprintf "\tTITLE %s;\n", $self->get_internal_name;
+            $string .= sprintf "\tLINK TAXA=%s;\n",
+              $self->get_taxa->get_internal_name
+              if $self->get_taxa;
+        }
 
-	 	# dimensions token line - data block defines NTAX, characters block doesn't
-		if ( $args{'-data_block'} ) {
-			$string .= "\tDIMENSIONS NTAX=" . $self->get_ntax() . ' ';
-			$string .= 'NCHAR=' . $nchar . ";\n";
-		}
-		else {
-			$string .= "\tDIMENSIONS NCHAR=" . $nchar . ";\n";
-		}
+     # dimensions token line - data block defines NTAX, characters block doesn't
+        if ( $args{'-data_block'} ) {
+            $string .= "\tDIMENSIONS NTAX=" . $self->get_ntax() . ' ';
+            $string .= 'NCHAR=' . $nchar . ";\n";
+        }
+        else {
+            $string .= "\tDIMENSIONS NCHAR=" . $nchar . ";\n";
+        }
 
-		# format token line
-		$string .= "\tFORMAT DATATYPE=" . $self->get_type();
-		$string .= ( $self->get_respectcase ? " RESPECTCASE" : "" )
-		  if $args{'-respectcase'};    # mrbayes no like
-		$string .= " MATCHCHAR=" . $self->get_matchchar if $self->get_matchchar;
-		$string .= " MISSING=" . $self->get_missing();
-		$string .= " GAP=" . $self->get_gap()           if $self->get_gap();
-		$string .= ";\n";
+        # format token line
+        $string .= "\tFORMAT DATATYPE=" . $self->get_type();
+        $string .= ( $self->get_respectcase ? " RESPECTCASE" : "" )
+          if $args{'-respectcase'};    # mrbayes no like
+        $string .= " MATCHCHAR=" . $self->get_matchchar if $self->get_matchchar;
+        $string .= " MISSING=" . $self->get_missing();
+        $string .= " GAP=" . $self->get_gap()           if $self->get_gap();
+        $string .= ";\n";
 
-		# options token line (mrbayes no like)
-		if ( $args{'-gapmode'} or $args{'-polymorphism'} ) {
-			$string .= "\tOPTIONS ";
-			$string .=
-			  "GAPMODE=" . ( $self->get_gapmode ? "NEWSTATE " : "MISSING " )
-			  if $args{'-gapmode'};
-			$string .= "MSTAXA="
-			  . ( $self->get_polymorphism ? "POLYMORPH " : "UNCERTAIN " )
-			  if $args{'-polymorphism'};
-			$string .= ";\n";
-		}
+        # options token line (mrbayes no like)
+        if ( $args{'-gapmode'} or $args{'-polymorphism'} ) {
+            $string .= "\tOPTIONS ";
+            $string .=
+              "GAPMODE=" . ( $self->get_gapmode ? "NEWSTATE " : "MISSING " )
+              if $args{'-gapmode'};
+            $string .=
+              "MSTAXA="
+              . ( $self->get_polymorphism ? "POLYMORPH " : "UNCERTAIN " )
+              if $args{'-polymorphism'};
+            $string .= ";\n";
+        }
 
-		# charlabels token line
-		if ( $args{'-charlabels'} ) {
-			my $charlabels;
-			if ( my @labels = @{ $self->get_charlabels } ) {
-				my $i = 1;
-				for my $label (@labels) {
-					$charlabels .= $label =~ /\s/ ? "\n\t\t [$i] '$label'" : "\n\t\t [$i] $label";
-					$i++;
-				}
-				$string .= "\tCHARLABELS$charlabels\n\t;\n";
-			}
-		}
-		
-		# statelabels token line
-		if ( $args{'-statelabels'} ) {
-		    my $statelabels;
-		    if ( my @labels = @{ $self->get_statelabels } ) {
-		        my $i = 1;
-		        for my $labelset ( @labels ) {
-		            $statelabels .= "\n\t\t $i";
-		            for my $label ( @{ $labelset } ) {
-		                $statelabels .= $label =~ /\s/ ? "\n\t\t\t'$label'" : "\n\t\t\t$label";
-		                $i++;
-		            }
-		            $statelabels .= ',';
-		        }
-		        $string .= "\tSTATELABELS$statelabels\n\t;\n";
-		    }
-		}
-		
-		# charstatelabels token line
-		if ( $args{'-charstatelabels'} ) {
-		    my @charlabels = @{ $self->get_charlabels };
-		    my @statelabels = @{ $self->get_statelabels };
-		    if ( @charlabels and @statelabels ) {
-		        my $charstatelabels;
-		        my $nlabels = $self->get_nchar - 1;
-		        for my $i ( 0 .. $nlabels ) {
-		            $charstatelabels .= "\n\t\t" . ( $i + 1 );
-		            if ( my $label = $charlabels[$i] ) {
-		                $charstatelabels .= $label =~ /\s/ ? " '$label' /" : " $label /";
-		            }
-		            else {
-		                $charstatelabels .= " ' ' /";
-		            }
-		            if ( my $labelset = $statelabels[$i] ) {
-		                for my $label ( @{ $labelset } ) {
-		                    $charstatelabels .= $label =~ /\s/ ? " '$label'" : " $label";
-		                }
-		            }
-		            else {
-		                $charstatelabels .= " ' '";
-		            }
-		            $charstatelabels .= $i == $nlabels ? "\n\t;" : ',';
-		        }
-		        $string .= "\tCHARSTATELABELS$charstatelabels\n\t;\n";
-		    }
-		}
+        # charlabels token line
+        if ( $args{'-charlabels'} ) {
+            my $charlabels;
+            if ( my @labels = @{ $self->get_charlabels } ) {
+                my $i = 1;
+                for my $label (@labels) {
+                    $charlabels .=
+                      $label =~ /\s/
+                      ? "\n\t\t [$i] '$label'"
+                      : "\n\t\t [$i] $label";
+                    $i++;
+                }
+                $string .= "\tCHARLABELS$charlabels\n\t;\n";
+            }
+        }
 
-		# ...and write matrix!
-		$string .= "\tMATRIX\n";
-		my $length = 0;
-		foreach my $datum ( @{ $self->get_entities } ) {
-			$length = length( $datum->get_nexus_name )
-			  if length( $datum->get_nexus_name ) > $length;
-		}
-		$length += 4;
-		my $sp = ' ';
-		foreach my $datum ( @{ $self->get_entities } ) {
-			$string .= "\t\t";
+        # statelabels token line
+        if ( $args{'-statelabels'} ) {
+            my $statelabels;
+            if ( my @labels = @{ $self->get_statelabels } ) {
+                my $i = 1;
+                for my $labelset (@labels) {
+                    $statelabels .= "\n\t\t $i";
+                    for my $label ( @{$labelset} ) {
+                        $statelabels .=
+                          $label =~ /\s/
+                          ? "\n\t\t\t'$label'"
+                          : "\n\t\t\t$label";
+                        $i++;
+                    }
+                    $statelabels .= ',';
+                }
+                $string .= "\tSTATELABELS$statelabels\n\t;\n";
+            }
+        }
 
-			# construct name
-			my $name;
-			if ( not $args{'-seqnames'} ) {
-				$name = $datum->get_nexus_name;
-			}
-			elsif ( $args{'-seqnames'} =~ /^internal$/i ) {
-				$name = $datum->get_nexus_name;
-			}
-			elsif ( $args{'-seqnames'} =~ /^taxon/i and $datum->get_taxon ) {
-				if ( $args{'-seqnames'} =~ /^taxon_internal$/i ) {
-					$name = $datum->get_taxon->get_nexus_name;
-				}
-				elsif ( $args{'-seqnames'} =~ /^taxon$/i ) {
-					$name = $datum->get_taxon->get_nexus_name;
-				}
-			}
-			else {
-				$name = $datum->get_generic( $args{'-seqnames'} );
-			}
-			$name = $datum->get_nexus_name if not $name;
-			$string .= $name . ( $sp x ( $length - length($name) ) );
-			my $char =  $datum->get_char;
-			$string .= $char . "\n";
-		}
-		$string .= "\t;\nEND;\n";
-		return $string;
-	}
+        # charstatelabels token line
+        if ( $args{'-charstatelabels'} ) {
+            my @charlabels  = @{ $self->get_charlabels };
+            my @statelabels = @{ $self->get_statelabels };
+            if ( @charlabels and @statelabels ) {
+                my $charstatelabels;
+                my $nlabels = $self->get_nchar - 1;
+                for my $i ( 0 .. $nlabels ) {
+                    $charstatelabels .= "\n\t\t" . ( $i + 1 );
+                    if ( my $label = $charlabels[$i] ) {
+                        $charstatelabels .=
+                          $label =~ /\s/ ? " '$label' /" : " $label /";
+                    }
+                    else {
+                        $charstatelabels .= " ' ' /";
+                    }
+                    if ( my $labelset = $statelabels[$i] ) {
+                        for my $label ( @{$labelset} ) {
+                            $charstatelabels .=
+                              $label =~ /\s/ ? " '$label'" : " $label";
+                        }
+                    }
+                    else {
+                        $charstatelabels .= " ' '";
+                    }
+                    $charstatelabels .=  ',' if $i < $nlabels;
+                }
+                $string .= "\tCHARSTATELABELS$charstatelabels\n\t;\n";
+            }
+        }
+
+        # ...and write matrix!
+        $string .= "\tMATRIX\n";
+        my $length = 0;
+        foreach my $datum ( @{ $self->get_entities } ) {
+            $length = length( $datum->get_nexus_name )
+              if length( $datum->get_nexus_name ) > $length;
+        }
+        $length += 4;
+        my $sp = ' ';
+        foreach my $datum ( @{ $self->get_entities } ) {
+            $string .= "\t\t";
+
+            # construct name
+            my $name;
+            if ( not $args{'-seqnames'} ) {
+                $name = $datum->get_nexus_name;
+            }
+            elsif ( $args{'-seqnames'} =~ /^internal$/i ) {
+                $name = $datum->get_nexus_name;
+            }
+            elsif ( $args{'-seqnames'} =~ /^taxon/i and $datum->get_taxon ) {
+                if ( $args{'-seqnames'} =~ /^taxon_internal$/i ) {
+                    $name = $datum->get_taxon->get_nexus_name;
+                }
+                elsif ( $args{'-seqnames'} =~ /^taxon$/i ) {
+                    $name = $datum->get_taxon->get_nexus_name;
+                }
+            }
+            else {
+                $name = $datum->get_generic( $args{'-seqnames'} );
+            }
+            $name = $datum->get_nexus_name if not $name;
+            $string .= $name . ( $sp x ( $length - length($name) ) );
+            my $char = $datum->get_char;
+            $string .= $char . "\n";
+        }
+        $string .= "\t;\nEND;\n";
+        return $string;
+    }
 
 =item to_dom()
 
@@ -1669,106 +1657,134 @@ Analog to to_xml.
 
 =cut
 
-	sub to_dom {	
-		my $self = shift;
-		my $dom = $_[0];
-		my @args = @_;
-		# handle dom factory object...
-		if ( looks_like_instance($dom, 'SCALAR') && $dom->_type == _DOMCREATOR_ ) {
-		    splice(@args, 0, 1);
-		}
-		else {
-		    $dom = $Bio::Phylo::NeXML::DOM::DOM;
-		    unless ($dom) {
-				throw 'BadArgs' => 'DOM factory object not provided';
-		    }
-		}
-		#### make sure argument handling works here...
-		my ( %args, $ids_for_states );
-		%args = @args if @args;
-	
-		my $type = $self->get_type;
-		my $verbosity = $args{'-compact'} ? 'Seqs' : 'Cells';
-		my $xsi_type = 'nex:' . ucfirst($type) . $verbosity;
-		$self->set_attributes( 'xsi:type' => $xsi_type );
-		my $elt = $self->get_dom_elt($dom);
-		my $normalized = $self->_normalize_symbols;
-		
-		# the format block
-	 	my $format_elt = $dom->create_element('-tag'=>'format');
-		my $to = $self->get_type_object;
-		$ids_for_states = $to->get_ids_for_states(1);
-		
-		# write state definitions
-	
-		$format_elt->set_child( $to->to_dom( $dom, $normalized, $self->get_polymorphism ) );
-		
-		# write column definitions
-		$format_elt->set_child($_) for $self->_package_char_labels( $dom, %{ $ids_for_states } ? $to->get_xml_id : undef );
-	
-		$elt->set_child($format_elt);
-	
-		# the matrix block
-	
-		my $mx_elt = $dom->create_element('-tag'=>'matrix');
-		my @char_ids;
-		for ( 0 .. $self->get_nchar ) {
-		    push @char_ids, 'c' . ($_+1);
-		}
-		
-		# write rows
-		my $special = $self->get_type_object->get_ids_for_special_symbols(1);
-		for my $row ( @{ $self->get_entities } ) {
-		    # $row->to_dom is calling ...::Datum::to_dom...
-		    $mx_elt->set_child( 
-				$row->to_dom( $dom,
-				    '-states'  => $ids_for_states,
-				    '-chars'   => \@char_ids,
-				    '-symbols' => $normalized,
-				    '-special' => $special,
-				    %args,
-				)
-			);
-		}
-		$elt->set_child($mx_elt);
-		return $elt;
-	}
+    sub to_dom {
+        my $self = shift;
+        my $dom  = $_[0];
+        my @args = @_;
 
-	# returns an array of elements
-	sub _package_char_labels {
-		my ( $self, $dom, $states_id ) = @_;
-		my @elts;
-		my $labels = $self->get_charlabels;
-		for my $i ( 1 .. $self->get_nchar ) {
-		    my $char_id = 'c' . $i;
-		    my $label   = $labels->[ $i - 1 ];
-		    my $elt = $dom->create_element('-tag'=>'char');
-		    $elt->set_attributes( 'id' => $char_id );
-		    $elt->set_attributes( 'label' => $label ) if $label;
-		    $elt->set_attributes( 'states' => $states_id ) if $states_id;
-		    push @elts, $elt;
-		}	
-		return @elts;
-	}	
-	
-	sub _tag       { 'characters' }
-	sub _type      { $CONSTANT_TYPE }
-	sub _container { $CONSTANT_CONTAINER }
+        # handle dom factory object...
+        if ( looks_like_instance( $dom, 'SCALAR' )
+            && $dom->_type == _DOMCREATOR_ )
+        {
+            splice( @args, 0, 1 );
+        }
+        else {
+            $dom = $Bio::Phylo::NeXML::DOM::DOM;
+            unless ($dom) {
+                throw 'BadArgs' => 'DOM factory object not provided';
+            }
+        }
+        #### make sure argument handling works here...
+        my ( %args, $ids_for_states );
+        %args = @args if @args;
+        my $type      = $self->get_type;
+        my $verbosity = $args{'-compact'} ? 'Seqs' : 'Cells';
+        my $xsi_type  = 'nex:' . ucfirst($type) . $verbosity;
+        $self->set_attributes( 'xsi:type' => $xsi_type );
+        my $elt        = $self->get_dom_elt($dom);
+        my $normalized = $self->_normalize_symbols;
 
-	sub _cleanup {
-		my $self = shift;
-		$logger->info("cleaning up '$self'");
-		my $id = $self->get_id;
-		for (@inside_out_arrays) {
-			delete $_->{$id} if defined $id and exists $_->{$id};
+        # the format block
+        my $format_elt = $dom->create_element( '-tag' => 'format' );
+        my $to = $self->get_type_object;
+        $ids_for_states = $to->get_ids_for_states(1);
+
+        # write state definitions
+        $format_elt->set_child(
+            $to->to_dom( $dom, $normalized, $self->get_polymorphism ) );
+
+        # write column definitions
+        $format_elt->set_child($_)
+          for $self->_package_char_labels( $dom,
+            %{$ids_for_states} ? $to->get_xml_id : undef );
+        $elt->set_child($format_elt);
+
+        # the matrix block
+        my $mx_elt = $dom->create_element( '-tag' => 'matrix' );
+        my @char_ids;
+        for ( 0 .. $self->get_nchar ) {
+            push @char_ids, 'c' . ( $_ + 1 );
+        }
+
+        # write rows
+        my $special = $self->get_type_object->get_ids_for_special_symbols(1);
+        for my $row ( @{ $self->get_entities } ) {
+
+            # $row->to_dom is calling ...::Datum::to_dom...
+            $mx_elt->set_child(
+                $row->to_dom(
+                    $dom,
+                    '-states'  => $ids_for_states,
+                    '-chars'   => \@char_ids,
+                    '-symbols' => $normalized,
+                    '-special' => $special,
+                    %args,
+                )
+            );
+        }
+        $elt->set_child($mx_elt);
+        return $elt;
+    }
+
+    # returns an array of elements
+    sub _package_char_labels {
+        my ( $self, $dom, $states_id ) = @_;
+        my @elts;
+        my $labels = $self->get_charlabels;
+        for my $i ( 1 .. $self->get_nchar ) {
+            my $char_id = 'c' . $i;
+            my $label   = $labels->[ $i - 1 ];
+            my $elt     = $dom->create_element( '-tag' => 'char' );
+            $elt->set_attributes( 'id'     => $char_id );
+            $elt->set_attributes( 'label'  => $label ) if $label;
+            $elt->set_attributes( 'states' => $states_id ) if $states_id;
+            push @elts, $elt;
+        }
+        return @elts;
+    }
+    sub _tag       { 'characters' }
+    sub _type      { $CONSTANT_TYPE }
+    sub _container { $CONSTANT_CONTAINER }
+
+    sub _cleanup {
+        my $self = shift;
+        $logger->info("cleaning up '$self'");
+        my $id = $self->get_id;
+        for (@inside_out_arrays) {
+            delete $_->{$id} if defined $id and exists $_->{$id};
+        }
+    }
+    
+    sub _update_characters {
+	my $self        = shift;
+	my $nchar       = $self->get_nchar;
+	my $characters  = $self->get_characters;
+	my $type_object = $self->get_type_object; 
+	my @chars       = @{ $characters->get_entities };
+	my @defined     = grep { defined $_ } @chars;
+	if ( scalar @defined != $nchar ) {
+	    for my $i ( 0 .. ( $nchar - 1 ) ) {
+		if ( not $chars[$i] ) {
+		    $characters->insert_at_index(
+			$factory->create_character(
+			    '-type_object' => $type_object
+			),
+			$i,
+		    );
 		}
+	    }
 	}
+	@chars = @{ $characters->get_entities };
+	if ( scalar(@chars) > $nchar ) {
+	    $characters->prune_entities( [ $nchar .. $#chars ] );
+	}
+    }
 
 =back
 
 =cut
 
-# podinherit_insert_token
+    # podinherit_insert_token
 
 =head1 SEE ALSO
 
@@ -1803,13 +1819,11 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =head1 REVISION
 
- $Id: Matrix.pm 1634 2011-03-30 17:02:17Z rvos $
+ $Id: Matrix.pm 1660 2011-04-02 18:29:40Z rvos $
 
 =cut
-
 }
 1;
-
 __DATA__
 
 my %CONSERVATION_GROUPS = (

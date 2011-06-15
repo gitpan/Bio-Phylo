@@ -1,9 +1,8 @@
-# $Id: Protein.pm 1593 2011-02-27 15:26:04Z rvos $
+# $Id: Protein.pm 1660 2011-04-02 18:29:40Z rvos $
 package Bio::Phylo::Matrices::Datatype::Protein;
-use Bio::Phylo::Matrices::Datatype ();
 use strict;
-use vars qw($LOOKUP @ISA $MISSING $GAP);
-@ISA = qw(Bio::Phylo::Matrices::Datatype);
+use base 'Bio::Phylo::Matrices::Datatype';
+our ( $LOOKUP, $MISSING, $GAP );
 
 =head1 NAME
 
@@ -52,40 +51,36 @@ L<http://www.cpanforum.com/dist/Bio-Phylo>
 
 =head1 REVISION
 
- $Id: Protein.pm 1593 2011-02-27 15:26:04Z rvos $
+ $Id: Protein.pm 1660 2011-04-02 18:29:40Z rvos $
 
 =cut
-
 $LOOKUP = {
-    'A' => [ 'A'      ],
+    'A' => ['A'],
     'B' => [ 'D', 'N' ],
-    'C' => [ 'C'      ],
-    'D' => [ 'D'      ],
-    'E' => [ 'E'      ],
-    'F' => [ 'F'      ],
-    'G' => [ 'G'      ],
-    'H' => [ 'H'      ],
-    'I' => [ 'I'      ],
-    'K' => [ 'K'      ],
-    'L' => [ 'L'      ],
-    'M' => [ 'M'      ],
-    'N' => [ 'N'      ],
-    'P' => [ 'P'      ],
-    'Q' => [ 'Q'      ],
-    'R' => [ 'R'      ],
-    'S' => [ 'S'      ],
-    'T' => [ 'T'      ],
-    'U' => [ 'U'      ],
-    'V' => [ 'V'      ],
-    'W' => [ 'W'      ],
-    'X' => [ 'X'      ],
-    'Y' => [ 'Y'      ],
+    'C' => ['C'],
+    'D' => ['D'],
+    'E' => ['E'],
+    'F' => ['F'],
+    'G' => ['G'],
+    'H' => ['H'],
+    'I' => ['I'],
+    'K' => ['K'],
+    'L' => ['L'],
+    'M' => ['M'],
+    'N' => ['N'],
+    'P' => ['P'],
+    'Q' => ['Q'],
+    'R' => ['R'],
+    'S' => ['S'],
+    'T' => ['T'],
+    'U' => ['U'],
+    'V' => ['V'],
+    'W' => ['W'],
+    'X' => ['X'],
+    'Y' => ['Y'],
     'Z' => [ 'E', 'Q' ],
-    '*' => [ '*'      ],
+    '*' => ['*'],
 };
-
 $MISSING = '?';
-
-$GAP = '-';
-            
+$GAP     = '-';
 1;

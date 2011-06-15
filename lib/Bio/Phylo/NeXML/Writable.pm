@@ -1,36 +1,23 @@
-# $Id: Writable.pm 1628 2011-03-30 16:35:09Z rvos $
+# $Id: Writable.pm 1660 2011-04-02 18:29:40Z rvos $
 package Bio::Phylo::NeXML::Writable;
 use strict;
-use Bio::Phylo ();
+use base 'Bio::Phylo';
 use Bio::Phylo::Util::Exceptions 'throw';
 use Bio::Phylo::NeXML::DOM;
-use Bio::Phylo::Util::CONSTANT qw(
-	_DICTIONARY_ 
-	_META_ 
-	_DOMCREATOR_ 
-	looks_like_object 
-	looks_like_hash
-	looks_like_instance
-	looks_like_implementor
-	looks_like_class
-	:namespaces
-);
-use vars '@ISA';
-@ISA=qw(Bio::Phylo);
-
+use Bio::Phylo::Util::CONSTANT qw'/looks_like/ :namespaces :objecttypes';
 {
-
-    my $logger = __PACKAGE__->get_logger;
+    my $logger              = __PACKAGE__->get_logger;
     my $DICTIONARY_CONSTANT = _DICTIONARY_;
-    my $META_CONSTANT = _META_;
-    my %namespaces = (
-    	'nex' => _NS_NEXML_,
-    	'xml' => _NS_XML_,
-    	'xsi' => _NS_XSI_,
-    	'rdf' => _NS_RDF_,
-    	'xsd' => _NS_XSD_,
+    my $META_CONSTANT       = _META_;
+    my %namespaces          = (
+        'nex' => _NS_NEXML_,
+        'xml' => _NS_XML_,
+        'xsi' => _NS_XSI_,
+        'rdf' => _NS_RDF_,
+        'xsd' => _NS_XSD_,
     );
-    my @fields = \( my ( %tag, %id, %attributes, %identifiable, %suppress_ns, %meta ) );
+    my @fields =
+      \( my ( %tag, %id, %attributes, %identifiable, %suppress_ns, %meta ) );
 
 =head1 NAME
 
@@ -71,20 +58,20 @@ This is the superclass for all objects that can be serialized to NeXML
 
 =cut
 
-	sub set_namespaces {
-		my $self = shift;
-		if ( scalar(@_) == 1 and ref($_[0]) eq 'HASH' ) {
-			my $hash = shift;
-			for my $key ( keys %{ $hash } ) {
-				$namespaces{$key} = $hash->{$key};
-			}
-		}
-		elsif ( my %hash = looks_like_hash @_ ) {
-			for my $key ( keys %hash ) {
-				$namespaces{$key} = $hash{$key};
-			}			
-		}
-	}
+    sub set_namespaces {
+        my $self = shift;
+        if ( scalar(@_) == 1 and ref( $_[0] ) eq 'HASH' ) {
+            my $hash = shift;
+            for my $key ( keys %{$hash} ) {
+                $namespaces{$key} = $hash->{$key};
+            }
+        }
+        elsif ( my %hash = looks_like_hash @_ ) {
+            for my $key ( keys %hash ) {
+                $namespaces{$key} = $hash{$key};
+            }
+        }
+    }
 
 =item set_suppress_ns()
 
@@ -97,11 +84,11 @@ This is the superclass for all objects that can be serialized to NeXML
 
 =cut
 
-	sub set_suppress_ns {
-	    my $self = shift;
-	    my $id = $self->get_id;
-	    $suppress_ns{$id} = 1;
-	}
+    sub set_suppress_ns {
+        my $self = shift;
+        my $id   = $self->get_id;
+        $suppress_ns{$id} = 1;
+    }
 
 =item clear_suppress_ns()
 
@@ -114,11 +101,11 @@ This is the superclass for all objects that can be serialized to NeXML
 
 =cut
 
-	sub clear_suppress_ns {
-	    my $self = shift;
-	    my $id = $self->get_id;
-	    $suppress_ns{$id} = 0;
-	}
+    sub clear_suppress_ns {
+        my $self = shift;
+        my $id   = $self->get_id;
+        $suppress_ns{$id} = 0;
+    }
 
 =item add_meta()
 
@@ -130,12 +117,12 @@ This is the superclass for all objects that can be serialized to NeXML
  Args    : A Bio::Phylo::NeXML::Meta object
 
 =cut
-    
+
     sub add_meta {
         my ( $self, $meta_obj ) = @_;
         if ( looks_like_object $meta_obj, $META_CONSTANT ) {
             my $id = $self->get_id;
-            if ( not $meta{$id} ) {            	
+            if ( not $meta{$id} ) {
                 $meta{$id} = [];
             }
             push @{ $meta{$id} }, $meta_obj;
@@ -157,10 +144,10 @@ This is the superclass for all objects that can be serialized to NeXML
 
     sub remove_meta {
         my ( $self, $meta ) = @_;
-        my $id = $self->get_id;
+        my $id      = $self->get_id;
         my $meta_id = $meta->get_id;
         if ( $meta{$id} ) {
-            DICT: for my $i ( 0 .. $#{ $meta{$id} } ) {
+          DICT: for my $i ( 0 .. $#{ $meta{$id} } ) {
                 if ( $meta{$id}->[$i]->get_id == $meta_id ) {
                     splice @{ $meta{$id} }, $i, 1;
                     last DICT;
@@ -168,7 +155,7 @@ This is the superclass for all objects that can be serialized to NeXML
             }
         }
         if ( not $meta{$id} or not @{ $meta{$id} } ) {
-        	$self->unset_attribute( 'about' );
+            $self->unset_attribute('about');
         }
         return $self;
     }
@@ -213,17 +200,18 @@ xml element structure called <node/>
 
 =cut
 
-	sub set_tag {
-		my ( $self, $tag ) = @_;
-		# _ is ok; see http://www.w3.org/TR/2004/REC-xml-20040204/#NT-NameChar
-		if ( $tag =~ qr/^[a-zA-Z]+\:?[a-zA-Z_]*$/ ) {
-			$tag{ $self->get_id } = $tag;
-			return $self;
-		}
-		else {
-			throw 'BadString' => "'$tag' is not valid for xml";
-		}
-	}
+    sub set_tag {
+        my ( $self, $tag ) = @_;
+
+        # _ is ok; see http://www.w3.org/TR/2004/REC-xml-20040204/#NT-NameChar
+        if ( $tag =~ qr/^[a-zA-Z]+\:?[a-zA-Z_]*$/ ) {
+            $tag{ $self->get_id } = $tag;
+            return $self;
+        }
+        else {
+            throw 'BadString' => "'$tag' is not valid for xml";
+        }
+    }
 
 =item set_name()
 
@@ -240,15 +228,15 @@ Sets invocant name.
 
 =cut
 
-	sub set_name {
-		my ( $self, $name ) = @_;
-		if ( defined $name ) {
-			return $self->set_attributes( 'label' => $name );
-		}
-		else {
-			return $self;
-		}
-	}
+    sub set_name {
+        my ( $self, $name ) = @_;
+        if ( defined $name ) {
+            return $self->set_attributes( 'label' => $name );
+        }
+        else {
+            return $self;
+        }
+    }
 
 =item set_attributes()
 
@@ -263,33 +251,35 @@ Assigns attributes for the element.
 
 =cut
 
-	sub set_attributes {
-		my $self = shift;
-		my $id = $self->get_id;
-		my %attrs;
-		if ( scalar @_ == 1 and ref $_[0] eq 'HASH' ) {
-			%attrs = %{ $_[0] };
-		}
-		elsif ( scalar @_ % 2 == 0 ) {
-			%attrs = @_;	
-		}
-		else {
-			throw 'OddHash' => 'Arguments are not even key/value pairs';	
-		}		
-		my $hash = $attributes{$id} || {};
-		my $fully_qualified_attribute_regex = qr/^(.+?):(.+)/;
-		for my $key ( keys %attrs ) {
-			if ( $key =~ $fully_qualified_attribute_regex ) {
-				my ( $prefix, $attribute ) = ( $1, $2 );
-				if ( $prefix ne 'xmlns' and not exists $namespaces{$prefix} ) {
-					$logger->warn("Attribute '${prefix}:${attribute}' is not bound to a namespace");
-				}
-			}
-			$hash->{$key} = $attrs{$key};
-		}
-		$attributes{$id} = $hash;
-		return $self;
-	}
+    sub set_attributes {
+        my $self = shift;
+        my $id   = $self->get_id;
+        my %attrs;
+        if ( scalar @_ == 1 and ref $_[0] eq 'HASH' ) {
+            %attrs = %{ $_[0] };
+        }
+        elsif ( scalar @_ % 2 == 0 ) {
+            %attrs = @_;
+        }
+        else {
+            throw 'OddHash' => 'Arguments are not even key/value pairs';
+        }
+        my $hash = $attributes{$id} || {};
+        my $fully_qualified_attribute_regex = qr/^(.+?):(.+)/;
+        for my $key ( keys %attrs ) {
+            if ( $key =~ $fully_qualified_attribute_regex ) {
+                my ( $prefix, $attribute ) = ( $1, $2 );
+                if ( $prefix ne 'xmlns' and not exists $namespaces{$prefix} ) {
+                    $logger->warn(
+"Attribute '${prefix}:${attribute}' is not bound to a namespace"
+                    );
+                }
+            }
+            $hash->{$key} = $attrs{$key};
+        }
+        $attributes{$id} = $hash;
+        return $self;
+    }
 
 =item set_xml_id()
 
@@ -306,16 +296,16 @@ the purpose of round-tripping nexml info sets.
 
 =cut
 
-	sub set_xml_id {
-		my ( $self, $id ) = @_;
-		if ( $id =~ qr/^[a-zA-Z][a-zA-Z0-9\-_\.]*$/ ) {
-			$id{ $self->get_id } = $id;
-			return $self;
-		}
-		else {
-			throw 'BadString' => "'$id' is not a valid xml NCName for $self";
-		}
-	}
+    sub set_xml_id {
+        my ( $self, $id ) = @_;
+        if ( $id =~ qr/^[a-zA-Z][a-zA-Z0-9\-_\.]*$/ ) {
+            $id{ $self->get_id } = $id;
+            return $self;
+        }
+        else {
+            throw 'BadString' => "'$id' is not a valid xml NCName for $self";
+        }
+    }
 
 =item unset_attribute()
 
@@ -330,14 +320,14 @@ Removes specified attribute
 
 =cut
 
-	sub unset_attribute {
-		my $self = shift;
-		my $attrs = $attributes{ $self->get_id };
-		if ( $attrs and looks_like_instance($attrs,'HASH') ) {
-			delete $attrs->{$_} for @_;
-		}
-		return $self;
-	}
+    sub unset_attribute {
+        my $self  = shift;
+        my $attrs = $attributes{ $self->get_id };
+        if ( $attrs and looks_like_instance( $attrs, 'HASH' ) ) {
+            delete $attrs->{$_} for @_;
+        }
+        return $self;
+    }
 
 =back
 
@@ -358,16 +348,16 @@ Removes specified attribute
 
 =cut
 
-	sub get_namespaces { 
-		my ($self,$prefix) = @_;
-		if ( $prefix ) {
-			return $namespaces{$prefix};
-		}
-		else {
-			my %tmp_namespaces = %namespaces;
-			return \%tmp_namespaces;
-		} 
-	}
+    sub get_namespaces {
+        my ( $self, $prefix ) = @_;
+        if ($prefix) {
+            return $namespaces{$prefix};
+        }
+        else {
+            my %tmp_namespaces = %namespaces;
+            return \%tmp_namespaces;
+        }
+    }
 
 =item get_meta()
 
@@ -378,15 +368,21 @@ Retrieves the metadata for the element.
  Usage   : my @meta = @{ $obj->get_meta };
  Function: Retrieves the metadata for the element.
  Returns : An array ref of Bio::Phylo::NeXML::Meta objects
- Args    : None.
+ Args    : Optional: a list of CURIE predicates, in which case
+           the returned objects will be those matching these
+	   predicates
 
 =cut
 
     sub get_meta {
-        my $self = shift;
-#        $logger->debug("getting meta for $self");
-        my $id = $self->get_id;
-        return $meta{$id} || [];
+	my $self = shift;
+	my $metas = $meta{ $self->get_id } || [];
+        if ( @_ ) {
+	    my %predicates = map { $_ => 1 } @_;
+	    my @matches = grep { $predicates{$_->get_predicate} } @{ $metas };
+	    return \@matches;
+	}
+	return $metas;        
     }
 
 =item get_tag()
@@ -402,18 +398,18 @@ Retrieves tag name for the element.
 
 =cut
 
-	sub get_tag {
-		my $self = shift;
-		if ( my $tagstring = $tag{ $self->get_id } ) {
-			return $tagstring;
-		}
-		elsif ( looks_like_implementor $self, '_tag' ) {
-			return $self->_tag;
-		}
-		else {
-			return '';
-		}
-	}
+    sub get_tag {
+        my $self = shift;
+        if ( my $tagstring = $tag{ $self->get_id } ) {
+            return $tagstring;
+        }
+        elsif ( looks_like_implementor $self, '_tag' ) {
+            return $self->_tag;
+        }
+        else {
+            return '';
+        }
+    }
 
 =item get_name()
 
@@ -427,21 +423,20 @@ Gets invocant's name.
  Args    : None
 
 =cut
-	
-	sub get_name {
-		my $self = shift;
-		my $id = $self->get_id;
-		if ( ! $attributes{$id} ) {			
-			$attributes{$id} = {};
-		}
-		if ( defined $attributes{$id}->{'label'} ) {
-			return $attributes{$id}->{'label'};		
-		}
-		else {
-			return '';
-		}
-		
-	}
+
+    sub get_name {
+        my $self = shift;
+        my $id   = $self->get_id;
+        if ( !$attributes{$id} ) {
+            $attributes{$id} = {};
+        }
+        if ( defined $attributes{$id}->{'label'} ) {
+            return $attributes{$id}->{'label'};
+        }
+        else {
+            return '';
+        }
+    }
 
 =item get_xml_tag()
 
@@ -456,37 +451,29 @@ Retrieves tag string
 
 =cut
 
-	sub get_xml_tag {
-		my ($self, $closeme) = @_;
-		my %attrs = %{ $self->get_attributes };
-		my $tag = $self->get_tag;
-		my $xml = '<' . $tag;
-		for my $key ( keys %attrs ) {
-			$xml .= ' ' . $key . '="' . $attrs{$key} . '"';
-		}
-		my $has_contents = 0;
-		my $meta = $self->get_meta;
-		if ( @{ $meta } ) {
-			$xml .= '>';# if not @{ $dictionaries };
-			$xml .= $_->to_xml for @{ $meta };
-			$has_contents++			
-		}
-		if ( looks_like_implementor $self,'get_sets' ) {
-			my $sets = $self->get_sets;
-			if ( @{ $sets } ) {
-				$xml .= '>' if not @{ $meta };
-				$xml .= $_->to_xml for @{ $sets };
-				$has_contents++;
-			}
-		}
-		if ( $has_contents ) {
-			$xml .= "</$tag>" if $closeme;
-		}
-		else {
-			$xml .= $closeme ? '/>' : '>';
-		}
-		return $xml;
-	}
+    sub get_xml_tag {
+        my ( $self, $closeme ) = @_;
+        my %attrs = %{ $self->get_attributes };
+        my $tag   = $self->get_tag;
+        my $xml   = '<' . $tag;
+        for my $key ( keys %attrs ) {
+            $xml .= ' ' . $key . '="' . $attrs{$key} . '"';
+        }
+        my $has_contents = 0;
+        my $meta         = $self->get_meta;
+        if ( @{$meta} ) {
+            $xml .= '>';                       # if not @{ $dictionaries };
+            $xml .= $_->to_xml for @{$meta};
+            $has_contents++;
+        }
+        if ($has_contents) {
+            $xml .= "</$tag>" if $closeme;
+        }
+        else {
+            $xml .= $closeme ? '/>' : '>';
+        }
+        return $xml;
+    }
 
 =item get_attributes()
 
@@ -502,107 +489,98 @@ Retrieves attributes for the element.
            can be found
 
 =cut
+    my $SAFE_CHARACTERS_REGEX = qr/(?:[a-zA-Z0-9]|-|_|\.)/;
+    my $XMLEntityEncode       = sub {
+        my $buf = '';
+        for my $c ( split //, shift ) {
+            if ( $c =~ $SAFE_CHARACTERS_REGEX ) {
+                $buf .= $c;
+            }
+            else {
+                $buf .= '&#' . ord($c) . ';';
+            }
+        }
+        return $buf;
+    };
+    my $add_namespaces_to_attributes = sub {
+        my ( $self, $attrs ) = @_;
+        my $i                       = 0;
+        my $inside_to_xml_recursion = 0;
+      CHECK_RECURSE: while ( my @frame = caller($i) ) {
+            if ( $frame[3] =~ m/::to_xml$/ ) {
+                $inside_to_xml_recursion++;
+                last CHECK_RECURSE if $inside_to_xml_recursion > 1;
+            }
+            $i++;
+        }
+        if ( $inside_to_xml_recursion <= 1 ) {
+            my $tmp_namespaces = get_namespaces();
+            for my $ns ( keys %{$tmp_namespaces} ) {
+                $attrs->{ 'xmlns:' . $ns } = $tmp_namespaces->{$ns};
+            }
+        }
+        return $attrs;
+    };
+    my $flatten_attributes = sub {
+        my $self      = shift;
+        my $tempattrs = $attributes{ $self->get_id };
+        my $attrs;
+        if ($tempattrs) {
+            my %deref = %{$tempattrs};
+            $attrs = \%deref;
+        }
+        else {
+            $attrs = {};
+        }
+        return $attrs;
+    };
 
-	my $SAFE_CHARACTERS_REGEX = qr/(?:[a-zA-Z0-9]|-|_|\.)/;
-	my $XMLEntityEncode = sub {
-		my $buf = '';
-		for my $c ( split //, shift ) {
-			if ( $c =~ $SAFE_CHARACTERS_REGEX ) {
-				$buf .= $c;
-			}
-			else {
-				$buf .= '&#' . ord($c) . ';';
-			}			
-		}
-		return $buf;
-	};
-	
-	my $add_namespaces_to_attributes = sub {
-		my ( $self, $attrs ) = @_;
-		my $i = 0;
-		my $inside_to_xml_recursion = 0;
-		CHECK_RECURSE: while ( my @frame = caller($i) ) {
-			if ( $frame[3] =~ m/::to_xml$/ ) {
-				$inside_to_xml_recursion++;
-				last CHECK_RECURSE if $inside_to_xml_recursion > 1;
-			}
-			$i++;
-		}
-		if ( $inside_to_xml_recursion <= 1 ) {
-			my $tmp_namespaces = get_namespaces();
-			for my $ns ( keys %{ $tmp_namespaces } ) {
-				$attrs->{'xmlns:' . $ns} = $tmp_namespaces->{$ns};
-			}			
-		}	
-		return $attrs;	
-	};
-	
-	my $flatten_attributes = sub {
-		my $self = shift;
-		my $tempattrs = $attributes{ $self->get_id };
-		my $attrs;
-		if ( $tempattrs ) {
-			my %deref = %{ $tempattrs };
-			$attrs = \%deref;
-		}
-		else {
-			$attrs = {};
-		}
-		return $attrs;		
-	};
-
-	sub get_attributes {
-		my $self = shift;
-		my $attrs = $flatten_attributes->($self);
-		if ( not exists $attrs->{'label'} and my $label = $self->get_name ) {
-			$attrs->{'label'} = $XMLEntityEncode->($label);
-		}
-		if ( not exists $attrs->{'id'} ) {
-			$attrs->{'id'} = $self->get_xml_id;
-		}
-		if ( $self->can('_get_container') ) {
-			my $container = $self->_get_container;
-			if ( $self->can('get_tree') ) {
-				$container = $self->get_tree;
-			}
-			if ( $container ) {
-				my @classes;
-				for my $set ( @{ $container->get_sets } ) {
-					if ( $container->is_in_set($self,$set) ) {
-						push @classes, $set->get_xml_id;
-					}
-				} 
-				$attrs->{'class'} = join ' ', @classes if scalar(@classes);
-			}
-		}
-		if ( defined $self->is_identifiable and not $self->is_identifiable ) {
-		    delete $attrs->{'id'};
-		}
-		if ( $self->can('get_taxa') ) {
-			if ( my $taxa = $self->get_taxa ) {
-				$attrs->{'otus'} = $taxa->get_xml_id if looks_like_instance($taxa,'Bio::Phylo');
-			}
-			else {
-				throw 'ObjectMismatch' => "$self can link to a taxa element, but doesn't";
-			}
-		}
-		if ( $self->can('get_taxon') ) {
-			if ( my $taxon = $self->get_taxon ) {
-				$attrs->{'otu'} = $taxon->get_xml_id;
-			}
-			else {
-				$logger->info("No linked taxon found");
-			}
-		}
-		$attrs = $add_namespaces_to_attributes->($self,$attrs) unless $self->is_ns_suppressed;
-		my $arg = shift;
-		if ( $arg ) {
-		    return $attrs->{$arg};
-		}
-		else {
-		    return $attrs;
-		}
+    sub get_attributes {
+        my $self  = shift;
+        my $attrs = $flatten_attributes->($self);
+        if ( not exists $attrs->{'label'} and my $label = $self->get_name ) {
+            $attrs->{'label'} = $label;
+        }
+	if ( defined $attrs->{'label'} and $attrs->{'label'} ne '' ) {
+	    $attrs->{'label'} = $XMLEntityEncode->($attrs->{'label'});
 	}
+	else {
+	    delete $attrs->{'label'};
+	}
+        if ( not exists $attrs->{'id'} ) {
+            $attrs->{'id'} = $self->get_xml_id;
+        }
+        if ( defined $self->is_identifiable and not $self->is_identifiable ) {
+            delete $attrs->{'id'};
+        }
+        if ( $self->can('get_taxa') ) {
+            if ( my $taxa = $self->get_taxa ) {
+                $attrs->{'otus'} = $taxa->get_xml_id
+                  if looks_like_instance( $taxa, 'Bio::Phylo' );
+            }
+            else {
+                throw 'ObjectMismatch' =>
+                  "$self can link to a taxa element, but doesn't";
+            }
+        }
+        if ( $self->can('get_taxon') ) {
+            if ( my $taxon = $self->get_taxon ) {
+                $attrs->{'otu'} = $taxon->get_xml_id;
+            }
+            else {
+                $logger->info("No linked taxon found");
+            }
+        }
+        $attrs = $add_namespaces_to_attributes->( $self, $attrs )
+          unless $self->is_ns_suppressed;
+        my $arg = shift;
+        if ($arg) {
+            return $attrs->{$arg};
+        }
+        else {
+            return $attrs;
+        }
+    }
 
 =item get_xml_id()
 
@@ -617,17 +595,18 @@ Retrieves xml id for the element.
 
 =cut
 
-	sub get_xml_id {
-		my $self = shift;
-		if ( my $id = $id{ $self->get_id } ) {
-			return $id;
-		}		
-		else {
-			my $tag = $self->get_tag;
-			$tag =~ s/:/_/;
-			return $tag . $self->get_id;
-		}
-	}
+    sub get_xml_id {
+        my $self = shift;
+        if ( my $id = $id{ $self->get_id } ) {
+            return $id;
+        }
+        else {
+            my $xml_id = $self->get_tag;
+	    my $obj_id = $self->get_id;
+            $xml_id =~ s/^(.).+(.)$/$1$2$obj_id/;
+            return $id{$obj_id} = $xml_id;
+        }
+    }
 
 =item get_dom_elt()
 
@@ -641,29 +620,29 @@ Retrieves xml id for the element.
 =cut
 
     sub get_dom_elt {
-		my ($self,$dom) = @_;
-		$dom ||= Bio::Phylo::NeXML::DOM->get_dom;
-		unless (looks_like_object $dom, _DOMCREATOR_) {
-		    throw 'BadArgs' => 'DOM factory object not provided';
-		}
-		my $elt = $dom->create_element( '-tag' => $self->get_tag );
-		my %attrs = %{ $self->get_attributes };
-		for my $key ( keys %attrs ) {
-		    $elt->set_attributes( $key => $attrs{$key} );
-		}
-	
-		for my $meta ( @{ $self->get_meta } ) {
-			$elt->set_child( $meta->to_dom($dom) );
-		}
-		#my $dictionaries = $self->get_dictionaries;
-		#if ( @{ $dictionaries } ) {
-		#    $elt->set_child( $_->to_dom($dom) ) for @{ $dictionaries };
-		#}
-		if ( looks_like_implementor $self,'get_sets' ) {
-		    my $sets = $self->get_sets;
-		    $elt->set_child( $_->to_dom($dom) ) for @{ $sets };
-		}
-		return $elt;
+        my ( $self, $dom ) = @_;
+        $dom ||= Bio::Phylo::NeXML::DOM->get_dom;
+        unless ( looks_like_object $dom, _DOMCREATOR_ ) {
+            throw 'BadArgs' => 'DOM factory object not provided';
+        }
+        my $elt = $dom->create_element( '-tag' => $self->get_tag );
+        my %attrs = %{ $self->get_attributes };
+        for my $key ( keys %attrs ) {
+            $elt->set_attributes( $key => $attrs{$key} );
+        }
+        for my $meta ( @{ $self->get_meta } ) {
+            $elt->set_child( $meta->to_dom($dom) );
+        }
+
+        #my $dictionaries = $self->get_dictionaries;
+        #if ( @{ $dictionaries } ) {
+        #    $elt->set_child( $_->to_dom($dom) ) for @{ $dictionaries };
+        #}
+        if ( looks_like_implementor $self, 'get_sets' ) {
+            my $sets = $self->get_sets;
+            $elt->set_child( $_->to_dom($dom) ) for @{$sets};
+        }
+        return $elt;
     }
 
 =back
@@ -705,10 +684,10 @@ method indicates whether that is the case.
 
 =cut
 
-	sub is_ns_suppressed {
-	    return $suppress_ns{ shift->get_id }
-	}
-	
+    sub is_ns_suppressed {
+        return $suppress_ns{ shift->get_id };
+    }
+
 =back
 
 =head2 CLONER
@@ -729,25 +708,22 @@ Clones invocant.
 
 =cut
 
-	sub clone {
-		my $self = shift;
-		$logger->info("cloning $self");
-		my %subs = @_;
-		
-		# some extra logic to copy characters from source to target
-		if ( not exists $subs{'add_meta'} ) {
-			$subs{'add_meta'} = sub {
-				my ( $obj, $clone ) = @_;
-				for my $meta ( @{ $obj->get_meta } ) {
-					$clone->add_meta( $meta );
-				}
-			};	
-		}
-		
-		return $self->SUPER::clone(%subs);
-	
-	}	
-	
+    sub clone {
+        my $self = shift;
+        $logger->info("cloning $self");
+        my %subs = @_;
+
+        # some extra logic to copy characters from source to target
+        if ( not exists $subs{'add_meta'} ) {
+            $subs{'add_meta'} = sub {
+                my ( $obj, $clone ) = @_;
+                for my $meta ( @{ $obj->get_meta } ) {
+                    $clone->add_meta($meta);
+                }
+            };
+        }
+        return $self->SUPER::clone(%subs);
+    }
 
 =back
 
@@ -768,24 +744,26 @@ Serializes invocant to XML.
 
 =cut
 
-	sub to_xml {
-	    my $self = shift;
-	    my $xml = '';
-		if ( $self->can('get_entities') ) {
-			for my $ent ( @{ $self->get_entities } ) {
-				if ( looks_like_implementor $ent,'to_xml' ) {					
-					$xml .= "\n" . $ent->to_xml;
-				}
-			}
-		}
-		if ( $xml ) {
-			$xml = $self->get_xml_tag . $xml . sprintf( "</%s>", $self->get_tag );
-		}
-		else {
-			$xml = $self->get_xml_tag(1);
-		}
-		return $xml;
-	}		
+    sub to_xml {
+        my $self = shift;
+        my $xml  = '';
+        if ( $self->can('get_entities') ) {	    
+            for my $ent ( @{ $self->get_entities } ) {
+                if ( looks_like_implementor $ent, 'to_xml' ) {
+                    $xml .= "\n" . $ent->to_xml;
+                }
+            }
+	    $xml .= $self->sets_to_xml;
+        }
+        if ($xml) {
+            $xml =
+              $self->get_xml_tag . $xml . sprintf('</%s>', $self->get_tag);
+        }
+        else {
+            $xml = $self->get_xml_tag(1);
+        }
+        return $xml;
+    }
 
 =item to_dom()
 
@@ -798,26 +776,27 @@ Serializes invocant to XML.
  Args    : DOM factory object
  Note    : This is the generic function. It is redefined in the 
            classes below.
+
 =cut
 
-	sub to_dom {
-		my ($self, $dom) = @_;
-		$dom ||= Bio::Phylo::NeXML::DOM->get_dom;
-		if ( looks_like_object $dom, _DOMCREATOR_ ) {
-			my $elt = $self->get_dom_elt($dom);
-			if ( $self->can('get_entities') ) {
-			    for my $ent ( @{ $self->get_entities } ) {
-				if ( looks_like_implementor $ent,'to_dom' ) { 
-					$elt->set_child( $ent->to_dom($dom) );
-				}
-			    }
-			}
-			return $elt;                
-		}
-		else {
-			throw 'BadArgs' => 'DOM factory object not provided';
-		}
-	}
+    sub to_dom {
+        my ( $self, $dom ) = @_;
+        $dom ||= Bio::Phylo::NeXML::DOM->get_dom;
+        if ( looks_like_object $dom, _DOMCREATOR_ ) {
+            my $elt = $self->get_dom_elt($dom);
+            if ( $self->can('get_entities') ) {
+                for my $ent ( @{ $self->get_entities } ) {
+                    if ( looks_like_implementor $ent, 'to_dom' ) {
+                        $elt->set_child( $ent->to_dom($dom) );
+                    }
+                }
+            }
+            return $elt;
+        }
+        else {
+            throw 'BadArgs' => 'DOM factory object not provided';
+        }
+    }
 
 =item to_json()
 
@@ -833,23 +812,23 @@ Serializes object to JSON string
 
 =cut
 
-    sub to_json { 
-	looks_like_class('XML::XML2JSON')->new->convert(shift->to_xml);
+    sub to_json {
+        looks_like_class('XML::XML2JSON')->new->convert( shift->to_xml );
     }
 
-	sub _cleanup { 
-		my $self = shift;
-		my $id = $self->get_id;
-		for my $field (@fields) {
-			delete $field->{$id};
-		} 
-	}
+    sub _cleanup {
+        my $self = shift;
+        my $id   = $self->get_id;
+        for my $field (@fields) {
+            delete $field->{$id};
+        }
+    }
 
 =back
 
 =cut
 
-# podinherit_insert_token
+    # podinherit_insert_token
 
 =head1 SEE ALSO
 
@@ -866,10 +845,8 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =head1 REVISION
 
- $Id: Writable.pm 1628 2011-03-30 16:35:09Z rvos $
+ $Id: Writable.pm 1660 2011-04-02 18:29:40Z rvos $
 
 =cut
-
 }
-
 1;

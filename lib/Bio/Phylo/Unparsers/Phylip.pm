@@ -1,11 +1,8 @@
 package Bio::Phylo::Unparsers::Phylip;
 use strict;
-use Bio::Phylo::Unparsers::Abstract;
+use base 'Bio::Phylo::Unparsers::Abstract';
 use Bio::Phylo::Util::Exceptions 'throw';
-use Bio::Phylo::Util::CONSTANT qw(:objecttypes looks_like_object);
-use vars qw(@ISA);
-
-@ISA=qw(Bio::Phylo::Unparsers::Abstract);
+use Bio::Phylo::Util::CONSTANT qw':objecttypes looks_like_object';
 
 =head1 NAME
 
@@ -70,64 +67,65 @@ look there to learn about parsing and serializing in general.
 
 sub _to_string {
     my $self = shift;
-    my $obj = $self->{'PHYLO'};
+    my $obj  = $self->{'PHYLO'};
     my $matrix;
-    eval {
-    	$matrix = $obj if looks_like_object $obj, _MATRIX_;
-    };
-    if ( $@ ) {
-    	undef($@);
-    	eval {
-    		($matrix) = @{ $obj->get_matrices } if looks_like_object $obj, _PROJECT_;
-    	};
-    	if ( $@ or not $matrix ) {
-			throw 'ObjectMismatch'  => 'Invalid object!';
-    	}
+    eval { $matrix = $obj if looks_like_object $obj, _MATRIX_; };
+    if ($@) {
+        undef($@);
+        eval {
+            ($matrix) = @{ $obj->get_matrices }
+              if looks_like_object $obj, _PROJECT_;
+        };
+        if ( $@ or not $matrix ) {
+            throw 'ObjectMismatch' => 'Invalid object!';
+        }
     }
-	my $string = $matrix->get_ntax() . ' ' . $matrix->get_nchar() . "\n";
-	my ( %seq_for_id, %phylip_name_for_id, @ids, %seen_name );
-	for my $seq ( @{ $matrix->get_entities } ) {
-		my $id = $seq->get_id;
-		$seq_for_id{$id} = $seq->get_char;
-		my $name = $seq->get_internal_name;
-		push @ids, $id;
-		if ( length($name) <= 10 ) {
-			my $phylip_name = $name . ( ( 10 - length($name) ) x ' ');
-			if ( ! $seen_name{$phylip_name} ) {
-				$seen_name{$phylip_name}++;
-				$phylip_name_for_id{$id} = $phylip_name;				
-			}
-			else {
-				my $counter = 1;
-				while( $seen_name{$phylip_name} ) {
-					$phylip_name = substr( $phylip_name, 0, (10-length($counter)));
-					$phylip_name .= $counter;
-					$counter++;
-				}
-				$phylip_name_for_id{$id} = $phylip_name;
-			}			
-		}
-		elsif ( length($name) > 10 ) {
-			my $phylip_name = substr($name,0,10);
-			if ( ! $seen_name{$phylip_name} ) {
-				$seen_name{$phylip_name}++;
-				$phylip_name_for_id{$id} = $phylip_name;				
-			}
-			else {
-				my $counter = 1;
-				while($seen_name{$phylip_name}) {
-					$phylip_name = substr($phylip_name,0, (10-length($counter)));
-					$phylip_name .= $counter;
-					$counter++;
-				}
-				$phylip_name_for_id{$id} = $phylip_name;
-			}
-		}
-		$seq->set_generic('phylip_name' => $phylip_name_for_id{$id});
-	}
-	for my $id ( @ids ) {
-		$string .= $phylip_name_for_id{$id} . ' ' . $seq_for_id{$id} . "\n";
-	}
+    my $string = $matrix->get_ntax() . ' ' . $matrix->get_nchar() . "\n";
+    my ( %seq_for_id, %phylip_name_for_id, @ids, %seen_name );
+    for my $seq ( @{ $matrix->get_entities } ) {
+        my $id = $seq->get_id;
+        $seq_for_id{$id} = $seq->get_char;
+        my $name = $seq->get_internal_name;
+        push @ids, $id;
+        if ( length($name) <= 10 ) {
+            my $phylip_name = $name . ( ( 10 - length($name) ) x ' ' );
+            if ( !$seen_name{$phylip_name} ) {
+                $seen_name{$phylip_name}++;
+                $phylip_name_for_id{$id} = $phylip_name;
+            }
+            else {
+                my $counter = 1;
+                while ( $seen_name{$phylip_name} ) {
+                    $phylip_name =
+                      substr( $phylip_name, 0, ( 10 - length($counter) ) );
+                    $phylip_name .= $counter;
+                    $counter++;
+                }
+                $phylip_name_for_id{$id} = $phylip_name;
+            }
+        }
+        elsif ( length($name) > 10 ) {
+            my $phylip_name = substr( $name, 0, 10 );
+            if ( !$seen_name{$phylip_name} ) {
+                $seen_name{$phylip_name}++;
+                $phylip_name_for_id{$id} = $phylip_name;
+            }
+            else {
+                my $counter = 1;
+                while ( $seen_name{$phylip_name} ) {
+                    $phylip_name =
+                      substr( $phylip_name, 0, ( 10 - length($counter) ) );
+                    $phylip_name .= $counter;
+                    $counter++;
+                }
+                $phylip_name_for_id{$id} = $phylip_name;
+            }
+        }
+        $seq->set_generic( 'phylip_name' => $phylip_name_for_id{$id} );
+    }
+    for my $id (@ids) {
+        $string .= $phylip_name_for_id{$id} . ' ' . $seq_for_id{$id} . "\n";
+    }
     return $string;
 }
 
@@ -159,8 +157,7 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =head1 REVISION
 
- $Id: Phylip.pm 1593 2011-02-27 15:26:04Z rvos $
+ $Id: Phylip.pm 1660 2011-04-02 18:29:40Z rvos $
 
 =cut
-
 1;

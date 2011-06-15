@@ -1,8 +1,8 @@
-# $Id: Element.pm 1593 2011-02-27 15:26:04Z rvos $
+# $Id: Element.pm 1660 2011-04-02 18:29:40Z rvos $
 package Bio::Phylo::NeXML::DOM::Element;
 use strict;
-use Bio::Phylo::Util::Exceptions qw(throw);
-use Bio::Phylo::Util::CONSTANT qw(_ELEMENT_ looks_like_hash looks_like_class);
+use Bio::Phylo::Util::Exceptions 'throw';
+use Bio::Phylo::Util::CONSTANT qw'_ELEMENT_ /looks_like/';
 
 =head1 NAME
 
@@ -49,13 +49,12 @@ Mark A. Jensen - maj -at- fortinbras -dot- us
 
 =cut
 
-
 sub new {
     my $class = shift;
     if ( my %args = looks_like_hash @_ ) {
-	$class = __PACKAGE__ . '::' . ucfirst(lc($args{'-format'}));
-	delete $args{'-format'};
-	return looks_like_class($class)->new(%args);
+        $class = __PACKAGE__ . '::' . ucfirst( lc( $args{'-format'} ) );
+        delete $args{'-format'};
+        return looks_like_class($class)->new(%args);
     }
 }
 
@@ -75,11 +74,11 @@ sub parse_element {
 }
 
 sub _recurse_bless {
-    my $node = shift;
+    my $node  = shift;
     my $class = ref $node;
     for my $child ( @{ $node->get_children } ) {
-	bless $child, $class;
-	_recurse_bless($child);
+        bless $child, $class;
+        _recurse_bless($child);
     }
 }
 
@@ -347,7 +346,8 @@ sub get_previous_sister {
 =cut
 
 sub get_elements_by_tagname {
-    throw 'NotImplemented' => "Can't call 'get_elements_by_tagname' on interface";
+    throw 'NotImplemented' =>
+      "Can't call 'get_elements_by_tagname' on interface";
 }
 
 =back
@@ -420,5 +420,4 @@ I<BMC Bioinformatics> B<12>:63.
 L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =cut
-
 1;

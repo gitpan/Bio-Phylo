@@ -1,19 +1,12 @@
 package Bio::Phylo::Treedrawer::Png;
 use strict;
+use base 'Bio::Phylo::Treedrawer::Abstract';
 use Bio::Phylo::Util::Exceptions 'throw';
 use Bio::Phylo::Util::CONSTANT 'looks_like_hash';
+use Bio::Phylo::Util::Dependency qw'GD::Simple GD::Polyline GD::Polygon GD';
 use Bio::Phylo::Util::Logger;
-use Bio::Phylo::Treedrawer::Abstract;
-use vars qw(@ISA);
-@ISA=qw(Bio::Phylo::Treedrawer::Abstract);
-
 my $logger = Bio::Phylo::Util::Logger->new;
-
-eval { require GD::Simple; require GD::Polyline; require GD::Polygon; require GD };
-if ( $@ ) {
-    throw 'ExtensionError' => "Error loading the GD extension: $@";
-}
-my $PI = '3.14159265358979323846';
+my $PI     = '3.14159265358979323846';
 my %colors;
 my $whiteHex = 'FFFFFF';
 
@@ -56,12 +49,12 @@ sub _hex2rgb ($) {
 
 sub _new {
     my $class = shift;
-    my %opt = looks_like_hash @_;
-    my $img = GD::Simple->new(
+    my %opt   = looks_like_hash @_;
+    my $img   = GD::Simple->new(
         $opt{'-drawer'}->get_width,
-        $opt{'-drawer'}->get_height,        
+        $opt{'-drawer'}->get_height,
     );
-    my $white = $img->colorAllocate(255,255,255);
+    my $white = $img->colorAllocate( 255, 255, 255 );
     $img->transparent($white);
     $img->interlaced('true');
     my $self = $class->SUPER::_new( %opt, '-api' => $img );
@@ -104,12 +97,12 @@ sub _draw_curve {
     my ( $x2, $y2 ) = ( $x1, $y3 );
     my $poly = GD::Polyline->new();
     my $img = $api || $self->_api;
-    $img->setThickness($linewidth||1);    
-    $poly->addPt($x1,$y1);
-    $poly->addPt( $x1, ($y1+$y3) / 2 );
-    $poly->addPt( ($x1+$x3) / 2, $y3 );
-    $poly->addPt($x3,$y3);
-    $img->polydraw($poly->toSpline(),$img->colorAllocate(_hex2rgb $color));
+    $img->setThickness( $linewidth || 1 );
+    $poly->addPt( $x1, $y1 );
+    $poly->addPt( $x1, ( $y1 + $y3 ) / 2 );
+    $poly->addPt( ( $x1 + $x3 ) / 2, $y3 );
+    $poly->addPt( $x3, $y3 );
+    $img->polydraw( $poly->toSpline(), $img->colorAllocate( _hex2rgb $color) );
 }
 
 =begin comment
@@ -138,38 +131,36 @@ sub _draw_triangle {
     $logger->debug("drawing triangle @_");
     my %args = @_;
     my @keys = qw(-x1 -y1 -x2 -y2 -x3 -y3 -fill -stroke -width -url -api);
-    my ( $x1,$y1,$x2,$y2,$x3,$y3,$fill,$stroke,$width,$url,$api) = @args{@keys};
-    if ( $url ) {
-        $logger->warn(ref($self). " can't embed links");
+    my ( $x1, $y1, $x2, $y2, $x3, $y3, $fill, $stroke, $width, $url, $api ) =
+      @args{@keys};
+    if ($url) {
+        $logger->warn( ref($self) . " can't embed links" );
     }
     my $img = $api || $self->_api;
-    
+
     # create polygone
     my $poly = GD::Polygon->new();
-    $poly->addPt($x1,$y1);
-    $poly->addPt($x2,$y2);
-    $poly->addPt($x3,$y3);
-    $poly->addPt($x1,$y1);
-    
+    $poly->addPt( $x1, $y1 );
+    $poly->addPt( $x2, $y2 );
+    $poly->addPt( $x3, $y3 );
+    $poly->addPt( $x1, $y1 );
+
     # set line thickness
-    $img->setThickness($width||1);
-    
+    $img->setThickness( $width || 1 );
+
     # create stroke color
-    my $strokeColorObj = $img->colorAllocate(_hex2rgb $stroke);
-    
+    my $strokeColorObj = $img->colorAllocate( _hex2rgb $stroke);
+
     # create fill color
-    my $fillColorObj   = $img->colorAllocate(_hex2rgb ($fill||$whiteHex));
-    
+    my $fillColorObj = $img->colorAllocate( _hex2rgb( $fill || $whiteHex ) );
+
     # draw polygon
-    $img->polydraw(
-        $poly,
-        $strokeColorObj
-    );
-    
+    $img->polydraw( $poly, $strokeColorObj );
+
     # fill polygon
     $img->fill(
-        (($x1+$x2+$x3)/3),
-        (($y1+$y2+$y3)/3),
+        ( ( $x1 + $x2 + $x3 ) / 3 ),
+        ( ( $y1 + $y2 + $y3 ) / 3 ),
         $fillColorObj
     );
 }
@@ -193,11 +184,11 @@ sub _draw_line {
     my %args = @_;
     my @keys = qw(-x1 -y1 -x2 -y2 -width -color);
     my ( $x1, $y1, $x2, $y2, $width, $color ) = @args{@keys};
-    my $img = $self->_api;
-    my $strokeColorObj = $img->colorAllocate(_hex2rgb $color);
-    $img->setThickness($width||1);
-    $img->moveTo($x1,$y1);
-    $img->lineTo($x2,$y2);
+    my $img            = $self->_api;
+    my $strokeColorObj = $img->colorAllocate( _hex2rgb $color);
+    $img->setThickness( $width || 1 );
+    $img->moveTo( $x1, $y1 );
+    $img->lineTo( $x2, $y2 );
 }
 
 =begin comment
@@ -221,12 +212,12 @@ sub _draw_multi {
     my ( $x1, $y1, $x3, $y3, $linewidth, $color ) = @args{@keys};
     my ( $x2, $y2 ) = ( $x1, $y3 );
     my $poly = GD::Polyline->new();
-    $poly->addPt($x1,$y1);
-    $poly->addPt($x2,$y2);
-    $poly->addPt($x3,$y3);
-    $self->_api->setThickness($linewidth||1);
-    my $colorObj = $self->_api->colorAllocate(_hex2rgb $color);
-    $self->_api->polydraw($poly,$colorObj);
+    $poly->addPt( $x1, $y1 );
+    $poly->addPt( $x2, $y2 );
+    $poly->addPt( $x3, $y3 );
+    $self->_api->setThickness( $linewidth || 1 );
+    my $colorObj = $self->_api->colorAllocate( _hex2rgb $color);
+    $self->_api->polydraw( $poly, $colorObj );
 }
 
 =begin comment
@@ -245,15 +236,15 @@ sub _draw_multi {
 
 sub _draw_text {
     $logger->debug("drawing text");
-    my $self = shift;   
+    my $self = shift;
     my %args = @_;
     my ( $x, $y, $text, $url, $size ) = @args{qw(-x -y -text -url -size)};
-    if ( $url ) {
-        $logger->warn(ref($self). " can't embed links");
+    if ($url) {
+        $logger->warn( ref($self) . " can't embed links" );
     }
-    $self->_api->moveTo($x,$y);
-    $self->_api->fontsize($size||12);
-    $self->_api->string($text); 
+    $self->_api->moveTo( $x, $y );
+    $self->_api->fontsize( $size || 12 );
+    $self->_api->string($text);
 }
 
 =begin comment
@@ -278,14 +269,14 @@ sub _draw_circle {
     my @keys = qw(-x -y -width -stroke -radius -fill -api -url);
     my ( $x, $y, $width, $stroke, $radius, $fill, $api, $url ) = @args{@keys};
     my $height = $self->_drawer->get_height;
-    if ( $url ) {
-        $logger->warn(ref($self). " can't embed links");
-    }    
+    if ($url) {
+        $logger->warn( ref($self) . " can't embed links" );
+    }
     my $img = $api || $self->_api;
-    $img->fgcolor($img->colorAllocate(_hex2rgb $stroke));
-    $img->bgcolor($img->colorAllocate(_hex2rgb ($fill||$whiteHex)));
-    $img->moveTo($x,$y);
-    $img->ellipse($radius,$radius);
+    $img->fgcolor( $img->colorAllocate( _hex2rgb $stroke) );
+    $img->bgcolor( $img->colorAllocate( _hex2rgb( $fill || $whiteHex ) ) );
+    $img->moveTo( $x, $y );
+    $img->ellipse( $radius, $radius );
 }
 
 =head1 SEE ALSO
@@ -314,13 +305,7 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =head1 REVISION
 
- $Id: Png.pm 1593 2011-02-27 15:26:04Z rvos $
+ $Id: Png.pm 1660 2011-04-02 18:29:40Z rvos $
 
 =cut
-
 1;
-
-
-
-
-

@@ -1,22 +1,16 @@
-# $Id: Taxon.pm 1593 2011-02-27 15:26:04Z rvos $
+# $Id: Taxon.pm 1660 2011-04-02 18:29:40Z rvos $
 package Bio::Phylo::Taxa::Taxon;
 use strict;
-use Bio::Phylo::NeXML::Writable ();
-use Bio::Phylo::Util::CONSTANT qw(_DATUM_ _NODE_ _TAXON_ _TAXA_ looks_like_object);
+use base 'Bio::Phylo::NeXML::Writable';
+use Bio::Phylo::Util::CONSTANT qw':objecttypes looks_like_object';
 use Bio::Phylo::Mediators::TaxaMediator;
-use vars qw(@ISA);
-
-# classic @ISA manipulation, not using 'base'
-@ISA = qw(Bio::Phylo::NeXML::Writable);
 {
-	
-	my $TYPE_CONSTANT      = _TAXON_;
-	my $CONTAINER_CONSTANT = _TAXA_;
-	my $DATUM_CONSTANT     = _DATUM_;
-	my $NODE_CONSTANT      = _NODE_;
-
-	my $logger   = __PACKAGE__->get_logger;
-	my $mediator = 'Bio::Phylo::Mediators::TaxaMediator';
+    my $TYPE_CONSTANT      = _TAXON_;
+    my $CONTAINER_CONSTANT = _TAXA_;
+    my $DATUM_CONSTANT     = _DATUM_;
+    my $NODE_CONSTANT      = _NODE_;
+    my $logger             = __PACKAGE__->get_logger;
+    my $mediator           = 'Bio::Phylo::Mediators::TaxaMediator';
 
 =head1 NAME
 
@@ -96,16 +90,16 @@ Taxon constructor.
 
 =cut
 
-#     sub new {
-#         # could be child class
-#         my $class = shift;
-#         
-#         # notify user
-#         $logger->info("constructor called for '$class'");
-#         
-#         # go up inheritance tree, eventually get an ID
-#         return $class->SUPER::new( '-tag' => __PACKAGE__->_tag, @_ );
-#     }
+    #     sub new {
+    #         # could be child class
+    #         my $class = shift;
+    #
+    #         # notify user
+    #         $logger->info("constructor called for '$class'");
+    #
+    #         # go up inheritance tree, eventually get an ID
+    #         return $class->SUPER::new( '-tag' => __PACKAGE__->_tag, @_ );
+    #     }
 
 =back
 
@@ -127,13 +121,12 @@ Associates argument data with invocant.
            Bio::Phylo::Matrices::Datum
 
 =cut
-
     sub set_data {
         my ( $self, $datum ) = @_;
         if ( looks_like_object $datum, $DATUM_CONSTANT ) {
-            $mediator->set_link( 
-                    '-one'  => $self, 
-                    '-many' => $datum, 
+            $mediator->set_link(
+                '-one'  => $self,
+                '-many' => $datum,
             );
         }
         return $self;
@@ -155,12 +148,12 @@ Associates argument node with invocant.
 
     sub set_nodes {
         my ( $self, $node ) = @_;
-        if ( looks_like_object $node, $NODE_CONSTANT ) {        
-            $mediator->set_link( 
-                '-one'  => $self, 
-                '-many' => $node, 
+        if ( looks_like_object $node, $NODE_CONSTANT ) {
+            $mediator->set_link(
+                '-one'  => $self,
+                '-many' => $node,
             );
-        }       
+        }
         return $self;
     }
 
@@ -181,8 +174,8 @@ Removes association between argument data and invocant.
 
     sub unset_datum {
         my ( $self, $datum ) = @_;
-        $mediator->remove_link( 
-            '-one'  => $self, 
+        $mediator->remove_link(
+            '-one'  => $self,
             '-many' => $datum,
         );
         return $self;
@@ -205,8 +198,8 @@ Removes association between argument node and invocant.
 
     sub unset_node {
         my ( $self, $node ) = @_;
-        $mediator->remove_link( 
-            '-one'  => $self, 
+        $mediator->remove_link(
+            '-one'  => $self,
             '-many' => $node,
         );
         return $self;
@@ -236,8 +229,8 @@ Retrieves associated datum objects.
 
     sub get_data {
         my $self = shift;
-        return $mediator->get_link( 
-            '-source' => $self, 
+        return $mediator->get_link(
+            '-source' => $self,
             '-type'   => $DATUM_CONSTANT,
         );
     }
@@ -259,8 +252,8 @@ Retrieves associated node objects.
 
     sub get_nodes {
         my $self = shift;
-        return $mediator->get_link( 
-            '-source' => $self, 
+        return $mediator->get_link(
+            '-source' => $self,
             '-type'   => $NODE_CONSTANT,
         );
     }
@@ -286,10 +279,9 @@ Taxon destructor.
 
     sub DESTROY {
         my $self = shift;
-        
+
         # notify user
         #$logger->debug("destructor called for '$self'");
-        
         # recurse up inheritance tree for cleanup
         $self->SUPER::DESTROY;
     }
@@ -306,7 +298,6 @@ Taxon destructor.
 =end comment
 
 =cut
-
     sub _container { $CONTAINER_CONSTANT }
 
 =begin comment
@@ -321,7 +312,6 @@ Taxon destructor.
 =end comment
 
 =cut
-
     sub _type { $TYPE_CONSTANT }
     sub _tag  { 'otu' }
 
@@ -329,7 +319,7 @@ Taxon destructor.
 
 =cut
 
-# podinherit_insert_token
+    # podinherit_insert_token
 
 =head1 SEE ALSO
 
@@ -357,9 +347,8 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =head1 REVISION
 
- $Id: Taxon.pm 1593 2011-02-27 15:26:04Z rvos $
+ $Id: Taxon.pm 1660 2011-04-02 18:29:40Z rvos $
 
 =cut
-
 }
 1;

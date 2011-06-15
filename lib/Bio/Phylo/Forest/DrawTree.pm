@@ -1,45 +1,25 @@
 package Bio::Phylo::Forest::DrawTree;
 use strict;
-use Bio::Phylo::Forest::Tree ();
-use Bio::Phylo::Forest::DrawNode ();
-use Bio::Phylo::Util::CONSTANT qw(looks_like_hash);
-use vars '@ISA';
-@ISA=qw(Bio::Phylo::Forest::Tree);
+use base 'Bio::Phylo::Forest::Tree';
+use Bio::Phylo::Forest::DrawNode;
+use Bio::Phylo::Util::CONSTANT 'looks_like_hash';
 {
-	# @fields array necessary for object destruction
-	my @fields = \( 
-	    my ( 
-            %width,
-            %height,
-            %node_radius,
-	    %tip_radius,
-            %node_colour,
-            %node_shape,
-            %node_image,
-            %branch_color,
-            %branch_shape,
-            %branch_width,
-            %branch_style,
-	    %collapsed_width,            
-            %font_face,
-            %font_size,
-            %font_style,
-            %margin,
-            %margin_top,
-            %margin_bottom,
-            %margin_left,
-            %margin_right,
-            %padding,
-            %padding_top,
-            %padding_bottom,
-            %padding_left,
-            %padding_right,
-            %mode,
-            %shape,
-            %text_horiz_offset,
-            %text_vert_offset,
-	    ) 	
-	);
+
+    # @fields array necessary for object destruction
+    my @fields = \(
+        my (
+            %width,             %height,         %node_radius,
+            %tip_radius,        %node_colour,    %node_shape,
+            %node_image,        %branch_color,   %branch_shape,
+            %branch_width,      %branch_style,   %collapsed_width,
+            %font_face,         %font_size,      %font_style,
+            %margin,            %margin_top,     %margin_bottom,
+            %margin_left,       %margin_right,   %padding,
+            %padding_top,       %padding_bottom, %padding_left,
+            %padding_right,     %mode,           %shape,
+            %text_horiz_offset, %text_vert_offset,
+        )
+    );
 
 =head1 NAME
 
@@ -79,15 +59,15 @@ Tree constructor.
 
     sub new {
         my $class = shift;
-        my %args = looks_like_hash @_;
+        my %args  = looks_like_hash @_;
         if ( not $args{'-tree'} ) {
-            return $class->SUPER::new( @_ );
+            return $class->SUPER::new(@_);
         }
         else {
             my $tree = $args{'-tree'};
             my $self = $tree->clone;
             bless $self, $class;
-            $self->visit(sub{bless shift, 'Bio::Phylo::Forest::DrawNode'});
+            $self->visit( sub { bless shift, 'Bio::Phylo::Forest::DrawNode' } );
             delete $args{'-tree'};
             for my $key ( keys %args ) {
                 my $method = $key;
@@ -95,7 +75,7 @@ Tree constructor.
                 $self->$method( $args{$key} );
             }
             return $self;
-        }    
+        }
     }
 
 =back
@@ -138,7 +118,7 @@ Tree constructor.
         my ( $self, $height ) = @_;
         my $id = $self->get_id;
         $height{$id} = $height;
-        $self->_redraw;        
+        $self->_redraw;
         return $self;
     }
 
@@ -178,7 +158,7 @@ Tree constructor.
         $tip_radius{$id} = $r;
         $self->_apply_to_nodes( 'set_tip_radius', $r );
         return $self;
-    }    
+    }
 
 =item set_node_colour()
 
@@ -195,7 +175,7 @@ Tree constructor.
         my ( $self, $node_colour ) = @_;
         my $id = $self->get_id;
         $node_colour{$id} = $node_colour;
-        $self->_apply_to_nodes( 'set_node_colour', $node_colour );        
+        $self->_apply_to_nodes( 'set_node_colour', $node_colour );
         return $self;
     }
     *set_node_color = \&set_node_colour;
@@ -234,10 +214,10 @@ Tree constructor.
         my ( $self, $node_image ) = @_;
         my $id = $self->get_id;
         $node_image{$id} = $node_image;
-        $self->_apply_to_nodes( 'set_node_image', $node_image );        
+        $self->_apply_to_nodes( 'set_node_image', $node_image );
         return $self;
     }
-    
+
 =item set_collapsed_clade_width()
 
 Sets collapsed clade width.
@@ -255,9 +235,9 @@ Sets collapsed clade width.
         my ( $self, $width ) = @_;
         my $id = $self->get_id;
         $collapsed_width{$id} = $width;
-        $self->_apply_to_nodes( 'set_collapsed_clade_width', $width );        
+        $self->_apply_to_nodes( 'set_collapsed_clade_width', $width );
         return $self;
-    }    
+    }
 
 =item set_branch_color()
 
@@ -274,7 +254,7 @@ Sets collapsed clade width.
         my ( $self, $branch_color ) = @_;
         my $id = $self->get_id;
         $branch_color{$id} = $branch_color;
-        $self->_apply_to_nodes( 'set_branch_color', $branch_color );                
+        $self->_apply_to_nodes( 'set_branch_color', $branch_color );
         return $self;
     }
     *set_branch_colour = \&set_branch_colour;
@@ -294,7 +274,7 @@ Sets collapsed clade width.
         my ( $self, $branch_shape ) = @_;
         my $id = $self->get_id;
         $branch_shape{$id} = $branch_shape;
-        $self->_apply_to_nodes( 'set_branch_shape', $branch_shape );                        
+        $self->_apply_to_nodes( 'set_branch_shape', $branch_shape );
         return $self;
     }
 
@@ -313,7 +293,7 @@ Sets collapsed clade width.
         my ( $self, $branch_width ) = @_;
         my $id = $self->get_id;
         $branch_width{$id} = $branch_width;
-        $self->_apply_to_nodes( 'set_branch_width', $branch_width );                        
+        $self->_apply_to_nodes( 'set_branch_width', $branch_width );
         return $self;
     }
 
@@ -332,9 +312,9 @@ Sets collapsed clade width.
         my ( $self, $branch_style ) = @_;
         my $id = $self->get_id;
         $branch_style{$id} = $branch_style;
-        $self->_apply_to_nodes( 'set_branch_style', $branch_style );                        
+        $self->_apply_to_nodes( 'set_branch_style', $branch_style );
         return $self;
-    }    
+    }
 
 =item set_font_face()
 
@@ -351,7 +331,7 @@ Sets collapsed clade width.
         my ( $self, $font_face ) = @_;
         my $id = $self->get_id;
         $font_face{$id} = $font_face;
-        $self->_apply_to_nodes( 'set_font_face', $font_face );                                
+        $self->_apply_to_nodes( 'set_font_face', $font_face );
         return $self;
     }
 
@@ -370,7 +350,7 @@ Sets collapsed clade width.
         my ( $self, $font_size ) = @_;
         my $id = $self->get_id;
         $font_size{$id} = $font_size;
-        $self->_apply_to_nodes( 'set_font_size', $font_size );                                        
+        $self->_apply_to_nodes( 'set_font_size', $font_size );
         return $self;
     }
 
@@ -389,7 +369,7 @@ Sets collapsed clade width.
         my ( $self, $font_style ) = @_;
         my $id = $self->get_id;
         $font_style{$id} = $font_style;
-        $self->_apply_to_nodes( 'set_font_style', $font_style );                                        
+        $self->_apply_to_nodes( 'set_font_style', $font_style );
         return $self;
     }
 
@@ -408,11 +388,11 @@ Sets collapsed clade width.
         my ( $self, $margin ) = @_;
         my $id = $self->get_id;
         $margin{$id} = $margin;
-        for my $setter ( qw(top bottom left right) ) {
+        for my $setter (qw(top bottom left right)) {
             my $method = 'set_margin_' . $setter;
-            $self->$method( $margin );
-        }   
-        $self->_redraw;        
+            $self->$method($margin);
+        }
+        $self->_redraw;
         return $self;
     }
 
@@ -431,7 +411,7 @@ Sets collapsed clade width.
         my ( $self, $margin_top ) = @_;
         my $id = $self->get_id;
         $margin_top{$id} = $margin_top;
-        $self->_redraw;        
+        $self->_redraw;
         return $self;
     }
 
@@ -450,7 +430,7 @@ Sets collapsed clade width.
         my ( $self, $margin_bottom ) = @_;
         my $id = $self->get_id;
         $margin_bottom{$id} = $margin_bottom;
-        $self->_redraw;        
+        $self->_redraw;
         return $self;
     }
 
@@ -469,7 +449,7 @@ Sets collapsed clade width.
         my ( $self, $margin_left ) = @_;
         my $id = $self->get_id;
         $margin_left{$id} = $margin_left;
-        $self->_redraw;        
+        $self->_redraw;
         return $self;
     }
 
@@ -488,7 +468,7 @@ Sets collapsed clade width.
         my ( $self, $margin_right ) = @_;
         my $id = $self->get_id;
         $margin_right{$id} = $margin_right;
-        $self->_redraw;        
+        $self->_redraw;
         return $self;
     }
 
@@ -507,11 +487,11 @@ Sets collapsed clade width.
         my ( $self, $padding ) = @_;
         my $id = $self->get_id;
         $padding{$id} = $padding;
-        for my $setter ( qw(top bottom left right) ) {
+        for my $setter (qw(top bottom left right)) {
             my $method = 'set_padding_' . $setter;
-            $self->$method( $padding );
+            $self->$method($padding);
         }
-        $self->_redraw;        
+        $self->_redraw;
         return $self;
     }
 
@@ -530,7 +510,7 @@ Sets collapsed clade width.
         my ( $self, $padding_top ) = @_;
         my $id = $self->get_id;
         $padding_top{$id} = $padding_top;
-        $self->_redraw;        
+        $self->_redraw;
         return $self;
     }
 
@@ -549,7 +529,7 @@ Sets collapsed clade width.
         my ( $self, $padding_bottom ) = @_;
         my $id = $self->get_id;
         $padding_bottom{$id} = $padding_bottom;
-        $self->_redraw;        
+        $self->_redraw;
         return $self;
     }
 
@@ -568,7 +548,7 @@ Sets collapsed clade width.
         my ( $self, $padding_left ) = @_;
         my $id = $self->get_id;
         $padding_left{$id} = $padding_left;
-        $self->_redraw;        
+        $self->_redraw;
         return $self;
     }
 
@@ -587,7 +567,7 @@ Sets collapsed clade width.
         my ( $self, $padding_right ) = @_;
         my $id = $self->get_id;
         $padding_right{$id} = $padding_right;
-        $self->_redraw;        
+        $self->_redraw;
         return $self;
     }
 
@@ -606,7 +586,7 @@ Sets collapsed clade width.
         my ( $self, $mode ) = @_;
         my $id = $self->get_id;
         $mode{$id} = $mode;
-        $self->_redraw;        
+        $self->_redraw;
         return $self;
     }
 
@@ -643,7 +623,7 @@ Sets collapsed clade width.
         my ( $self, $text_horiz_offset ) = @_;
         my $id = $self->get_id;
         $text_horiz_offset{$id} = $text_horiz_offset;
-        $self->_apply_to_nodes( 'set_text_horiz_offset', $text_horiz_offset );       
+        $self->_apply_to_nodes( 'set_text_horiz_offset', $text_horiz_offset );
         return $self;
     }
 
@@ -662,7 +642,7 @@ Sets collapsed clade width.
         my ( $self, $text_vert_offset ) = @_;
         my $id = $self->get_id;
         $text_vert_offset{$id} = $text_vert_offset;
-        $self->_apply_to_nodes( 'set_text_vert_offset', $text_vert_offset );        
+        $self->_apply_to_nodes( 'set_text_vert_offset', $text_vert_offset );
         return $self;
     }
 
@@ -685,7 +665,7 @@ Sets collapsed clade width.
 
     sub get_width {
         my $self = shift;
-        my $id = $self->get_id;
+        my $id   = $self->get_id;
         return $width{$id};
     }
 
@@ -702,7 +682,7 @@ Sets collapsed clade width.
 
     sub get_height {
         my $self = shift;
-        my $id = $self->get_id;
+        my $id   = $self->get_id;
         return $height{$id};
     }
 
@@ -719,7 +699,7 @@ Sets collapsed clade width.
 
     sub get_node_radius {
         my $self = shift;
-        my $id = $self->get_id;
+        my $id   = $self->get_id;
         return $node_radius{$id};
     }
 
@@ -736,7 +716,7 @@ Sets collapsed clade width.
 
     sub get_node_colour {
         my $self = shift;
-        my $id = $self->get_id;
+        my $id   = $self->get_id;
         return $node_colour{$id};
     }
     *get_node_color = \&get_node_colour;
@@ -754,7 +734,7 @@ Sets collapsed clade width.
 
     sub get_node_shape {
         my $self = shift;
-        my $id = $self->get_id;
+        my $id   = $self->get_id;
         return $node_shape{$id};
     }
 
@@ -771,7 +751,7 @@ Sets collapsed clade width.
 
     sub get_node_image {
         my $self = shift;
-        my $id = $self->get_id;
+        my $id   = $self->get_id;
         return $node_image{$id};
     }
 
@@ -790,7 +770,7 @@ Gets collapsed clade width.
 
     sub get_collapsed_clade_width {
         my $self = shift;
-        my $id = $self->get_id;
+        my $id   = $self->get_id;
         return $collapsed_width{$id};
     }
 
@@ -807,7 +787,7 @@ Gets collapsed clade width.
 
     sub get_branch_color {
         my $self = shift;
-        my $id = $self->get_id;
+        my $id   = $self->get_id;
         return $branch_color{$id};
     }
     *get_branch_colour = \&get_branch_color;
@@ -825,7 +805,7 @@ Gets collapsed clade width.
 
     sub get_branch_shape {
         my $self = shift;
-        my $id = $self->get_id;
+        my $id   = $self->get_id;
         return $branch_shape{$id};
     }
 
@@ -842,7 +822,7 @@ Gets collapsed clade width.
 
     sub get_branch_width {
         my $self = shift;
-        my $id = $self->get_id;
+        my $id   = $self->get_id;
         return $branch_width{$id};
     }
 
@@ -859,7 +839,7 @@ Gets collapsed clade width.
 
     sub get_branch_style {
         my $self = shift;
-        my $id = $self->get_id;
+        my $id   = $self->get_id;
         return $branch_style{$id};
     }
 
@@ -876,7 +856,7 @@ Gets collapsed clade width.
 
     sub get_font_face {
         my $self = shift;
-        my $id = $self->get_id;
+        my $id   = $self->get_id;
         return $font_face{$id};
     }
 
@@ -893,7 +873,7 @@ Gets collapsed clade width.
 
     sub get_font_size {
         my $self = shift;
-        my $id = $self->get_id;
+        my $id   = $self->get_id;
         return $font_size{$id};
     }
 
@@ -910,7 +890,7 @@ Gets collapsed clade width.
 
     sub get_font_style {
         my $self = shift;
-        my $id = $self->get_id;
+        my $id   = $self->get_id;
         return $font_style{$id};
     }
 
@@ -927,7 +907,7 @@ Gets collapsed clade width.
 
     sub get_margin {
         my $self = shift;
-        my $id = $self->get_id;
+        my $id   = $self->get_id;
         return $margin{$id};
     }
 
@@ -944,7 +924,7 @@ Gets collapsed clade width.
 
     sub get_margin_top {
         my $self = shift;
-        my $id = $self->get_id;
+        my $id   = $self->get_id;
         return $margin_top{$id};
     }
 
@@ -961,7 +941,7 @@ Gets collapsed clade width.
 
     sub get_margin_bottom {
         my $self = shift;
-        my $id = $self->get_id;
+        my $id   = $self->get_id;
         return $margin_bottom{$id};
     }
 
@@ -978,7 +958,7 @@ Gets collapsed clade width.
 
     sub get_margin_left {
         my $self = shift;
-        my $id = $self->get_id;
+        my $id   = $self->get_id;
         return $margin_left{$id};
     }
 
@@ -995,7 +975,7 @@ Gets collapsed clade width.
 
     sub get_margin_right {
         my $self = shift;
-        my $id = $self->get_id;
+        my $id   = $self->get_id;
         return $margin_right{$id};
     }
 
@@ -1012,7 +992,7 @@ Gets collapsed clade width.
 
     sub get_padding {
         my $self = shift;
-        my $id = $self->get_id;
+        my $id   = $self->get_id;
         return $padding{$id};
     }
 
@@ -1029,7 +1009,7 @@ Gets collapsed clade width.
 
     sub get_padding_top {
         my $self = shift;
-        my $id = $self->get_id;
+        my $id   = $self->get_id;
         return $padding_top{$id};
     }
 
@@ -1046,7 +1026,7 @@ Gets collapsed clade width.
 
     sub get_padding_bottom {
         my $self = shift;
-        my $id = $self->get_id;
+        my $id   = $self->get_id;
         return $padding_bottom{$id};
     }
 
@@ -1063,7 +1043,7 @@ Gets collapsed clade width.
 
     sub get_padding_left {
         my $self = shift;
-        my $id = $self->get_id;
+        my $id   = $self->get_id;
         return $padding_left{$id};
     }
 
@@ -1080,7 +1060,7 @@ Gets collapsed clade width.
 
     sub get_padding_right {
         my $self = shift;
-        my $id = $self->get_id;
+        my $id   = $self->get_id;
         return $padding_right{$id};
     }
 
@@ -1097,7 +1077,7 @@ Gets collapsed clade width.
 
     sub get_mode {
         my $self = shift;
-        my $id = $self->get_id;
+        my $id   = $self->get_id;
         if ( $self->is_cladogram ) {
             $mode{$id} = 'CLADO';
         }
@@ -1117,7 +1097,7 @@ Gets collapsed clade width.
 
     sub get_shape {
         my $self = shift;
-        my $id = $self->get_id;
+        my $id   = $self->get_id;
         return $shape{$id};
     }
 
@@ -1134,7 +1114,7 @@ Gets collapsed clade width.
 
     sub get_text_horiz_offset {
         my $self = shift;
-        my $id = $self->get_id;
+        my $id   = $self->get_id;
         return $text_horiz_offset{$id};
     }
 
@@ -1151,7 +1131,7 @@ Gets collapsed clade width.
 
     sub get_text_vert_offset {
         my $self = shift;
-        my $id = $self->get_id;
+        my $id   = $self->get_id;
         return $text_vert_offset{$id};
     }
 
@@ -1166,11 +1146,11 @@ This method re-computes the node coordinates
     sub _redraw {
         my $self = shift;
         my ( $width, $height ) = ( $self->get_width, $self->get_height );
-        my $tips_seen = 0;
+        my $tips_seen  = 0;
         my $total_tips = $self->calc_number_of_terminals();
-        my $tallest = $self->get_root->calc_max_path_to_tips;
-        my $maxnodes = $self->get_root->calc_max_nodes_to_tips;
-        my $is_clado = $self->get_mode =~ m/^c/i;
+        my $tallest    = $self->get_root->calc_max_path_to_tips;
+        my $maxnodes   = $self->get_root->calc_max_nodes_to_tips;
+        my $is_clado   = $self->get_mode =~ m/^c/i;
         $self->visit_depth_first(
             '-post' => sub {
                 my $node = shift;
@@ -1178,20 +1158,23 @@ This method re-computes the node coordinates
                 if ( $node->is_terminal ) {
                     $tips_seen++;
                     $y = ( $height / $total_tips ) * $tips_seen;
-                    $x = $is_clado 
-                        ? $width 
-                        : ($width/$tallest)*$node->calc_path_to_root;
+                    $x =
+                        $is_clado
+                      ? $width
+                      : ( $width / $tallest ) * $node->calc_path_to_root;
                 }
                 else {
                     my @children = @{ $node->get_children };
                     $y += $_->get_y for @children;
                     $y /= scalar @children;
-                    $x = $is_clado 
-                        ? $width - (($width/$maxnodes)*$node->calc_max_nodes_to_tips)
-                        : ($width/$tallest)*$node->calc_path_to_root;
+                    $x =
+                        $is_clado
+                      ? $width -
+                      ( ( $width / $maxnodes ) * $node->calc_max_nodes_to_tips )
+                      : ( $width / $tallest ) * $node->calc_path_to_root;
                 }
-                $node->set_y( $y ); 
-                $node->set_x( $x );
+                $node->set_y($y);
+                $node->set_x($x);
             }
         );
     }
@@ -1206,7 +1189,7 @@ This method applies settings for nodes globally.
 
     sub _apply_to_nodes {
         my ( $self, $method, $value ) = @_;
-        $self->visit(sub{shift->$method($value)});
+        $self->visit( sub { shift->$method($value) } );
     }
 
 =begin comment
@@ -1222,19 +1205,19 @@ This method applies settings for nodes globally.
 
 =cut
 
-	sub _cleanup {
-		my $self = shift;
-		my $id = $self->get_id;
-		for my $field (@fields) {
-			delete $field->{$id};
-		}
-	}
+    sub _cleanup {
+        my $self = shift;
+        my $id   = $self->get_id;
+        for my $field (@fields) {
+            delete $field->{$id};
+        }
+    }
 
 =back
 
 =cut
 
-# podinherit_insert_token
+    # podinherit_insert_token
 
 =head1 SEE ALSO
 
@@ -1262,9 +1245,8 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =head1 REVISION
 
- $Id: DrawTree.pm 1593 2011-02-27 15:26:04Z rvos $
+ $Id: DrawTree.pm 1660 2011-04-02 18:29:40Z rvos $
 
 =cut
-
 }
 1;

@@ -1,24 +1,15 @@
 package Bio::Phylo::NeXML::Meta;
 use strict;
-use Bio::Phylo::Listable ();
-use Bio::Phylo::Util::CONSTANT qw(
-    _DOMCREATOR_
-    _META_
-    looks_like_number
-    looks_like_instance
-    looks_like_object
-);
+use base 'Bio::Phylo::Listable';
+use Bio::Phylo::Util::CONSTANT qw'_DOMCREATOR_ _META_ /looks_like/';
 use Bio::Phylo::Util::Exceptions 'throw';
 use Bio::Phylo::Factory;
-use vars qw(@ISA);
-@ISA=qw(Bio::Phylo::Listable);
-
 {
-    my $fac = Bio::Phylo::Factory->new;
-    my @fields = \( my( %property, %content ) );
+    my $fac                = Bio::Phylo::Factory->new;
+    my @fields             = \( my ( %property, %content ) );
     my $TYPE_CONSTANT      = _META_;
     my $CONTAINER_CONSTANT = $TYPE_CONSTANT;
-    
+
 =head1 NAME
 
 Bio::Phylo::NeXML::Meta - Single predicate/object annotation, attached to an
@@ -80,68 +71,72 @@ as an element called 'meta', with RDFa compliant attributes.
 
 =cut    
 
-#     sub new { return shift->SUPER::new( '-tag' => 'meta', @_ ) }   
-    
+    #     sub new { return shift->SUPER::new( '-tag' => 'meta', @_ ) }
     my $set_content = sub {
         my ( $self, $content ) = @_;
         my $predicateName = 'property';
         $content{ $self->get_id } = $content;
         my %resource = ( 'xsi:type' => 'nex:ResourceMeta' );
-        my %literal  = ( 'xsi:type' => 'nex:LiteralMeta'  );
+        my %literal  = ( 'xsi:type' => 'nex:LiteralMeta' );
         if ( not ref $content ) {
             if ( $content =~ m|^http://| ) {
                 $self->set_attributes( 'href' => $content, %resource );
-                if ( my $prop = $self->get_attributes( 'property' ) ) {
+                if ( my $prop = $self->get_attributes('property') ) {
                     $self->set_attributes( 'rel' => $prop );
-                    $self->unset_attribute( 'property' );
+                    $self->unset_attribute('property');
                     $predicateName = 'rel';
                 }
             }
             else {
-                $self->set_attributes( 'content' => $content, %literal );            
+                $self->set_attributes( 'content' => $content, %literal );
                 if ( looks_like_number $content ) {
-                	my $dt = $content == int($content) && $content !~ /\./ ? 'integer' : 'float';
-                	$self->set_attributes( 'datatype' => 'xsd:' . $dt );
+                    my $dt = $content == int($content)
+                      && $content !~ /\./ ? 'integer' : 'float';
+                    $self->set_attributes( 'datatype' => 'xsd:' . $dt );
                 }
-				elsif ( $content eq 'true' or $content eq 'false' ) {
-							$self->set_attributes( 'datatype' => 'xsd:boolean' );
-				}
+                elsif ( $content eq 'true' or $content eq 'false' ) {
+                    $self->set_attributes( 'datatype' => 'xsd:boolean' );
+                }
                 else {
                     $self->set_attributes( 'datatype' => 'xsd:string' );
-                }        
+                }
             }
         }
         else {
-            if ( looks_like_instance $content, 'Bio::Phylo' and $content->_type == $TYPE_CONSTANT ) {
-                $self->insert($content)->set_attributes( %resource );
-                if ( my $prop = $self->get_attributes( 'property' ) ) {
+            if ( looks_like_instance $content,
+                'Bio::Phylo' and $content->_type == $TYPE_CONSTANT )
+            {
+                $self->insert($content)->set_attributes(%resource);
+                if ( my $prop = $self->get_attributes('property') ) {
                     $self->set_attributes( 'rel' => $prop );
-                    $self->unset_attribute( 'property' );
+                    $self->unset_attribute('property');
                     $predicateName = 'rel';
-                }                
+                }
             }
             elsif ( looks_like_instance $content, 'DateTime' ) {
-            	$self->set_attributes( 
-            		'content'  => $content->iso8601(), 
-            		'datatype' => 'xsd:date',
-            		%literal 
-            	);
+                $self->set_attributes(
+                    'content'  => $content->iso8601(),
+                    'datatype' => 'xsd:date',
+                    %literal
+                );
             }
             else {
-                $self->set_attributes( 'datatype' => 'rdf:XMLLiteral', %resource );
+                $self->set_attributes(
+                    'datatype' => 'rdf:XMLLiteral',
+                    %resource
+                );
                 $self->insert( $fac->create_xmlliteral($content) );
-				$self->unset_attribute( 'content' );
-            }        
+                $self->unset_attribute('content');
+            }
         }
         $property{ shift->get_id } = $predicateName;
         return $self;
     };
-    
     my $set_property = sub {
         my ( $self, $property ) = @_;
         if ( $property =~ m/^([a-zA-Z_]+):([a-zA-Z0-9_\-\.]+)$/ ) {
             my ( $prefix, $prop ) = ( $1, $2 );
-            if ( $self->get_namespaces( $prefix ) ) {
+            if ( $self->get_namespaces($prefix) ) {
                 $self->set_attributes( 'property' => $property );
             }
             else {
@@ -151,8 +146,8 @@ as an element called 'meta', with RDFa compliant attributes.
         else {
             throw 'BadString' => "$property is not a valid CURIE";
         }
-    };   
-    
+    };
+
 =back
 
 =head2 MUTATORS
@@ -177,17 +172,17 @@ Populates the triple, assuming that the invocant is attached to a subject.
                         Bio::Phylo::NeXML::Meta::XMLLiteral 
 
 =cut    
-    
+
     sub set_triple {
         my ( $self, $property, $content ) = @_;
         if ( ref($property) && ref($property) eq 'HASH' ) {
-            ( $property, $content ) = each %{ $property };
+            ( $property, $content ) = each %{$property};
         }
         $set_property->( $self, $property );
         $set_content->( $self, $content );
         return $self;
-    }    
-    
+    }
+
 =back
 
 =head2 ACCESSORS
@@ -206,9 +201,8 @@ Returns triple object
  Args    : NONE
 
 =cut    
-    
-    sub get_object { $content{ shift->get_id } }    
-    
+    sub get_object { $content{ shift->get_id } }
+
 =item get_predicate()
 
 Returns triple predicate
@@ -221,11 +215,11 @@ Returns triple predicate
  Args    : NONE
 
 =cut     
-    
-    sub get_predicate { 
-    	my $self = shift;
-    	my $predicateName = $property{ $self->get_id };
-    	return $self->get_attributes->{$predicateName};
+
+    sub get_predicate {
+        my $self          = shift;
+        my $predicateName = $property{ $self->get_id };
+        return $self->get_attributes->{$predicateName};
     }
 
 =back
@@ -248,30 +242,29 @@ Returns triple predicate
 =cut
 
     sub to_dom {
-		my ($self, $dom) = @_;
-		$dom ||= Bio::Phylo::NeXML::DOM->get_dom;
-		if ( looks_like_object $dom, _DOMCREATOR_ ) {
-			my $elt = $self->get_dom_elt($dom);
-			if ( $self->can('get_entities') ) {
-				for my $ent ( @{ $self->get_entities } ) {
-				if ( looks_like_implementor $ent,'to_dom' ) { 
-					$elt->set_child( $ent->to_dom($dom) );
-				}
-				}
-			}
-			return $elt;                
-		}
-		else {
-			throw 'BadArgs' => 'DOM factory object not provided';
-		}	
+        my ( $self, $dom ) = @_;
+        $dom ||= Bio::Phylo::NeXML::DOM->get_dom;
+        if ( looks_like_object $dom, _DOMCREATOR_ ) {
+            my $elt = $self->get_dom_elt($dom);
+            if ( $self->can('get_entities') ) {
+                for my $ent ( @{ $self->get_entities } ) {
+                    if ( looks_like_implementor $ent, 'to_dom' ) {
+                        $elt->set_child( $ent->to_dom($dom) );
+                    }
+                }
+            }
+            return $elt;
+        }
+        else {
+            throw 'BadArgs' => 'DOM factory object not provided';
+        }
     }
 
-    
 =back
 
 =cut
 
-# podinherit_insert_token
+    # podinherit_insert_token
 
 =head1 SEE ALSO
 
@@ -303,18 +296,16 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =head1 REVISION
 
- $Id: Meta.pm 1593 2011-02-27 15:26:04Z rvos $
+ $Id: Meta.pm 1660 2011-04-02 18:29:40Z rvos $
 
 =cut    
-    
-    sub _tag { 'meta' }
-    sub _type { $TYPE_CONSTANT }
-    sub _container { $CONTAINER_CONSTANT }    
+    sub _tag       { 'meta' }
+    sub _type      { $TYPE_CONSTANT }
+    sub _container { $CONTAINER_CONSTANT }
+
     sub _cleanup {
         my $id = shift->get_id;
         delete $_->{$id} for @fields;
-    }    
-
+    }
 }
-
 1;

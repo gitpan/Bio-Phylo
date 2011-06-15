@@ -1,17 +1,15 @@
-# $Id: TaxaMediator.pm 1593 2011-02-27 15:26:04Z rvos $
+# $Id: TaxaMediator.pm 1660 2011-04-02 18:29:40Z rvos $
 package Bio::Phylo::Mediators::TaxaMediator;
 use strict;
-use Scalar::Util qw(weaken);
-use Bio::Phylo ();
+use Scalar::Util qw'weaken';
+use Bio::Phylo;
 use Bio::Phylo::Util::Exceptions;
 
 # XXX this class only has weak references
-
 {
-
-	my $logger = Bio::Phylo::get_logger();
-	my $self;
-	my ( @object, @relationship );
+    my $logger = Bio::Phylo::get_logger();
+    my $self;
+    my ( @object, @relationship );
 
 =head1 NAME
 
@@ -25,9 +23,8 @@ Bio::Phylo::Mediators::TaxaMediator - Mediator for links between taxa and other 
 
 This module manages links between taxon objects and other objects linked to 
 them. It is an implementation of the Mediator design pattern (e.g. see 
-L<Relationship Manager Pattern|http://www.atug.com/andypatterns/RM.htm>,
-L<Mediator|http://home.earthlink.net/~huston2/dp/mediator.html>,
-L<Mediator Design Pattern|http://sern.ucalgary.ca/courses/SENG/443/W02/assignments/Mediator/>).
+L<http://www.atug.com/andypatterns/RM.htm>,
+L<http://home.earthlink.net/~huston2/dp/mediator.html>).
 
 Methods defined in this module are meant only for internal usage by Bio::Phylo.
 
@@ -51,23 +48,22 @@ TaxaMediator constructor.
 
 =cut
 
-	sub new {
+    sub new {
 
-		# could be child class
-		my $class = shift;
+        # could be child class
+        my $class = shift;
 
-		# notify user
-		$logger->info("constructor called for '$class'");
+        # notify user
+        $logger->info("constructor called for '$class'");
 
-		# singleton class
-		if ( not $self ) {
-			$logger->debug("first time instantiation of singleton");
-			$self = \$class;
-			bless $self, $class;
-		}
-
-		return $self;
-	}
+        # singleton class
+        if ( not $self ) {
+            $logger->debug("first time instantiation of singleton");
+            $self = \$class;
+            bless $self, $class;
+        }
+        return $self;
+    }
 
 =back
 
@@ -89,20 +85,17 @@ Stores argument in invocant's cache.
 
 =cut
 
-	sub register {
-		my ( $self, $obj ) = @_;
+    sub register {
+        my ( $self, $obj ) = @_;
+        my $id = $obj->get_id;
 
-		my $id = $obj->get_id;
-		
-		# notify user
-		$logger->info("registering object $obj ($id)");
-		
-		$object[$id] = $obj;
-		weaken $object[$id];
-		
-		$logger->debug("done registering object $obj ($id)");
-		return $self;
-	}
+        # notify user
+        $logger->info("registering object $obj ($id)");
+        $object[$id] = $obj;
+        weaken $object[$id];
+        $logger->debug("done registering object $obj ($id)");
+        return $self;
+    }
 
 =item unregister()
 
@@ -118,35 +111,34 @@ Removes argument from invocant's cache.
 
 =cut
 
-	sub unregister {
-		my ( $self, $obj ) = @_;
+    sub unregister {
+        my ( $self, $obj ) = @_;
 
-		# notify user
-		#$logger->info("unregistering object '$obj'"); # XXX
+        # notify user
+        #$logger->info("unregistering object '$obj'"); # XXX
+        my $id = $obj->get_id;
+        if ( defined $id ) {
+            if ( exists $object[$id] ) {
 
-		my $id = $obj->get_id;
-		if ( defined $id ) {
-			if ( exists $object[$id] ) {
-				
-				# one-to-many relationship
-				if ( exists $relationship[$id] ) {
-					delete $relationship[$id];
-				}
-				else {
-					
-					# one-to-one relationship
-				  LINK_SEARCH: for my $relation (@relationship) {
-						if ( exists $relation->{$id} ) {	
-							delete $relation->{$id};
-							last LINK_SEARCH;
-						}
-					}
-				}	
-				delete $object[$id];
-			}
-		}
-		return $self;
-	}
+                # one-to-many relationship
+                if ( exists $relationship[$id] ) {
+                    delete $relationship[$id];
+                }
+                else {
+
+                    # one-to-one relationship
+                  LINK_SEARCH: for my $relation (@relationship) {
+                        if ( exists $relation->{$id} ) {
+                            delete $relation->{$id};
+                            last LINK_SEARCH;
+                        }
+                    }
+                }
+                delete $object[$id];
+            }
+        }
+        return $self;
+    }
 
 =item set_link()
 
@@ -171,37 +163,34 @@ Creates link between objects.
 
 =cut
 
-	sub set_link {
-		my $self = shift;
-		my %opt  = @_;
-		my ( $one, $many ) = ( $opt{'-one'}, $opt{'-many'} );
-		my ( $one_id, $many_id ) = ( $one->get_id, $many->get_id );
+    sub set_link {
+        my $self = shift;
+        my %opt  = @_;
+        my ( $one, $many ) = ( $opt{'-one'}, $opt{'-many'} );
+        my ( $one_id, $many_id ) = ( $one->get_id, $many->get_id );
 
-		# notify user
-		$logger->info("setting link between '$one' and '$many'");
+        # notify user
+        $logger->info("setting link between '$one' and '$many'");
 
-		# delete any previously existing link
-	  LINK_SEARCH: for my $relation (@relationship) {
-			if ( exists $relation->{$many_id} ) {
-				delete $relation->{$many_id};
+        # delete any previously existing link
+      LINK_SEARCH: for my $relation (@relationship) {
+            if ( exists $relation->{$many_id} ) {
+                delete $relation->{$many_id};
 
-				# notify user
-				$logger->info("deleting previous link");
+                # notify user
+                $logger->info("deleting previous link");
+                last LINK_SEARCH;
+            }
+        }
 
-				last LINK_SEARCH;
-			}
-		}
+        # initialize new hash if not exist
+        $relationship[$one_id] = {} if not $relationship[$one_id];
+        my $relation = $relationship[$one_id];
 
-		# initialize new hash if not exist
-		$relationship[$one_id] = {} if not $relationship[$one_id];
-		my $relation = $relationship[$one_id];
-
-		# value is type so that can retrieve in get_link
-		$relation->{$many_id} = $many->_type;
-
-		return $self;
-
-	}
+        # value is type so that can retrieve in get_link
+        $relation->{$many_id} = $many->_type;
+        return $self;
+    }
 
 =item get_link()
 
@@ -236,31 +225,31 @@ Retrieves link between objects.
 
 =cut
 
-	sub get_link {
-		my $self = shift;
-		my %opt  = @_;
-		my $id   = $opt{'-source'}->get_id;
+    sub get_link {
+        my $self = shift;
+        my %opt  = @_;
+        my $id   = $opt{'-source'}->get_id;
 
-		# have to get many objects
-		if ( defined $opt{'-type'} ) {
-			my $relation = $relationship[$id];
-			return if not $relation;
-			my @result;
-			for my $key ( keys %{$relation} ) {
-				push @result, $object[$key]
-				  if $relation->{$key} == $opt{'-type'};
-			}
-			return \@result;
-		}
-		else {
-		  LINK_SEARCH: for my $i ( 0 .. $#relationship ) {
-				my $relation = $relationship[$i];
-				if ( exists $relation->{$id} ) {
-					return $object[$i];
-				}
-			}
-		}
-	}
+        # have to get many objects
+        if ( defined $opt{'-type'} ) {
+            my $relation = $relationship[$id];
+            return if not $relation;
+            my @result;
+            for my $key ( keys %{$relation} ) {
+                push @result, $object[$key]
+                  if $relation->{$key} == $opt{'-type'};
+            }
+            return \@result;
+        }
+        else {
+          LINK_SEARCH: for my $i ( 0 .. $#relationship ) {
+                my $relation = $relationship[$i];
+                if ( exists $relation->{$id} ) {
+                    return $object[$i];
+                }
+            }
+        }
+    }
 
 =item remove_link()
 
@@ -289,26 +278,26 @@ Removes link between objects.
 
 =cut
 
-	sub remove_link {
-		my $self = shift;
-		my %opt  = @_;
-		my ( $one, $many ) = ( $opt{'-one'}, $opt{'-many'} );
-		if ($one) {
-			my $id       = $one->get_id;
-			my $relation = $relationship[$id];
-			return if not $relation;
-			delete $relation->{$many->get_id};
-		}
-		else {
-			my $id = $many->get_id;
-		  LINK_SEARCH: for my $relation (@relationship) {
-				if ( exists $relation->{$id} ) {
-					delete $relation->{$id};
-					last LINK_SEARCH;
-				}
-			}
-		}
-	}
+    sub remove_link {
+        my $self = shift;
+        my %opt  = @_;
+        my ( $one, $many ) = ( $opt{'-one'}, $opt{'-many'} );
+        if ($one) {
+            my $id       = $one->get_id;
+            my $relation = $relationship[$id];
+            return if not $relation;
+            delete $relation->{ $many->get_id };
+        }
+        else {
+            my $id = $many->get_id;
+          LINK_SEARCH: for my $relation (@relationship) {
+                if ( exists $relation->{$id} ) {
+                    delete $relation->{$id};
+                    last LINK_SEARCH;
+                }
+            }
+        }
+    }
 
 =back
 
@@ -333,10 +322,8 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =head1 REVISION
 
- $Id: TaxaMediator.pm 1593 2011-02-27 15:26:04Z rvos $
+ $Id: TaxaMediator.pm 1660 2011-04-02 18:29:40Z rvos $
 
 =cut
-
 }
-
 1;

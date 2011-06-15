@@ -1,173 +1,174 @@
-# $Id: CONSTANT.pm 1622 2011-03-23 15:02:21Z rvos $
+# $Id: CONSTANT.pm 1660 2011-04-02 18:29:40Z rvos $
 package Bio::Phylo::Util::CONSTANT;
 use strict;
+use base 'Exporter';
 use Scalar::Util 'blessed';
 use Bio::Phylo::Util::Exceptions 'throw';
-BEGIN {
-    require Exporter;
-    use vars qw(@ISA @EXPORT_OK %EXPORT_TAGS);
 
-    # classic subroutine exporting
-    @ISA       = qw(Exporter);
+BEGIN {
+    our ( @EXPORT_OK, %EXPORT_TAGS );
     @EXPORT_OK = qw(
-    	_NONE_ 
-    	_NODE_ 
-    	_TREE_ 
-    	_FOREST_ 
-    	_TAXON_
-      	_TAXA_ 
-      	_CHAR_ 
-      	_DATUM_ 
-      	_MATRIX_ 
-      	_MATRICES_ 
-      	_SEQUENCE_ 
-      	_ALIGNMENT_
-      	_CHARSTATE_ 
-      	_CHARSTATESEQ_ 
-      	_MATRIXROW_
-      	_PROJECT_
-      	_ANNOTATION_
-      	_DICTIONARY_
-        _DOMCREATOR_
-        _META_
-        _DESCRIPTION_
-        _RESOURCE_ 
-        _HTTP_SC_SEE_ALSO_
-	_DOCUMENT_
-	_ELEMENT_
-	_CHARACTERS_
-	_CHARACTER_	
-      	looks_like_number
-      	looks_like_object
-	looks_like_hash
-	looks_like_class   
-	looks_like_instance
-	looks_like_implementor
-	_NS_OWL_
-	_NS_DC_
-	_NS_DCTERMS_
-	_NS_NEXML_
-	_NS_RDF_
-	_NS_RDFS_
-	_NS_XSI_
-	_NS_XSD_
-	_NS_XML_
-	_NS_TWE_
-	_NS_TWA_
-	_NS_DC_
-	_NEXML_VERSION_
+      _NONE_
+      _NODE_
+      _TREE_
+      _FOREST_
+      _TAXON_
+      _TAXA_
+      _CHAR_
+      _DATUM_
+      _MATRIX_
+      _MATRICES_
+      _SEQUENCE_
+      _ALIGNMENT_
+      _CHARSTATE_
+      _CHARSTATESEQ_
+      _MATRIXROW_
+      _PROJECT_
+      _ANNOTATION_
+      _DICTIONARY_
+      _DOMCREATOR_
+      _META_
+      _DESCRIPTION_
+      _RESOURCE_
+      _HTTP_SC_SEE_ALSO_
+      _DOCUMENT_
+      _ELEMENT_
+      _CHARACTERS_
+      _CHARACTER_
+      _SET_
+      looks_like_number
+      looks_like_object
+      looks_like_hash
+      looks_like_class
+      looks_like_instance
+      looks_like_implementor
+      _NS_OWL_
+      _NS_DC_
+      _NS_DCTERMS_
+      _NS_NEXML_
+      _NS_RDF_
+      _NS_RDFS_
+      _NS_XSI_
+      _NS_XSD_
+      _NS_XML_
+      _NS_TWE_
+      _NS_TWA_
+      _NS_DC_
+      _NEXML_VERSION_
     );
-    %EXPORT_TAGS = ( 
-        'all'         => [ @EXPORT_OK ],
+    %EXPORT_TAGS = (
+        'all'         => [@EXPORT_OK],
         'objecttypes' => [
             qw(
-                _NONE_ 
-                _NODE_ 
-                _TREE_ 
-                _FOREST_ 
-                _TAXON_
-                _TAXA_ 
-                _CHAR_ 
-                _DATUM_ 
-                _MATRIX_ 
-                _MATRICES_ 
-                _SEQUENCE_ 
-                _ALIGNMENT_ 
-                _CHARSTATE_ 
-                _CHARSTATESEQ_ 
-                _MATRIXROW_
-                _PROJECT_
-                _ANNOTATION_
-                _DICTIONARY_
-                _DOMCREATOR_
-                _META_
-                _DESCRIPTION_
-                _RESOURCE_
-                _HTTP_SC_SEE_ALSO_
-		_DOCUMENT_
-		_ELEMENT_
-		_CHARACTERS_
-		_CHARACTER_
-            )
+              _NONE_
+              _NODE_
+              _TREE_
+              _FOREST_
+              _TAXON_
+              _TAXA_
+              _CHAR_
+              _DATUM_
+              _MATRIX_
+              _MATRICES_
+              _SEQUENCE_
+              _ALIGNMENT_
+              _CHARSTATE_
+              _CHARSTATESEQ_
+              _MATRIXROW_
+              _PROJECT_
+              _ANNOTATION_
+              _DICTIONARY_
+              _DOMCREATOR_
+              _META_
+              _DESCRIPTION_
+              _RESOURCE_
+              _HTTP_SC_SEE_ALSO_
+              _DOCUMENT_
+              _ELEMENT_
+              _CHARACTERS_
+              _CHARACTER_
+              _SET_
+              )
         ],
         'functions' => [
-        	qw(
-		    looks_like_number
-		    looks_like_object
-		    looks_like_hash
-		    looks_like_class
-		    looks_like_instance
-		    looks_like_implementor
-        	)
+            qw(
+              looks_like_number
+              looks_like_object
+              looks_like_hash
+              looks_like_class
+              looks_like_instance
+              looks_like_implementor
+              )
         ],
-	'namespaces' => [
-	    qw(
-		_NS_OWL_
-		_NS_DC_
-		_NS_DCTERMS_
-		_NS_NEXML_
-		_NS_RDF_
-		_NS_RDFS_
-		_NS_XSI_
-		_NS_XSD_
-		_NS_XML_
-		_NS_TWE_
-		_NS_TWA_
-		_NS_DC_
-	    )
-	]
+        'namespaces' => [
+            qw(
+              _NS_OWL_
+              _NS_DC_
+              _NS_DCTERMS_
+              _NS_NEXML_
+              _NS_RDF_
+              _NS_RDFS_
+              _NS_XSI_
+              _NS_XSD_
+              _NS_XML_
+              _NS_TWE_
+              _NS_TWA_
+              _NS_DC_
+              )
+        ]
     );
 }
 
 # according to perlsub:
-# "Functions with a prototype of () are potential candidates for inlining. 
-# If the result after optimization and constant folding is either a constant 
-# or a lexically-scoped scalar which has no other references, then it will 
+# "Functions with a prototype of () are potential candidates for inlining.
+# If the result after optimization and constant folding is either a constant
+# or a lexically-scoped scalar which has no other references, then it will
 # be used in place of function calls made without & or do."
-
-sub _NS_OWL_     () { 'http://www.w3.org/2002/07/owl#' }
-sub _NS_DC_      () { 'http://purl.org/dc/elements/1.1/' }
+sub _NS_OWL_ ()     { 'http://www.w3.org/2002/07/owl#' }
+sub _NS_DC_ ()      { 'http://purl.org/dc/elements/1.1/' }
 sub _NS_DCTERMS_ () { 'http://purl.org/dc/terms/' }
-sub _NS_NEXML_   () { 'http://www.nexml.org/2009' }
-sub _NS_RDF_     () { 'http://www.w3.org/1999/02/22-rdf-syntax-ns#' }
-sub _NS_RDFS_    () { 'http://www.w3.org/2000/01/rdf-schema#' }
-sub _NS_XSI_     () { 'http://www.w3.org/2001/XMLSchema-instance' }
-sub _NS_XSD_     () { 'http://www.w3.org/2001/XMLSchema#' }
-sub _NS_XML_     () { 'http://www.w3.org/XML/1998/namespace' }
-sub _NS_TWE_     () { 'http://tolweb.org/tree/home.pages/downloadtree.html#elements' }
-sub _NS_TWA_     () { 'http://tolweb.org/tree/home.pages/downloadtree.html#attributes' }
+sub _NS_NEXML_ ()   { 'http://www.nexml.org/2009' }
+sub _NS_RDF_ ()     { 'http://www.w3.org/1999/02/22-rdf-syntax-ns#' }
+sub _NS_RDFS_ ()    { 'http://www.w3.org/2000/01/rdf-schema#' }
+sub _NS_XSI_ ()     { 'http://www.w3.org/2001/XMLSchema-instance' }
+sub _NS_XSD_ ()     { 'http://www.w3.org/2001/XMLSchema#' }
+sub _NS_XML_ ()     { 'http://www.w3.org/XML/1998/namespace' }
+
+sub _NS_TWE_ () {
+    'http://tolweb.org/tree/home.pages/downloadtree.html#elements';
+}
+
+sub _NS_TWA_ () {
+    'http://tolweb.org/tree/home.pages/downloadtree.html#attributes';
+}
 sub _NEXML_VERSION_ () { '0.9' }
-
-sub _NONE_      () { 1  }
-sub _NODE_      () { 2  }
-sub _TREE_      () { 3  }
-sub _FOREST_    () { 4  }
-sub _TAXON_     () { 5  }
-sub _TAXA_      () { 6  }
-sub _DATUM_     () { 7  }
-sub _MATRIX_    () { 8  }
-sub _MATRICES_  () { 9  }
-sub _SEQUENCE_  () { 10 }
-sub _ALIGNMENT_ () { 11 }
-sub _CHAR_      () { 12 }
-sub _PROJECT_   () { 9  }
-
-sub _CHARSTATE_    () { 13 }
-sub _CHARSTATESEQ_ () { 14 }
-sub _MATRIXROW_    () { 15 }
-sub _ANNOTATION_   () { 16 }
-sub _DICTIONARY_   () { 17 }
-
-sub _DOMCREATOR_   () { 18 }
-sub _META_         () { 19 }
-
-sub _DESCRIPTION_  () { 20 }
-sub _RESOURCE_     () { 21 }
-
-sub _DOCUMENT_     () { 22 }
-sub _ELEMENT_      () { 23 }
-sub _CHARACTERS_   () { 24 }
-sub _CHARACTER_    () { 25 }
+sub _NONE_ ()          { 1 }
+sub _NODE_ ()          { 2 }
+sub _TREE_ ()          { 3 }
+sub _FOREST_ ()        { 4 }
+sub _TAXON_ ()         { 5 }
+sub _TAXA_ ()          { 6 }
+sub _DATUM_ ()         { 7 }
+sub _MATRIX_ ()        { 8 }
+sub _MATRICES_ ()      { 9 }
+sub _SEQUENCE_ ()      { 10 }
+sub _ALIGNMENT_ ()     { 11 }
+sub _CHAR_ ()          { 12 }
+sub _PROJECT_ ()       { 9 }
+sub _CHARSTATE_ ()     { 13 }
+sub _CHARSTATESEQ_ ()  { 14 }
+sub _MATRIXROW_ ()     { 15 }
+sub _ANNOTATION_ ()    { 16 }
+sub _DICTIONARY_ ()    { 17 }
+sub _DOMCREATOR_ ()    { 18 }
+sub _META_ ()          { 19 }
+sub _DESCRIPTION_ ()   { 20 }
+sub _RESOURCE_ ()      { 21 }
+sub _DOCUMENT_ ()      { 22 }
+sub _ELEMENT_ ()       { 23 }
+sub _CHARACTERS_ ()    { 24 }
+sub _CHARACTER_ ()     { 25 }
+sub _SET_ ()           { 26 }
 
 # for PhyloWS
 sub _HTTP_SC_SEE_ALSO_ () { '303 See Other' }
@@ -175,81 +176,80 @@ sub _HTTP_SC_SEE_ALSO_ () { '303 See Other' }
 # this is a drop in replacement for Scalar::Util's function
 my $looks_like_number;
 {
-	eval { Scalar::Util::looks_like_number(0) };
-	if ( $@ ) {
-		my $LOOKS_LIKE_NUMBER_RE = qr/^([-+]?\d+(\.\d+)?([eE][-+]\d+)?|Inf|NaN)$/;
-		$looks_like_number = sub {
-			my $num = shift;
-			if ( defined $num and $num =~ $LOOKS_LIKE_NUMBER_RE ) {
-				return 1;
-			}
-			else {
-				return;
-			}
-		}
-	}
-	else {
-		$looks_like_number = \&Scalar::Util::looks_like_number;
-	}
-	undef($@);
+    eval { Scalar::Util::looks_like_number(0) };
+    if ($@) {
+        my $LOOKS_LIKE_NUMBER_RE =
+          qr/^([-+]?\d+(\.\d+)?([eE][-+]\d+)?|Inf|NaN)$/;
+        $looks_like_number = sub {
+            my $num = shift;
+            if ( defined $num and $num =~ $LOOKS_LIKE_NUMBER_RE ) {
+                return 1;
+            }
+            else {
+                return;
+            }
+          }
+    }
+    else {
+        $looks_like_number = \&Scalar::Util::looks_like_number;
+    }
+    undef($@);
 }
-
 sub looks_like_number($) { return $looks_like_number->(shift) }
 
 sub looks_like_object($$) {
-	my ( $object, $constant ) = @_;
-	my $type;
-	eval { $type = $object->_type };
-	if ( $@ or $type != $constant ) {
-		throw 'ObjectMismatch'  => 'Invalid object!';
-	}
-	else {
-		return 1;
-	}
+    my ( $object, $constant ) = @_;
+    my $type;
+    eval { $type = $object->_type };
+    if ( $@ or $type != $constant ) {
+        throw 'ObjectMismatch' => 'Invalid object!';
+    }
+    else {
+        return 1;
+    }
 }
 
 sub looks_like_implementor($$) {
-	return UNIVERSAL::can($_[0],$_[1]);
+    return UNIVERSAL::can( $_[0], $_[1] );
 }
 
 sub looks_like_instance($$) {
-	my ( $object, $class ) = @_;
-	if ( ref $object ) {
-		if ( blessed $object ) {
-			return $object->isa($class);
-		}
-		else {
-			return ref $object eq $class;
-		}
-	}
-	else {
-		return;
-	}
+    my ( $object, $class ) = @_;
+    if ( ref $object ) {
+        if ( blessed $object ) {
+            return $object->isa($class);
+        }
+        else {
+            return ref $object eq $class;
+        }
+    }
+    else {
+        return;
+    }
 }
 
 sub looks_like_hash(@) {
-	if ( scalar(@_) % 2 ) {
-		throw 'OddHash' => 'Odd number of elements in hash assignment';
-	}
-	else {
-		return @_;
-	}
+    if ( scalar(@_) % 2 ) {
+        throw 'OddHash' => 'Odd number of elements in hash assignment';
+    }
+    else {
+        return @_;
+    }
 }
 
 sub looks_like_class($) {
-	my $class = shift;
-	my $path  =  $class;
-	$path     =~ s|::|/|g;
-	$path    .=  '.pm';
-	if ( not exists $INC{$path} ) {
-	    eval { require $path };
-	    if ( $@ ) {
-		throw 'ExtensionError' => $@;
-	    }
-	}
-	return $class;
+    my $class = shift;
+    my $path  = $class;
+    $path =~ s|::|/|g;
+    $path .= '.pm';
+    if ( not exists $INC{$path} ) {
+        eval { require $path };
+        if ($@) {
+            throw 'ExtensionError' => $@;
+        }
+    }
+    return $class;
 }
-
 1;
 __END__
 
@@ -373,7 +373,7 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =head1 REVISION
 
- $Id: CONSTANT.pm 1622 2011-03-23 15:02:21Z rvos $
+ $Id: CONSTANT.pm 1660 2011-04-02 18:29:40Z rvos $
 
 =cut
 

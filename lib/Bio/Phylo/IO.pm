@@ -1,19 +1,12 @@
-# $Id: IO.pm 1593 2011-02-27 15:26:04Z rvos $
+# $Id: IO.pm 1660 2011-04-02 18:29:40Z rvos $
 package Bio::Phylo::IO;
-use Bio::Phylo ();
-use Bio::Phylo::Util::CONSTANT qw(looks_like_class looks_like_hash);
+use strict;
+use base 'Exporter';
+use Bio::Phylo;
+use Bio::Phylo::Util::CONSTANT '/looks_like/';
 use Bio::Phylo::Util::Exceptions 'throw';
 use IO::File;
-use strict;
-
-BEGIN {
-	use Exporter ();
-	use vars qw(@ISA @EXPORT_OK);
-
-	# classic subroutine exporting
-	@ISA       = qw(Exporter);
-	@EXPORT_OK = qw(&parse &unparse);
-}
+our @EXPORT_OK = qw'parse unparse';
 
 =head1 NAME
 
@@ -160,42 +153,43 @@ Parses a file or string.
 =cut
 
 sub parse {
-	# first argument could be the package name or an object reference
-	# if called as Bio::Phylo::IO->parse or as $io->parse, respectively
-	shift if $_[0] and $_[0] eq __PACKAGE__ or ref $_[0] eq __PACKAGE__;
-	
-	# arguments were provided on the command line, in @ARGV
-	if ( @ARGV ) {
-		my $i = 0;
-		while ( $i < @ARGV ) {
-			my ( $key, $value ) = ( $ARGV[$i], $ARGV[ $i + 1 ] );
-			
-			# shell words have no -dash prefix, so we
-			# add it here
-			$key = "-$key" if $key !~ /^-/;
-			
-			# we put @ARGV key/value pairs at the
-			# front of the @_ array
-			unshift @_, $key, $value;
-			$i += 2;
-		}
-	}
-	
-	# turn merged @ARGV and @_ arguments into a hash
-	my %opts = looks_like_hash @_;
-	
-	# there must be at least one of these args as a data source
-	my @sources = qw(-file -string -handle -url);
-	my ($source) = grep { defined $_ } @opts{@sources};
-	
-	# check provided arguments
-	throw 'OddHash' => 'Odd number of elements in hash assignment' if ! @_;
-	throw 'BadArgs' => 'No format specified' unless $opts{'-format'};
-	throw 'BadArgs' => 'No parseable data source specified' unless $source;
 
-	# instantiate parser subclass and process data
-	my $lib = 'Bio::Phylo::Parsers::' . ucfirst $opts{'-format'};
-	return looks_like_class( $lib )->_new(@_)->_process;
+    # first argument could be the package name or an object reference
+    # if called as Bio::Phylo::IO->parse or as $io->parse, respectively
+    shift if $_[0] and $_[0] eq __PACKAGE__ or ref $_[0] eq __PACKAGE__;
+
+    # arguments were provided on the command line, in @ARGV
+    if (@ARGV) {
+        my $i = 0;
+        while ( $i < @ARGV ) {
+            my ( $key, $value ) = ( $ARGV[$i], $ARGV[ $i + 1 ] );
+
+            # shell words have no -dash prefix, so we
+            # add it here
+            $key = "-$key" if $key !~ /^-/;
+
+            # we put @ARGV key/value pairs at the
+            # front of the @_ array
+            unshift @_, $key, $value;
+            $i += 2;
+        }
+    }
+
+    # turn merged @ARGV and @_ arguments into a hash
+    my %opts = looks_like_hash @_;
+
+    # there must be at least one of these args as a data source
+    my @sources = qw(-file -string -handle -url);
+    my ($source) = grep { defined $_ } @opts{@sources};
+
+    # check provided arguments
+    throw 'OddHash' => 'Odd number of elements in hash assignment' if !@_;
+    throw 'BadArgs' => 'No format specified' unless $opts{'-format'};
+    throw 'BadArgs' => 'No parseable data source specified' unless $source;
+
+    # instantiate parser subclass and process data
+    my $lib = 'Bio::Phylo::Parsers::' . ucfirst $opts{'-format'};
+    return looks_like_class($lib)->_new(@_)->_process;
 }
 
 =item unparse()
@@ -221,23 +215,23 @@ sub unparse {
         shift;
     }
     my %opts;
-    if ( ! @_ || scalar @_ % 2 ) {
+    if ( !@_ || scalar @_ % 2 ) {
         throw 'OddHash' => 'Odd number of elements in hash assignment';
     }
     %opts = looks_like_hash @_;
-    if ( ! $opts{-format} ) {
+    if ( !$opts{-format} ) {
         throw 'BadFormat' => 'no format specified.';
     }
-    if ( ! $opts{-phylo} ) {
-        throw 'BadArgs' => 'no object to unparse specified.'
+    if ( !$opts{-phylo} ) {
+        throw 'BadArgs' => 'no object to unparse specified.';
     }
-    my $lib = 'Bio::Phylo::Unparsers::' . ucfirst $opts{-format};
-    my $unparser = looks_like_class( $lib )->_new(%opts);
+    my $lib      = 'Bio::Phylo::Unparsers::' . ucfirst $opts{-format};
+    my $unparser = looks_like_class($lib)->_new(%opts);
     if ( $unparser->can('_to_string') ) {
         return $unparser->_to_string;
     }
     else {
-        throw 'ObjectMismatch' => 'the unparser can\'t convert to strings.'
+        throw 'ObjectMismatch' => 'the unparser can\'t convert to strings.';
     }
 }
 
@@ -301,8 +295,7 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =head1 REVISION
 
- $Id: IO.pm 1593 2011-02-27 15:26:04Z rvos $
+ $Id: IO.pm 1660 2011-04-02 18:29:40Z rvos $
 
 =cut
-
 1;

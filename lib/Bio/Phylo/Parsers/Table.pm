@@ -1,11 +1,7 @@
-# $Id: Table.pm 1593 2011-02-27 15:26:04Z rvos $
+# $Id: Table.pm 1660 2011-04-02 18:29:40Z rvos $
 package Bio::Phylo::Parsers::Table;
 use strict;
-use Bio::Phylo::Parsers::Abstract;
-use vars qw(@ISA);
-
-# classic @ISA manipulation, not using 'base'
-@ISA = qw(Bio::Phylo::Parsers::Abstract);
+use base 'Bio::Phylo::Parsers::Abstract';
 
 =head1 NAME
 
@@ -28,27 +24,26 @@ is "\n") and field separators (default is "\t"):
 =cut
 
 sub _parse {
-	my $self   = shift;
-	my $fh     = $self->_handle;
-	my $fac    = $self->_factory;
-	my $type   = $self->_args->{'-type'};
-	local $/   = $self->_args->{'-linesep'}  || "\n";
-	my $sep    = $self->_args->{'-fieldsep'} || "\t";
-	my $regex  = qr/$sep/;	
-	my $matrix = $fac->create_matrix( '-type' => $type );	
-	while(<$fh>) {
-		chomp;
-		my ( $name, @char ) = split $regex, $_;
-		$matrix->insert( 
-			$fac->create_datum( 
-				'-type' => $type,			
-				'-name' => $name, 
-				'-char' => \@char,
-			) 
-		);
-	}
-	return $matrix;
-	
+    my $self = shift;
+    my $fh   = $self->_handle;
+    my $fac  = $self->_factory;
+    my $type = $self->_args->{'-type'};
+    local $/ = $self->_args->{'-linesep'} || "\n";
+    my $sep    = $self->_args->{'-fieldsep'} || "\t";
+    my $regex  = qr/$sep/;
+    my $matrix = $fac->create_matrix( '-type' => $type );
+    while (<$fh>) {
+        chomp;
+        my ( $name, @char ) = split $regex, $_;
+        $matrix->insert(
+            $fac->create_datum(
+                '-type' => $type,
+                '-name' => $name,
+                '-char' => \@char,
+            )
+        );
+    }
+    return $matrix;
 }
 
 # podinherit_insert_token
@@ -79,8 +74,7 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =head1 REVISION
 
- $Id: Table.pm 1593 2011-02-27 15:26:04Z rvos $
+ $Id: Table.pm 1660 2011-04-02 18:29:40Z rvos $
 
 =cut
-
 1;

@@ -6,8 +6,8 @@ use strict;
 
     sub _initialize {
         my $obj_ID = 0;
-        if ( @reclaim ) {
-            $obj_ID = shift( @reclaim );
+        if (@reclaim) {
+            $obj_ID = shift(@reclaim);
         }
         else {
             $obj_ID = $obj_counter;
@@ -18,7 +18,8 @@ use strict;
 
     sub _reclaim {
         my ( $class, $obj ) = @_;
-#        push @reclaim, $obj->get_id;
+
+        #        push @reclaim, $obj->get_id;
     }
 }
 1;

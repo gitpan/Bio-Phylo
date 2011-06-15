@@ -1,10 +1,8 @@
 package Bio::Phylo::Matrices::Characters;
 use strict;
+use base 'Bio::Phylo::Matrices::TypeSafeData';
 use Bio::Phylo::Util::CONSTANT qw'_CHARACTERS_ _NONE_';
-use Bio::Phylo::Matrices::TypeSafeData;
 use Bio::Phylo::Factory;
-use vars '@ISA';
-@ISA=qw(Bio::Phylo::Matrices::TypeSafeData);
 
 =head1 NAME
 
@@ -43,9 +41,13 @@ Serializes characters to nexml format.
 
 sub to_xml {
     my $self = shift;
-    return join '', map { $_->to_xml } @{ $self->get_entities };
+    my $xml = '';
+    for my $ent ( @{ $self->get_entities } ) {
+        $xml .= $ent->to_xml;
+    }
+    $xml .= $self->sets_to_xml;
+    return $xml;
 }
-
 sub _validate  { 1 }
 sub _container { _NONE_ }
 sub _type      { _CHARACTERS_ }
@@ -84,8 +86,7 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =head1 REVISION
 
- $Id: Characters.pm 1646 2011-03-30 17:43:19Z rvos $
+ $Id: Characters.pm 1660 2011-04-02 18:29:40Z rvos $
 
 =cut
-
 1;

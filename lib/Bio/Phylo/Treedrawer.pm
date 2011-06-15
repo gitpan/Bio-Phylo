@@ -1,40 +1,31 @@
-# $Id: Treedrawer.pm 1593 2011-02-27 15:26:04Z rvos $
+# $Id: Treedrawer.pm 1660 2011-04-02 18:29:40Z rvos $
 package Bio::Phylo::Treedrawer;
 use strict;
 use Bio::Phylo::Util::Logger;
-use Bio::Phylo::Forest::DrawTree ();
+use Bio::Phylo::Forest::DrawTree;
 use Bio::Phylo::Util::Exceptions 'throw';
-use Bio::Phylo::Util::CONSTANT qw(
-    _TREE_
-    looks_like_number
-    looks_like_object
-    looks_like_hash
-    looks_like_class
-);
-
+use Bio::Phylo::Util::CONSTANT qw'_TREE_ /looks_like/';
 my @fields = qw(
-	WIDTH 
-	BRANCH_WIDTH 
-	HEIGHT 
-	MODE 
-	SHAPE 
-	PADDING 
-	NODE_RADIUS 
-	TIP_RADIUS 
-	TEXT_HORIZ_OFFSET 
-	TEXT_VERT_OFFSET 
-	TEXT_WIDTH 
-	TREE 
-	_SCALEX 
-	_SCALEY 
-	SCALE 
-	FORMAT
-	COLLAPSED_CLADE_WIDTH
+  WIDTH
+  BRANCH_WIDTH
+  HEIGHT
+  MODE
+  SHAPE
+  PADDING
+  NODE_RADIUS
+  TIP_RADIUS
+  TEXT_HORIZ_OFFSET
+  TEXT_VERT_OFFSET
+  TEXT_WIDTH
+  TREE
+  _SCALEX
+  _SCALEY
+  SCALE
+  FORMAT
+  COLLAPSED_CLADE_WIDTH
 );
-
-my $tips = 0.000_000_000_000_01;
+my $tips   = 0.000_000_000_000_01;
 my $logger = Bio::Phylo::Util::Logger->new;
-
 
 =head1 NAME
 
@@ -95,27 +86,26 @@ Treedrawer constructor.
 
 sub new {
     my $class = shift;
-    my $self = {
-        'WIDTH'             => 500,
-        'HEIGHT'            => 500,
-        'MODE'              => 'PHYLO',
-        'SHAPE'             => 'CURVY',
-        'PADDING'           => 50,
-        'NODE_RADIUS'       => 0,
-        'TIP_RADIUS'        => 0,
-        'TEXT_HORIZ_OFFSET' => 6,
-        'TEXT_VERT_OFFSET'  => 4,
-        'TEXT_WIDTH'        => 150,
-        'TREE'              => undef,
-        '_SCALEX'           => 1,
-        '_SCALEY'           => 1,
-        'FORMAT'            => 'Svg',
-        'SCALE'             => undef,
-        'BRANCH_WIDTH'      => 1,
-        'COLLAPSED_CLADE_WIDTH' => 6,	
+    my $self  = {
+        'WIDTH'                 => 500,
+        'HEIGHT'                => 500,
+        'MODE'                  => 'PHYLO',
+        'SHAPE'                 => 'CURVY',
+        'PADDING'               => 50,
+        'NODE_RADIUS'           => 0,
+        'TIP_RADIUS'            => 0,
+        'TEXT_HORIZ_OFFSET'     => 6,
+        'TEXT_VERT_OFFSET'      => 4,
+        'TEXT_WIDTH'            => 150,
+        'TREE'                  => undef,
+        '_SCALEX'               => 1,
+        '_SCALEY'               => 1,
+        'FORMAT'                => 'Svg',
+        'SCALE'                 => undef,
+        'BRANCH_WIDTH'          => 1,
+        'COLLAPSED_CLADE_WIDTH' => 6,
     };
     bless $self, $class;
-    
     if (@_) {
         my %opts = looks_like_hash @_;
         for my $key ( keys %opts ) {
@@ -133,12 +123,12 @@ sub _cascading_setter {
     $subroutine =~ s/.*://;
     $logger->debug($subroutine);
     if ( my $tree = $self->get_tree ) {
-	if ( $tree->can($subroutine) ) {
-	    $tree->$subroutine($value);
-	}
+        if ( $tree->can($subroutine) ) {
+            $tree->$subroutine($value);
+        }
     }
     $subroutine =~ s/^set_//;
-    $self->{uc $subroutine} = $value;	
+    $self->{ uc $subroutine } = $value;
     return $self;
 }
 
@@ -147,16 +137,16 @@ sub _cascading_getter {
     my ( $package, $filename, $line, $subroutine ) = caller(1);
     $subroutine =~ s/.*://;
     $logger->debug($subroutine);
-    if ( $invocant ) {
-	if ( $invocant->can($subroutine) ) {
-	    my $value = $invocant->$subroutine();
-	    if ( defined $value ) {
-		return $value;
-	    }
-	}
+    if ($invocant) {
+        if ( $invocant->can($subroutine) ) {
+            my $value = $invocant->$subroutine();
+            if ( defined $value ) {
+                return $value;
+            }
+        }
     }
     $subroutine =~ s/^get_//;
-    return $self->{uc $subroutine};
+    return $self->{ uc $subroutine };
 }
 
 =back
@@ -180,14 +170,14 @@ Sets image format.
 
 sub set_format {
     my ( $self, $format ) = @_;
-    $format = ucfirst( lc( $format ) );
+    $format = ucfirst( lc($format) );
     if ( looks_like_class __PACKAGE__ . '::' . $format ) {
         $self->{'FORMAT'} = $format;
         return $self;
     }
     else {
         throw 'BadFormat' => "'$format' is not a valid image format";
-    }    
+    }
 }
 
 =item set_width()
@@ -209,7 +199,7 @@ sub set_width {
         $self->{'WIDTH'} = $width;
     }
     else {
-    	throw 'BadNumber' => "'$width' is not a valid image width";
+        throw 'BadNumber' => "'$width' is not a valid image width";
     }
     return $self;
 }
@@ -233,7 +223,7 @@ sub set_height {
         $self->{'HEIGHT'} = $height;
     }
     else {
-    	throw 'BadNumber' => "'$height' is not a valid image height";
+        throw 'BadNumber' => "'$height' is not a valid image height";
     }
     return $self;
 }
@@ -258,7 +248,7 @@ sub set_mode {
         $self->{'MODE'} = uc $mode;
     }
     else {
-    	throw 'BadFormat' => "'$mode' is not a valid drawing mode";
+        throw 'BadFormat' => "'$mode' is not a valid drawing mode";
     }
     return $self;
 }
@@ -283,7 +273,7 @@ sub set_shape {
         $self->{'SHAPE'} = uc $shape;
     }
     else {
-    	throw 'BadFormat' => "'$shape' is not a valid drawing shape";
+        throw 'BadFormat' => "'$shape' is not a valid drawing shape";
     }
     return $self;
 }
@@ -307,7 +297,7 @@ sub set_padding {
         $self->{'PADDING'} = $padding;
     }
     else {
-    	throw 'BadNumber' => "'$padding' is not a valid padding value";
+        throw 'BadNumber' => "'$padding' is not a valid padding value";
     }
     return $self;
 }
@@ -332,7 +322,8 @@ sub set_text_horiz_offset {
         $self->{'TEXT_HORIZ_OFFSET'} = $offset;
     }
     else {
-    	throw 'BadNumber' => "'$offset' is not a valid text horizontal offset value";
+        throw 'BadNumber' =>
+          "'$offset' is not a valid text horizontal offset value";
     }
     return $self;
 }
@@ -357,7 +348,8 @@ sub set_text_vert_offset {
         $self->{'TEXT_VERT_OFFSET'} = $offset;
     }
     else {
-    	throw 'BadNumber' => "'$offset' is not a valid text vertical offset value";
+        throw 'BadNumber' =>
+          "'$offset' is not a valid text vertical offset value";
     }
     return $self;
 }
@@ -382,7 +374,7 @@ sub set_text_width {
         $self->{'TEXT_WIDTH'} = $width;
     }
     else {
-    	throw 'BadNumber' => "'$width' is not a valid text width value";
+        throw 'BadNumber' => "'$width' is not a valid text width value";
     }
     return $self;
 }
@@ -404,9 +396,9 @@ Sets tree to draw.
 sub set_tree {
     my ( $self, $tree ) = @_;
     if ( looks_like_object $tree, _TREE_ ) {
-    	if ( not $tree->isa('Bio::Phylo::Forest::DrawTree') ) {
-    		$tree = Bio::Phylo::Forest::DrawTree->new( '-tree' => $tree );
-    	}
+        if ( not $tree->isa('Bio::Phylo::Forest::DrawTree') ) {
+            $tree = Bio::Phylo::Forest::DrawTree->new( '-tree' => $tree );
+        }
         $self->{'TREE'} = $tree->negative_to_zero;
     }
     return $self;
@@ -438,8 +430,9 @@ Sets time scale options.
 
 sub set_scale_options {
     my $self = shift;
-    if ( ( @_ && !scalar @_ % 2 ) || ( scalar @_ == 1 && ref $_[0] eq 'HASH' ) ) {
-        my %o; # %options
+    if ( ( @_ && !scalar @_ % 2 ) || ( scalar @_ == 1 && ref $_[0] eq 'HASH' ) )
+    {
+        my %o;    # %options
         if ( scalar @_ == 1 && ref $_[0] eq 'HASH' ) {
             %o = %{ $_[0] };
         }
@@ -456,13 +449,13 @@ sub set_scale_options {
             $self->{'SCALE'}->{'-major'} = $o{'-major'};
         }
         else {
-        	throw 'BadArgs' => "\"$o{'-major'}\" is invalid for '-major'";
+            throw 'BadArgs' => "\"$o{'-major'}\" is invalid for '-major'";
         }
         if ( looks_like_number $o{'-minor'} or $o{'-minor'} =~ m/^\d+%$/ ) {
             $self->{'SCALE'}->{'-minor'} = $o{'-minor'};
         }
         else {
-            throw 'BadArgs' => "\"$o{'-minor'}\" is invalid for '-minor'"; 
+            throw 'BadArgs' => "\"$o{'-minor'}\" is invalid for '-minor'";
         }
         $self->{'SCALE'}->{'-label'} = $o{'-label'};
     }
@@ -497,7 +490,7 @@ sub set_branch_width {
         $self->_cascading_setter($width);
     }
     else {
-    	throw 'BadNumber' => "'$width' is not a valid branch width";
+        throw 'BadNumber' => "'$width' is not a valid branch width";
     }
     return $self;
 }
@@ -521,7 +514,7 @@ sub set_node_radius {
         $self->_cascading_setter($radius);
     }
     else {
-    	throw 'BadNumber' => "'$radius' is not a valid node radius value";
+        throw 'BadNumber' => "'$radius' is not a valid node radius value";
     }
     return $self;
 }
@@ -545,7 +538,7 @@ sub set_collapsed_clade_width {
         $self->_cascading_setter($width);
     }
     else {
-    	throw 'BadNumber' => "'$width' is not a valid image width";
+        throw 'BadNumber' => "'$width' is not a valid image width";
     }
     return $self;
 }
@@ -569,7 +562,7 @@ sub set_tip_radius {
         $self->_cascading_setter($radius);
     }
     else {
-    	throw 'BadNumber' => "'$radius' is not a valid tip radius value";
+        throw 'BadNumber' => "'$radius' is not a valid tip radius value";
     }
     return $self;
 }
@@ -592,7 +585,6 @@ Gets image format.
  Args    : None.
 
 =cut
-
 sub get_format { shift->{'FORMAT'} }
 
 =item get_width()
@@ -607,7 +599,6 @@ Gets image width.
  Args    : None.
 
 =cut
-
 sub get_width { shift->{'WIDTH'} }
 
 =item get_height()
@@ -622,7 +613,6 @@ Gets image height.
  Args    : None.
 
 =cut
-
 sub get_height { shift->{'HEIGHT'} }
 
 =item get_mode()
@@ -637,7 +627,6 @@ Gets tree drawing mode.
  Args    : None.
 
 =cut
-
 sub get_mode { shift->{'MODE'} }
 
 =item get_shape()
@@ -653,7 +642,6 @@ Gets tree drawing shape.
  Args    : None.
 
 =cut
-
 sub get_shape { shift->{'SHAPE'} }
 
 =item get_padding()
@@ -668,7 +656,6 @@ Gets image padding.
  Args    : None.
 
 =cut
-
 sub get_padding { shift->{'PADDING'} }
 
 =item get_text_horiz_offset()
@@ -685,7 +672,6 @@ Gets text horizontal offset.
  Args    : None.
 
 =cut
-
 sub get_text_horiz_offset { shift->{'TEXT_HORIZ_OFFSET'} }
 
 =item get_text_vert_offset()
@@ -702,7 +688,6 @@ Gets text vertical offset.
  Args    : None.
 
 =cut
-
 sub get_text_vert_offset { shift->{'TEXT_VERT_OFFSET'} }
 
 =item get_text_width()
@@ -719,7 +704,6 @@ Gets text width.
  Args    : None.
 
 =cut
-
 sub get_text_width { shift->{'TEXT_WIDTH'} }
 
 =item get_tree()
@@ -735,7 +719,6 @@ Gets tree to draw.
  Args    : None.
 
 =cut
-
 sub get_tree { shift->{'TREE'} }
 
 =item get_scale_options()
@@ -753,7 +736,6 @@ Gets time scale option.
  Args    : None.
 
 =cut
-
 sub get_scale_options { shift->{'SCALE'} }
 
 =back
@@ -775,7 +757,7 @@ Gets branch width.
 
 =cut
 
-sub get_branch_width { 
+sub get_branch_width {
     my $self = shift;
     return $self->_cascading_getter(@_);
 }
@@ -793,7 +775,7 @@ Gets collapsed clade width.
 
 =cut
 
-sub get_collapsed_clade_width { 
+sub get_collapsed_clade_width {
     my $self = shift;
     return $self->_cascading_getter(@_);
 }
@@ -811,7 +793,7 @@ Gets node radius.
 
 =cut
 
-sub get_node_radius { 
+sub get_node_radius {
     my $self = shift;
     return $self->_cascading_getter(@_);
 }
@@ -829,7 +811,7 @@ Gets tip radius.
 
 =cut
 
-sub get_tip_radius { 
+sub get_tip_radius {
     my $self = shift;
     return $self->_cascading_getter(@_);
 }
@@ -853,11 +835,10 @@ sub _set_scalex {
         $self->{'_SCALEX'} = $_[0];
     }
     else {
-    	throw 'BadNumber' => "\"$_[0]\" is not a valid number value";
+        throw 'BadNumber' => "\"$_[0]\" is not a valid number value";
     }
     return $self;
 }
-
 sub _get_scalex { shift->{'_SCALEX'} }
 
 =begin comment
@@ -879,11 +860,10 @@ sub _set_scaley {
         $self->{'_SCALEY'} = $_[0];
     }
     else {
-    	throw 'BadNumber' => "\"$_[0]\" is not a valid integer value";
+        throw 'BadNumber' => "\"$_[0]\" is not a valid integer value";
     }
     return $self;
 }
-
 sub _get_scaley { shift->{'_SCALEY'} }
 
 =back
@@ -894,7 +874,7 @@ sub _get_scaley { shift->{'_SCALEY'} }
 
 =item draw()
 
-Creates tree drawing. Requires L<SVG>;
+Creates tree drawing.
 
  Type    : Unparsers
  Title   : draw
@@ -903,8 +883,6 @@ Creates tree drawing. Requires L<SVG>;
            object into a drawing.
  Returns : SCALAR
  Args    :
- Notes   : This will only work if you have the SVG module
-           from CPAN installed on your system.
 
 =cut
 
@@ -916,69 +894,69 @@ sub draw {
     my $root = $self->get_tree->get_root;
 
     #Reset the stored data in the tree
-    $self->_reset_internal($root); 
-    
+    $self->_reset_internal($root);
     $self->_compute_rooted_coordinates;
-    
     return $self->render;
 }
 
 sub _compute_rooted_coordinates {
-    my $td = shift;
-    my $tree = $td->get_tree;
-    my $phylo   = $td->get_mode =~ /^p/i ? 1 : 0; # phylogram or cladogram
+    my $td      = shift;
+    my $tree    = $td->get_tree;
+    my $phylo   = $td->get_mode =~ /^p/i ? 1 : 0;    # phylogram or cladogram
     my $padding = $td->get_padding;
-    my $width   = $td->get_width - ( $td->get_text_width + ( $padding * 2 ) );
-    my $height  = $td->get_height - ( $padding * 2 );
-    my $cladew  = $td->get_collapsed_clade_width;    
+    my $width  = $td->get_width - ( $td->get_text_width + ( $padding * 2 ) );
+    my $height = $td->get_height - ( $padding * 2 );
+    my $cladew = $td->get_collapsed_clade_width;
     my ( $tip_counter, $tallest_tip ) = ( 0, 0 );
     $tree->visit_depth_first(
-	'-pre' => sub {
-	    my $node = shift;
-	    if ( my $parent = $node->get_parent ) {
-		my $parent_x = $parent->get_x || 0;
-		my $x = $phylo ? $node->get_branch_length || 0 : 1;
-		$node->set_x( $x + $parent_x );
-	    }
-	    else { 
-		$node->set_x(0); # root
-	    }
-	},
-	'-no_daughter' => sub {
-	    my $node = shift;
-	    if ( $node->get_collapsed ) {
-		$tip_counter += ( ($cladew-2) / 2 );
-		$node->set_y( $tip_counter );
-		$tip_counter += ( ($cladew-2) / 2 ) + 1;
-	    }
-	    else {
-		$node->set_y( $tip_counter++ );
-	    }
-	    my $x = $node->get_x;
-	    $tallest_tip = $x if $x > $tallest_tip;
-	},
-	'-post_daughter' => sub {
-	    my $node = shift;
-	    my ( $child_count, $child_y ) = ( 0, 0 );
-	    for my $child ( @{ $node->get_children } ) {
-		$child_count++;
-		$child_y += $child->get_y;
-	    }
-	    $node->set_y( $child_y / $child_count );
-	},
+        '-pre' => sub {
+            my $node = shift;
+            if ( my $parent = $node->get_parent ) {
+                my $parent_x = $parent->get_x || 0;
+                my $x = $phylo ? $node->get_branch_length || 0 : 1;
+                $node->set_x( $x + $parent_x );
+            }
+            else {
+                $node->set_x(0);    # root
+            }
+        },
+        '-no_daughter' => sub {
+            my $node = shift;
+            if ( $node->get_collapsed ) {
+                $tip_counter += ( ( $cladew - 2 ) / 2 );
+                $node->set_y($tip_counter);
+                $tip_counter += ( ( $cladew - 2 ) / 2 ) + 1;
+            }
+            else {
+                $node->set_y( $tip_counter++ );
+            }
+            my $x = $node->get_x;
+            $tallest_tip = $x if $x > $tallest_tip;
+        },
+        '-post_daughter' => sub {
+            my $node = shift;
+            my ( $child_count, $child_y ) = ( 0, 0 );
+            for my $child ( @{ $node->get_children } ) {
+                $child_count++;
+                $child_y += $child->get_y;
+            }
+            $node->set_y( $child_y / $child_count );
+        },
     );
     $tree->visit(
-	sub {
-	    my $node = shift;
-	    $node->set_x( $padding + $node->get_x * ( $width / $tallest_tip ) );
-	    $node->set_y( $padding + $node->get_y * ( $height / $tip_counter ) );
-	    if ( ! $phylo && $node->is_terminal ) {
-		$node->set_x( $padding + $tallest_tip * ( $width / $tallest_tip ) );
-	    }
-	}
+        sub {
+            my $node = shift;
+            $node->set_x( $padding + $node->get_x * ( $width / $tallest_tip ) );
+            $node->set_y(
+                $padding + $node->get_y * ( $height / $tip_counter ) );
+            if ( !$phylo && $node->is_terminal ) {
+                $node->set_x(
+                    $padding + $tallest_tip * ( $width / $tallest_tip ) );
+            }
+        }
     );
     $td->_set_scaley( $height / $tip_counter );
-    $td->_set_scalex( $width  / $tallest_tip );
+    $td->_set_scalex( $width / $tallest_tip );
 }
 
 =item render()
@@ -994,19 +972,18 @@ have already calculated the node coordinates separately.
            object into a drawing.
  Returns : SCALAR
  Args    :
- Notes   : This will only work if you have the SVG module
-           from CPAN installed on your system.
 
 =cut
 
 sub render {
     my $self = shift;
-    my $library = looks_like_class __PACKAGE__ . '::' . ucfirst( lc( $self->get_format ) );
+    my $library =
+      looks_like_class __PACKAGE__ . '::' . ucfirst( lc( $self->get_format ) );
     my $drawer = $library->_new(
         '-tree'   => $self->get_tree,
         '-drawer' => $self
     );
-    return $drawer->_draw;	
+    return $drawer->_draw;
 }
 
 =begin comment
@@ -1024,13 +1001,13 @@ sub render {
 =cut
 
 sub _reset_internal {
-    my ($self, $node) = @_;
+    my ( $self, $node ) = @_;
     my $tree = $self->get_tree;
     $node->set_x(undef);
     $node->set_y(undef);
     my $children = $node->get_children;
     for my $child (@$children) {
-        _reset_internal($self,$child);
+        _reset_internal( $self, $child );
     }
 }
 
@@ -1062,8 +1039,7 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =head1 REVISION
 
- $Id: Treedrawer.pm 1593 2011-02-27 15:26:04Z rvos $
+ $Id: Treedrawer.pm 1660 2011-04-02 18:29:40Z rvos $
 
 =cut
-
 1;

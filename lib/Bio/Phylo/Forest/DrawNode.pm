@@ -1,34 +1,20 @@
 package Bio::Phylo::Forest::DrawNode;
 use strict;
-use Bio::Phylo::Forest::Node ();
-use vars '@ISA';
-@ISA=qw(Bio::Phylo::Forest::Node);
+use base 'Bio::Phylo::Forest::Node';
 {
-	# @fields array necessary for object destruction
-	my @fields = \( 
-	    my ( 
-	        %x, 
-	        %y, 
-	        %radius,
-		%tip_radius,
-	        %node_colour,
-		%node_outline_colour,
-	        %node_shape,
-	        %node_image,	        
-	        %branch_color,
-	        %branch_shape,
-		%branch_width,	
-		%branch_style,
-		%collapsed,
-		%collapsed_width,
-	        %font_face,
-	        %font_size,
-	        %font_style,
-	        %url,
-	        %text_horiz_offset,
-	        %text_vert_offset,
-	    ) 	
-	);
+
+    # @fields array necessary for object destruction
+    my @fields = \(
+        my (
+            %x,                 %y,               %radius,
+            %tip_radius,        %node_colour,     %node_outline_colour,
+            %node_shape,        %node_image,      %branch_color,
+            %branch_shape,      %branch_width,    %branch_style,
+            %collapsed,         %collapsed_width, %font_face,
+            %font_size,         %font_style,      %url,
+            %text_horiz_offset, %text_vert_offset,
+        )
+    );
 
 =head1 NAME
 
@@ -72,12 +58,12 @@ and text attributes, etc.
 
 =cut
 
-	sub set_collapsed {
-		my ( $self, $collapsed ) = @_;
-		my $id = $self->get_id;
-		$collapsed{$id} = $collapsed;
-		return $self;
-	}
+    sub set_collapsed {
+        my ( $self, $collapsed ) = @_;
+        my $id = $self->get_id;
+        $collapsed{$id} = $collapsed;
+        return $self;
+    }
 
 =item set_collapsed_clade_width()
 
@@ -170,7 +156,7 @@ Sets collapsed clade width.
         my $id = $self->get_id;
         $tip_radius{$id} = $r;
         return $self;
-    } 
+    }
 
 =item set_node_colour()
 
@@ -316,7 +302,7 @@ Sets collapsed clade width.
         my $id = $self->get_id;
         $branch_style{$id} = $branch_style;
         return $self;
-    } 
+    }
 
 =item set_font_face()
 
@@ -445,7 +431,7 @@ Sets collapsed clade width.
 
     sub get_collapsed {
         my $self = shift;
-        my $id = $self->get_id;
+        my $id   = $self->get_id;
         return $collapsed{$id};
     }
 
@@ -463,13 +449,13 @@ Gets invocant's first daughter.
 =cut
 
     sub get_first_daughter {
-    	my $self = shift;
-    	if ( $self->get_collapsed ) {
-    		return;
-    	}
-    	else {
-    		return $self->SUPER::get_first_daughter;
-    	}
+        my $self = shift;
+        if ( $self->get_collapsed ) {
+            return;
+        }
+        else {
+            return $self->SUPER::get_first_daughter;
+        }
     }
 
 =item get_last_daughter()
@@ -486,13 +472,13 @@ Gets invocant's last daughter.
 =cut
 
     sub get_last_daughter {
-    	my $self = shift;
-    	if ( $self->get_collapsed ) {
-    		return;
-    	}
-    	else {
-    		return $self->SUPER::get_last_daughter;
-    	}    	
+        my $self = shift;
+        if ( $self->get_collapsed ) {
+            return;
+        }
+        else {
+            return $self->SUPER::get_last_daughter;
+        }
     }
 
 =item get_children()
@@ -511,13 +497,13 @@ Gets invocant's immediate children.
 =cut
 
     sub get_children {
-    	my $self = shift;
-    	if ( $self->get_collapsed ) {
-    		return [];
-    	}
-    	else {
-    		return $self->SUPER::get_children;
-    	}      
+        my $self = shift;
+        if ( $self->get_collapsed ) {
+            return [];
+        }
+        else {
+            return $self->SUPER::get_children;
+        }
     }
 
 =item get_x()
@@ -533,7 +519,7 @@ Gets invocant's immediate children.
 
     sub get_x {
         my $self = shift;
-        my $id = $self->get_id;
+        my $id   = $self->get_id;
         return $x{$id};
     }
 
@@ -550,7 +536,7 @@ Gets invocant's immediate children.
 
     sub get_y {
         my $self = shift;
-        my $id = $self->get_id;
+        my $id   = $self->get_id;
         return $y{$id};
     }
 
@@ -567,7 +553,7 @@ Gets invocant's immediate children.
 
     sub get_radius {
         my $self = shift;
-        my $id = $self->get_id;
+        my $id   = $self->get_id;
         return $radius{$id};
     }
 
@@ -584,7 +570,7 @@ Gets invocant's immediate children.
 
     sub get_node_colour {
         my $self = shift;
-        my $id = $self->get_id;
+        my $id   = $self->get_id;
         return $node_colour{$id};
     }
     *get_node_color = \&get_node_colour;
@@ -602,7 +588,7 @@ Gets invocant's immediate children.
 
     sub get_node_outline_colour {
         my $self = shift;
-        my $id = $self->get_id;
+        my $id   = $self->get_id;
         return $node_outline_colour{$id};
     }
 
@@ -619,7 +605,7 @@ Gets invocant's immediate children.
 
     sub get_node_shape {
         my $self = shift;
-        my $id = $self->get_id;
+        my $id   = $self->get_id;
         return $node_shape{$id};
     }
 
@@ -636,7 +622,7 @@ Gets invocant's immediate children.
 
     sub get_node_image {
         my $self = shift;
-        my $id = $self->get_id;
+        my $id   = $self->get_id;
         return $node_image{$id};
     }
 
@@ -655,7 +641,7 @@ Gets collapsed clade width.
 
     sub get_collapsed_clade_width {
         my $self = shift;
-        my $id = $self->get_id;
+        my $id   = $self->get_id;
         return $collapsed_width{$id};
     }
 
@@ -672,7 +658,7 @@ Gets collapsed clade width.
 
     sub get_branch_color {
         my $self = shift;
-        my $id = $self->get_id;
+        my $id   = $self->get_id;
         return $branch_color{$id};
     }
     *get_branch_colour = \&get_branch_color;
@@ -690,7 +676,7 @@ Gets collapsed clade width.
 
     sub get_branch_shape {
         my $self = shift;
-        my $id = $self->get_id;
+        my $id   = $self->get_id;
         return $branch_shape{$id};
     }
 
@@ -707,13 +693,13 @@ Gets collapsed clade width.
 
     sub get_branch_width {
         my $self = shift;
-	if ( my $node = shift ) {
-	    return $node->get_branch_width;
-	}
-	else {
-	    my $id = $self->get_id;
-	    return $branch_width{$id};
-	}
+        if ( my $node = shift ) {
+            return $node->get_branch_width;
+        }
+        else {
+            my $id = $self->get_id;
+            return $branch_width{$id};
+        }
     }
 
 =item get_branch_style()
@@ -729,7 +715,7 @@ Gets collapsed clade width.
 
     sub get_branch_style {
         my $self = shift;
-        my $id = $self->get_id;
+        my $id   = $self->get_id;
         return $branch_style{$id};
     }
 
@@ -746,7 +732,7 @@ Gets collapsed clade width.
 
     sub get_font_face {
         my $self = shift;
-        my $id = $self->get_id;
+        my $id   = $self->get_id;
         return $font_face{$id};
     }
 
@@ -763,7 +749,7 @@ Gets collapsed clade width.
 
     sub get_font_size {
         my $self = shift;
-        my $id = $self->get_id;
+        my $id   = $self->get_id;
         return $font_size{$id};
     }
 
@@ -780,7 +766,7 @@ Gets collapsed clade width.
 
     sub get_font_style {
         my $self = shift;
-        my $id = $self->get_id;
+        my $id   = $self->get_id;
         return $font_style{$id};
     }
 
@@ -797,7 +783,7 @@ Gets collapsed clade width.
 
     sub get_url {
         my $self = shift;
-        my $id = $self->get_id;
+        my $id   = $self->get_id;
         return $url{$id};
     }
 
@@ -814,7 +800,7 @@ Gets collapsed clade width.
 
     sub get_text_horiz_offset {
         my $self = shift;
-        my $id = $self->get_id;
+        my $id   = $self->get_id;
         return $text_horiz_offset{$id};
     }
 
@@ -831,7 +817,7 @@ Gets collapsed clade width.
 
     sub get_text_vert_offset {
         my $self = shift;
-        my $id = $self->get_id;
+        my $id   = $self->get_id;
         return $text_vert_offset{$id};
     }
 
@@ -878,7 +864,6 @@ Serializes object to JSON string
         return $node->SUPER::to_json(%args);
     }
 
-
 =begin comment
 
  Type    : Internal method
@@ -892,19 +877,19 @@ Serializes object to JSON string
 
 =cut
 
-	sub _cleanup {
-		my $self = shift;
-		my $id = $self->get_id;
-		for my $field (@fields) {
-			delete $field->{$id};
-		}
-	}
+    sub _cleanup {
+        my $self = shift;
+        my $id   = $self->get_id;
+        for my $field (@fields) {
+            delete $field->{$id};
+        }
+    }
 
 =back
 
 =cut
 
-# podinherit_insert_token
+    # podinherit_insert_token
 
 =head1 SEE ALSO
 
@@ -932,9 +917,8 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =head1 REVISION
 
- $Id: DrawNode.pm 1593 2011-02-27 15:26:04Z rvos $
+ $Id: DrawNode.pm 1660 2011-04-02 18:29:40Z rvos $
 
 =cut
-
 }
 1;

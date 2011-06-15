@@ -1,11 +1,10 @@
-# $Id: Taxa.pm 1593 2011-02-27 15:26:04Z rvos $
+# $Id: Taxa.pm 1660 2011-04-02 18:29:40Z rvos $
 package Bio::Phylo::Taxa;
 use strict;
-use Bio::Phylo::Listable ();
-use Bio::Phylo::Util::CONSTANT qw(_NONE_ _TAXA_ _FOREST_ _MATRIX_ _PROJECT_ looks_like_object);
+use base 'Bio::Phylo::Listable';
+use Bio::Phylo::Util::CONSTANT qw':objecttypes looks_like_object';
 use Bio::Phylo::Mediators::TaxaMediator;
 use Bio::Phylo::Factory;
-use vars qw(@ISA);
 
 =begin comment
 
@@ -14,18 +13,14 @@ This class has no internal state, no cleanup is necessary.
 =end comment
 
 =cut
-
-# classic @ISA manipulation, not using 'base'
-@ISA = qw(Bio::Phylo::Listable);
 {
-
-	my $logger    = __PACKAGE__->get_logger;
-	my $mediator  = 'Bio::Phylo::Mediators::TaxaMediator';
-	my $factory   = Bio::Phylo::Factory->new;
-	my $CONTAINER = _PROJECT_;
-	my $TYPE      = _TAXA_;
-	my $MATRIX    = _MATRIX_;
-	my $FOREST    = _FOREST_;
+    my $logger    = __PACKAGE__->get_logger;
+    my $mediator  = 'Bio::Phylo::Mediators::TaxaMediator';
+    my $factory   = Bio::Phylo::Factory->new;
+    my $CONTAINER = _PROJECT_;
+    my $TYPE      = _TAXA_;
+    my $MATRIX    = _MATRIX_;
+    my $FOREST    = _FOREST_;
 
 =head1 NAME
 
@@ -73,20 +68,20 @@ Taxa constructor.
 
 =cut
 
-#     sub new {
-#         # could be child class
-#         my $class = shift;
-#         
-#         # notify user
-#         $logger->info("constructor called for '$class'");
-#         
-#         # recurse up inheritance tree, get ID
-#         my $self = $class->SUPER::new( '-tag' => __PACKAGE__->_tag, @_ );
-#         
-#         # local fields would be set here
-#         
-#         return $self;
-#     }
+    #     sub new {
+    #         # could be child class
+    #         my $class = shift;
+    #
+    #         # notify user
+    #         $logger->info("constructor called for '$class'");
+    #
+    #         # recurse up inheritance tree, get ID
+    #         my $self = $class->SUPER::new( '-tag' => __PACKAGE__->_tag, @_ );
+    #
+    #         # local fields would be set here
+    #
+    #         return $self;
+    #     }
 
 =back
 
@@ -110,13 +105,12 @@ Sets associated Bio::Phylo::Forest object.
            forest and matrix objects.
 
 =cut
-
     sub set_forest {
         my ( $self, $forest ) = @_;
-        $logger->debug( "setting forest $forest" );
+        $logger->debug("setting forest $forest");
         if ( looks_like_object $forest, $FOREST ) {
-        	$forest->set_taxa( $self );
-        }    
+            $forest->set_taxa($self);
+        }
         return $self;
     }
 
@@ -139,10 +133,10 @@ Sets associated Bio::Phylo::Matrices::Matrix object.
 
     sub set_matrix {
         my ( $self, $matrix ) = @_;
-        $logger->debug( "setting matrix $matrix" );
+        $logger->debug("setting matrix $matrix");
         if ( looks_like_object $matrix, $MATRIX ) {
-        	$matrix->set_taxa( $self );
-        }      
+            $matrix->set_taxa($self);
+        }
         return $self;
     }
 
@@ -163,10 +157,10 @@ Removes association with argument Bio::Phylo::Forest object.
 
     sub unset_forest {
         my ( $self, $forest ) = @_;
-        $logger->debug( "unsetting forest $forest" );
+        $logger->debug("unsetting forest $forest");
         if ( looks_like_object $forest, $FOREST ) {
-        	$forest->unset_taxa();
-        }      
+            $forest->unset_taxa();
+        }
         return $self;
     }
 
@@ -187,13 +181,12 @@ Removes association with Bio::Phylo::Matrices::Matrix object.
 
     sub unset_matrix {
         my ( $self, $matrix ) = @_;
-        $logger->debug( "unsetting matrix $matrix" );
+        $logger->debug("unsetting matrix $matrix");
         if ( looks_like_object $matrix, $MATRIX ) {
-        	$matrix->unset_taxa();
-        }     
+            $matrix->unset_taxa();
+        }
         return $self;
     }
-
 
 =back
 
@@ -218,8 +211,8 @@ Gets all associated Bio::Phylo::Forest objects.
 
     sub get_forests {
         my $self = shift;
-        return $mediator->get_link( 
-            '-source' => $self, 
+        return $mediator->get_link(
+            '-source' => $self,
             '-type'   => $FOREST,
         );
     }
@@ -241,8 +234,8 @@ Gets all associated Bio::Phylo::Matrices::Matrix objects.
 
     sub get_matrices {
         my $self = shift;
-        return $mediator->get_link( 
-            '-source' => $self, 
+        return $mediator->get_link(
+            '-source' => $self,
             '-type'   => $MATRIX,
         );
     }
@@ -292,19 +285,20 @@ Merges argument Bio::Phylo::Taxa object with invocant.
 
     sub merge_by_name {
         my $merged = $factory->create_taxa;
-        for my $taxa ( @_ ) {
-            my %object_by_name = map { $_->get_name => $_ } @{ $merged->get_entities };
+        for my $taxa (@_) {
+            my %object_by_name =
+              map { $_->get_name => $_ } @{ $merged->get_entities };
             foreach my $taxon ( @{ $taxa->get_entities } ) {
-                my $name   = $taxon->get_name;
+                my $name = $taxon->get_name;
                 my $target = $factory->create_taxon( '-name' => $name );
                 if ( exists $object_by_name{$name} ) {
                     $target = $object_by_name{$name};
-                }                
+                }
                 foreach my $datum ( @{ $taxon->get_data } ) {
-                    $datum->set_taxon( $target );
+                    $datum->set_taxon($target);
                 }
                 foreach my $node ( @{ $taxon->get_nodes } ) {
-                    $node->set_taxon( $target );
+                    $node->set_taxon($target);
                 }
                 if ( not exists $object_by_name{$name} ) {
                     $merged->insert($target);
@@ -329,18 +323,21 @@ Serializes invocant to nexus format.
 
 =cut    
 
-	sub to_nexus {
-		my ( $self, %args ) = @_;
-		my %m = ( 
-			'header'    => ( $args{'-header'} && '#NEXUS' ) || '',
-			'title'     => ( $args{'-links'}  && sprintf 'TITLE %s;', $self->get_nexus_name ) || '',
-			'version'   => $self->VERSION, 			
-			'ntax'      => $self->get_ntax,			
-			'class'     => ref $self, 
-			'time'      => my $time = localtime(),
-			'taxlabels' => join "\n\t\t", map { $_->get_nexus_name } @{ $self->get_entities }
-		);		
-		return <<TEMPLATE;
+    sub to_nexus {
+        my ( $self, %args ) = @_;
+        my %m = (
+            'header' => ( $args{'-header'} && '#NEXUS' ) || '',
+            'title' =>
+              ( $args{'-links'} && sprintf 'TITLE %s;', $self->get_nexus_name )
+              || '',
+            'version'   => $self->VERSION,
+            'ntax'      => $self->get_ntax,
+            'class'     => ref $self,
+            'time'      => my $time = localtime(),
+            'taxlabels' => join "\n\t\t",
+            map { $_->get_nexus_name } @{ $self->get_entities }
+        );
+        return <<TEMPLATE;
 $m{header}
 BEGIN TAXA;
 [! Taxa block written by $m{class} $m{version} on $m{time} ]
@@ -351,7 +348,7 @@ BEGIN TAXA;
         ;
 END;
 TEMPLATE
-	}
+    }
 
 =begin comment
 
@@ -365,7 +362,6 @@ TEMPLATE
 =end comment
 
 =cut
-
     sub _container { $CONTAINER }
 
 =begin comment
@@ -380,15 +376,14 @@ TEMPLATE
 =end comment
 
 =cut
-
-    sub _type { $TYPE  }
+    sub _type { $TYPE }
     sub _tag  { 'otus' }
 
 =back
 
 =cut
 
-# podinherit_insert_token
+    # podinherit_insert_token
 
 =head1 SEE ALSO
 
@@ -416,9 +411,8 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =head1 REVISION
 
- $Id: Taxa.pm 1593 2011-02-27 15:26:04Z rvos $
+ $Id: Taxa.pm 1660 2011-04-02 18:29:40Z rvos $
 
 =cut
-
 }
 1;

@@ -1,11 +1,9 @@
-# $Id: Nexus.pm 1593 2011-02-27 15:26:04Z rvos $
+# $Id: Nexus.pm 1660 2011-04-02 18:29:40Z rvos $
 package Bio::Phylo::Unparsers::Nexus;
 use strict;
-use Bio::Phylo::Unparsers::Abstract;
-use Bio::Phylo::Util::CONSTANT qw(:objecttypes);
+use base 'Bio::Phylo::Unparsers::Abstract';
+use Bio::Phylo::Util::CONSTANT ':objecttypes';
 use Bio::Phylo::Util::Exceptions 'throw';
-use vars qw(@ISA);
-@ISA=qw(Bio::Phylo::Unparsers::Abstract);
 
 =head1 NAME
 
@@ -57,52 +55,50 @@ sub _to_string {
     my $blocks = $self->{'PHYLO'};
     my $nexus  = "#NEXUS\n";
     my $type;
-    eval { $type = $blocks->_type  };
+    eval { $type = $blocks->_type };
 
     # array?
-    if ( $@ ) {
-    	for my $block ( @$blocks ) {
-    		eval { $type = $block->_type };
-    		my %args;
-    		if ( $type == _FOREST_ ) {
-    			if ( exists $self->{'FOREST_ARGS'} ) {
-    				%args = %{ $self->{'FOREST_ARGS'} };
-    			}
-    		}
-    		elsif ( $type == _TAXA_ ) {
-    			if ( exists $self->{'TAXA_ARGS'} ) {
-    				%args = %{ $self->{'TAXA_ARGS'} };
-    			}    			
-    		}
-    		elsif ( $type == _MATRIX_ ) {
-    			if ( exists $self->{'MATRIX_ARGS'} ) {
-    				%args = %{ $self->{'MATRIX_ARGS'} };
-    			}     			
-    		}
-    		elsif ( $@ ) {
-		    	throw 'ObjectMismatch' => "Can't unparse this object: $blocks";
-    		}
-    		$nexus .= $block->to_nexus(%args);
-    	}
+    if ($@) {
+        for my $block (@$blocks) {
+            eval { $type = $block->_type };
+            my %args;
+            if ( $type == _FOREST_ ) {
+                if ( exists $self->{'FOREST_ARGS'} ) {
+                    %args = %{ $self->{'FOREST_ARGS'} };
+                }
+            }
+            elsif ( $type == _TAXA_ ) {
+                if ( exists $self->{'TAXA_ARGS'} ) {
+                    %args = %{ $self->{'TAXA_ARGS'} };
+                }
+            }
+            elsif ( $type == _MATRIX_ ) {
+                if ( exists $self->{'MATRIX_ARGS'} ) {
+                    %args = %{ $self->{'MATRIX_ARGS'} };
+                }
+            }
+            elsif ($@) {
+                throw 'ObjectMismatch' => "Can't unparse this object: $blocks";
+            }
+            $nexus .= $block->to_nexus(%args);
+        }
     }
-    
+
     # matrix?
     elsif ( defined $type and $type == _MATRIX_ ) {
-    	$nexus .= $blocks->to_nexus;
+        $nexus .= $blocks->to_nexus;
     }
-    
+
     # project?
     elsif ( defined $type and $type == _PROJECT_ ) {
-    	$nexus = $blocks->to_nexus;
-    }    
-    
+        $nexus = $blocks->to_nexus;
+    }
+
     # wrong!
     else {
-    	throw 'ObjectMismatch' => "Can't unparse this object: $blocks";
+        throw 'ObjectMismatch' => "Can't unparse this object: $blocks";
     }
-    
     return $nexus;
-
 }
 
 # podinherit_insert_token
@@ -132,8 +128,7 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =head1 REVISION
 
- $Id: Nexus.pm 1593 2011-02-27 15:26:04Z rvos $
+ $Id: Nexus.pm 1660 2011-04-02 18:29:40Z rvos $
 
 =cut
-
 1;

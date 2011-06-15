@@ -1,4 +1,4 @@
-# $Id: Libxml.pm 1593 2011-02-27 15:26:04Z rvos $
+# $Id: Libxml.pm 1660 2011-04-02 18:29:40Z rvos $
 
 =head1 NAME
 
@@ -20,25 +20,13 @@ package.
 Mark A. Jensen ( maj -at- fortinbras -dot- us )
 
 =cut
-
 package Bio::Phylo::NeXML::DOM::Document::Libxml;
 use strict;
-use Bio::Phylo::NeXML::DOM::Document ();
-use Bio::Phylo::Util::CONSTANT qw(looks_like_instance);
-use Bio::Phylo::NeXML::DOM::Element::Libxml (); # for blessing 
-use Bio::Phylo::Util::Exceptions qw(throw);
-use vars qw(@ISA);
-
-BEGIN {
-    # XML::LibXML::Document is a package within the same file as XML::LibXML,
-    # no need to require-test it separately
-    eval { require XML::LibXML };
-    if ($@) {		
-	throw 'ExtensionError' => "Failed to load XML::LibXML::Document: $@";
-    }
-    @ISA = qw( Bio::Phylo::NeXML::DOM::Document XML::LibXML::Document );
-}
-
+use Bio::Phylo::Util::Exceptions 'throw';
+use Bio::Phylo::Util::Dependency 'XML::LibXML';
+use Bio::Phylo::Util::CONSTANT 'looks_like_instance';
+use Bio::Phylo::NeXML::DOM::Element::Libxml ();    # for blessing
+use base qw'Bio::Phylo::NeXML::DOM::Document XML::LibXML::Document';
 
 =head2 Constructor
 
@@ -56,7 +44,7 @@ BEGIN {
 =cut
 
 sub new {
-    my ($class, @args) = @_;
+    my ( $class, @args ) = @_;
     my $self = XML::LibXML::Document->new(@args);
     bless $self, $class;
     return $self;
@@ -130,13 +118,13 @@ sub get_encoding {
 =cut
 
 sub set_root {
-    my ($self, $root) = @_;
+    my ( $self, $root ) = @_;
     if ( looks_like_instance $root, 'XML::LibXML::Element' ) {
-	$self->setDocumentElement($root);
-	return 1;
+        $self->setDocumentElement($root);
+        return 1;
     }
     else {
-	throw 'ObjectMismatch' => "Argument is not an XML::LibXML::Element";
+        throw 'ObjectMismatch' => "Argument is not an XML::LibXML::Element";
     }
 }
 
@@ -174,19 +162,18 @@ sub get_root {
 
 =cut
 
-# the XML::LibXML::Document::get_element_by_id() retrieves only 
+# the XML::LibXML::Document::get_element_by_id() retrieves only
 # via @xml:id attributes in a general XML file. This is a kludge
 # using an XPath expression to find an unqualified id attribute
 # that matches.
-
 sub get_element_by_id {
-    my ($self, $id) = @_;
+    my ( $self, $id ) = @_;
     unless ($id) {
-	throw 'BadArgs' => "Argument 'id' required";
+        throw 'BadArgs' => "Argument 'id' required";
     }
     my $xp = "//*[\@id = '$id']";
-    my $e = $self->get_root->find( $xp );
-    return unless $e; # don't return undef explicitly, do it this way
+    my $e  = $self->get_root->find($xp);
+    return unless $e;    # don't return undef explicitly, do it this way
     $e = $e->shift;
     return bless $e, 'Bio::Phylo::NeXML::DOM::Element::Libxml';
 }
@@ -203,9 +190,9 @@ sub get_element_by_id {
 =cut
 
 sub get_elements_by_tagname {
-    my ($self, $tagname, @args) = @_;
+    my ( $self, $tagname, @args ) = @_;
     my @a = $self->getElementsByTagName($tagname);
-    bless($_, 'Bio::Phylo::NeXML::DOM::Element::Libxml') for (@a);
+    bless( $_, 'Bio::Phylo::NeXML::DOM::Element::Libxml' ) for (@a);
     return @a;
 }
 
@@ -227,7 +214,7 @@ sub get_elements_by_tagname {
 =cut
 
 sub to_xml {
-    my ($self, @args) = @_;
+    my ( $self, @args ) = @_;
     return $self->toString(@args);
 }
 
@@ -243,5 +230,4 @@ I<BMC Bioinformatics> B<12>:63.
 L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =cut    
-
 1;

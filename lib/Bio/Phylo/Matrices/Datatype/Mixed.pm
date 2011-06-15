@@ -1,12 +1,9 @@
-# $Id: Mixed.pm 1593 2011-02-27 15:26:04Z rvos $
+# $Id: Mixed.pm 1660 2011-04-02 18:29:40Z rvos $
 package Bio::Phylo::Matrices::Datatype::Mixed;
 use strict;
-use Bio::Phylo::Util::CONSTANT qw(looks_like_instance looks_like_implementor);
-use Bio::Phylo::Matrices::Datatype ();
+use base 'Bio::Phylo::Matrices::Datatype';
+use Bio::Phylo::Util::CONSTANT '/looks_like/';
 use Bio::Phylo::Util::Exceptions 'throw';
-use vars '@ISA';
-@ISA = qw(Bio::Phylo::Matrices::Datatype);
-
 {
 
 =head1 NAME
@@ -21,21 +18,21 @@ contained by L<Bio::Phylo::Matrices::Matrix> and L<Bio::Phylo::Matrices::Datum>
 objects.
 
 =cut   
-
     my @fields = \( my ( %range, %missing, %gap ) );
-    
-    sub _new { 
+
+    sub _new {
         my ( $package, $self, $ranges ) = @_;
         if ( not looks_like_instance $ranges, 'ARRAY' ) {
-            throw 'BadArgs' => "No type ranges specified for 'mixed' data type!"; 
+            throw 'BadArgs' =>
+              "No type ranges specified for 'mixed' data type!";
         }
         my $id = $self->get_id;
-        $range{   $id } = [];
-        $missing{ $id } = '?';
-        $gap{     $id } = '-';
+        $range{$id}   = [];
+        $missing{$id} = '?';
+        $gap{$id}     = '-';
         my $start = 0;
-        for ( my $i = 0; $i <= ( $#{ $ranges } - 1 ); $i += 2 ) {
-            my $type = $ranges->[ $i     ];
+        for ( my $i = 0 ; $i <= ( $#{$ranges} - 1 ) ; $i += 2 ) {
+            my $type = $ranges->[$i];
             my $arg  = $ranges->[ $i + 1 ];
             my ( @args, $length );
             if ( looks_like_instance $arg, 'HASH' ) {
@@ -76,11 +73,12 @@ Sets the symbol for missing data.
     sub set_missing {
         my ( $self, $missing ) = @_;
         if ( not $missing eq $self->get_gap ) {
-        	$missing{ $self->get_id } = $missing;
+            $missing{ $self->get_id } = $missing;
         }
         else {
-        	throw 'BadArgs' => "Missing character '$missing' already in use as gap character";
-        }        
+            throw 'BadArgs' =>
+              "Missing character '$missing' already in use as gap character";
+        }
         return $self;
     }
 
@@ -101,10 +99,11 @@ Sets the symbol for gaps.
     sub set_gap {
         my ( $self, $gap ) = @_;
         if ( not $gap eq $self->get_missing ) {
-        	$gap{ $self->get_id } = $gap;
+            $gap{ $self->get_id } = $gap;
         }
         else {
-        	throw 'BadArgs' => "Gap character '$gap' already in use as missing character";
+            throw 'BadArgs' =>
+              "Gap character '$gap' already in use as missing character";
         }
         return $self;
     }
@@ -127,7 +126,6 @@ Returns the object's missing data symbol.
  Args    : None
 
 =cut
-
     sub get_missing { return $missing{ shift->get_id } }
 
 =item get_gap()
@@ -142,9 +140,7 @@ Returns the object's gap symbol.
  Args    : None
 
 =cut
-
     sub get_gap { return $gap{ shift->get_id } }
-    
     my $get_ranges = sub { $range{ shift->get_id } };
 
 =item get_type()
@@ -161,11 +157,11 @@ Returns the object's datatype as string.
 =cut
 
     sub get_type {
-        my $self = shift;
+        my $self   = shift;
         my $string = 'mixed(';
         my $last;
         my $range = $self->$get_ranges;
-        MODEL_RANGE_CHECK: for my $i ( 0 .. $#{ $range } ) {
+      MODEL_RANGE_CHECK: for my $i ( 0 .. $#{$range} ) {
             if ( $i == 0 ) {
                 $string .= $range->[$i]->get_type . ":1-";
                 $last = $range->[$i];
@@ -176,9 +172,9 @@ Returns the object's datatype as string.
             }
             else {
                 next MODEL_RANGE_CHECK;
-            }		
+            }
         }
-        $string .= scalar( @{ $range } ) . ")";
+        $string .= scalar( @{$range} ) . ")";
         return $string;
     }
 
@@ -196,14 +192,14 @@ Returns type object for site number.
 =cut
 
     sub get_type_for_site {
-        my ( $self, $i ) = @_;     
+        my ( $self, $i ) = @_;
         if ( exists $range{ $self->get_id }->[$i] ) {
-        	return $range{ $self->get_id }->[$i];
+            return $range{ $self->get_id }->[$i];
         }
         else {
-        	return $range{ $self->get_id }->[-1];
+            return $range{ $self->get_id }->[-1];
         }
-    }    
+    }
 
 =back
 
@@ -226,20 +222,21 @@ Compares data type objects.
 
 =cut
 
-	sub is_same {
-		my ( $self, $obj ) = @_;
-		my $id = $self->get_id;
-		return 1 if $id == $obj->get_id;
-		return 0 if $self->get_type    ne $obj->get_type;
-		return 0 if $self->get_gap     ne $obj->get_gap;
-		return 0 if $self->get_missing ne $obj->get_missing;
-		for my $i ( 0 .. $#{ $range{ $self->get_id } } ) {
-			if ( my $subtype = $range{ $self->get_id }->[$i] ) {
-				return 0 if not $subtype->is_same( $obj->get_type_for_site($i) );
-			}
-		}
-		return 1;		
-	}
+    sub is_same {
+        my ( $self, $obj ) = @_;
+        my $id = $self->get_id;
+        return 1 if $id == $obj->get_id;
+        return 0 if $self->get_type ne $obj->get_type;
+        return 0 if $self->get_gap ne $obj->get_gap;
+        return 0 if $self->get_missing ne $obj->get_missing;
+        for my $i ( 0 .. $#{ $range{ $self->get_id } } ) {
+            if ( my $subtype = $range{ $self->get_id }->[$i] ) {
+                return 0
+                  if not $subtype->is_same( $obj->get_type_for_site($i) );
+            }
+        }
+        return 1;
+    }
 
 =item is_valid()
 
@@ -256,49 +253,55 @@ Returns true if argument only contains valid characters
 
 =cut
 
-    sub is_valid { 
-        my $self = shift;
+    sub is_valid {
+        my $self  = shift;
         my $datum = $_[0];
         my $is_datum_object;
         my ( $start, $end );
-        if ( looks_like_implementor $datum, 'get_position' and looks_like_implementor $datum, 'get_length' ) {
-        	( $start, $end ) = ( $datum->get_position - 1, $datum->get_length - 1 );
-        	$is_datum_object = 1;
+        if (
+            looks_like_implementor $datum,
+            'get_position' and looks_like_implementor $datum,
+            'get_length'
+          )
+        {
+            ( $start, $end ) =
+              ( $datum->get_position - 1, $datum->get_length - 1 );
+            $is_datum_object = 1;
         }
         else {
-        	$start = 0;
-        	$end = $#_;
-        }     
+            $start = 0;
+            $end   = $#_;
+        }
         my $ranges = $self->$get_ranges;
         my $type;
-		MODEL_RANGE_CHECK: for my $i ( $start .. $end ) {
-    		if ( not $type ) {
-        		$type = $ranges->[$i];
+      MODEL_RANGE_CHECK: for my $i ( $start .. $end ) {
+            if ( not $type ) {
+                $type = $ranges->[$i];
             }
-		    elsif ( $type != $ranges->[$i] ) {
-    		    #die; # needs to slice
-    		    return 1; # TODO
-        	}
+            elsif ( $type != $ranges->[$i] ) {
+
+                #die; # needs to slice
+                return 1;    # TODO
+            }
             else {
-	            next MODEL_RANGE_CHECK;
-	    	   }
-    	}
-    	if ( $is_datum_object ) {
-        	return $type->is_valid( $datum );
-    	}
-    	else {
-    		return 1; # FIXME
-    	}
-    }
-    
-    sub DESTROY {
-        my $self = shift;
-        my $id = $self->get_id;
-        for my $field ( @fields ) {
-            delete $field->{$id};
+                next MODEL_RANGE_CHECK;
+            }
+        }
+        if ($is_datum_object) {
+            return $type->is_valid($datum);
+        }
+        else {
+            return 1;        # FIXME
         }
     }
 
+    sub DESTROY {
+        my $self = shift;
+        my $id   = $self->get_id;
+        for my $field (@fields) {
+            delete $field->{$id};
+        }
+    }
 }
 
 =back
@@ -334,8 +337,7 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =head1 REVISION
 
- $Id: Mixed.pm 1593 2011-02-27 15:26:04Z rvos $
+ $Id: Mixed.pm 1660 2011-04-02 18:29:40Z rvos $
 
 =cut
-
 1;

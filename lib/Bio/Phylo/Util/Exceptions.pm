@@ -1,40 +1,38 @@
 package Bio::Phylo::Util::Exceptions;
 use strict;
-BEGIN {
-	require Exporter;
-	use vars qw($AUTOLOAD @EXPORT_OK @ISA);
-	@ISA=qw(Exporter);
-	@EXPORT_OK=qw(throw);
-}
+use base 'Exporter';
 use Bio::Phylo::Util::StackTrace;
 use Scalar::Util 'blessed';
 use overload 'bool' => sub { 1 }, 'fallback' => 1, '""' => \&as_string;
+our ( @EXPORT_OK, $AUTOLOAD ) = qw'throw';
 
 sub new {
-	my $class = shift;
-	my %args = @_;
-	my $self = {
-#		'error'       => $args{'error'},
-#		'description' => $args{'description'},
-		'trace'       => Bio::Phylo::Util::StackTrace->new,
-		'time'        => CORE::time(),
-		'pid'         => $$,
-		'uid'         => $<,
-		'euid'        => $>,
-		'gid'         => $(,
-		'egid'        => $),
-		%args
-	};
-	return bless $self, $class;
+    my $class = shift;
+    my %args  = @_;
+    my $self  = {
+
+        #		'error'       => $args{'error'},
+        #		'description' => $args{'description'},
+        'trace' => Bio::Phylo::Util::StackTrace->new,
+        'time'  => CORE::time(),
+        'pid'   => $$,
+        'uid'   => $<,
+        'euid'  => $>,
+        'gid'   => $(,
+        'egid'  => $),
+        %args
+    };
+    return bless $self, $class;
 }
 
 sub as_string {
-	my $self = shift;
-	my $error = $self->error;
-	my $description = $self->description;
-	my $class = ref $self;
-	my $trace = join "\n", map { "STACK: $_" } split '\n', $self->trace->as_string;
-	return <<"ERROR_HERE_DOC";
+    my $self        = shift;
+    my $error       = $self->error;
+    my $description = $self->description;
+    my $class       = ref $self;
+    my $trace       = join "\n", map { "STACK: $_" } split '\n',
+      $self->trace->as_string;
+    return <<"ERROR_HERE_DOC";
 -------------------------- EXCEPTION ----------------------------
 Message: $error
 
@@ -52,69 +50,75 @@ ERROR_HERE_DOC
 }
 
 sub throw (@) {
-	# called as static method, with odd args
-	my $self;	
-	if ( scalar @_ % 2 ) {
-		my $class = shift;
-		$self = $class->new(@_);		
-	}
-	# called as function, with even args e.g. throw BadArgs => 'msg';
-	else {
-		my $type = shift;
-		my $class = __PACKAGE__ . '::' . $type;
-		if ( $class->isa('Bio::Phylo::Util::Exceptions') ) {
-			$self = $class->new( 'error' => shift, @_ );
-		}
-		else {
-			$self = Bio::Phylo::Util::Exceptions::Generic->new( 'error' => shift, @_ );
-		}
-	}
-# 	if ( not $ENV{'PERL_DL_NONLAZY'} ) {
-# 		require Bio::Phylo;
-# 		$Bio::Phylo::Util::Logger::TRACEBACK = 1;
-# 		my $logger = Bio::Phylo->get_logger();
-# 		$logger->error($self->error);
-# 		$Bio::Phylo::Util::Logger::TRACEBACK = 0;
-# 	}	
-	die $self;	
+
+    # called as static method, with odd args
+    my $self;
+    if ( scalar @_ % 2 ) {
+        my $class = shift;
+        $self = $class->new(@_);
+    }
+
+    # called as function, with even args e.g. throw BadArgs => 'msg';
+    else {
+        my $type  = shift;
+        my $class = __PACKAGE__ . '::' . $type;
+        if ( $class->isa('Bio::Phylo::Util::Exceptions') ) {
+            $self = $class->new( 'error' => shift, @_ );
+        }
+        else {
+            $self = Bio::Phylo::Util::Exceptions::Generic->new(
+                'error' => shift,
+                @_
+            );
+        }
+    }
+
+    # 	if ( not $ENV{'PERL_DL_NONLAZY'} ) {
+    # 		require Bio::Phylo;
+    # 		$Bio::Phylo::Util::Logger::TRACEBACK = 1;
+    # 		my $logger = Bio::Phylo->get_logger();
+    # 		$logger->error($self->error);
+    # 		$Bio::Phylo::Util::Logger::TRACEBACK = 0;
+    # 	}
+    die $self;
 }
 
 sub rethrow {
-	my $self = shift;
-	die $self;
+    my $self = shift;
+    die $self;
 }
 
 sub caught {
-	my $class = shift;
-	if ( @_ ) {
-		$class = shift;
-	}
-	if ( $@ ) {
-		if ( blessed $@ and $@->isa($class) ) {
-			return $@;
-		}
-		else {
-			die $@;
-		}
-	}
+    my $class = shift;
+    if (@_) {
+        $class = shift;
+    }
+    if ($@) {
+        if ( blessed $@ and $@->isa($class) ) {
+            return $@;
+        }
+        else {
+            die $@;
+        }
+    }
 }
 
 sub AUTOLOAD {
-	my $self = shift;
-	my $field = $AUTOLOAD;
-	$field =~ s/.*://;
-	return $self->{$field};
+    my $self  = shift;
+    my $field = $AUTOLOAD;
+    $field =~ s/.*://;
+    return $self->{$field};
 }
 
 sub _make_exceptions {
-	my $class = shift;
-	my $root = shift;
-	my %exceptions = @_;
-	for my $exception ( keys %exceptions ) {
-		my $isa = $exceptions{ $exception }->{'isa'};
-		my @isa = ref $isa ? @$isa : ( $isa );
-		my $description = $exceptions{ $exception }->{'description'};
-		my $class = <<"EXCEPTION_CLASS";
+    my $class      = shift;
+    my $root       = shift;
+    my %exceptions = @_;
+    for my $exception ( keys %exceptions ) {
+        my $isa         = $exceptions{$exception}->{'isa'};
+        my @isa         = ref $isa ? @$isa : ($isa);
+        my $description = $exceptions{$exception}->{'description'};
+        my $class       = <<"EXCEPTION_CLASS";
 package ${exception};
 use vars '\@ISA';
 \@ISA=qw(@isa);
@@ -128,99 +132,112 @@ sub description {
 }
 1;
 EXCEPTION_CLASS
-		eval $class;
-		$exception->description( $description );
-	}
-	
+        eval $class;
+        $exception->description($description);
+    }
 }
-
 __PACKAGE__->_make_exceptions(
-	# root classes
+
+    # root classes
     'Bio::Phylo::Util::Exceptions',
     'Bio::Phylo::Util::Exceptions::Generic' => {
-        'isa'         => 'Bio::Phylo::Util::Exceptions',
-        'description' => "No further details about this type of error are available." 
-    },
-    
-    # exceptions on method calls
-    'Bio::Phylo::Util::Exceptions::API' => {
-        'isa'         => 'Bio::Phylo::Util::Exceptions::Generic',
-        'description' => "No more details about this type of error are available." 
-    },    
-    'Bio::Phylo::Util::Exceptions::UnknownMethod' => {
-        'isa'         => 'Bio::Phylo::Util::Exceptions::API',
-        'description' => "This kind of error happens when a non-existent method is called.",
-    },
-    'Bio::Phylo::Util::Exceptions::NotImplemented' => {
-        'isa'         => 'Bio::Phylo::Util::Exceptions::API',
-        'description' => "This kind of error happens when a non-implemented\n(interface) method is called.",
-    },    
-    'Bio::Phylo::Util::Exceptions::Deprecated' => {
-        'isa'         => 'Bio::Phylo::Util::Exceptions::API',
-        'description' => "This kind of error happens when a deprecated method is called.", 
+        'isa' => 'Bio::Phylo::Util::Exceptions',
+        'description' =>
+          "No further details about this type of error are available."
     },
 
-	# exceptions on arguments
+    # exceptions on method calls
+    'Bio::Phylo::Util::Exceptions::API' => {
+        'isa' => 'Bio::Phylo::Util::Exceptions::Generic',
+        'description' =>
+          "No more details about this type of error are available."
+    },
+    'Bio::Phylo::Util::Exceptions::UnknownMethod' => {
+        'isa' => 'Bio::Phylo::Util::Exceptions::API',
+        'description' =>
+          "This kind of error happens when a non-existent method is called.",
+    },
+    'Bio::Phylo::Util::Exceptions::NotImplemented' => {
+        'isa' => 'Bio::Phylo::Util::Exceptions::API',
+        'description' =>
+"This kind of error happens when a non-implemented\n(interface) method is called.",
+    },
+    'Bio::Phylo::Util::Exceptions::Deprecated' => {
+        'isa' => 'Bio::Phylo::Util::Exceptions::API',
+        'description' =>
+          "This kind of error happens when a deprecated method is called.",
+    },
+
+    # exceptions on arguments
     'Bio::Phylo::Util::Exceptions::BadArgs' => {
-        'isa'         => 'Bio::Phylo::Util::Exceptions::Generic',
-        'description' => "This kind of error happens when bad or incomplete arguments\nare provided.",
-    },    
+        'isa' => 'Bio::Phylo::Util::Exceptions::Generic',
+        'description' =>
+"This kind of error happens when bad or incomplete arguments\nare provided.",
+    },
     'Bio::Phylo::Util::Exceptions::BadString' => {
-        'isa'         => 'Bio::Phylo::Util::Exceptions::BadArgs',
-        'description' => "This kind of error happens when an unsafe string argument is\nprovided.",
+        'isa' => 'Bio::Phylo::Util::Exceptions::BadArgs',
+        'description' =>
+"This kind of error happens when an unsafe string argument is\nprovided.",
     },
     'Bio::Phylo::Util::Exceptions::OddHash' => {
-        'isa'         => 'Bio::Phylo::Util::Exceptions::BadArgs',
-        'description' => "This kind of error happens when an uneven number\nof arguments (so no key/value pairs) was provided.",
+        'isa' => 'Bio::Phylo::Util::Exceptions::BadArgs',
+        'description' =>
+"This kind of error happens when an uneven number\nof arguments (so no key/value pairs) was provided.",
     },
     'Bio::Phylo::Util::Exceptions::ObjectMismatch' => {
-        'isa'         => 'Bio::Phylo::Util::Exceptions::BadArgs',
-        'description' => "This kind of error happens when an invalid object\nargument is provided.",
+        'isa' => 'Bio::Phylo::Util::Exceptions::BadArgs',
+        'description' =>
+"This kind of error happens when an invalid object\nargument is provided.",
     },
     'Bio::Phylo::Util::Exceptions::InvalidData' => {
         'isa' => [
             'Bio::Phylo::Util::Exceptions::BadString',
             'Bio::Phylo::Util::Exceptions::BadFormat',
         ],
-        'description' => "This kind of error happens when invalid character data is\nprovided."
+        'description' =>
+          "This kind of error happens when invalid character data is\nprovided."
     },
     'Bio::Phylo::Util::Exceptions::OutOfBounds' => {
-        'isa'         => 'Bio::Phylo::Util::Exceptions::BadArgs',
-        'description' => "This kind of error happens when an index is outside of its range.",
+        'isa' => 'Bio::Phylo::Util::Exceptions::BadArgs',
+        'description' =>
+          "This kind of error happens when an index is outside of its range.",
     },
     'Bio::Phylo::Util::Exceptions::BadNumber' => {
-        'isa'         => 'Bio::Phylo::Util::Exceptions::Generic',
-        'description' => "This kind of error happens when an invalid numerical argument\nis provided.",
-    },    
+        'isa' => 'Bio::Phylo::Util::Exceptions::Generic',
+        'description' =>
+"This kind of error happens when an invalid numerical argument\nis provided.",
+    },
 
-	# system exceptions
+    # system exceptions
     'Bio::Phylo::Util::Exceptions::System' => {
-        'isa'         => 'Bio::Phylo::Util::Exceptions::Generic',
-        'description' => "This kind of error happens when there is a system misconfiguration.",
-    },    
+        'isa' => 'Bio::Phylo::Util::Exceptions::Generic',
+        'description' =>
+          "This kind of error happens when there is a system misconfiguration.",
+    },
     'Bio::Phylo::Util::Exceptions::FileError' => {
-        'isa'         => 'Bio::Phylo::Util::Exceptions::System',
-        'description' => "This kind of error happens when a file can not be accessed.",
+        'isa' => 'Bio::Phylo::Util::Exceptions::System',
+        'description' =>
+          "This kind of error happens when a file can not be accessed.",
     },
     'Bio::Phylo::Util::Exceptions::NetworkError' => {
-        'isa'         => 'Bio::Phylo::Util::Exceptions::System',
-        'description' => "This kind of error happens when a network resource can not be accessed.",
-    },    
+        'isa' => 'Bio::Phylo::Util::Exceptions::System',
+        'description' =>
+"This kind of error happens when a network resource can not be accessed.",
+    },
     'Bio::Phylo::Util::Exceptions::ExtensionError' => {
-        'isa'         => [
-        	'Bio::Phylo::Util::Exceptions::System',
-        	'Bio::Phylo::Util::Exceptions::BadFormat',
+        'isa' => [
+            'Bio::Phylo::Util::Exceptions::System',
+            'Bio::Phylo::Util::Exceptions::BadFormat',
         ],
-        'description' => "This kind of error happens when an extension module can not be\nloaded.",
+        'description' =>
+"This kind of error happens when an extension module can not be\nloaded.",
     },
     'Bio::Phylo::Util::Exceptions::BadFormat' => {
-        'isa'         => 'Bio::Phylo::Util::Exceptions::System',
-        'description' => "This kind of error happens when a bad\nparse or unparse format was specified.",
+        'isa' => 'Bio::Phylo::Util::Exceptions::System',
+        'description' =>
+"This kind of error happens when a bad\nparse or unparse format was specified.",
     },
-
 );
-
-
 1;
 __END__
 
@@ -411,7 +428,7 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =head1 REVISION
 
- $Id: Exceptions.pm 1593 2011-02-27 15:26:04Z rvos $
+ $Id: Exceptions.pm 1660 2011-04-02 18:29:40Z rvos $
 
 =cut
 

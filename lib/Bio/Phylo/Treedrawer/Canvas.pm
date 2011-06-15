@@ -1,12 +1,8 @@
 package Bio::Phylo::Treedrawer::Canvas;
+use strict;
+use base 'Bio::Phylo::Treedrawer::Abstract';
 use Bio::Phylo::Util::Exceptions 'throw';
 use Bio::Phylo::Util::Logger ':levels';
-use strict;
-use warnings;
-use Bio::Phylo::Treedrawer::Abstract;
-use vars '@ISA';
-@ISA=qw(Bio::Phylo::Treedrawer::Abstract);
-
 my $logger = Bio::Phylo::Util::Logger->new;
 
 =head1 NAME
@@ -23,23 +19,20 @@ learn how to create tree drawings.
 =cut
 
 sub _new {
-    my $class = shift;
-    my %args = @_;
-    my $tmpl = do { local $/; <DATA> };
-    my $canvas = sprintf(
-        $tmpl,
+    my $class  = shift;
+    my %args   = @_;
+    my $tmpl   = do { local $/; <DATA> };
+    my $canvas = sprintf( $tmpl,
         'myCanvas',
         $args{'-drawer'}->get_width,
-        $args{'-drawer'}->get_height,
-        'myCanvas'
-    );
-    my $self = $class->SUPER::_new(%args,'-api'=>\$canvas);    
+        $args{'-drawer'}->get_height, 'myCanvas' );
+    my $self = $class->SUPER::_new( %args, '-api' => \$canvas );
     return bless $self, $class;
 }
 
 sub _finish {
-    my $self = shift;
-    my $api = $self->_api;
+    my $self  = shift;
+    my $api   = $self->_api;
     my $shape = $self->_drawer->get_shape;
     if ( $shape =~ /^c/i ) {
         $$api .= "drawCurvedTree(branches);\n";
@@ -65,20 +58,19 @@ sub _draw_text {
 sub _draw_circle {
     my $self = shift;
     my %args = @_;
-    my (     $x, $y, $radius, $width, $stroke, $fill, $api, $url) =
-    @args{qw(-x  -y  -radius  -width  -stroke  -fill  -api  -url)};
-    if ( $radius ) {
-	my $api = $self->_api;
+    my ( $x, $y, $radius, $width, $stroke, $fill, $api, $url ) =
+      @args{qw(-x  -y  -radius  -width  -stroke  -fill  -api  -url)};
+    if ($radius) {
+        my $api = $self->_api;
         $$api .= "drawCircle(ctx,$x,$y,$radius);\n";
-
-    }	
+    }
 }
 
 sub _draw_line {
     my $self = shift;
     my %args = @_;
     my @keys = qw(-x1  -y1  -x2  -y2  -width  -color );
-    my (          $x1, $y1, $x2, $y2, $width, $color ) = @args{@keys};
+    my ( $x1, $y1, $x2, $y2, $width, $color ) = @args{@keys};
     my $api = $self->_api;
     $$api .= "drawLine(ctx,$x1,$y1,$x2,$y2);\n";
 }
@@ -99,40 +91,39 @@ sub _draw_multi {
     my ( $x1, $y1, $x2, $y2, $width, $color ) = @args{@keys};
     my $api = $self->_api;
     $$api .= "drawMulti(ctx,$x1,$y1,$x2,$y2);\n";
-
 }
 
 sub _draw_triangle {
-    my $self = shift;
-    my %args = @_;
+    my $self  = shift;
+    my %args  = @_;
     my @coord = qw(-x1 -y1 -x2 -y2 -x3 -y3);
-    my (           $x1,$y1,$x2,$y2,$x3,$y3) = @args{@coord};
+    my ( $x1, $y1, $x2, $y2, $x3, $y3 ) = @args{@coord};
     my @optional = qw(-fill -stroke -width -url -api);
-    my $fill   = $args{'-fill'}   || 'white';
-    my $stroke = $args{'-stroke'} || 'black';
-    my $width  = $args{'-width'}  || 1;
-    my $api = $self->_api;
+    my $fill     = $args{'-fill'} || 'white';
+    my $stroke   = $args{'-stroke'} || 'black';
+    my $width    = $args{'-width'} || 1;
+    my $api      = $self->_api;
     $$api .= "drawTriangle(ctx,$x1,$y1,$x2,$y2,$x3,$y3);\n";
 }
 
 sub _draw_branch {
     my ( $self, $node ) = @_;
-    $logger->info("Drawing branch for ".$node->get_internal_name);
+    $logger->info( "Drawing branch for " . $node->get_internal_name );
     if ( my $parent = $node->get_parent ) {
-	my ( $x1, $x2 ) = ( int $parent->get_x, int $node->get_x );
-	my ( $y1, $y2 ) = ( int $parent->get_y, int $node->get_y );
-	my $width = $self->_drawer->get_branch_width($node);
-	my $shape = $self->_drawer->get_shape;
+        my ( $x1, $x2 ) = ( int $parent->get_x, int $node->get_x );
+        my ( $y1, $y2 ) = ( int $parent->get_y, int $node->get_y );
+        my $width  = $self->_drawer->get_branch_width($node);
+        my $shape  = $self->_drawer->get_shape;
         my $drawer = '_draw_curve';
-	if ( $shape =~ m/CURVY/i ) {
+        if ( $shape =~ m/CURVY/i ) {
             $drawer = '_draw_curve';
-	}
-	elsif ( $shape =~ m/RECT/i ) {
+        }
+        elsif ( $shape =~ m/RECT/i ) {
             $drawer = '_draw_multi';
-	}
-	elsif ( $shape =~ m/DIAG/i ) {
+        }
+        elsif ( $shape =~ m/DIAG/i ) {
             $drawer = '_draw_line';
-	}
+        }
         my $api = $self->_api;
         $$api .= "branches.push({x1:$x1,y1:$y1,x2:$x2,y2:$y2});\n";
     }
@@ -164,12 +155,10 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =head1 REVISION
 
- $Id: Canvas.pm 1593 2011-02-27 15:26:04Z rvos $
+ $Id: Canvas.pm 1660 2011-04-02 18:29:40Z rvos $
 
 =cut
-
 1;
-
 __DATA__
 <canvas id="%s" width="%s" height="%s">
     <p>Your browser doesn't support canvas.</p>

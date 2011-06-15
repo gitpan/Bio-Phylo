@@ -1,58 +1,36 @@
-# $Id: Tree.pm 1620 2011-03-19 15:21:57Z rvos $
+# $Id: Tree.pm 1660 2011-04-02 18:29:40Z rvos $
 package Bio::Phylo::Forest::Tree;
 use strict;
-use Bio::Phylo::Listable ();
-use Bio::Phylo::Forest::Node ();
-use Bio::Phylo::IO qw(unparse);
+use base 'Bio::Phylo::Listable';
 use Bio::Phylo::Util::Exceptions 'throw';
-use Bio::Phylo::Util::CONSTANT qw(
-	_TREE_
-	_FOREST_
-	_DOMCREATOR_
-	_TAXA_
-	_TAXON_
-	looks_like_number
-	looks_like_hash
-	looks_like_object
-	looks_like_implementor
-);
+use Bio::Phylo::Util::CONSTANT qw'/looks_like/ :objecttypes';
+use Bio::Phylo::Util::OptionalInterface 'Bio::Tree::TreeI';
+use Bio::Phylo::Forest::Node;
+use Bio::Phylo::IO 'unparse';
 use Bio::Phylo::Factory;
-use Scalar::Util qw(blessed);
-use List::Util qw(sum);
-use vars qw(@ISA);
-
-# classic @ISA manipulation, not using 'base'
-@ISA = qw(Bio::Phylo::Listable);
-
-eval { require Bio::Tree::TreeI };
-if ( not $@ ) {
-	push @ISA, 'Bio::Tree::TreeI';
-}
-else {
-	undef($@);
-}
-
+use Scalar::Util 'blessed';
+use List::Util 'sum';
 my $LOADED_WRAPPERS = 0;
-
 {
-	my $logger = __PACKAGE__->get_logger;
-	my ( $TYPE_CONSTANT, $CONTAINER_CONSTANT ) = ( _TREE_, _FOREST_ );
-	my @fields = \( my ( %default, %rooted ) );
-	my $fac = Bio::Phylo::Factory->new;
-	my %default_constructor_args = (
-#        '-tag'      => __PACKAGE__->_tag, 
+    my $logger = __PACKAGE__->get_logger;
+    my ( $TYPE_CONSTANT, $CONTAINER_CONSTANT ) = ( _TREE_, _FOREST_ );
+    my @fields                   = \( my ( %default, %rooted ) );
+    my $fac                      = Bio::Phylo::Factory->new;
+    my %default_constructor_args = (
+
+        #        '-tag'      => __PACKAGE__->_tag,
         '-listener' => sub {
-            my ( $self, $method, @args ) = @_;                
-            for my $node ( @args ) {
+            my ( $self, $method, @args ) = @_;
+            for my $node (@args) {
                 if ( $method eq 'insert' ) {
-                    $node->set_tree( $self );
+                    $node->set_tree($self);
                 }
                 elsif ( $method eq 'delete' ) {
                     $node->set_tree();
                 }
             }
-        },	
-	);
+        },
+    );
 
 =head1 NAME
 
@@ -100,23 +78,22 @@ Tree constructor.
 
 =cut
 
-	sub new {
+    sub new {
 
-		# could be child class
-		my $class = shift;
+        # could be child class
+        my $class = shift;
 
-		# notify user
-		$logger->info("constructor called for '$class'");
+        # notify user
+        $logger->info("constructor called for '$class'");
+        if ( not $LOADED_WRAPPERS ) {
+            eval do { local $/; <DATA> };
+            $LOADED_WRAPPERS++;
+        }
 
-		if ( not $LOADED_WRAPPERS ) {
-			eval do { local $/; <DATA> }; 
-			$LOADED_WRAPPERS++;
-		}	
-
-		# go up inheritance tree, eventually get an ID
-		my $self = $class->SUPER::new( %default_constructor_args, @_ );			
-		return $self;
-	}
+        # go up inheritance tree, eventually get an ID
+        my $self = $class->SUPER::new( %default_constructor_args, @_ );
+        return $self;
+    }
 
 =item new_from_bioperl()
 
@@ -135,27 +112,27 @@ Tree constructor from Bio::Tree::TreeI argument.
 
 =cut
 
-	sub new_from_bioperl {
-		my ( $class, $bptree ) = @_;
-		my $self;
-		if ( blessed $bptree && $bptree->isa('Bio::Tree::TreeI') ) {
-			$self = $fac->create_tree;
-			bless $self, $class;
-			$self = $self->_recurse( $bptree->get_root_node );
-			
-			# copy name
-			my $name = $bptree->id;
-			$self->set_name( $name ) if defined $name;
-			
-			# copy score
-			my $score = $bptree->score;
-			$self->set_score( $score ) if defined $score;
-		}
-		else {
-			throw 'ObjectMismatch' => 'Not a bioperl tree!';
-		}
-		return $self;
-	}
+    sub new_from_bioperl {
+        my ( $class, $bptree ) = @_;
+        my $self;
+        if ( blessed $bptree && $bptree->isa('Bio::Tree::TreeI') ) {
+            $self = $fac->create_tree;
+            bless $self, $class;
+            $self = $self->_recurse( $bptree->get_root_node );
+
+            # copy name
+            my $name = $bptree->id;
+            $self->set_name($name) if defined $name;
+
+            # copy score
+            my $score = $bptree->score;
+            $self->set_score($score) if defined $score;
+        }
+        else {
+            throw 'ObjectMismatch' => 'Not a bioperl tree!';
+        }
+        return $self;
+    }
 
 =begin comment
 
@@ -172,18 +149,18 @@ Tree constructor from Bio::Tree::TreeI argument.
 
 =cut    
 
-	sub _recurse {
-		my ( $self, $bpnode, $parent ) = @_;
-		my $node = Bio::Phylo::Forest::Node->new_from_bioperl($bpnode);
-		if ($parent) {
-			$parent->set_child($node);
-		}
-		$self->insert($node);
-		foreach my $bpchild ( $bpnode->each_Descendent ) {
-			$self->_recurse( $bpchild, $node );
-		}
-		return $self;
-	}
+    sub _recurse {
+        my ( $self, $bpnode, $parent ) = @_;
+        my $node = Bio::Phylo::Forest::Node->new_from_bioperl($bpnode);
+        if ($parent) {
+            $parent->set_child($node);
+        }
+        $self->insert($node);
+        foreach my $bpchild ( $bpnode->each_Descendent ) {
+            $self->_recurse( $bpchild, $node );
+        }
+        return $self;
+    }
 
 =begin comment
 
@@ -204,51 +181,51 @@ Tree constructor from Bio::Tree::TreeI argument.
 
 =cut
 
-	sub _analyze {
-		my $tree  = $_[0];
-		my $nodes = $tree->get_entities;
-		foreach ( @{$nodes} ) {
-			$_->set_next_sister();
-			$_->set_previous_sister();
-			$_->set_first_daughter();
-			$_->set_last_daughter();
-		}
-		my ( $first, $next );
+    sub _analyze {
+        my $tree  = $_[0];
+        my $nodes = $tree->get_entities;
+        foreach ( @{$nodes} ) {
+            $_->set_next_sister();
+            $_->set_previous_sister();
+            $_->set_first_daughter();
+            $_->set_last_daughter();
+        }
+        my ( $first, $next );
 
-		# mmmm... O(N^2)
-	  NODE: for my $i ( 0 .. $#{$nodes} ) {
-			$first = $nodes->[$i];
-			for my $j ( ( $i + 1 ) .. $#{$nodes} ) {
-				$next = $nodes->[$j];
-				my ( $firstp, $nextp ) =
-				  ( $first->get_parent, $next->get_parent );
-				if ( $firstp && $nextp && $firstp == $nextp ) {
-					if ( !$first->get_next_sister ) {
-						$first->set_next_sister($next);
-					}
-					if ( !$next->get_previous_sister ) {
-						$next->set_previous_sister($first);
-					}
-					next NODE;
-				}
-			}
-		}
+        # mmmm... O(N^2)
+      NODE: for my $i ( 0 .. $#{$nodes} ) {
+            $first = $nodes->[$i];
+            for my $j ( ( $i + 1 ) .. $#{$nodes} ) {
+                $next = $nodes->[$j];
+                my ( $firstp, $nextp ) =
+                  ( $first->get_parent, $next->get_parent );
+                if ( $firstp && $nextp && $firstp == $nextp ) {
+                    if ( !$first->get_next_sister ) {
+                        $first->set_next_sister($next);
+                    }
+                    if ( !$next->get_previous_sister ) {
+                        $next->set_previous_sister($first);
+                    }
+                    next NODE;
+                }
+            }
+        }
 
-		# O(N)
-		foreach ( @{$nodes} ) {
-			my $p = $_->get_parent;
-			if ($p) {
-				if ( !$_->get_next_sister ) {
-					$p->set_last_daughter($_);
-					next;
-				}
-				if ( !$_->get_previous_sister ) {
-					$p->set_first_daughter($_);
-				}
-			}
-		}
-		return $tree;
-	}
+        # O(N)
+        foreach ( @{$nodes} ) {
+            my $p = $_->get_parent;
+            if ($p) {
+                if ( !$_->get_next_sister ) {
+                    $p->set_last_daughter($_);
+                    next;
+                }
+                if ( !$_->get_previous_sister ) {
+                    $p->set_first_daughter($_);
+                }
+            }
+        }
+        return $tree;
+    }
 
 =back 
 
@@ -274,11 +251,11 @@ Sets tree to be interpreted as unrooted.
 
 =cut
 
-	sub set_as_unrooted {
-		my $self = shift;
-		$rooted{$self->get_id} = 1;
-		return $self;
-	}
+    sub set_as_unrooted {
+        my $self = shift;
+        $rooted{ $self->get_id } = 1;
+        return $self;
+    }
 
 =item set_as_default()
 
@@ -296,16 +273,16 @@ Sets tree to be the default tree in a forest
 
 =cut
 
-	sub set_as_default {
-		my $self = shift;
-		if ( my $forest = $self->_get_container ) {
-			if ( my $tree = $forest->get_default_tree ) {
-				$tree->set_not_default;
-			}		
-		}
-		$default{$self->get_id} = 1;
-		return $self;
-	}
+    sub set_as_default {
+        my $self = shift;
+        if ( my $forest = $self->_get_container ) {
+            if ( my $tree = $forest->get_default_tree ) {
+                $tree->set_not_default;
+            }
+        }
+        $default{ $self->get_id } = 1;
+        return $self;
+    }
 
 =item set_not_default()
 
@@ -323,11 +300,11 @@ Sets tree to NOT be the default tree in a forest
 
 =cut
 
-	sub set_not_default {
-		my $self = shift;
-		$default{$self->get_id} = 0;
-		return $self;
-	}
+    sub set_not_default {
+        my $self = shift;
+        $default{ $self->get_id } = 0;
+        return $self;
+    }
 
 =back
 
@@ -349,32 +326,33 @@ Gets node that divides tree into two distance-balanced partitions.
 
 =cut
 
-	sub get_midpoint {
-		my $self = shift;
-		my $root = $self->get_root;
-		my $nA = $self->get_tallest_tip;
-		my $nB = $nA->get_farthest_node;
-		my $A2B_dist = $nA->calc_path_to_root + $nB->calc_path_to_root;
-		my $outgroup = $nA;
-		my $middist = $A2B_dist / 2;
-		my $cdist = 0;
-		my $current = $nA;
-		while ( $current ) {
-			if ( $cdist > $middist ) {
-				last;
-			}
-			else {
-				if ( my $parent = $current->get_parent ) {
-					$cdist += $current->get_branch_length;
-					$current = $parent;
-				}
-				else {
-					last;
-				}
-			}			
-		}
-		return $current;
-	}
+    sub get_midpoint {
+        my $self     = shift;
+        my $root     = $self->get_root;
+        my $nA       = $self->get_tallest_tip;
+        my $nB       = $nA->get_farthest_node;
+        my $A2B_dist = $nA->calc_path_to_root + $nB->calc_path_to_root;
+        my $outgroup = $nA;
+        my $middist  = $A2B_dist / 2;
+        my $cdist    = 0;
+        my $current  = $nA;
+        while ($current) {
+
+            if ( $cdist > $middist ) {
+                last;
+            }
+            else {
+                if ( my $parent = $current->get_parent ) {
+                    $cdist += $current->get_branch_length;
+                    $current = $parent;
+                }
+                else {
+                    last;
+                }
+            }
+        }
+        return $current;
+    }
 
 =item get_terminals()
 
@@ -397,31 +375,31 @@ Get terminal nodes.
 
 =cut
 
-	sub get_terminals {
-		my $self = shift;
-		my @terminals;
-		if ( my $root = $self->get_root ) {
-			$root->visit_level_order(
-				sub {
-					my $node = shift;
-					if ( $node->is_terminal ) {
-						push @terminals, $node;
-					}
-				}
-			);
-		}
-		else {
-			$self->visit(
-				sub {
-					my $n = shift;
-					if ( $n->is_terminal ) {
-						push @terminals, $n;
-					}
-				}
-			)
-		}
-		return \@terminals;
-	}
+    sub get_terminals {
+        my $self = shift;
+        my @terminals;
+        if ( my $root = $self->get_root ) {
+            $root->visit_level_order(
+                sub {
+                    my $node = shift;
+                    if ( $node->is_terminal ) {
+                        push @terminals, $node;
+                    }
+                }
+            );
+        }
+        else {
+            $self->visit(
+                sub {
+                    my $n = shift;
+                    if ( $n->is_terminal ) {
+                        push @terminals, $n;
+                    }
+                }
+            );
+        }
+        return \@terminals;
+    }
 
 =item get_internals()
 
@@ -444,19 +422,19 @@ Get internal nodes.
 
 =cut
 
-	sub get_internals {
-		my $self = shift;
-		my @internals;
-		$self->visit_level_order(
-			sub {
-				my $node = shift;
-				if ( $node->is_internal ) {
-					push @internals, $node;
-				}
-			}
-		);
-		return \@internals;
-	}
+    sub get_internals {
+        my $self = shift;
+        my @internals;
+        $self->visit_level_order(
+            sub {
+                my $node = shift;
+                if ( $node->is_internal ) {
+                    push @internals, $node;
+                }
+            }
+        );
+        return \@internals;
+    }
 
 =item get_root()
 
@@ -473,15 +451,15 @@ Get root node.
 
 =cut
 
-	sub get_root {
-		my $self = shift;
-		for ( @{ $self->get_entities } ) {
-			if ( !$_->get_parent ) {
-				return $_;
-			}
-		}
-		return;
-	}
+    sub get_root {
+        my $self = shift;
+        for ( @{ $self->get_entities } ) {
+            if ( !$_->get_parent ) {
+                return $_;
+            }
+        }
+        return;
+    }
 
 =item get_tallest_tip()
 
@@ -501,30 +479,29 @@ Retrieves the node furthest from the root.
 
 =cut
 
-	sub get_tallest_tip {
-		my $self = shift;
-		my $criterion;
+    sub get_tallest_tip {
+        my $self = shift;
+        my $criterion;
 
-		# has (at least some) branch lengths
-		if ( $self->calc_tree_length ) {
-			$criterion = 'calc_path_to_root';
-		}
-		else {
-			$criterion = 'calc_nodes_to_root';
-		}
-
-		my $tallest;
-		my $height = 0;
-		for my $tip ( @{ $self->get_terminals } ) {
-			if ( my $path = $tip->$criterion ) {
-				if ( $path > $height ) {
-					$tallest = $tip;
-					$height  = $path;
-				}
-			}
-		}
-		return $tallest;
-	}
+        # has (at least some) branch lengths
+        if ( $self->calc_tree_length ) {
+            $criterion = 'calc_path_to_root';
+        }
+        else {
+            $criterion = 'calc_nodes_to_root';
+        }
+        my $tallest;
+        my $height = 0;
+        for my $tip ( @{ $self->get_terminals } ) {
+            if ( my $path = $tip->$criterion ) {
+                if ( $path > $height ) {
+                    $tallest = $tip;
+                    $height  = $path;
+                }
+            }
+        }
+        return $tallest;
+    }
 
 =item get_nodes_for_taxa()
 
@@ -540,25 +517,25 @@ Gets node objects for the supplied taxon objects
 
 =cut
 
-	sub get_nodes_for_taxa {
-		my ( $self, $taxa ) = @_;
-		my ( $is_taxa, $taxa_objs );
-		eval { $is_taxa = looks_like_object $taxa, _TAXA_ };
-		if ( $is_taxa and not $@ ) {
-			$taxa_objs = $taxa->get_entities;
-		}
-		else {
-			$taxa_objs = $taxa;
-		}
-		my %ids = map { $_->get_id => 1 } @{ $taxa_objs };
-		my @nodes;
-		for my $node ( @{ $self->get_entities } ) {
-			if ( my $taxon = $node->get_taxon ) {
-				push @nodes, $node if $ids{$taxon->get_id};
-			}
-		}
-		return \@nodes;
-	}
+    sub get_nodes_for_taxa {
+        my ( $self, $taxa ) = @_;
+        my ( $is_taxa, $taxa_objs );
+        eval { $is_taxa = looks_like_object $taxa, _TAXA_ };
+        if ( $is_taxa and not $@ ) {
+            $taxa_objs = $taxa->get_entities;
+        }
+        else {
+            $taxa_objs = $taxa;
+        }
+        my %ids = map { $_->get_id => 1 } @{$taxa_objs};
+        my @nodes;
+        for my $node ( @{ $self->get_entities } ) {
+            if ( my $taxon = $node->get_taxon ) {
+                push @nodes, $node if $ids{ $taxon->get_id };
+            }
+        }
+        return \@nodes;
+    }
 
 =item get_mrca()
 
@@ -576,32 +553,32 @@ Get most recent common ancestor of argument nodes.
 
 =cut
 
-	sub get_mrca {
-		my ( $tree, $nodes ) = @_;
-		if ( not $nodes or not @{ $nodes } ) {
-			return;
-		}
-		elsif ( scalar @{ $nodes } == 1 ) {
-			return $nodes->[0];
-		}
-		else {
-			my $node1 = shift @{ $nodes };
-			my $node2 = shift @{ $nodes };
-			my $anc1 = $node1->get_ancestors;
-			my $anc2 = $node2->get_ancestors;
-			unshift @{ $anc1 }, $node1;
-			unshift @{ $anc2 }, $node2;
-			TRAVERSAL: for my $i ( 0 .. $#{ $anc1 } ) {
-				for my $j ( 0 .. $#{ $anc2 } ) {
-					if ( $anc1->[$i] == $anc2->[$j] ) {
-						unshift @{ $nodes }, $anc1->[$i];
-						last TRAVERSAL;
-					}
-				}
-			}
-			return $tree->get_mrca( $nodes );
-		}
-	}
+    sub get_mrca {
+        my ( $tree, $nodes ) = @_;
+        if ( not $nodes or not @{$nodes} ) {
+            return;
+        }
+        elsif ( scalar @{$nodes} == 1 ) {
+            return $nodes->[0];
+        }
+        else {
+            my $node1 = shift @{$nodes};
+            my $node2 = shift @{$nodes};
+            my $anc1  = $node1->get_ancestors;
+            my $anc2  = $node2->get_ancestors;
+            unshift @{$anc1}, $node1;
+            unshift @{$anc2}, $node2;
+          TRAVERSAL: for my $i ( 0 .. $#{$anc1} ) {
+                for my $j ( 0 .. $#{$anc2} ) {
+                    if ( $anc1->[$i] == $anc2->[$j] ) {
+                        unshift @{$nodes}, $anc1->[$i];
+                        last TRAVERSAL;
+                    }
+                }
+            }
+            return $tree->get_mrca($nodes);
+        }
+    }
 
 =back
 
@@ -625,10 +602,10 @@ Test if tree is default tree.
 
 =cut
 
-	sub is_default {
-		my $self = shift;
-		return !!$default{$self->get_id};
-	}
+    sub is_default {
+        my $self = shift;
+        return !!$default{ $self->get_id };
+    }
 
 =item is_rooted()
 
@@ -649,20 +626,20 @@ Test if tree is rooted.
 
 =cut
 
-	sub is_rooted {
-		my $self = shift;
-		my $id = $self->get_id;
-		if ( defined $rooted{$id} ) {
-			return $rooted{$id};
-		}
-		if ( my $root = $self->get_root ) {
-			if ( my $children = $root->get_children ) {
-				return scalar @{ $children } <= 2;
-			}
-			return 1;
-		}
-		return 0;
-	}
+    sub is_rooted {
+        my $self = shift;
+        my $id   = $self->get_id;
+        if ( defined $rooted{$id} ) {
+            return $rooted{$id};
+        }
+        if ( my $root = $self->get_root ) {
+            if ( my $children = $root->get_children ) {
+                return scalar @{$children} <= 2;
+            }
+            return 1;
+        }
+        return 0;
+    }
 
 =item is_binary()
 
@@ -680,17 +657,17 @@ Test if tree is bifurcating.
 
 =cut
 
-	sub is_binary {
-		my $self = shift;
-		for ( @{ $self->get_internals } ) {
-			if ( $_->get_first_daughter->get_next_sister->get_id !=
-				$_->get_last_daughter->get_id )
-			{
-				return;
-			}
-		}
-		return 1;
-	}
+    sub is_binary {
+        my $self = shift;
+        for ( @{ $self->get_internals } ) {
+            if ( $_->get_first_daughter->get_next_sister->get_id !=
+                $_->get_last_daughter->get_id )
+            {
+                return;
+            }
+        }
+        return 1;
+    }
 
 =item is_ultrametric()
 
@@ -720,32 +697,34 @@ Test if tree is ultrametric.
 
 =cut
 
-	sub is_ultrametric {
-		my $tree = shift;
-		my $margin = shift || 0;
-		my ( @tips, %path );
-		$tree->visit_depth_first(
-			'-pre' => sub {
-				my $node = shift;				
-				if ( my $parent = $node->get_parent ) {
-					$path{ $node->get_id } = $path{ $parent->get_id } + ( $node->get_branch_length || 0 );
-				}
-				else {
-					$path{ $node->get_id } = $node->get_branch_length || 0;
-				}
-				push @tips, $node if $node->is_terminal;
-			}
-		);
-		for my $i ( 0 .. ( $#tips - 1 ) ) {
-			my $id1 = $tips[$i]->get_id;
-			PATH : for my $j ( $i + 1 .. $#tips ) {
-				my $id2 = $tips[$j]->get_id;
-				next PATH unless $path{$id2};
-				return 0 if abs(1 - $path{$id1} / $path{$id2}) > $margin;
-			}
-		}
-		return 1;
-	}
+    sub is_ultrametric {
+        my $tree = shift;
+        my $margin = shift || 0;
+        my ( @tips, %path );
+        $tree->visit_depth_first(
+            '-pre' => sub {
+                my $node = shift;
+                if ( my $parent = $node->get_parent ) {
+                    $path{ $node->get_id } =
+                      $path{ $parent->get_id } +
+                      ( $node->get_branch_length || 0 );
+                }
+                else {
+                    $path{ $node->get_id } = $node->get_branch_length || 0;
+                }
+                push @tips, $node if $node->is_terminal;
+            }
+        );
+        for my $i ( 0 .. ( $#tips - 1 ) ) {
+            my $id1 = $tips[$i]->get_id;
+          PATH: for my $j ( $i + 1 .. $#tips ) {
+                my $id2 = $tips[$j]->get_id;
+                next PATH unless $path{$id2};
+                return 0 if abs( 1 - $path{$id1} / $path{$id2} ) > $margin;
+            }
+        }
+        return 1;
+    }
 
 =item is_monophyletic()
 
@@ -767,25 +746,25 @@ to second argument.
 
 =cut
 
-	sub is_monophyletic {
-		my $tree = shift;
-		my ( $nodes, $outgroup );
-		if ( @_ == 2 ) {
-		    ( $nodes, $outgroup ) = @_;
-		}
-		elsif ( @_ == 4 ) {
-		    my %args = @_;
-		    $nodes = $args{'-nodes'};
-		    $outgroup = $args{'-outgroup'};
-		}		
-		for my $i ( 0 .. $#{$nodes} ) {
-			for my $j ( ( $i + 1 ) .. $#{$nodes} ) {
-				my $mrca = $nodes->[$i]->get_mrca( $nodes->[$j] );
-				return if $mrca->is_ancestor_of($outgroup);
-			}
-		}
-		return 1;
-	}
+    sub is_monophyletic {
+        my $tree = shift;
+        my ( $nodes, $outgroup );
+        if ( @_ == 2 ) {
+            ( $nodes, $outgroup ) = @_;
+        }
+        elsif ( @_ == 4 ) {
+            my %args = @_;
+            $nodes    = $args{'-nodes'};
+            $outgroup = $args{'-outgroup'};
+        }
+        for my $i ( 0 .. $#{$nodes} ) {
+            for my $j ( ( $i + 1 ) .. $#{$nodes} ) {
+                my $mrca = $nodes->[$i]->get_mrca( $nodes->[$j] );
+                return if $mrca->is_ancestor_of($outgroup);
+            }
+        }
+        return 1;
+    }
 
 =item is_paraphyletic()
 
@@ -802,23 +781,23 @@ to second argument.
 
 =cut
 
-	sub is_paraphyletic {
-		my $tree = shift;
-		my ( $nodes, $outgroup );
-		if ( @_ == 2 ) {
-		    ( $nodes, $outgroup ) = @_;
-		}
-		elsif ( @_ == 4 ) {
-		    my %args = @_;
-		    $nodes = $args{'-nodes'};
-		    $outgroup = $args{'-outgroup'};
-		}
-		return -1 if ! $tree->is_monophyletic($nodes,$outgroup);
-		my @all = ( @{ $nodes }, $outgroup );
-		my $mrca = $tree->get_mrca(\@all);
-		my $tips = $mrca->get_terminals;
-		return scalar @{ $tips } == scalar @all ? 0 : 1;
-	}
+    sub is_paraphyletic {
+        my $tree = shift;
+        my ( $nodes, $outgroup );
+        if ( @_ == 2 ) {
+            ( $nodes, $outgroup ) = @_;
+        }
+        elsif ( @_ == 4 ) {
+            my %args = @_;
+            $nodes    = $args{'-nodes'};
+            $outgroup = $args{'-outgroup'};
+        }
+        return -1 if !$tree->is_monophyletic( $nodes, $outgroup );
+        my @all  = ( @{$nodes}, $outgroup );
+        my $mrca = $tree->get_mrca( \@all );
+        my $tips = $mrca->get_terminals;
+        return scalar @{$tips} == scalar @all ? 0 : 1;
+    }
 
 =item is_clade()
 
@@ -839,32 +818,31 @@ Tests if argument (node array ref) forms a clade.
 
 =cut
 
-	sub is_clade {
-		my ( $tree, $arg ) = @_;
-		my ( $is_taxa, $is_node_array, $tips );
-		
-		# check if arg is a Taxa object
-		eval { $is_taxa = looks_like_object $arg, _TAXA_ };
-		if ( $is_taxa and not $@ ) {
-			$tips = $tree->get_nodes_for_taxa($arg);
-		}
-		
-		# check if arg is an array of Taxon object
-		eval { $is_node_array = looks_like_object $arg->[0], _TAXON_ };
-		if ( $is_node_array and not $@ ) {
-			$tips = $tree->get_nodes_for_taxa($arg);
-		}
-		else {
-			$tips = $arg; # arg is an array of Node objects
-		}
-		
-		my $mrca;
-		for my $i ( 1 .. $#{$tips} ) {
-			$mrca ? $mrca = $mrca->get_mrca( $tips->[$i] ) : $mrca =
-			  $tips->[0]->get_mrca( $tips->[$i] );
-		}
-		scalar @{ $mrca->get_terminals } == scalar @{$tips} ? return 1 : return;
-	}
+    sub is_clade {
+        my ( $tree, $arg ) = @_;
+        my ( $is_taxa, $is_node_array, $tips );
+
+        # check if arg is a Taxa object
+        eval { $is_taxa = looks_like_object $arg, _TAXA_ };
+        if ( $is_taxa and not $@ ) {
+            $tips = $tree->get_nodes_for_taxa($arg);
+        }
+
+        # check if arg is an array of Taxon object
+        eval { $is_node_array = looks_like_object $arg->[0], _TAXON_ };
+        if ( $is_node_array and not $@ ) {
+            $tips = $tree->get_nodes_for_taxa($arg);
+        }
+        else {
+            $tips = $arg;    # arg is an array of Node objects
+        }
+        my $mrca;
+        for my $i ( 1 .. $#{$tips} ) {
+            $mrca ? $mrca = $mrca->get_mrca( $tips->[$i] ) : $mrca =
+              $tips->[0]->get_mrca( $tips->[$i] );
+        }
+        scalar @{ $mrca->get_terminals } == scalar @{$tips} ? return 1 : return;
+    }
 
 =item is_cladogram()
 
@@ -883,13 +861,13 @@ Tests if tree is a cladogram (i.e. no branch lengths)
 
 =cut
 
-	sub is_cladogram {
-	    my $tree = shift;
-	    for my $node ( @{ $tree->get_entities } ) {
-	        return 0 if defined $node->get_branch_length;
-	    }
-	    return 1;
-	}
+    sub is_cladogram {
+        my $tree = shift;
+        for my $node ( @{ $tree->get_entities } ) {
+            return 0 if defined $node->get_branch_length;
+        }
+        return 1;
+    }
 
 =back
 
@@ -911,37 +889,35 @@ Calculates the Euclidean branch length distance between two trees.
 
 =cut
 
-#=item calc_robinson_foulds_distance()
-#
-#Calculates the Robinson and Foulds distance between two trees.
-#
-# Type    : Calculation
-# Title   : calc_robinson_foulds_distance
-# Usage   : my $distance = 
-#           $tree1->calc_robinson_foulds_distance($tree2);
-# Function: Calculates the Robinson and Foulds distance between two trees
-# Returns : SCALAR, number
-# Args    : NONE
-#
-#=cut
-#
-#	sub calc_robinson_foulds_distance {
-#		my ( $self, $other ) = @_;
-#		my $tuples = $self->_calc_branch_diffs($other);
-#		my $sum = 0;
-#		for my $tuple ( @{ $tuples } ) {
-#			my $diff = $tuple->[0] - $tuple->[1];
-#			$sum += abs $diff;
-#		}
-#		return $sum;		
-#	}
-
-
-	sub calc_branch_length_distance {
-		my ( $self, $other ) = @_;
-		my $squared = $self->calc_branch_length_score( $other );
-		return sqrt($squared);
-	}
+    #=item calc_robinson_foulds_distance()
+    #
+    #Calculates the Robinson and Foulds distance between two trees.
+    #
+    # Type    : Calculation
+    # Title   : calc_robinson_foulds_distance
+    # Usage   : my $distance =
+    #           $tree1->calc_robinson_foulds_distance($tree2);
+    # Function: Calculates the Robinson and Foulds distance between two trees
+    # Returns : SCALAR, number
+    # Args    : NONE
+    #
+    #=cut
+    #
+    #	sub calc_robinson_foulds_distance {
+    #		my ( $self, $other ) = @_;
+    #		my $tuples = $self->_calc_branch_diffs($other);
+    #		my $sum = 0;
+    #		for my $tuple ( @{ $tuples } ) {
+    #			my $diff = $tuple->[0] - $tuple->[1];
+    #			$sum += abs $diff;
+    #		}
+    #		return $sum;
+    #	}
+    sub calc_branch_length_distance {
+        my ( $self, $other ) = @_;
+        my $squared = $self->calc_branch_length_score($other);
+        return sqrt($squared);
+    }
 
 =item calc_branch_length_score()
 
@@ -958,16 +934,16 @@ Calculates the squared Euclidean branch length distance between two trees.
 
 =cut
 
-	sub calc_branch_length_score {
-		my ( $self, $other ) = @_;
-		my $tuples = $self->_calc_branch_diffs($other);
-		my $sum = 0;
-		for my $tuple ( @{ $tuples } ) {
-			my $diff = ( $tuple->[0] || 0 ) - ( $tuple->[1] || 0 );
-			$sum += $diff ** 2;
-		}
-		return $sum;
-	}
+    sub calc_branch_length_score {
+        my ( $self, $other ) = @_;
+        my $tuples = $self->_calc_branch_diffs($other);
+        my $sum    = 0;
+        for my $tuple ( @{$tuples} ) {
+            my $diff = ( $tuple->[0] || 0 ) - ( $tuple->[1] || 0 );
+            $sum += $diff**2;
+        }
+        return $sum;
+    }
 
 =begin comment
 
@@ -990,99 +966,97 @@ is used for the missing split.
 
 =cut
 
-        sub _calc_branch_diffs {
-                my ( $self, $other ) = @_;
-		
-		# we create an anonymous subroutine which
-		# we will apply to $self and $other
-                my $length_for_split_creator = sub {
-			
-			# so this will be $self and $other
-                        my $tree = shift;
-			
-			# keys will be hashed, comma-separated tip names,
-			# values will be branch lengths
-                        my %length_for_split;
-			
-			# this will assemble the comma-separated,
-			# hashed tip names
-                        my %hash_for_node;
-			
-			# post-order traversal, so tips are processed first
-                        $tree->visit_depth_first( '-post' => sub {
-                                my $node = shift;
-                                my $id = $node->get_id;
-                                my @children = @{ $node->get_children };
-                                my $hash;
-				
-				# we only enter into this case AFTER tips
-				# have been processed, so %hash_for_node
-				# values will be assigned for all children
-                                if ( @children ) {
-					
-					# these will be growing lists from
-					# tips to root
-                                        my $unsorted = join ',', map { $hash_for_node{$_->get_id} } @children;
-					
-					# we need to split, sort and join
-					# so that splits where the subtended,
-					# higher topology is different still
-					# yield the same concatenated hash
-					$hash = join ',', sort { $a cmp $b } split /,/, $unsorted;
-					
-					# coerce to a numeric type
-					$length_for_split{$hash} = $node->get_branch_length;
-                                }
-                                else {
-					# this is how we ensure that every
-					# tip name is a single, unique line.
-					# Digest::MD5 was in CORE since 5.7
-					require Digest::MD5;
-                                        $hash = Digest::MD5::md5($node->get_name);
-                                }
-				
-				# store for the next recursion
-                                $hash_for_node{$id} = $hash;
-			} );
-			
-			# this is the return value for the anonymous sub			
-                        return %length_for_split;
-                };
-		
-		# here we execute the anonymous sub. twice.
-                my %lengths_self = $length_for_split_creator->($self);
-                my %lengths_other = $length_for_split_creator->($other);
-		my @tuples;
-		
-		# first visit the splits in $self, which will identify
-		# those it shares with $other and those missing in $other
-		for my $split ( keys %lengths_self ) {
-			my $tuple;
-			if ( exists $lengths_other{$split} ) {
-				$tuple = [
-					$lengths_self{$split},
-					$lengths_other{$split} || 0,
-					1
-				];
-			}
-			else {
-				$tuple = [
-					$lengths_self{$split},
-					0,
-					0
-				];
-			}
-			push @tuples, $tuple;
-		}
-		
-		# then check if there are splits in $other but not in $self
-		for my $split ( keys %lengths_other ) {
-			if ( not exists $lengths_self{$split} ) {
-				push @tuples, [ 0, $lengths_other{$split}, 1 ];
-			}
-		}
-		return \@tuples;
+    sub _calc_branch_diffs {
+        my ( $self, $other ) = @_;
+
+        # we create an anonymous subroutine which
+        # we will apply to $self and $other
+        my $length_for_split_creator = sub {
+
+            # so this will be $self and $other
+            my $tree = shift;
+
+            # keys will be hashed, comma-separated tip names,
+            # values will be branch lengths
+            my %length_for_split;
+
+            # this will assemble the comma-separated,
+            # hashed tip names
+            my %hash_for_node;
+
+            # post-order traversal, so tips are processed first
+            $tree->visit_depth_first(
+                '-post' => sub {
+                    my $node     = shift;
+                    my $id       = $node->get_id;
+                    my @children = @{ $node->get_children };
+                    my $hash;
+
+                    # we only enter into this case AFTER tips
+                    # have been processed, so %hash_for_node
+                    # values will be assigned for all children
+                    if (@children) {
+
+                        # these will be growing lists from
+                        # tips to root
+                        my $unsorted = join ',',
+                          map { $hash_for_node{ $_->get_id } } @children;
+
+                        # we need to split, sort and join
+                        # so that splits where the subtended,
+                        # higher topology is different still
+                        # yield the same concatenated hash
+                        $hash = join ',', sort { $a cmp $b } split /,/,
+                          $unsorted;
+
+                        # coerce to a numeric type
+                        $length_for_split{$hash} = $node->get_branch_length;
+                    }
+                    else {
+
+                        # this is how we ensure that every
+                        # tip name is a single, unique line.
+                        # Digest::MD5 was in CORE since 5.7
+                        require Digest::MD5;
+                        $hash = Digest::MD5::md5( $node->get_name );
+                    }
+
+                    # store for the next recursion
+                    $hash_for_node{$id} = $hash;
+                }
+            );
+
+            # this is the return value for the anonymous sub
+            return %length_for_split;
+        };
+
+        # here we execute the anonymous sub. twice.
+        my %lengths_self  = $length_for_split_creator->($self);
+        my %lengths_other = $length_for_split_creator->($other);
+        my @tuples;
+
+        # first visit the splits in $self, which will identify
+        # those it shares with $other and those missing in $other
+        for my $split ( keys %lengths_self ) {
+            my $tuple;
+            if ( exists $lengths_other{$split} ) {
+                $tuple =
+                  [ $lengths_self{$split}, $lengths_other{$split} || 0, 1 ];
+            }
+            else {
+                $tuple = [ $lengths_self{$split}, 0, 0 ];
+            }
+            push @tuples, $tuple;
         }
+
+        # then check if there are splits in $other but not in $self
+        for my $split ( keys %lengths_other ) {
+            if ( not exists $lengths_self{$split} ) {
+                push @tuples, [ 0, $lengths_other{$split}, 1 ];
+            }
+        }
+        return \@tuples;
+    }
 
 =item calc_tree_length()
 
@@ -1099,16 +1073,16 @@ Calculates the sum of all branch lengths.
 
 =cut
 
-	sub calc_tree_length {
-		my $self = shift;
-		my $tl   = 0;
-		for ( @{ $self->get_entities } ) {
-			if ( my $bl = $_->get_branch_length ) {
-				$tl += $bl if defined $bl;
-			}
-		}
-		return $tl;
-	}
+    sub calc_tree_length {
+        my $self = shift;
+        my $tl   = 0;
+        for ( @{ $self->get_entities } ) {
+            if ( my $bl = $_->get_branch_length ) {
+                $tl += $bl if defined $bl;
+            }
+        }
+        return $tl;
+    }
 
 =item calc_tree_height()
 
@@ -1132,11 +1106,11 @@ Calculates the height of the tree.
 
 =cut
 
-	sub calc_tree_height {
-		my $self = shift;
-		my $th   = $self->calc_total_paths / $self->calc_number_of_terminals;
-		return $th;
-	}
+    sub calc_tree_height {
+        my $self = shift;
+        my $th   = $self->calc_total_paths / $self->calc_number_of_terminals;
+        return $th;
+    }
 
 =item calc_number_of_nodes()
 
@@ -1153,11 +1127,11 @@ Calculates the number of nodes.
 
 =cut
 
-	sub calc_number_of_nodes {
-		my $self     = shift;
-		my $numnodes = scalar @{ $self->get_entities };
-		return $numnodes;
-	}
+    sub calc_number_of_nodes {
+        my $self     = shift;
+        my $numnodes = scalar @{ $self->get_entities };
+        return $numnodes;
+    }
 
 =item calc_number_of_terminals()
 
@@ -1174,11 +1148,11 @@ Calculates the number of terminal nodes.
 
 =cut
 
-	sub calc_number_of_terminals {
-		my $self    = shift;
-		my $numterm = scalar @{ $self->get_terminals };
-		return $numterm;
-	}
+    sub calc_number_of_terminals {
+        my $self    = shift;
+        my $numterm = scalar @{ $self->get_terminals };
+        return $numterm;
+    }
 
 =item calc_number_of_internals()
 
@@ -1195,11 +1169,11 @@ Calculates the number of internal nodes.
 
 =cut
 
-	sub calc_number_of_internals {
-		my $self   = shift;
-		my $numint = scalar @{ $self->get_internals };
-		return $numint;
-	}
+    sub calc_number_of_internals {
+        my $self   = shift;
+        my $numint = scalar @{ $self->get_internals };
+        return $numint;
+    }
 
 =item calc_number_of_cherries()
 
@@ -1217,22 +1191,22 @@ L<http://dx.doi.org/10.1016/S0025-5564(99)00060-7>
 
 =cut
 
-	sub calc_number_of_cherries {
-		my $self = shift;
-		my %cherry;
-		for my $tip ( @{ $self->get_terminals } ) {
-			if ( my $parent = $tip->get_parent ) {
-				if ( $parent->is_preterminal ) {
-					my $children = $parent->get_children;
-					if ( scalar @{ $children } == 2 ) {
-						$cherry{ $parent->get_id }++;
-					}
-				}
-			}
-		}
-		my @cherry_ids = keys %cherry;
-		return scalar @cherry_ids;
-	}
+    sub calc_number_of_cherries {
+        my $self = shift;
+        my %cherry;
+        for my $tip ( @{ $self->get_terminals } ) {
+            if ( my $parent = $tip->get_parent ) {
+                if ( $parent->is_preterminal ) {
+                    my $children = $parent->get_children;
+                    if ( scalar @{$children} == 2 ) {
+                        $cherry{ $parent->get_id }++;
+                    }
+                }
+            }
+        }
+        my @cherry_ids = keys %cherry;
+        return scalar @cherry_ids;
+    }
 
 =item calc_total_paths()
 
@@ -1249,14 +1223,14 @@ Calculates the sum of all root-to-tip path lengths.
 
 =cut
 
-	sub calc_total_paths {
-		my $self = shift;
-		my $tp   = 0;
-		foreach ( @{ $self->get_terminals } ) {
-			$tp += $_->calc_path_to_root;
-		}
-		return $tp;
-	}
+    sub calc_total_paths {
+        my $self = shift;
+        my $tp   = 0;
+        foreach ( @{ $self->get_terminals } ) {
+            $tp += $_->calc_path_to_root;
+        }
+        return $tp;
+    }
 
 =item calc_redundancy()
 
@@ -1275,14 +1249,14 @@ Calculates the amount of shared (redundant) history on the total.
 
 =cut
 
-	sub calc_redundancy {
-		my $self = shift;
-		my $tl   = $self->calc_tree_length;
-		my $th   = $self->calc_tree_height;
-		my $ntax = $self->calc_number_of_terminals;
-		my $red  = 1 - ( ( $tl - $th ) / ( ( $th * $ntax ) - $th ) );
-		return $red;
-	}
+    sub calc_redundancy {
+        my $self = shift;
+        my $tl   = $self->calc_tree_length;
+        my $th   = $self->calc_tree_height;
+        my $ntax = $self->calc_number_of_terminals;
+        my $red  = 1 - ( ( $tl - $th ) / ( ( $th * $ntax ) - $th ) );
+        return $red;
+    }
 
 =item calc_imbalance()
 
@@ -1301,40 +1275,41 @@ Calculates Colless' coefficient of tree imbalance.
 
 =cut
 
-	sub calc_imbalance {
-		my $self = shift;
-		my ( $maxic, $sum, $Ic ) = ( 0, 0 );
-		if ( !$self->is_binary ) {
-			throw 'ObjectMismatch' => 'Colless\' imbalance only possible for binary trees';
-		}
-		my $numtips = $self->calc_number_of_terminals;
-		$numtips -= 2;
-		while ($numtips) {
-			$maxic += $numtips;
-			$numtips--;
-		}
-		for my $node ( @{ $self->get_internals } ) {
-			my ( $fd, $ld, $ftips, $ltips ) =
-			  ( $node->get_first_daughter, $node->get_last_daughter, 0, 0 );
-			if ( $fd->is_internal ) {
-				for ( @{ $fd->get_descendants } ) {
-					if   ( $_->is_terminal ) { $ftips++; }
-					else                     { next; }
-				}
-			}
-			else { $ftips = 1; }
-			if ( $ld->is_internal ) {
-				foreach ( @{ $ld->get_descendants } ) {
-					if   ( $_->is_terminal ) { $ltips++; }
-					else                     { next; }
-				}
-			}
-			else { $ltips = 1; }
-			$sum += abs( $ftips - $ltips );
-		}
-		$Ic = $sum / $maxic;
-		return $Ic;
-	}
+    sub calc_imbalance {
+        my $self = shift;
+        my ( $maxic, $sum, $Ic ) = ( 0, 0 );
+        if ( !$self->is_binary ) {
+            throw 'ObjectMismatch' =>
+              'Colless\' imbalance only possible for binary trees';
+        }
+        my $numtips = $self->calc_number_of_terminals;
+        $numtips -= 2;
+        while ($numtips) {
+            $maxic += $numtips;
+            $numtips--;
+        }
+        for my $node ( @{ $self->get_internals } ) {
+            my ( $fd, $ld, $ftips, $ltips ) =
+              ( $node->get_first_daughter, $node->get_last_daughter, 0, 0 );
+            if ( $fd->is_internal ) {
+                for ( @{ $fd->get_descendants } ) {
+                    if   ( $_->is_terminal ) { $ftips++; }
+                    else                     { next; }
+                }
+            }
+            else { $ftips = 1; }
+            if ( $ld->is_internal ) {
+                foreach ( @{ $ld->get_descendants } ) {
+                    if   ( $_->is_terminal ) { $ltips++; }
+                    else                     { next; }
+                }
+            }
+            else { $ltips = 1; }
+            $sum += abs( $ftips - $ltips );
+        }
+        $Ic = $sum / $maxic;
+        return $Ic;
+    }
 
 =item calc_i2()
 
@@ -1350,53 +1325,54 @@ Calculates I2 imbalance.
 
 =cut
 
-	sub calc_i2 {
-		my $self = shift;
-		my ( $maxic, $sum, $I2 ) = ( 0, 0 );
-		if ( !$self->is_binary ) {
-			throw 'ObjectMismatch' => 'I2 imbalance only possible for binary trees';
-		}
-		my $numtips = $self->calc_number_of_terminals;
-		$numtips -= 2;
-		while ($numtips) {
-			$maxic += $numtips;
-			$numtips--;
-		}
-		foreach my $node ( @{ $self->get_internals } ) {
-			my ( $fd, $ld, $ftips, $ltips ) =
-			  ( $node->get_first_daughter, $node->get_last_daughter, 0, 0 );
-			if ( $fd->is_internal ) {
-				foreach ( @{ $fd->get_descendants } ) {
-					if ( $_->is_terminal ) {
-						$ftips++;
-					}
-					else {
-						next;
-					}
-				}
-			}
-			else {
-				$ftips = 1;
-			}
-			if ( $ld->is_internal ) {
-				foreach ( @{ $ld->get_descendants } ) {
-					if ( $_->is_terminal ) {
-						$ltips++;
-					}
-					else {
-						next;
-					}
-				}
-			}
-			else {
-				$ltips = 1;
-			}
-			next unless ( $ftips + $ltips - 2 );
-			$sum += abs( $ftips - $ltips ) / abs( $ftips + $ltips - 2 );
-		}
-		$I2 = $sum / $maxic;
-		return $I2;
-	}
+    sub calc_i2 {
+        my $self = shift;
+        my ( $maxic, $sum, $I2 ) = ( 0, 0 );
+        if ( !$self->is_binary ) {
+            throw 'ObjectMismatch' =>
+              'I2 imbalance only possible for binary trees';
+        }
+        my $numtips = $self->calc_number_of_terminals;
+        $numtips -= 2;
+        while ($numtips) {
+            $maxic += $numtips;
+            $numtips--;
+        }
+        foreach my $node ( @{ $self->get_internals } ) {
+            my ( $fd, $ld, $ftips, $ltips ) =
+              ( $node->get_first_daughter, $node->get_last_daughter, 0, 0 );
+            if ( $fd->is_internal ) {
+                foreach ( @{ $fd->get_descendants } ) {
+                    if ( $_->is_terminal ) {
+                        $ftips++;
+                    }
+                    else {
+                        next;
+                    }
+                }
+            }
+            else {
+                $ftips = 1;
+            }
+            if ( $ld->is_internal ) {
+                foreach ( @{ $ld->get_descendants } ) {
+                    if ( $_->is_terminal ) {
+                        $ltips++;
+                    }
+                    else {
+                        next;
+                    }
+                }
+            }
+            else {
+                $ltips = 1;
+            }
+            next unless ( $ftips + $ltips - 2 );
+            $sum += abs( $ftips - $ltips ) / abs( $ftips + $ltips - 2 );
+        }
+        $I2 = $sum / $maxic;
+        return $I2;
+    }
 
 =item calc_gamma()
 
@@ -1416,72 +1392,72 @@ Calculates the Pybus gamma statistic.
 
 =cut
 
-	# code due to Aki Mimoto
-	sub calc_gamma {
-		my $self      = shift;
-		my $tl        = $self->calc_tree_length;
-		my $terminals = $self->get_terminals;
-		my $n         = scalar @{$terminals};
-		my $height    = $self->calc_tree_height;
+    # code due to Aki Mimoto
+    sub calc_gamma {
+        my $self      = shift;
+        my $tl        = $self->calc_tree_length;
+        my $terminals = $self->get_terminals;
+        my $n         = scalar @{$terminals};
+        my $height    = $self->calc_tree_height;
 
-	  # Calculate the distance of each node to the root
-	  #        my %soft_refs;
-	  #        my $root = $self->get_root;
-	  #        $soft_refs{$root} = 0;
-	  #        my @nodes = $root;
-	  #        while (@nodes) {
-	  #            my $node     = shift @nodes;
-	  #            my $path_len = $soft_refs{$node} += $node->get_branch_length;
-	  #            my $children = $node->get_children or next;
-	  #            for my $child (@$children) {
-	  #                $soft_refs{$child} = $path_len;
-	  #            }
-	  #            push @nodes, @{$children};
-	  #        }
-	  # the commented out block is more efficiently implemented like so:
-		my %soft_refs =
-		  map { $_ => $_->calc_path_to_root } @{ $self->get_entities };
+      # Calculate the distance of each node to the root
+      #        my %soft_refs;
+      #        my $root = $self->get_root;
+      #        $soft_refs{$root} = 0;
+      #        my @nodes = $root;
+      #        while (@nodes) {
+      #            my $node     = shift @nodes;
+      #            my $path_len = $soft_refs{$node} += $node->get_branch_length;
+      #            my $children = $node->get_children or next;
+      #            for my $child (@$children) {
+      #                $soft_refs{$child} = $path_len;
+      #            }
+      #            push @nodes, @{$children};
+      #        }
+      # the commented out block is more efficiently implemented like so:
+        my %soft_refs =
+          map { $_ => $_->calc_path_to_root } @{ $self->get_entities };
 
-		# Then, we know how far each node is from the root. At this point, we
-		# can sort through and create the @g array
-		my %node_spread =
-		  map { ( $_ => 1 ) } values %soft_refs;    # remove duplicates
-		my @sorted_nodes = sort { $a <=> $b } keys %node_spread;
-		my $prev = 0;
-		my @g;
-		for my $length (@sorted_nodes) {
-			push @g, $length - $prev;
-			$prev = $length;
-		}
-		my $sum = 0;
-		eval { require Math::BigFloat };
-		if ($@) {                                   # BigFloat is not available.
-			for ( my $i = 2 ; $i < $n ; $i++ ) {
-				for ( my $k = 2 ; $k <= $i ; $k++ ) {
-					$sum += $k * $g[ $k - 1 ];
-				}
-			}
-			my $numerator = ( $sum / ( $n - 2 ) ) - ( $tl / 2 );
-			my $denominator = $tl * sqrt( 1 / ( 12 * ( $n - 2 ) ) );
-			$self->_store_cache( $numerator / $denominator );
-			return $numerator / $denominator;
-		}
+        # Then, we know how far each node is from the root. At this point, we
+        # can sort through and create the @g array
+        my %node_spread =
+          map { ( $_ => 1 ) } values %soft_refs;    # remove duplicates
+        my @sorted_nodes = sort { $a <=> $b } keys %node_spread;
+        my $prev = 0;
+        my @g;
+        for my $length (@sorted_nodes) {
+            push @g, $length - $prev;
+            $prev = $length;
+        }
+        my $sum = 0;
+        eval { require Math::BigFloat };
+        if ($@) {                                   # BigFloat is not available.
+            for ( my $i = 2 ; $i < $n ; $i++ ) {
+                for ( my $k = 2 ; $k <= $i ; $k++ ) {
+                    $sum += $k * $g[ $k - 1 ];
+                }
+            }
+            my $numerator = ( $sum / ( $n - 2 ) ) - ( $tl / 2 );
+            my $denominator = $tl * sqrt( 1 / ( 12 * ( $n - 2 ) ) );
+            $self->_store_cache( $numerator / $denominator );
+            return $numerator / $denominator;
+        }
 
-		# Big Float is available. We'll use it then
-		$sum = Math::BigFloat->new(0);
-		for ( my $i = 2 ; $i < $n ; $i++ ) {
-			for ( my $k = 2 ; $k <= $i ; $k++ ) {
-				$sum->badd( $k * $g[ $k - 1 ] );
-			}
-		}
-		$sum->bdiv( $n - 2 );
-		$sum->bsub( $tl / 2 );
-		my $denominator = Math::BigFloat->new(1);
-		$denominator->bdiv( 12 * ( $n - 2 ) );
-		$denominator->bsqrt();
-		$sum->bdiv( $denominator * $tl );
-		return $sum;
-	}
+        # Big Float is available. We'll use it then
+        $sum = Math::BigFloat->new(0);
+        for ( my $i = 2 ; $i < $n ; $i++ ) {
+            for ( my $k = 2 ; $k <= $i ; $k++ ) {
+                $sum->badd( $k * $g[ $k - 1 ] );
+            }
+        }
+        $sum->bdiv( $n - 2 );
+        $sum->bsub( $tl / 2 );
+        my $denominator = Math::BigFloat->new(1);
+        $denominator->bdiv( 12 * ( $n - 2 ) );
+        $denominator->bsqrt();
+        $sum->bdiv( $denominator * $tl );
+        return $sum;
+    }
 
 =item calc_fiala_stemminess()
 
@@ -1504,24 +1480,24 @@ Calculates stemminess measure of Fiala and Sokal (1985).
 
 =cut
 
-	sub calc_fiala_stemminess {
-		my $self      = shift;
-		my @internals = @{ $self->get_internals };
-		my $total     = 0;
-		my $nnodes    = ( scalar @internals - 1 );
-		foreach my $node (@internals) {
-			if ( $node->get_parent ) {
-				my $desclengths = $node->get_branch_length;
-				my @children    = @{ $node->get_descendants };
-				for my $child (@children) {
-					$desclengths += $child->get_branch_length;
-				}
-				$total += ( $node->get_branch_length / $desclengths );
-			}
-		}
-		$total /= $nnodes;
-		return $total;
-	}
+    sub calc_fiala_stemminess {
+        my $self      = shift;
+        my @internals = @{ $self->get_internals };
+        my $total     = 0;
+        my $nnodes    = ( scalar @internals - 1 );
+        foreach my $node (@internals) {
+            if ( $node->get_parent ) {
+                my $desclengths = $node->get_branch_length;
+                my @children    = @{ $node->get_descendants };
+                for my $child (@children) {
+                    $desclengths += $child->get_branch_length;
+                }
+                $total += ( $node->get_branch_length / $desclengths );
+            }
+        }
+        $total /= $nnodes;
+        return $total;
+    }
 
 =item calc_rohlf_stemminess()
 
@@ -1544,54 +1520,55 @@ Calculates stemminess measure from Rohlf et al. (1990).
 
 =cut
 
-	sub calc_rohlf_stemminess {
-		# invocant is a tree
-		my $self = shift;
-		
-		throw ObjectMismatch => "This algorithm isn't generalized to
+    sub calc_rohlf_stemminess {
+
+        # invocant is a tree
+        my $self = shift;
+        throw ObjectMismatch => "This algorithm isn't generalized to
 			deal with multifurcations" if $self->calc_resolution < 1;
-		throw ObjectMismatch => "This algorithm requires branch lengths"
-			unless $self->calc_tree_length;
-		
-		# all internal nodes in the tree
-		my @internals = @{ $self->get_internals };
-		
-		# all terminal nodes in the tree
-		my @terminals = @{ $self->get_terminals };
-		
-		# this will become the sum of all STni
-		my $total = 0;
-		
-		# 1/(t-2), by which we multiply total
-		my $one_over_t_minus_two = 1 / ( scalar @terminals - 2 );
-		
-		# iterate over all nodes, as per equation (1)
-			for my $node ( @internals ) {
-			
-			# only process nodes that aren't the root
-			if ( my $parent = $node->get_parent ) {
-				
-				# Wj->i is defined as "the length of the edge
-				# (in time units) between HTU i (a hypothetical
-				# taxonomic unit, i.e. an internal node) and
-				# its ancestor j"
-				my $Wj_i = $node->get_branch_length;
-				
-				# hj is defined as "the 'height' of HTU j (the
-				# time of its origin, a known quantity since we
-				# know the true tree in these simulations)".
-				my $hj   = $parent->calc_path_to_root;
-				if ( !$hj ) {
-					next;
-				}
-				
-				# as per equation (2) in Rohlf et al. (1990)
-				$total += ( $Wj_i / $hj );
-			}
-		}
-		# multiply by 1/(t-2) as per equation (1)
-		return $one_over_t_minus_two * $total;
-	}
+        throw ObjectMismatch => "This algorithm requires branch lengths"
+          unless $self->calc_tree_length;
+
+        # all internal nodes in the tree
+        my @internals = @{ $self->get_internals };
+
+        # all terminal nodes in the tree
+        my @terminals = @{ $self->get_terminals };
+
+        # this will become the sum of all STni
+        my $total = 0;
+
+        # 1/(t-2), by which we multiply total
+        my $one_over_t_minus_two = 1 / ( scalar @terminals - 2 );
+
+        # iterate over all nodes, as per equation (1)
+        for my $node (@internals) {
+
+            # only process nodes that aren't the root
+            if ( my $parent = $node->get_parent ) {
+
+                # Wj->i is defined as "the length of the edge
+                # (in time units) between HTU i (a hypothetical
+                # taxonomic unit, i.e. an internal node) and
+                # its ancestor j"
+                my $Wj_i = $node->get_branch_length;
+
+                # hj is defined as "the 'height' of HTU j (the
+                # time of its origin, a known quantity since we
+                # know the true tree in these simulations)".
+                my $hj = $parent->calc_path_to_root;
+                if ( !$hj ) {
+                    next;
+                }
+
+                # as per equation (2) in Rohlf et al. (1990)
+                $total += ( $Wj_i / $hj );
+            }
+        }
+
+        # multiply by 1/(t-2) as per equation (1)
+        return $one_over_t_minus_two * $total;
+    }
 
 =item calc_resolution()
 
@@ -1611,12 +1588,12 @@ Calculates tree resolution.
 
 =cut
 
-	sub calc_resolution {
-		my $self = shift;
-		my $res  = $self->calc_number_of_internals /
-		  ( $self->calc_number_of_terminals - 1 );
-		return $res;
-	}
+    sub calc_resolution {
+        my $self = shift;
+        my $res  = $self->calc_number_of_internals /
+          ( $self->calc_number_of_terminals - 1 );
+        return $res;
+    }
 
 =item calc_branching_times()
 
@@ -1640,35 +1617,36 @@ Calculates cumulative branching times.
 
 =cut
 
-	sub calc_branching_times {
-		my $self = shift;
-		my @branching_times;
-		if ( !$self->is_ultrametric(0.01) ) {
-			throw 'ObjectMismatch' => 'tree isn\'t ultrametric, results would be meaningless';
-		}
-		else {
-			my @temp;
-			my $seen_tip = 0;
-			$self->visit_depth_first(
-				'-pre' => sub {
-					my $node = shift;
-					if ( not $seen_tip or $node->is_internal ) {
-						my $bt = $node->get_branch_length;
-						if ( my $parent = $node->get_parent ) {
-							$bt += $parent->get_generic('bt');						
-						}
-						$node->set_generic( 'bt' => $bt );
-						push @temp, [ $node, $bt ];
-						if ( $node->is_terminal ) {
-							$seen_tip++;
-						}
-					}
-				}
-			);
-			@branching_times = sort { $a->[1] <=> $b->[1] } @temp;
-		}
-		return \@branching_times;
-	}
+    sub calc_branching_times {
+        my $self = shift;
+        my @branching_times;
+        if ( !$self->is_ultrametric(0.01) ) {
+            throw 'ObjectMismatch' =>
+              'tree isn\'t ultrametric, results would be meaningless';
+        }
+        else {
+            my @temp;
+            my $seen_tip = 0;
+            $self->visit_depth_first(
+                '-pre' => sub {
+                    my $node = shift;
+                    if ( not $seen_tip or $node->is_internal ) {
+                        my $bt = $node->get_branch_length;
+                        if ( my $parent = $node->get_parent ) {
+                            $bt += $parent->get_generic('bt');
+                        }
+                        $node->set_generic( 'bt' => $bt );
+                        push @temp, [ $node, $bt ];
+                        if ( $node->is_terminal ) {
+                            $seen_tip++;
+                        }
+                    }
+                }
+            );
+            @branching_times = sort { $a->[1] <=> $b->[1] } @temp;
+        }
+        return \@branching_times;
+    }
 
 =item calc_waiting_times()
 
@@ -1691,15 +1669,15 @@ Calculates intervals between splits.
  Args    : NONE
 
 =cut
-	
-	sub calc_waiting_times {
-		my $self = shift;
-		my $times = $self->calc_branching_times;
-		for ( my $i = $#{ $times }; $i > 0; $i-- ) {
-			$times->[$i]->[1] -= $times->[$i-1]->[1];
-		}
-		return $times;
-	}
+
+    sub calc_waiting_times {
+        my $self  = shift;
+        my $times = $self->calc_branching_times;
+        for ( my $i = $#{$times} ; $i > 0 ; $i-- ) {
+            $times->[$i]->[1] -= $times->[ $i - 1 ]->[1];
+        }
+        return $times;
+    }
 
 =item calc_node_ages()
 
@@ -1721,20 +1699,21 @@ Calculates node ages.
 
 =cut
 
-	sub calc_node_ages {
-		my $self = shift;
-		$self->visit_depth_first(
-			'-post' => sub {
-				my $node = shift;
-				my $age = 0;
-				if ( my $child = $node->get_child(0) ) {
-					$age = $child->get_generic('age') + $child->get_branch_length;
-				}
-				$node->set_generic( 'age' => $age );
-			}
-		);
-		return $self;
-	}
+    sub calc_node_ages {
+        my $self = shift;
+        $self->visit_depth_first(
+            '-post' => sub {
+                my $node = shift;
+                my $age  = 0;
+                if ( my $child = $node->get_child(0) ) {
+                    $age =
+                      $child->get_generic('age') + $child->get_branch_length;
+                }
+                $node->set_generic( 'age' => $age );
+            }
+        );
+        return $self;
+    }
 
 =item calc_ltt()
 
@@ -1758,23 +1737,25 @@ Calculates lineage-through-time data points.
 
 =cut
 
-	sub calc_ltt {
-		my $self = shift;
-		if ( !$self->is_ultrametric(0.01) ) {
-			throw 'ObjectMismatch' => 'tree isn\'t ultrametric, results are meaningless';
-		}
-		my $ltt      = ( $self->calc_branching_times );
-		my $lineages = 1;
-		for my $i ( 0 .. $#{$ltt} ) {
-			$lineages += ( scalar @{ $ltt->[$i][0]->get_children } - 1 );
-			$ltt->[$i][2] = $lineages;
-		}
-		return $ltt;
-	}
+    sub calc_ltt {
+        my $self = shift;
+        if ( !$self->is_ultrametric(0.01) ) {
+            throw 'ObjectMismatch' =>
+              'tree isn\'t ultrametric, results are meaningless';
+        }
+        my $ltt      = ( $self->calc_branching_times );
+        my $lineages = 1;
+        for my $i ( 0 .. $#{$ltt} ) {
+            $lineages += ( scalar @{ $ltt->[$i][0]->get_children } - 1 );
+            $ltt->[$i][2] = $lineages;
+        }
+        return $ltt;
+    }
 
 =item calc_symdiff()
 
-Calculates the symmetric difference metric between invocant and argument.
+Calculates the symmetric difference metric between invocant and argument. This
+metric is identical to the Roubinson-Foulds tree comparison distance.
 
  Type    : Calculation
  Title   : calc_symdiff
@@ -1791,15 +1772,15 @@ Calculates the symmetric difference metric between invocant and argument.
 
 =cut
 
-	sub calc_symdiff {
-		my ( $tree, $other_tree ) = @_;
-		my $tuples = $tree->_calc_branch_diffs( $other_tree );
-		my $symdiff = 0;
-		for my $tuple ( @{ $tuples } ) {
-			$symdiff++ unless $tuple->[2];
-		}
-		return $symdiff;
-	}
+    sub calc_symdiff {
+        my ( $tree, $other_tree ) = @_;
+        my $tuples  = $tree->_calc_branch_diffs($other_tree);
+        my $symdiff = 0;
+        for my $tuple ( @{$tuples} ) {
+            $symdiff++ unless $tuple->[2];
+        }
+        return $symdiff;
+    }
 
 =item calc_fp() 
 
@@ -1815,31 +1796,31 @@ Calculates the Fair Proportion value for each terminal.
 
 =cut
 
-	# code due to Aki Mimoto
-	sub calc_fp {
-		my $self = shift;
+    # code due to Aki Mimoto
+    sub calc_fp {
+        my $self = shift;
 
-		# First establish how many children sit on each of the nodes
-		my %weak_ref;
-		my $terminals = $self->get_terminals;
-		for my $terminal (@$terminals) {
-			my $index = $terminal;
-			do { $weak_ref{$index}++ } while ( $index = $index->get_parent );
-		}
+        # First establish how many children sit on each of the nodes
+        my %weak_ref;
+        my $terminals = $self->get_terminals;
+        for my $terminal (@$terminals) {
+            my $index = $terminal;
+            do { $weak_ref{$index}++ } while ( $index = $index->get_parent );
+        }
 
-		# Then, assign each terminal a value
-		my $fp = {};
-		for my $terminal (@$terminals) {
-			my $name = $terminal->get_name;
-			my $fpi  = 0;
-			do {
-				$fpi +=
-				  ( $terminal->get_branch_length || 0 ) / $weak_ref{$terminal};
-			} while ( $terminal = $terminal->get_parent );
-			$fp->{$name} = $fpi;
-		}
-		return $fp;
-	}
+        # Then, assign each terminal a value
+        my $fp = {};
+        for my $terminal (@$terminals) {
+            my $name = $terminal->get_name;
+            my $fpi  = 0;
+            do {
+                $fpi +=
+                  ( $terminal->get_branch_length || 0 ) / $weak_ref{$terminal};
+            } while ( $terminal = $terminal->get_parent );
+            $fp->{$name} = $fpi;
+        }
+        return $fp;
+    }
 
 =item calc_es() 
 
@@ -1854,27 +1835,27 @@ Calculates the Equal Splits value for each terminal
 
 =cut
 
-	# code due to Aki Mimoto
-	sub calc_es {
-		my $self = shift;
+    # code due to Aki Mimoto
+    sub calc_es {
+        my $self = shift;
 
-		# First establish how many children sit on each of the nodes
-		my $terminals = $self->get_terminals;
-		my $es        = {};
-		for my $terminal ( @{$terminals} ) {
-			my $name    = $terminal->get_name;
-			my $esi     = 0;
-			my $divisor = 1;
-			do {
-				my $length   = $terminal->get_branch_length || 0;
-				my $children = $terminal->get_children      || [];
-				$divisor *= @$children || 1;
-				$esi += $length / $divisor;
-			} while ( $terminal = $terminal->get_parent );
-			$es->{$name} = $esi;
-		}
-		return $es;
-	}
+        # First establish how many children sit on each of the nodes
+        my $terminals = $self->get_terminals;
+        my $es        = {};
+        for my $terminal ( @{$terminals} ) {
+            my $name    = $terminal->get_name;
+            my $esi     = 0;
+            my $divisor = 1;
+            do {
+                my $length   = $terminal->get_branch_length || 0;
+                my $children = $terminal->get_children      || [];
+                $divisor *= @$children || 1;
+                $esi += $length / $divisor;
+            } while ( $terminal = $terminal->get_parent );
+            $es->{$name} = $esi;
+        }
+        return $es;
+    }
 
 =item calc_pe()
 
@@ -1889,14 +1870,14 @@ Calculates the Pendant Edge value for each terminal.
 
 =cut
 
-	# code due to Aki Mimoto
-	sub calc_pe {
-		my $self = shift;
-		my $terminals = $self->get_terminals or return {};
-		my $pe =
-		  { map { $_->get_name => $_->get_branch_length } @{$terminals} };
-		return $pe;
-	}
+    # code due to Aki Mimoto
+    sub calc_pe {
+        my $self = shift;
+        my $terminals = $self->get_terminals or return {};
+        my $pe =
+          { map { $_->get_name => $_->get_branch_length } @{$terminals} };
+        return $pe;
+    }
 
 =item calc_shapley()
 
@@ -1911,97 +1892,97 @@ Calculates the Shapley value for each terminal.
 
 =cut
 
-	# code due to Aki Mimoto
-	sub calc_shapley {
-		my $self = shift;
+    # code due to Aki Mimoto
+    sub calc_shapley {
+        my $self = shift;
 
-		# First find out how many tips are at the ends of each edge.
-		my $terminals   = $self->get_terminals or return;    # nothing to see!
-		my $edge_lookup = {};
-		my $index       = $terminals->[0];
+        # First find out how many tips are at the ends of each edge.
+        my $terminals   = $self->get_terminals or return;    # nothing to see!
+        my $edge_lookup = {};
+        my $index       = $terminals->[0];
 
-		# Iterate through the edges and find out which side each terminal reside
-		_calc_shapley_traverse( $index, undef, $edge_lookup, 'root' );
+        # Iterate through the edges and find out which side each terminal reside
+        _calc_shapley_traverse( $index, undef, $edge_lookup, 'root' );
 
-		# At this point, it's possible to create the calculation matrix
-		my $n = @$terminals;
-		my @m;
-		my $edges = [ keys %$edge_lookup ];
-		for my $e ( 0 .. $#$edges ) {
-			my $edge = $edges->[$e];
-			my $el =
-			  $edge_lookup->{$edge};    # Lookup for terminals on one edge side
-			my $v =
-			  keys %{ $el
-				  ->{terminals} };  # Number of elements on one side of the edge
-			for my $l ( 0 .. $#$terminals ) {
-				my $terminal = $terminals->[$l];
-				my $name     = $terminal->get_name;
-				if ( $el->{terminals}{$name} ) {
-					$m[$l][$e] = ( $n - $v ) / ( $n * $v );
-				}
-				else {
-					$m[$l][$e] = $v / ( $n * ( $n - $v ) );
-				}
-			}
-		}
+        # At this point, it's possible to create the calculation matrix
+        my $n = @$terminals;
+        my @m;
+        my $edges = [ keys %$edge_lookup ];
+        for my $e ( 0 .. $#$edges ) {
+            my $edge = $edges->[$e];
+            my $el =
+              $edge_lookup->{$edge};    # Lookup for terminals on one edge side
+            my $v =
+              keys %{ $el
+                  ->{terminals} };  # Number of elements on one side of the edge
+            for my $l ( 0 .. $#$terminals ) {
+                my $terminal = $terminals->[$l];
+                my $name     = $terminal->get_name;
+                if ( $el->{terminals}{$name} ) {
+                    $m[$l][$e] = ( $n - $v ) / ( $n * $v );
+                }
+                else {
+                    $m[$l][$e] = $v / ( $n * ( $n - $v ) );
+                }
+            }
+        }
 
-		# Now we can calculate through the matrix
-		my $shapley = {};
-		for my $l ( 0 .. $#$terminals ) {
-			my $terminal = $terminals->[$l];
-			my $name     = $terminal->get_name;
-			for my $e ( 0 .. $#$edges ) {
-				my $edge = $edge_lookup->{ $edges->[$e] };
-				$shapley->{$name} += $edge->{branch_length} * $m[$l][$e];
-			}
-		}
-		return $shapley;
-	}
+        # Now we can calculate through the matrix
+        my $shapley = {};
+        for my $l ( 0 .. $#$terminals ) {
+            my $terminal = $terminals->[$l];
+            my $name     = $terminal->get_name;
+            for my $e ( 0 .. $#$edges ) {
+                my $edge = $edge_lookup->{ $edges->[$e] };
+                $shapley->{$name} += $edge->{branch_length} * $m[$l][$e];
+            }
+        }
+        return $shapley;
+    }
 
-	sub _calc_shapley_traverse {
+    sub _calc_shapley_traverse {
 
-		# This does a depth first traversal to assign the terminals
-		# to the outgoing side of each branch.
-		my ( $index, $previous, $edge_lookup, $direction ) = @_;
-		return unless $index;
-		$previous ||= '';
+        # This does a depth first traversal to assign the terminals
+        # to the outgoing side of each branch.
+        my ( $index, $previous, $edge_lookup, $direction ) = @_;
+        return unless $index;
+        $previous ||= '';
 
-		# Is this element a root?
-		my $is_root = !$index->get_parent;
+        # Is this element a root?
+        my $is_root = !$index->get_parent;
 
-		# Now assemble all the terminal datapoints and use the soft reference
-		# to keep track of which end the terminals are attached
-		my @core_terminals;
-		if ( $previous and $index->is_terminal ) {
-			push @core_terminals, $index->get_name;
-		}
-		my $parent = $index->get_parent || '';
-		my @child_terminals;
-		my $child_nodes = $index->get_children || [];
-		for my $child (@$child_nodes) {
-			next unless $child ne $previous;
-			push @child_terminals,
-			  _calc_shapley_traverse( $child, $index, $edge_lookup, 'tip' );
-		}
-		my @parent_terminals;
-		if ( $parent ne $previous ) {
-			push @parent_terminals,
-			  _calc_shapley_traverse( $parent, $index, $edge_lookup, 'root' );
-		}
+        # Now assemble all the terminal datapoints and use the soft reference
+        # to keep track of which end the terminals are attached
+        my @core_terminals;
+        if ( $previous and $index->is_terminal ) {
+            push @core_terminals, $index->get_name;
+        }
+        my $parent = $index->get_parent || '';
+        my @child_terminals;
+        my $child_nodes = $index->get_children || [];
+        for my $child (@$child_nodes) {
+            next unless $child ne $previous;
+            push @child_terminals,
+              _calc_shapley_traverse( $child, $index, $edge_lookup, 'tip' );
+        }
+        my @parent_terminals;
+        if ( $parent ne $previous ) {
+            push @parent_terminals,
+              _calc_shapley_traverse( $parent, $index, $edge_lookup, 'root' );
+        }
 
 # We're going to toss the root node and we need to merge the root's child branches
-		unless ($is_root) {
-			$edge_lookup->{$index} = {
-				branch_length => $index->get_branch_length,
-				terminals     => {
-					map { $_ => 1 } @core_terminals,
-					$direction eq 'root' ? @parent_terminals : @child_terminals
-				}
-			};
-		}
-		return ( @core_terminals, @child_terminals, @parent_terminals );
-	}
+        unless ($is_root) {
+            $edge_lookup->{$index} = {
+                branch_length => $index->get_branch_length,
+                terminals     => {
+                    map { $_ => 1 } @core_terminals,
+                    $direction eq 'root' ? @parent_terminals : @child_terminals
+                }
+            };
+        }
+        return ( @core_terminals, @child_terminals, @parent_terminals );
+    }
 
 =back
 
@@ -2064,12 +2045,12 @@ Visits nodes depth first
 
 =cut
 
-	sub visit_depth_first {
-		my $self = shift;
-		my %args = looks_like_hash @_;
-		$self->get_root->visit_depth_first(%args);
-		return $self;
-	}
+    sub visit_depth_first {
+        my $self = shift;
+        my %args = looks_like_hash @_;
+        $self->get_root->visit_depth_first(%args);
+        return $self;
+    }
 
 =item visit_breadth_first()
 
@@ -2111,12 +2092,12 @@ Visits nodes breadth first
 
 =cut
 
-	sub visit_breadth_first {
-		my $self = shift;
-		my %args = looks_like_hash @_;
-		$self->get_root->visit_breadth_first(%args);
-		return $self;
-	}
+    sub visit_breadth_first {
+        my $self = shift;
+        my %args = looks_like_hash @_;
+        $self->get_root->visit_breadth_first(%args);
+        return $self;
+    }
 
 =item visit_level_order()
 
@@ -2132,16 +2113,16 @@ Visits nodes in a level order traversal.
 
 =cut	
 
-	sub visit_level_order {
-		my ( $tree, $sub ) = @_;
-		if ( my $root = $tree->get_root ) {
-			$root->visit_level_order($sub);
-		}
-		else {
-			throw 'BadArgs' => 'Tree has no root';
-		}
-		return $tree;
-	}
+    sub visit_level_order {
+        my ( $tree, $sub ) = @_;
+        if ( my $root = $tree->get_root ) {
+            $root->visit_level_order($sub);
+        }
+        else {
+            throw 'BadArgs' => 'Tree has no root';
+        }
+        return $tree;
+    }
 
 =back
 
@@ -2165,32 +2146,32 @@ L<http://dx.doi.org/10.1016/S1055-7903(02)00268-3>
 
 =cut
 
-	sub chronompl {
-		my $self = shift;
-		$self->visit_depth_first(
-			'-post' => sub {
-				my $node = shift;
-				my %paths;
-				my $children = $node->get_children;
-				for my $child ( @{ $children } ) {
-					my $cp = $child->get_generic('paths');
-					my $bl = $child->get_branch_length;
-					for my $id ( keys %{ $cp  } ) {
-						$paths{$id} = $cp->{$id} + $bl;
-					}
-				}
-				if ( not scalar @{ $children } ) {
-					$paths{$node->get_id} = 0;
-				}
-				$node->set_generic('paths' => \%paths);
-				my $total = 0;
-				$total += $_ for values %paths;
-				my $mean = $total / scalar keys %paths;
-				$node->set_generic('age' => $mean);
-			}
-		);
-		return $self->agetobl;
-	}
+    sub chronompl {
+        my $self = shift;
+        $self->visit_depth_first(
+            '-post' => sub {
+                my $node = shift;
+                my %paths;
+                my $children = $node->get_children;
+                for my $child ( @{$children} ) {
+                    my $cp = $child->get_generic('paths');
+                    my $bl = $child->get_branch_length;
+                    for my $id ( keys %{$cp} ) {
+                        $paths{$id} = $cp->{$id} + $bl;
+                    }
+                }
+                if ( not scalar @{$children} ) {
+                    $paths{ $node->get_id } = 0;
+                }
+                $node->set_generic( 'paths' => \%paths );
+                my $total = 0;
+                $total += $_ for values %paths;
+                my $mean = $total / scalar keys %paths;
+                $node->set_generic( 'age' => $mean );
+            }
+        );
+        return $self->agetobl;
+    }
 
 =item grafenbl()
 
@@ -2208,42 +2189,42 @@ L<http://dx.doi.org/10.1098/rstb.1989.0106>
 
 =cut
 
-	sub grafenbl {
-		my ( $self, $rho ) = @_;
-		my $total = 0;
-		$self->visit_depth_first(
-			'-post' => sub {
-				my $node = shift;
-				if ( $node->is_terminal ) {
-					$node->set_generic( 'adjntips' => 0 );
-					$node->set_generic( 'ntips' => 1 );
-				}
-				else {
-					my $children = $node->get_children;
-					my $ntips = 0;
-					for my $child ( @{ $children } ) {
-						$ntips += $child->get_generic('ntips');
-					}
-					$node->set_generic( 'ntips' => $ntips );
-					$node->set_generic( 'adjntips' => $ntips - 1 );
-					$total = $ntips if $node->is_root;					
-				}
-			}
-		);
-		$self->visit(
-			sub {
-				my $node = shift;
-				if ( $total ) {
-					my $age = $node->get_generic('adjntips') / $total;
-					if ( $rho ) {
-						$age = $age ** $rho;
-					}
-					$node->set_generic( 'age' => $age );
-				}
-			}
-		);
-		return $self->agetobl;
-	}
+    sub grafenbl {
+        my ( $self, $rho ) = @_;
+        my $total = 0;
+        $self->visit_depth_first(
+            '-post' => sub {
+                my $node = shift;
+                if ( $node->is_terminal ) {
+                    $node->set_generic( 'adjntips' => 0 );
+                    $node->set_generic( 'ntips'    => 1 );
+                }
+                else {
+                    my $children = $node->get_children;
+                    my $ntips    = 0;
+                    for my $child ( @{$children} ) {
+                        $ntips += $child->get_generic('ntips');
+                    }
+                    $node->set_generic( 'ntips'    => $ntips );
+                    $node->set_generic( 'adjntips' => $ntips - 1 );
+                    $total = $ntips if $node->is_root;
+                }
+            }
+        );
+        $self->visit(
+            sub {
+                my $node = shift;
+                if ($total) {
+                    my $age = $node->get_generic('adjntips') / $total;
+                    if ($rho) {
+                        $age = $age**$rho;
+                    }
+                    $node->set_generic( 'age' => $age );
+                }
+            }
+        );
+        return $self->agetobl;
+    }
 
 =item agetobl()
 
@@ -2261,21 +2242,20 @@ Converts node ages to branch lengths
 
 =cut
 
-	sub agetobl {
-		my $self = shift;
-		for my $node ( @{ $self->get_entities } ) {
-			if ( my $parent = $node->get_parent ) {
-				my $mp = $node->get_generic('age') || 0;
-				my $pmp = $parent->get_generic('age');
-				$node->set_branch_length( $pmp - $mp );
-			}
-			else {
-				$node->set_branch_length(0);
-			}
-		}
-		return $self;		
-	}
-
+    sub agetobl {
+        my $self = shift;
+        for my $node ( @{ $self->get_entities } ) {
+            if ( my $parent = $node->get_parent ) {
+                my $mp = $node->get_generic('age') || 0;
+                my $pmp = $parent->get_generic('age');
+                $node->set_branch_length( $pmp - $mp );
+            }
+            else {
+                $node->set_branch_length(0);
+            }
+        }
+        return $self;
+    }
 
 =item ultrametricize()
 
@@ -2298,22 +2278,22 @@ Sets all root-to-tip path lengths equal.
 
 =cut
 
-	sub ultrametricize {
-		my $tree    = shift;
-		my $tallest = 0;
-		foreach ( @{ $tree->get_terminals } ) {
-			my $path_to_root = $_->calc_path_to_root;
-			if ( $path_to_root > $tallest ) {
-				$tallest = $path_to_root;
-			}
-		}
-		foreach ( @{ $tree->get_terminals } ) {
-			my $newbl =
-			  $_->get_branch_length + ( $tallest - $_->calc_path_to_root );
-			$_->set_branch_length($newbl);
-		}
-		return $tree;
-	}
+    sub ultrametricize {
+        my $tree    = shift;
+        my $tallest = 0;
+        foreach ( @{ $tree->get_terminals } ) {
+            my $path_to_root = $_->calc_path_to_root;
+            if ( $path_to_root > $tallest ) {
+                $tallest = $path_to_root;
+            }
+        }
+        foreach ( @{ $tree->get_terminals } ) {
+            my $newbl =
+              $_->get_branch_length + ( $tallest - $_->calc_path_to_root );
+            $_->set_branch_length($newbl);
+        }
+        return $tree;
+    }
 
 =item scale()
 
@@ -2336,19 +2316,19 @@ Scales the tree to the specified height.
 
 =cut
 
-	sub scale {
-		my ( $tree, $target_height ) = @_;
-		my $current_height = $tree->calc_tree_height;
-		my $scaling_factor = $target_height / $current_height;
-		foreach ( @{ $tree->get_entities } ) {
-			my $bl = $_->get_branch_length;
-			if ($bl) {
-				my $new_branch_length = $bl * $scaling_factor;
-				$_->set_branch_length($new_branch_length);
-			}
-		}
-		return $tree;
-	}
+    sub scale {
+        my ( $tree, $target_height ) = @_;
+        my $current_height = $tree->calc_tree_height;
+        my $scaling_factor = $target_height / $current_height;
+        foreach ( @{ $tree->get_entities } ) {
+            my $bl = $_->get_branch_length;
+            if ($bl) {
+                my $new_branch_length = $bl * $scaling_factor;
+                $_->set_branch_length($new_branch_length);
+            }
+        }
+        return $tree;
+    }
 
 =item resolve()
 
@@ -2365,30 +2345,30 @@ Randomly breaks polytomies.
 
 =cut
 
-	sub resolve {
-		my $tree = shift;
-		for my $node ( @{ $tree->get_internals } ) {
-			my @children = @{ $node->get_children };
-			if ( scalar @children > 2 ) {
-				my $i = 1;
-				while ( scalar @children > 2 ) {
-					my $newnode = Bio::Phylo::Forest::Node->new(
-						'-branch_length' => 0.00,
-						'-name'          => 'r' . $i++,
-					);
-					$tree->insert($newnode);
-					$newnode->set_parent($node);
-					for ( 1 .. 2 ) {
-						my $i = int( rand( scalar @children ) );
-						$children[$i]->set_parent($newnode);
-						splice @children, $i, 1;
-					}
-					push @children, $newnode;
-				}
-			}
-		}
-		return $tree;
-	}
+    sub resolve {
+        my $tree = shift;
+        for my $node ( @{ $tree->get_internals } ) {
+            my @children = @{ $node->get_children };
+            if ( scalar @children > 2 ) {
+                my $i = 1;
+                while ( scalar @children > 2 ) {
+                    my $newnode = Bio::Phylo::Forest::Node->new(
+                        '-branch_length' => 0.00,
+                        '-name'          => 'r' . $i++,
+                    );
+                    $tree->insert($newnode);
+                    $newnode->set_parent($node);
+                    for ( 1 .. 2 ) {
+                        my $i = int( rand( scalar @children ) );
+                        $children[$i]->set_parent($newnode);
+                        splice @children, $i, 1;
+                    }
+                    push @children, $newnode;
+                }
+            }
+        }
+        return $tree;
+    }
 
 =item prune_tips()
 
@@ -2404,75 +2384,77 @@ Prunes argument nodes from invocant.
 
 =cut
 
-	sub prune_tips {
-		my ( $self, $tips ) = @_;
-		if ( blessed $tips ) {
-			my @tmp = map { $_->get_name } @{ $tips->get_entities };
-			$tips = \@tmp;
-		}
-		my %names_to_delete;
-		for my $tip ( @{ $tips } ) {
-			if ( blessed $tip ) {
-				$names_to_delete{$tip->get_internal_name} = 1;
-			}
-			else {
-				$names_to_delete{$tip} = 1;
-			}
-		}
-		my %names_to_keep;
-		for my $tip ( @{ $self->get_entities } ) {
-			my $name = $tip->get_internal_name;
-			if ( not $names_to_delete{$name} ) {
-				$names_to_keep{$name} = 1;
-			}
-		}	
-		$self->visit_depth_first(
-			'-pre' => sub {
-				my $node = shift;
-				if ( $node->is_terminal && exists $names_to_delete{$node->get_internal_name} ) {
-					$node->set_generic( 'delete' => 1 );
-				}		
-			},
-			'-post' => sub {
-				my $node = shift;
-				if ( $node->is_internal ) {
-					my @terminals = @{ $node->get_terminals };
-					my $parent = $node->get_parent;
-					my $remaining = 0;
-					for my $tip ( @terminals ) {
-						if ( $tip->get_generic('delete') ) {
-							$node->prune_child( $tip );
-							$self->delete( $tip );
-						}
-						else {
-							$remaining++;
-						}
-					}
-					if ( $remaining == 0 ) {
-						if ( $parent ) {
-							$parent->prune_child( $node );						
-						}
-						$self->delete( $node );
-					}
-					elsif ( $remaining == 1 ) {
-						my $child = $node->get_children->[0];
-						if ( $parent ) {
-							$parent->set_child( $child );
-							my $cbl = $child->get_branch_length;
-							my $nbl = $node->get_branch_length;
-							my $bl;
-							$bl = $cbl if defined $cbl;
-							$bl += $nbl if defined $nbl;
-							$child->set_branch_length( $bl ) if defined $bl;
-							$parent->prune_child( $node );
-							$self->delete( $node );
-						}
-					}
-				}		
-			}		
-		);
-		return $self;
-	}
+    sub prune_tips {
+        my ( $self, $tips ) = @_;
+        if ( blessed $tips ) {
+            my @tmp = map { $_->get_name } @{ $tips->get_entities };
+            $tips = \@tmp;
+        }
+        my %names_to_delete;
+        for my $tip ( @{$tips} ) {
+            if ( blessed $tip ) {
+                $names_to_delete{ $tip->get_internal_name } = 1;
+            }
+            else {
+                $names_to_delete{$tip} = 1;
+            }
+        }
+        my %names_to_keep;
+        for my $tip ( @{ $self->get_entities } ) {
+            my $name = $tip->get_internal_name;
+            if ( not $names_to_delete{$name} ) {
+                $names_to_keep{$name} = 1;
+            }
+        }
+        $self->visit_depth_first(
+            '-pre' => sub {
+                my $node = shift;
+                if ( $node->is_terminal
+                    && exists $names_to_delete{ $node->get_internal_name } )
+                {
+                    $node->set_generic( 'delete' => 1 );
+                }
+            },
+            '-post' => sub {
+                my $node = shift;
+                if ( $node->is_internal ) {
+                    my @terminals = @{ $node->get_terminals };
+                    my $parent    = $node->get_parent;
+                    my $remaining = 0;
+                    for my $tip (@terminals) {
+                        if ( $tip->get_generic('delete') ) {
+                            $node->prune_child($tip);
+                            $self->delete($tip);
+                        }
+                        else {
+                            $remaining++;
+                        }
+                    }
+                    if ( $remaining == 0 ) {
+                        if ($parent) {
+                            $parent->prune_child($node);
+                        }
+                        $self->delete($node);
+                    }
+                    elsif ( $remaining == 1 ) {
+                        my $child = $node->get_children->[0];
+                        if ($parent) {
+                            $parent->set_child($child);
+                            my $cbl = $child->get_branch_length;
+                            my $nbl = $node->get_branch_length;
+                            my $bl;
+                            $bl = $cbl if defined $cbl;
+                            $bl += $nbl if defined $nbl;
+                            $child->set_branch_length($bl) if defined $bl;
+                            $parent->prune_child($node);
+                            $self->delete($node);
+                        }
+                    }
+                }
+            }
+        );
+        return $self;
+    }
 
 =item keep_tips()
 
@@ -2488,28 +2470,28 @@ Keeps argument nodes from invocant (i.e. prunes all others).
 
 =cut
 
-	sub keep_tips {
-		my ( $tree, $tips ) = @_;
-		if ( blessed $tips ) {
-			my @tmp = map { $_->get_name } @{ $tips->get_entities };
-			$tips = \@tmp;
-		}
-		my %keep_taxa;
-		for my $tip ( @{ $tips } ) {
-			if ( blessed $tip ) {
-				$keep_taxa{ $tip->get_internal_name } = 1;
-			}
-			else {
-				$keep_taxa{ $tip } = 1;
-			}
-		}		
-		my @taxa_to_prune;
-		for my $tip ( @{ $tree->get_entities } ) {
-		    my $name = $tip->get_internal_name;
-		    push @taxa_to_prune, $name if not exists $keep_taxa{$name};
-		}
-		return $tree->prune_tips( \@taxa_to_prune );
-	}
+    sub keep_tips {
+        my ( $tree, $tips ) = @_;
+        if ( blessed $tips ) {
+            my @tmp = map { $_->get_name } @{ $tips->get_entities };
+            $tips = \@tmp;
+        }
+        my %keep_taxa;
+        for my $tip ( @{$tips} ) {
+            if ( blessed $tip ) {
+                $keep_taxa{ $tip->get_internal_name } = 1;
+            }
+            else {
+                $keep_taxa{$tip} = 1;
+            }
+        }
+        my @taxa_to_prune;
+        for my $tip ( @{ $tree->get_entities } ) {
+            my $name = $tip->get_internal_name;
+            push @taxa_to_prune, $name if not exists $keep_taxa{$name};
+        }
+        return $tree->prune_tips( \@taxa_to_prune );
+    }
 
 =item negative_to_zero()
 
@@ -2526,16 +2508,16 @@ Converts negative branch lengths to zero.
 
 =cut
 
-	sub negative_to_zero {
-		my $tree = shift;
-		foreach my $node ( @{ $tree->get_entities } ) {
-			my $bl = $node->get_branch_length;
-			if ( $bl && $bl < 0 ) {
-				$node->set_branch_length(0);
-			}
-		}
-		return $tree;
-	}
+    sub negative_to_zero {
+        my $tree = shift;
+        foreach my $node ( @{ $tree->get_entities } ) {
+            my $bl = $node->get_branch_length;
+            if ( $bl && $bl < 0 ) {
+                $node->set_branch_length(0);
+            }
+        }
+        return $tree;
+    }
 
 =item ladderize()
 
@@ -2550,40 +2532,37 @@ Sorts nodes in ascending (or descending) order of number of children.
 
 =cut
 
-	sub ladderize {
-		my ( $self, $right ) = @_;
-		my %child_count;
-		$self->visit_depth_first(
-			'-post' => sub {
-				my $node = shift;
-				my $id = $node->get_id;
-				my @children = @{ $node->get_children };
-				my $count = 1;
-				for my $child ( @children ) {
-					$count += $child_count{$child->get_id};
-				}
-				$child_count{$id} = $count;
-				my @sorted;
-				if ( $right ) {
-					@sorted = map { $_->[0] }
-						sort { $b->[1] <=> $a->[1] }
-						map { [ $_, $child_count{$_->get_id} ] }
-						@children;
-				}
-				else {
-					@sorted = map { $_->[0] }
-						sort { $a->[1] <=> $b->[1] }
-						map { [ $_, $child_count{$_->get_id} ] }
-						@children;					
-				}
-				for my $i ( 0 .. $#sorted ) {
-					$node->insert_at_index($sorted[$i],$i);
-				}
-			}				
-			
-		);
-		return $self;
-	}
+    sub ladderize {
+        my ( $self, $right ) = @_;
+        my %child_count;
+        $self->visit_depth_first(
+            '-post' => sub {
+                my $node     = shift;
+                my $id       = $node->get_id;
+                my @children = @{ $node->get_children };
+                my $count    = 1;
+                for my $child (@children) {
+                    $count += $child_count{ $child->get_id };
+                }
+                $child_count{$id} = $count;
+                my @sorted;
+                if ($right) {
+                    @sorted = map { $_->[0] }
+                      sort { $b->[1] <=> $a->[1] }
+                      map { [ $_, $child_count{ $_->get_id } ] } @children;
+                }
+                else {
+                    @sorted = map { $_->[0] }
+                      sort { $a->[1] <=> $b->[1] }
+                      map { [ $_, $child_count{ $_->get_id } ] } @children;
+                }
+                for my $i ( 0 .. $#sorted ) {
+                    $node->insert_at_index( $sorted[$i], $i );
+                }
+            }
+        );
+        return $self;
+    }
 
 =item sort_tips()
 
@@ -2607,36 +2586,40 @@ children. This results in the following orderings:
  Args    : Required, an array reference (or taxa object) whose ordering to match
 
 =cut
-	
-	sub sort_tips {
-		my ( $self, $taxa ) = @_;
-		my @taxa = UNIVERSAL::can( $taxa, 'get_entities' ) ? @{ $taxa->get_entities } : @{ $taxa };
-		my @names = map { UNIVERSAL::can( $_, 'get_name' ) ? $_->get_name : $_ } @taxa;
-		my $i = 1;
-		my %rank = map { $_ => $i++ } @names;
-		$self->visit_depth_first(
-			'-post' => sub {
-				my $node = shift;
-				my @children = @{ $node->get_children };
-				if ( @children ) {
-					my @ranks = map { $_->get_generic('rank') } @children;
-					my $sum = sum @ranks;
-					my $mean = $sum / scalar(@ranks);
-					$node->set_generic( 'rank' => $mean );
-					$node->clear;
-					$node->insert(
-						sort {
-							$a->get_generic('rank') <=> $b->get_generic('rank')
-						} @children
-					);
-				}
-				else {
-					$node->set_generic( 'rank' => $rank{ $node->get_name } );
-				}
-			}
-		);
-		return $self->_analyze;
-	}
+
+    sub sort_tips {
+        my ( $self, $taxa ) = @_;
+        my @taxa =
+          UNIVERSAL::can( $taxa, 'get_entities' )
+          ? @{ $taxa->get_entities }
+          : @{$taxa};
+        my @names =
+          map { UNIVERSAL::can( $_, 'get_name' ) ? $_->get_name : $_ } @taxa;
+        my $i = 1;
+        my %rank = map { $_ => $i++ } @names;
+        $self->visit_depth_first(
+            '-post' => sub {
+                my $node     = shift;
+                my @children = @{ $node->get_children };
+                if (@children) {
+                    my @ranks = map { $_->get_generic('rank') } @children;
+                    my $sum   = sum @ranks;
+                    my $mean  = $sum / scalar(@ranks);
+                    $node->set_generic( 'rank' => $mean );
+                    $node->clear;
+                    $node->insert(
+                        sort {
+                            $a->get_generic('rank') <=> $b->get_generic('rank')
+                          } @children
+                    );
+                }
+                else {
+                    $node->set_generic( 'rank' => $rank{ $node->get_name } );
+                }
+            }
+        );
+        return $self->_analyze;
+    }
 
 =item exponentiate()
 
@@ -2651,19 +2634,19 @@ Raises branch lengths to argument.
 
 =cut
 
-	sub exponentiate {
-		my ( $tree, $power ) = @_;
-		if ( !looks_like_number $power ) {
-			throw 'BadNumber' => "Power \"$power\" is a bad number";
-		}
-		else {
-			foreach my $node ( @{ $tree->get_entities } ) {
-				my $bl = $node->get_branch_length;
-				$node->set_branch_length( $bl**$power );
-			}
-		}
-		return $tree;
-	}
+    sub exponentiate {
+        my ( $tree, $power ) = @_;
+        if ( !looks_like_number $power ) {
+            throw 'BadNumber' => "Power \"$power\" is a bad number";
+        }
+        else {
+            foreach my $node ( @{ $tree->get_entities } ) {
+                my $bl = $node->get_branch_length;
+                $node->set_branch_length( $bl**$power );
+            }
+        }
+        return $tree;
+    }
 
 =item log_transform()
 
@@ -2678,26 +2661,27 @@ Log argument base transform branch lengths.
 
 =cut
 
-	sub log_transform {
-		my ( $tree, $base ) = @_;
-		if ( !looks_like_number $base ) {
-			throw 'BadNumber' => "Base \"$base\" is a bad number"; 
-		}
-		else {
-			foreach my $node ( @{ $tree->get_entities } ) {
-				my $bl = $node->get_branch_length;
-				my $newbl;
-				eval { $newbl = ( log $bl ) / ( log $base ); };
-				if ($@) {
-					throw 'OutOfBounds' => "Invalid input for log transform: $@";
-				}
-				else {
-					$node->set_branch_length($newbl);
-				}
-			}
-		}
-		return $tree;
-	}
+    sub log_transform {
+        my ( $tree, $base ) = @_;
+        if ( !looks_like_number $base ) {
+            throw 'BadNumber' => "Base \"$base\" is a bad number";
+        }
+        else {
+            foreach my $node ( @{ $tree->get_entities } ) {
+                my $bl = $node->get_branch_length;
+                my $newbl;
+                eval { $newbl = ( log $bl ) / ( log $base ); };
+                if ($@) {
+                    throw 'OutOfBounds' =>
+                      "Invalid input for log transform: $@";
+                }
+                else {
+                    $node->set_branch_length($newbl);
+                }
+            }
+        }
+        return $tree;
+    }
 
 =item remove_unbranched_internals()
 
@@ -2714,31 +2698,31 @@ Collapses internal nodes with fewer than 2 children.
 
 =cut
 
-	sub remove_unbranched_internals {
-		my $self = shift;
-		for my $node ( @{ $self->get_internals } ) {
-			my @children = @{ $node->get_children };
-			if ( scalar @children == 1 ) {
-				my $child = $children[0];
-				$child->set_parent( $node->get_parent );
-				my $child_bl = $children[0]->get_branch_length;
-				my $node_bl  = $node->get_branch_length;
-				if ( defined $child_bl ) {
-					if ( defined $node_bl ) {
-						$child->set_branch_length( $child_bl + $node_bl );
-					}
-					else {
-						$child->set_branch_length($child_bl);
-					}
-				}
-				else {
-					$child->set_branch_length($node_bl) if defined $node_bl;
-				}
-				$self->delete($node);
-			}
-		}
-		return $self;
-	}
+    sub remove_unbranched_internals {
+        my $self = shift;
+        for my $node ( @{ $self->get_internals } ) {
+            my @children = @{ $node->get_children };
+            if ( scalar @children == 1 ) {
+                my $child = $children[0];
+                $child->set_parent( $node->get_parent );
+                my $child_bl = $children[0]->get_branch_length;
+                my $node_bl  = $node->get_branch_length;
+                if ( defined $child_bl ) {
+                    if ( defined $node_bl ) {
+                        $child->set_branch_length( $child_bl + $node_bl );
+                    }
+                    else {
+                        $child->set_branch_length($child_bl);
+                    }
+                }
+                else {
+                    $child->set_branch_length($node_bl) if defined $node_bl;
+                }
+                $self->delete($node);
+            }
+        }
+        return $self;
+    }
 
 =back
 
@@ -2787,36 +2771,34 @@ Clones invocant.
 
 =cut
 
-	sub clone {
-		my $self = shift;
-		$logger->info("cloning $self");
-		my %subs = @_;
-		
-		# override, because we'll handle insert
-		$subs{'set_root'}      = sub {};
-		$subs{'set_root_node'} = sub {};
-				
-		# we'll clone node objects, so no raw copying
-		$subs{'insert'} = sub {
-			my ( $self, $clone ) = @_;
-			my %clone_of;
-			for my $node ( @{ $self->get_entities } ) {
-				my $cloned_node = $node->clone;
-				$clone_of{ $node->get_id } = $cloned_node;
-				$clone->insert( $cloned_node );
-			}
-			for my $node ( @{ $self->get_entities } ) {
-				my $cloned_node = $clone_of{ $node->get_id };
-				if ( my $parent = $node->get_parent ) {
-					my $cloned_parent_node = $clone_of{ $parent->get_id };
-					$cloned_node->set_parent( $cloned_parent_node );
-				}
-			}
-		};
-		
-		return $self->SUPER::clone(%subs);
-	
-	} 
+    sub clone {
+        my $self = shift;
+        $logger->info("cloning $self");
+        my %subs = @_;
+
+        # override, because we'll handle insert
+        $subs{'set_root'}      = sub { };
+        $subs{'set_root_node'} = sub { };
+
+        # we'll clone node objects, so no raw copying
+        $subs{'insert'} = sub {
+            my ( $self, $clone ) = @_;
+            my %clone_of;
+            for my $node ( @{ $self->get_entities } ) {
+                my $cloned_node = $node->clone;
+                $clone_of{ $node->get_id } = $cloned_node;
+                $clone->insert($cloned_node);
+            }
+            for my $node ( @{ $self->get_entities } ) {
+                my $cloned_node = $clone_of{ $node->get_id };
+                if ( my $parent = $node->get_parent ) {
+                    my $cloned_parent_node = $clone_of{ $parent->get_id };
+                    $cloned_node->set_parent($cloned_parent_node);
+                }
+            }
+        };
+        return $self->SUPER::clone(%subs);
+    }
 
 =back
 
@@ -2838,12 +2820,12 @@ Serializes invocant to nexus string.
 
 =cut
 
-	sub to_nexus {
-		my $self = shift;
-		my $forest = $fac->create_forest;
-		$forest->insert($self);
-		return $forest->to_nexus(@_);
-	}
+    sub to_nexus {
+        my $self   = shift;
+        my $forest = $fac->create_forest;
+        $forest->insert($self);
+        return $forest->to_nexus(@_);
+    }
 
 =item to_newick()
 
@@ -2859,12 +2841,12 @@ Serializes invocant to newick string.
 
 =cut
 
-	sub to_newick {
-		my $self   = shift;
-		my %args   = @_;
-		my $newick = unparse( '-format' => 'newick', '-phylo' => $self, %args );
-		return $newick;
-	}
+    sub to_newick {
+        my $self   = shift;
+        my %args   = @_;
+        my $newick = unparse( '-format' => 'newick', '-phylo' => $self, %args );
+        return $newick;
+    }
 
 =item to_xml()
 
@@ -2879,23 +2861,23 @@ Serializes invocant to xml.
 
 =cut
 
-	sub to_xml {
-		my $self = shift;
-		my $xsi_type = 'nex:IntTree';
-		for my $node ( @{ $self->get_entities } ) {
-			my $length = $node->get_branch_length;
-			if ( defined $length and $length !~ /^[+-]?\d+$/ ) {
-				$xsi_type = 'nex:FloatTree';
-			}
-		}
-		$self->set_attributes( 'xsi:type' => $xsi_type );
-		my $xml = $self->get_xml_tag;
-		if ( my $root = $self->get_root ) {
-			$xml .= $root->to_xml;
-		}
-		$xml .= sprintf( "\n</%s>", $self->get_tag );
-		return $xml;		
-	}
+    sub to_xml {
+        my $self     = shift;
+        my $xsi_type = 'nex:IntTree';
+        for my $node ( @{ $self->get_entities } ) {
+            my $length = $node->get_branch_length;
+            if ( defined $length and $length !~ /^[+-]?\d+$/ ) {
+                $xsi_type = 'nex:FloatTree';
+            }
+        }
+        $self->set_attributes( 'xsi:type' => $xsi_type );
+        my $xml = $self->get_xml_tag;
+        if ( my $root = $self->get_root ) {
+            $xml .= $root->to_xml;
+        }
+        $xml .= $self->sets_to_xml . sprintf('</%s>', $self->get_tag);
+        return $xml;
+    }
 
 =item to_svg()
 
@@ -2912,12 +2894,12 @@ Serializes invocant to SVG.
 
 =cut
 
-	sub to_svg {
-	    my $self = shift;
-		my $drawer = $fac->create_drawer(@_);
-		$drawer->set_tree($self);
-	    return $drawer->draw;
-	}
+    sub to_svg {
+        my $self   = shift;
+        my $drawer = $fac->create_drawer(@_);
+        $drawer->set_tree($self);
+        return $drawer->draw;
+    }
 
 =item to_dom()
 
@@ -2932,24 +2914,24 @@ Serializes invocant to SVG.
 =cut
 
     sub to_dom {
-		my ($self, $dom) = @_;
-		$dom ||= $Bio::Phylo::NeXML::DOM::DOM;
-		unless (looks_like_object $dom, _DOMCREATOR_) {
-		    throw 'BadArgs' => 'DOM factory object not provided';
-		}
-		my $xsi_type = 'nex:IntTree';
-		for my $node ( @{ $self->get_entities } ) {
-		    my $length = $node->get_branch_length;
-		    if ( defined $length and $length !~ /^[+-]?\d+$/ ) {
-				$xsi_type = 'nex:FloatTree';
-		    }
-		}
-		$self->set_attributes( 'xsi:type' => $xsi_type );
-		my $elt = $self->get_dom_elt($dom);
-		if ( my $root = $self->get_root ) {
-		    $elt->set_child( $_ ) for $root->to_dom($dom);
-		}
-		return $elt;
+        my ( $self, $dom ) = @_;
+        $dom ||= $Bio::Phylo::NeXML::DOM::DOM;
+        unless ( looks_like_object $dom, _DOMCREATOR_ ) {
+            throw 'BadArgs' => 'DOM factory object not provided';
+        }
+        my $xsi_type = 'nex:IntTree';
+        for my $node ( @{ $self->get_entities } ) {
+            my $length = $node->get_branch_length;
+            if ( defined $length and $length !~ /^[+-]?\d+$/ ) {
+                $xsi_type = 'nex:FloatTree';
+            }
+        }
+        $self->set_attributes( 'xsi:type' => $xsi_type );
+        my $elt = $self->get_dom_elt($dom);
+        if ( my $root = $self->get_root ) {
+            $elt->set_child($_) for $root->to_dom($dom);
+        }
+        return $elt;
     }
 
 =begin comment
@@ -2965,14 +2947,14 @@ Serializes invocant to SVG.
 
 =cut
 
-	sub _cleanup {
-		my $self = shift;
-		if ( defined( my $id = $self->get_id ) ) {
-			for my $field ( @fields ) {
-				delete $field->{$id};
-			}			
-		}
-	}
+    sub _cleanup {
+        my $self = shift;
+        if ( defined( my $id = $self->get_id ) ) {
+            for my $field (@fields) {
+                delete $field->{$id};
+            }
+        }
+    }
 
 =begin comment
 
@@ -2994,7 +2976,7 @@ Serializes invocant to SVG.
         my @nodes;
         $self->visit_depth_first( '-pre' => sub { push @nodes, shift } );
         $self->clear;
-        $self->insert(@nodes);    
+        $self->insert(@nodes);
     }
 
 =begin comment
@@ -3009,8 +2991,7 @@ Serializes invocant to SVG.
 =end comment
 
 =cut
-
-	sub _container { $CONTAINER_CONSTANT }
+    sub _container { $CONTAINER_CONSTANT }
 
 =begin comment
 
@@ -3024,15 +3005,14 @@ Serializes invocant to SVG.
 =end comment
 
 =cut
-
-	sub _type { $TYPE_CONSTANT }
-	sub _tag  { 'tree' }
+    sub _type { $TYPE_CONSTANT }
+    sub _tag  { 'tree' }
 
 =back
 
 =cut
 
-# podinherit_insert_token
+    # podinherit_insert_token
 
 =head1 SEE ALSO
 
@@ -3061,13 +3041,11 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =head1 REVISION
 
- $Id: Tree.pm 1620 2011-03-19 15:21:57Z rvos $
+ $Id: Tree.pm 1660 2011-04-02 18:29:40Z rvos $
 
 =cut
-
 }
 1;
-
 __DATA__
 sub get_nodes {
 	my $self = shift;

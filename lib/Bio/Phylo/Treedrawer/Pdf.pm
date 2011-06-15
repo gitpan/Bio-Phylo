@@ -1,19 +1,12 @@
 package Bio::Phylo::Treedrawer::Pdf;
 use strict;
+use base 'Bio::Phylo::Treedrawer::Abstract';
 use Bio::Phylo::Util::Exceptions 'throw';
 use Bio::Phylo::Util::CONSTANT 'looks_like_hash';
+use Bio::Phylo::Util::Dependency qw'PDF::API2::Lite PDF::API2::Annotation';
 use Bio::Phylo::Util::Logger;
-use Bio::Phylo::Treedrawer::Abstract;
-use vars qw(@ISA);
-@ISA=qw(Bio::Phylo::Treedrawer::Abstract);
-
 my $logger = Bio::Phylo::Util::Logger->new;
-
-eval { require PDF::API2::Lite; require PDF::API2::Annotation };
-if ( $@ ) {
-    throw 'ExtensionError' => "Error loading the PDF::API2::Lite extension: $@";
-}
-my $PI = '3.14159265358979323846';
+my $PI     = '3.14159265358979323846';
 my %colors;
 
 =head1 NAME
@@ -44,11 +37,11 @@ learn how to create tree drawings.
 
 sub _new {
     my $class = shift;
-    my %opt = looks_like_hash @_;
-    my $pdf = PDF::API2::Lite->new;    
-    my $self = $class->SUPER::_new( %opt, '-api' => $pdf );
-    my $d = $self->_drawer;
-    my $page = $self->_api->page($d->get_width,$d->get_height);
+    my %opt   = looks_like_hash @_;
+    my $pdf   = PDF::API2::Lite->new;
+    my $self  = $class->SUPER::_new( %opt, '-api' => $pdf );
+    my $d     = $self->_drawer;
+    my $page  = $self->_api->page( $d->get_width, $d->get_height );
     return bless $self, $class;
 }
 
@@ -87,12 +80,11 @@ sub _draw_curve {
     my ( $x1, $y1, $x3, $y3, $linewidth, $color ) = @args{@keys};
     my $height = $self->_drawer->get_height;
     my ( $x2, $y2 ) = ( $x1, $y3 );
-    return $self->_api
-        ->linewidth( $linewidth || 1 )
-        ->strokecolor( $color ? "#$color" : "#000000")
-        ->move( $x1, $height - $y1 )
-        ->curve( $x1, $height - $y1, $x2, $height - $y2, $x3, $height - $y3 )
-        ->stroke();
+    return $self->_api->linewidth( $linewidth || 1 )
+      ->strokecolor( $color ? "#$color" : "#000000" )
+      ->move( $x1, $height - $y1 )
+      ->curve( $x1, $height - $y1, $x2, $height - $y2, $x3, $height - $y3 )
+      ->stroke();
 }
 
 =begin comment
@@ -121,24 +113,19 @@ sub _draw_triangle {
     $logger->debug("drawing triangle @_");
     my %args = @_;
     my @keys = qw(-x1 -y1 -x2 -y2 -x3 -y3 -fill -stroke -width -url -api);
-    my ( $x1,$y1,$x2,$y2,$x3,$y3,$fill,$stroke,$width,$url,$api) = @args{@keys};
-    if ( $url ) {
-        $logger->warn(ref($self). " can't embed links, yet");
+    my ( $x1, $y1, $x2, $y2, $x3, $y3, $fill, $stroke, $width, $url, $api ) =
+      @args{@keys};
+    if ($url) {
+        $logger->warn( ref($self) . " can't embed links, yet" );
     }
     my $height = $self->_drawer->get_height;
     my $pdf = $api || $self->_api;
-    return $pdf
-        ->move( $x1, $height - $y1 )
-        ->linewidth( $width || 1 )
-        ->strokecolor( $stroke ? "#$stroke" : "#000000")
-        ->fillcolor( $fill ? "#$fill" : "white" )        
-        ->poly(
-            $x1, $height - $y1,
-            $x2, $height - $y2,
-            $x3, $height - $y3,
-            $x1, $height - $y1,
-        )
-        ->fillstroke();
+    return $pdf->move( $x1, $height - $y1 )->linewidth( $width || 1 )
+      ->strokecolor( $stroke ? "#$stroke" : "#000000" )
+      ->fillcolor( $fill     ? "#$fill"   : "white" )->poly(
+        $x1, $height - $y1, $x2, $height - $y2,
+        $x3, $height - $y3, $x1, $height - $y1,
+      )->fillstroke();
 }
 
 =begin comment
@@ -161,12 +148,10 @@ sub _draw_line {
     my @keys = qw(-x1 -y1 -x2 -y2 -width -color);
     my ( $x1, $y1, $x2, $y2, $width, $color ) = @args{@keys};
     my $height = $self->_drawer->get_height;
-    return $self->_api
-        ->linewidth( $width || 1 )
-        ->strokecolor( $color ? "#$color" : "#000000")
-        ->move( $x1, $height - $y1 )
-        ->poly( $x1, $height - $y1, $x2, $height - $y2 )
-        ->stroke();
+    return $self->_api->linewidth( $width || 1 )
+      ->strokecolor( $color ? "#$color" : "#000000" )
+      ->move( $x1, $height - $y1 )
+      ->poly( $x1, $height - $y1, $x2, $height - $y2 )->stroke();
 }
 
 =begin comment
@@ -189,13 +174,12 @@ sub _draw_multi {
     my @keys = qw(-x1 -y1 -x2 -y2 -width -color);
     my ( $x1, $y1, $x3, $y3, $width, $color ) = @args{@keys};
     my ( $x2, $y2 ) = ( $x1, $y3 );
-    my $height = $self->_drawer->get_height;   
-    return $self->_api
-        ->linewidth( $width || 1 )
-        ->strokecolor( $color ? "#$color" : "#000000")
-        ->move( $x1, $height - $y1 )
-        ->poly( $x1, $height - $y1, $x2, $height - $y2, $x3, $height - $y3 )
-        ->stroke();
+    my $height = $self->_drawer->get_height;
+    return $self->_api->linewidth( $width || 1 )
+      ->strokecolor( $color ? "#$color" : "#000000" )
+      ->move( $x1, $height - $y1 )
+      ->poly( $x1, $height - $y1, $x2, $height - $y2, $x3, $height - $y3 )
+      ->stroke();
 }
 
 =begin comment
@@ -217,22 +201,15 @@ sub _draw_text {
     my $self = shift;
     if ( not $self->{'FONT'} ) {
         $self->{'FONT'} = $self->_api->corefont('Times-Roman');
-    }    
+    }
     my %args = @_;
     my ( $x, $y, $text, $url, $size ) = @args{qw(-x -y -text -url -size)};
-    if ( $url ) {
-        $logger->warn(ref($self). " can't embed links, yet");
-    }    
-    my $height = $self->_drawer->get_height;       
-    return $self->_api->fillcolor("#000000")->print(
-        $self->{'FONT'},
-        $size || 12,
-        $x,
-        $height - $y,
-        0,
-        0,
-        $text,
-    );  
+    if ($url) {
+        $logger->warn( ref($self) . " can't embed links, yet" );
+    }
+    my $height = $self->_drawer->get_height;
+    return $self->_api->fillcolor("#000000")
+      ->print( $self->{'FONT'}, $size || 12, $x, $height - $y, 0, 0, $text, );
 }
 
 =begin comment
@@ -258,13 +235,14 @@ sub _draw_circle {
     my ( $x, $y, $width, $stroke, $radius, $fill, $api, $url ) = @args{@keys};
     my $height = $self->_drawer->get_height;
     my $pdf = $api || $self->_api;
-    my $circle = $pdf
-        ->circle( $x, $height - $y, $radius )
-        ->linewidth( $width || 1 )
-        ->strokecolor( $stroke ? "#$stroke" : "#000000" )
-        ->fillcolor( $fill ? "#$fill" : "white" )->fillstroke();
-    if ( $url ) {
-        $logger->warn(ref($self). " can't embed links, yet");
+    my $circle =
+      $pdf->circle( $x, $height - $y, $radius )->linewidth( $width || 1 )
+      ->strokecolor( $stroke ? "#$stroke" : "#000000" )
+      ->fillcolor( $fill     ? "#$fill"   : "white" )->fillstroke();
+
+    if ($url) {
+        $logger->warn( ref($self) . " can't embed links, yet" );
+
         #my $ann = PDF::API2::Annotation->new;
         #$ann->url(
         #    $url,
@@ -305,11 +283,7 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =head1 REVISION
 
- $Id: Pdf.pm 1593 2011-02-27 15:26:04Z rvos $
+ $Id: Pdf.pm 1660 2011-04-02 18:29:40Z rvos $
 
 =cut
-
 1;
-
-
-

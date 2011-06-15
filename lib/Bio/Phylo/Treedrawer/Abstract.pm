@@ -1,9 +1,7 @@
 package Bio::Phylo::Treedrawer::Abstract;
+use strict;
 use Bio::Phylo::Util::Exceptions 'throw';
 use Bio::Phylo::Util::Logger ':levels';
-use strict;
-use warnings;
-
 my $logger = Bio::Phylo::Util::Logger->new;
 
 =head1 NAME
@@ -21,20 +19,17 @@ L<Bio::Phylo::Treedrawer> for documentation on how to draw trees.
 
 sub _new {
     my $class = shift;
-    my %args = @_;
-    my $self = {
+    my %args  = @_;
+    my $self  = {
         'TREE'   => $args{'-tree'},
         'DRAWER' => $args{'-drawer'},
         'API'    => $args{'-api'},
     };
     return bless $self, $class;
 }
-
-sub _api { shift->{'API'} }
-
+sub _api    { shift->{'API'} }
 sub _drawer { shift->{'DRAWER'} }
-
-sub _tree { shift->{'TREE'} }
+sub _tree   { shift->{'TREE'} }
 
 =begin comment
 
@@ -51,41 +46,42 @@ sub _tree { shift->{'TREE'} }
 
 sub _draw {
     my $self = shift;
-    my $td = $self->_drawer;	   
+    my $td   = $self->_drawer;
     $self->_tree->visit_depth_first(
         '-post' => sub {
-            my $node = shift;
+            my $node        = shift;
             my $is_terminal = $node->is_terminal;
             my $r = $is_terminal ? $td->get_tip_radius : $td->get_node_radius;
-            $self->_draw_branch($node);						
+            $self->_draw_branch($node);
             if ( $node->get_collapsed ) {
-                $self->_draw_collapsed( $node );
+                $self->_draw_collapsed($node);
             }
-            else {					
+            else {
                 if ( my $name = $node->get_name ) {
                     $name =~ s/_/ /g;
                     $name =~ s/^'(.*)'$/$1/;
-                    $name =~ s/^"(.*)"$/$1/;								
+                    $name =~ s/^"(.*)"$/$1/;
                     $self->_draw_text(
-                        '-x' => int($node->get_x+$td->get_text_horiz_offset),
-                        '-y' => int($node->get_y+$td->get_text_vert_offset),
-                        '-text' => $name,										
-                        'class' => $is_terminal ? 'taxon_text' : 'node_text',							  
+                        '-x' =>
+                          int( $node->get_x + $td->get_text_horiz_offset ),
+                        '-y' => int( $node->get_y + $td->get_text_vert_offset ),
+                        '-text' => $name,
+                        'class' => $is_terminal ? 'taxon_text' : 'node_text',
                     );
                 }
             }
             $self->_draw_circle(
-                '-radius' => $r,                                
-                '-x'      => $node->get_x, 
-                '-y'      => $node->get_y, 
+                '-radius' => $r,
+                '-x'      => $node->get_x,
+                '-y'      => $node->get_y,
                 '-width'  => $node->get_branch_width,
                 '-stroke' => $node->get_branch_color,
                 '-fill'   => $node->get_node_colour,
                 '-url'    => $node->get_url,
-            );            
+            );
         }
     );
-    $self->_draw_scale;    
+    $self->_draw_scale;
     $self->_draw_pies;
     $self->_draw_legend;
     return $self->_finish;
@@ -93,12 +89,12 @@ sub _draw {
 
 sub _draw_pies {
     my $self = shift;
-    $logger->warn(ref($self) . " can't draw pies");
+    $logger->warn( ref($self) . " can't draw pies" );
 }
 
 sub _draw_legend {
     my $self = shift;
-    $logger->warn(ref($self) . " can't draw a legend");    
+    $logger->warn( ref($self) . " can't draw a legend" );
 }
 
 sub _finish {
@@ -135,10 +131,10 @@ sub _draw_collapsed {
     $logger->info("drawing collapsed node");
     my ( $self, $node ) = @_;
     my $td = $self->_drawer;
-    $node->set_collapsed( 0 );
-    
+    $node->set_collapsed(0);
+
     # get the height of the tallest node inside the collapsed clade
-    my $tallest = 0;		
+    my $tallest = 0;
     $node->visit_level_order(
         sub {
             my $n = shift;
@@ -147,24 +143,24 @@ sub _draw_collapsed {
                 $height = 0;
             }
             else {
-                $height = $n->get_parent->get_generic('height') + $n->get_branch_length;
+                $height =
+                  $n->get_parent->get_generic('height') + $n->get_branch_length;
             }
             $n->set_generic( 'height' => $height );
             $tallest = $height if $height > $tallest;
-        }	
+        }
     );
-    
     my ( $x1, $y1 ) = ( $node->get_x, $node->get_y );
-    my $x2 = ( $tallest * $td->_get_scalex + $node->get_x );
+    my $x2      = ( $tallest * $td->_get_scalex + $node->get_x );
     my $padding = $td->get_padding;
-    my $cladew = $td->get_collapsed_clade_width($node);
+    my $cladew  = $td->get_collapsed_clade_width($node);
     $self->_draw_triangle(
-        '-x1' => $x1,
-        '-y1' => $y1,
-        '-x2' => $x2,
-        '-y2' => $y1 + $cladew / 2 * $td->_get_scaley - $padding,
-        '-x3' => $x2,
-        '-y3' => $y1 - $cladew / 2 * $td->_get_scaley + $padding,
+        '-x1'     => $x1,
+        '-y1'     => $y1,
+        '-x2'     => $x2,
+        '-y2'     => $y1 + $cladew / 2 * $td->_get_scaley - $padding,
+        '-x3'     => $x2,
+        '-y3'     => $y1 - $cladew / 2 * $td->_get_scaley + $padding,
         '-fill'   => $node->get_node_colour,
         '-stroke' => $node->get_branch_color,
         '-width'  => $td->get_branch_width($node),
@@ -172,18 +168,18 @@ sub _draw_collapsed {
         'id'      => 'collapsed' . $node->get_id,
         'class'   => 'collapsed',
     );
-    if ( my $name = $node->get_name ) {	
+    if ( my $name = $node->get_name ) {
         $name =~ s/_/ /g;
         $name =~ s/^'(.*)'$/$1/;
         $name =~ s/^"(.*)"$/$1/;
         $self->_draw_text(
-            '-x' => int( $x2 + $td->get_text_horiz_offset ),
-            '-y' => int( $y1 + $td->get_text_vert_offset ),
+            '-x'    => int( $x2 + $td->get_text_horiz_offset ),
+            '-y'    => int( $y1 + $td->get_text_vert_offset ),
             '-text' => $name,
             'id'    => 'collapsed_text' . $node->get_id,
-            'class' => 'collapsed_text',			
+            'class' => 'collapsed_text',
         );
-    }        
+    }
     $node->set_collapsed(1);
 }
 
@@ -208,7 +204,7 @@ sub _draw_scale {
     my $rootx   = $root->get_x;
     my $height  = $drawer->get_height;
     my $options = $drawer->get_scale_options;
-    if ( $options ) {
+    if ($options) {
         my ( $major, $minor ) = ( $options->{'-major'}, $options->{'-minor'} );
         my $width = $options->{'-width'};
         if ( $width =~ m/^(\d+)%$/ ) {
@@ -222,44 +218,44 @@ sub _draw_scale {
         }
         my $major_text  = 0;
         my $major_scale = ( $major / $width ) * $root->calc_max_path_to_tips;
-	$self->_draw_line(
+        $self->_draw_line(
             '-x1'   => $rootx,
             '-y1'   => ( $height - 5 ),
             '-x2'   => $rootx + $width,
             '-y2'   => ( $height - 5 ),
-            'class' => 'scale_bar',	    
-	);
-	$self->_draw_text(
-	    '-x' => ( $rootx + $width + $drawer->get_text_horiz_offset ),
-	    '-y' => ( $height - 5 ),
-	    '-text' => $options->{'-label'} || ' ',
-	    'class' => 'scale_label',
-	);
-        for ( my $i = $rootx; $i <= ( $rootx + $width ); $i += $major ) {
-	    $self->_draw_line(
+            'class' => 'scale_bar',
+        );
+        $self->_draw_text(
+            '-x'    => ( $rootx + $width + $drawer->get_text_horiz_offset ),
+            '-y'    => ( $height - 5 ),
+            '-text' => $options->{'-label'} || ' ',
+            'class' => 'scale_label',
+        );
+        for ( my $i = $rootx ; $i <= ( $rootx + $width ) ; $i += $major ) {
+            $self->_draw_line(
                 '-x1'   => $i,
                 '-y1'   => ( $height - 5 ),
                 '-x2'   => $i,
                 '-y2'   => ( $height - 25 ),
-                'class' => 'scale_major',		
-	    );
-	    $self->_draw_text(
-		'-x'    => $i,
-		'-y'    => ($height-35),
-		'-text' => $major_text,
-		'class' => 'major_label',
-	    );
+                'class' => 'scale_major',
+            );
+            $self->_draw_text(
+                '-x'    => $i,
+                '-y'    => ( $height - 35 ),
+                '-text' => $major_text,
+                'class' => 'major_label',
+            );
             $major_text += $major_scale;
         }
-        for ( my $i = $rootx; $i <= ( $rootx + $width ); $i += $minor ) {
+        for ( my $i = $rootx ; $i <= ( $rootx + $width ) ; $i += $minor ) {
             next if not $i % $major;
-	    $self->_draw_line(
-                '-x1'    => $i,
-                '-y1'    => ( $height - 5 ),
-                '-x2'    => $i,
-                '-y2'    => ( $height - 15 ),
-                'class'  => 'scale_minor',		
-	    );
+            $self->_draw_line(
+                '-x1'   => $i,
+                '-y1'   => ( $height - 5 ),
+                '-x2'   => $i,
+                '-y2'   => ( $height - 15 ),
+                'class' => 'scale_minor',
+            );
         }
     }
 }
@@ -279,29 +275,29 @@ sub _draw_scale {
 
 sub _draw_branch {
     my ( $self, $node ) = @_;
-    $logger->info("Drawing branch for ".$node->get_internal_name);
+    $logger->info( "Drawing branch for " . $node->get_internal_name );
     if ( my $parent = $node->get_parent ) {
-	my ( $x1, $x2 ) = ( int $parent->get_x, int $node->get_x );
-	my ( $y1, $y2 ) = ( int $parent->get_y, int $node->get_y );
-	my $width = $self->_drawer->get_branch_width($node);
-	my $shape = $self->_drawer->get_shape;
+        my ( $x1, $x2 ) = ( int $parent->get_x, int $node->get_x );
+        my ( $y1, $y2 ) = ( int $parent->get_y, int $node->get_y );
+        my $width  = $self->_drawer->get_branch_width($node);
+        my $shape  = $self->_drawer->get_shape;
         my $drawer = '_draw_curve';
-	if ( $shape =~ m/CURVY/i ) {
+        if ( $shape =~ m/CURVY/i ) {
             $drawer = '_draw_curve';
-	}
-	elsif ( $shape =~ m/RECT/i ) {
+        }
+        elsif ( $shape =~ m/RECT/i ) {
             $drawer = '_draw_multi';
-	}
-	elsif ( $shape =~ m/DIAG/i ) {
+        }
+        elsif ( $shape =~ m/DIAG/i ) {
             $drawer = '_draw_line';
-	}
+        }
         return $self->$drawer(
-	    '-x1' => $x1,
-	    '-y1' => $y1,
-	    '-x2' => $x2,
-	    '-y2' => $y2,
-	    '-width' => $width,
-	    '-color' => $node->get_branch_color            
+            '-x1'    => $x1,
+            '-y1'    => $y1,
+            '-x2'    => $x2,
+            '-y2'    => $y2,
+            '-width' => $width,
+            '-color' => $node->get_branch_color
         );
     }
 }
@@ -332,10 +328,7 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =head1 REVISION
 
- $Id: Abstract.pm 1593 2011-02-27 15:26:04Z rvos $
+ $Id: Abstract.pm 1660 2011-04-02 18:29:40Z rvos $
 
 =cut
-
 1;
-
-

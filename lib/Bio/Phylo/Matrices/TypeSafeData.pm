@@ -1,19 +1,15 @@
-# $Id: TypeSafeData.pm 1635 2011-03-30 17:03:04Z rvos $
+# $Id: TypeSafeData.pm 1660 2011-04-02 18:29:40Z rvos $
 package Bio::Phylo::Matrices::TypeSafeData;
-use Bio::Phylo::Listable ();
-use Bio::Phylo::Util::Exceptions 'throw';
-use Bio::Phylo::Util::CONSTANT qw(_MATRIX_ looks_like_hash looks_like_object looks_like_instance);
-use Bio::Phylo::Matrices::Datatype ();
 use strict;
-use vars '@ISA';
-@ISA = qw(Bio::Phylo::Listable);
-
-
+use base 'Bio::Phylo::Listable';
+use Bio::Phylo::Util::Exceptions 'throw';
+use Bio::Phylo::Util::CONSTANT qw'_MATRIX_ /looks_like/';
+use Bio::Phylo::Matrices::Datatype;
 {
     my $logger = __PACKAGE__->get_logger;
     my %type;
     my $MATRIX_CONSTANT = _MATRIX_;
-    
+
 =head1 NAME
 
 Bio::Phylo::Matrices::TypeSafeData - Superclass for objects that contain
@@ -55,32 +51,32 @@ TypeSafeData constructor.
 =cut    
 
     sub new {
+
         # is child class
         my $class = shift;
-        
+
         # process args
         my %args = looks_like_hash @_;
-        
+
         # notify user
         if ( not $args{'-type'} and not $args{'-type_object'} ) {
-        	$logger->info("No data type provided, will use 'standard'");
-        	unshift @_, '-type', 'standard';
+            $logger->info("No data type provided, will use 'standard'");
+            unshift @_, '-type', 'standard';
         }
-	
-	if ( $args{'-characters'} ) {
-	    if ( $args{'-type'} ) {
-		$args{'-characters'}->set_type( $args{'-type'} );
-	    }
-	    elsif ( $args{'-type_object'} ) {
-		$args{'-characters'}->set_type_object( $args{'-type_object'} );
-	    }
-	}
-	
+        if ( $args{'-characters'} ) {
+            if ( $args{'-type'} ) {
+                $args{'-characters'}->set_type( $args{'-type'} );
+            }
+            elsif ( $args{'-type_object'} ) {
+                $args{'-characters'}->set_type_object( $args{'-type_object'} );
+            }
+        }
+
         # notify user
         $logger->debug("constructor called for '$class'");
 
         # go up inheritance tree, eventually get an ID
-        return $class->SUPER::new( @_ );
+        return $class->SUPER::new(@_);
     }
 
 =back
@@ -109,24 +105,24 @@ Set data type.
         my $arg  = shift;
         my ( $type, @args );
         if ( looks_like_instance( $arg, 'ARRAY' ) ) {
-        	@args = @{ $arg };
-        	$type = shift @args;
+            @args = @{$arg};
+            $type = shift @args;
         }
         else {
-        	@args = @_;
-        	$type = $arg;
+            @args = @_;
+            $type = $arg;
         }
         $logger->info("setting type '$type'");
         my $obj = Bio::Phylo::Matrices::Datatype->new( $type, @args );
-        $self->set_type_object( $obj );
+        $self->set_type_object($obj);
         eval { looks_like_object $self, $MATRIX_CONSTANT };
         if ( not $@ ) {
-        	for my $row ( @{ $self->get_entities } ) {
-        		$row->set_type_object( $obj );
-        	}
+            for my $row ( @{ $self->get_entities } ) {
+                $row->set_type_object($obj);
+            }
         }
         else {
-        	undef($@);
+            undef($@);
         }
         return $self;
     }
@@ -147,11 +143,13 @@ Set missing data symbol.
 
     sub set_missing {
         my ( $self, $missing ) = @_;
-        if ( $self->can('get_matchchar') and $missing eq $self->get_matchchar ) {
-        	throw 'BadArgs' => "Missing character '$missing' already in use as match character";
+        if ( $self->can('get_matchchar') and $missing eq $self->get_matchchar )
+        {
+            throw 'BadArgs' =>
+              "Missing character '$missing' already in use as match character";
         }
         $logger->info("setting missing '$missing'");
-        $self->get_type_object->set_missing( $missing );
+        $self->get_type_object->set_missing($missing);
         $self->validate;
         return $self;
     }
@@ -173,10 +171,11 @@ Set gap data symbol.
     sub set_gap {
         my ( $self, $gap ) = @_;
         if ( $self->can('get_matchchar') and $gap eq $self->get_matchchar ) {
-            throw 'BadArgs' => "Gap character '$gap' already in use as match character";
-        }        
+            throw 'BadArgs' =>
+              "Gap character '$gap' already in use as match character";
+        }
         $logger->info("setting gap '$gap'");
-        $self->get_type_object->set_gap( $gap );
+        $self->get_type_object->set_gap($gap);
         $self->validate;
         return $self;
     }
@@ -202,7 +201,7 @@ Set ambiguity lookup table.
     sub set_lookup {
         my ( $self, $lookup ) = @_;
         $logger->info("setting character state lookup hash");
-        $self->get_type_object->set_lookup( $lookup );
+        $self->get_type_object->set_lookup($lookup);
         $self->validate;
         return $self;
     }
@@ -224,15 +223,15 @@ Set data type object.
     sub set_type_object {
         my ( $self, $obj ) = @_;
         $logger->info("setting character type object");
-        $type{$self->get_id} = $obj;
-        eval {
-            $self->validate
-        };
-        if ( $@ ) {
+        $type{ $self->get_id } = $obj;
+        eval { $self->validate };
+        if ($@) {
             undef($@);
             if ( my @char = $self->get_char ) {
-            	$self->clear;
-            	$logger->warn("Data contents of $self were invalidated by new type object.");
+                $self->clear;
+                $logger->warn(
+"Data contents of $self were invalidated by new type object."
+                );
             }
         }
         return $self;
@@ -257,14 +256,14 @@ Get data type.
 
 =cut
 
-    sub get_type { 
-    	my $to = shift->get_type_object;
-    	if ( $to ) {
-    		return $to->get_type;
-    	}
-    	else {
-    		throw 'API' => "Missing data type object!";
-    	}
+    sub get_type {
+        my $to = shift->get_type_object;
+        if ($to) {
+            return $to->get_type;
+        }
+        else {
+            throw 'API' => "Missing data type object!";
+        }
     }
 
 =item get_missing()
@@ -280,14 +279,14 @@ Get missing data symbol.
 
 =cut
 
-    sub get_missing { 
-    	my $to = shift->get_type_object;
-    	if ( $to ) {
-    		return $to->get_missing;
-    	}
-    	else {
-    		throw 'API' => "Missing data type object!";
-    	}
+    sub get_missing {
+        my $to = shift->get_type_object;
+        if ($to) {
+            return $to->get_missing;
+        }
+        else {
+            throw 'API' => "Missing data type object!";
+        }
     }
 
 =item get_gap()
@@ -302,7 +301,6 @@ Get gap symbol.
  Args    : None
 
 =cut
-
     sub get_gap { shift->get_type_object->get_gap }
 
 =item get_lookup()
@@ -317,7 +315,6 @@ Get ambiguity lookup table.
  Args    : None
 
 =cut
-
     sub get_lookup { shift->get_type_object->get_lookup }
 
 =item get_type_object()
@@ -332,7 +329,6 @@ Get data type object.
  Args    : None
 
 =cut
-
     sub get_type_object { $type{ $_[0]->get_id } }
 
 =back
@@ -354,31 +350,29 @@ Clones invocant.
 
 =cut
 
-	sub clone {
-		my $self = shift;
-		$logger->info("cloning $self");
-		my %subs = @_;
-		
-		# we'll create type object during construction
-		$subs{'set_type'}    = 0;
-		$subs{'set_missing'} = 0;
-		$subs{'set_gap'}     = 0;
-		$subs{'set_lookup'}  = 0;
-		
-		# we'll override this, the type object is created from scratch
-		$subs{'set_type_object'} = 0;
-		
-		# this will create type object during construction
-		$subs{'new'} = [ 
-			'-type'    => $self->get_type,
-			'-missing' => $self->get_missing,
-			'-gap'     => $self->get_gap,
-			'-lookup'  => $self->get_lookup,
-		];		
-		
-		return $self->SUPER::clone(%subs);
-	
-	} 
+    sub clone {
+        my $self = shift;
+        $logger->info("cloning $self");
+        my %subs = @_;
+
+        # we'll create type object during construction
+        $subs{'set_type'}    = 0;
+        $subs{'set_missing'} = 0;
+        $subs{'set_gap'}     = 0;
+        $subs{'set_lookup'}  = 0;
+
+        # we'll override this, the type object is created from scratch
+        $subs{'set_type_object'} = 0;
+
+        # this will create type object during construction
+        $subs{'new'} = [
+            '-type'    => $self->get_type,
+            '-missing' => $self->get_missing,
+            '-gap'     => $self->get_gap,
+            '-lookup'  => $self->get_lookup,
+        ];
+        return $self->SUPER::clone(%subs);
+    }
 
 =back
 
@@ -402,21 +396,20 @@ Validates the object's contents
 =cut
 
     sub validate {
-    	shift->_validate;
+        shift->_validate;
     }
-    
+
     sub _validate {
-	throw 'NotImplemented' => 'Not implemented!';
+        throw 'NotImplemented' => 'Not implemented!';
     }
-    
+
     sub _cleanup {
         my $self = shift;
         if ( $self and defined( my $id = $self->get_id ) ) {
-	        $logger->debug("cleaning up '$self'");
-	        delete $type{ $self->get_id };
+            $logger->debug("cleaning up '$self'");
+            delete $type{ $self->get_id };
         }
     }
-
 }
 
 =back
@@ -451,8 +444,7 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =head1 REVISION
 
- $Id: TypeSafeData.pm 1635 2011-03-30 17:03:04Z rvos $
+ $Id: TypeSafeData.pm 1660 2011-04-02 18:29:40Z rvos $
 
 =cut
-
 1;

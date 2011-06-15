@@ -1,4 +1,4 @@
-#$Id: Libxml.pm 1593 2011-02-27 15:26:04Z rvos $
+#$Id: Libxml.pm 1660 2011-04-02 18:29:40Z rvos $
 
 =head1 NAME
 
@@ -20,22 +20,13 @@ C<XML::LibXML::Element> package.
 Mark A. Jensen ( maj -at- fortinbras -dot- us )
 
 =cut
-
 package Bio::Phylo::NeXML::DOM::Element::Libxml;
 use strict;
-use Bio::Phylo::NeXML::DOM::Element ();
-use Bio::Phylo::Util::Exceptions qw(throw);
-use Bio::Phylo::Util::CONSTANT qw(looks_like_instance looks_like_hash);
-use vars qw(@ISA);
-
-BEGIN {
-    eval { require XML::LibXML; XML::LibXML->import(':libxml') };
-    if ($@) {
-	throw 'ExtensionError' => "Failed to load XML::LibXML: $@";
-    }
-    @ISA = qw( Bio::Phylo::NeXML::DOM::Element XML::LibXML::Element );
-}
-
+use Bio::Phylo::Util::Exceptions 'throw';
+use Bio::Phylo::Util::CONSTANT '/looks_like/';
+use Bio::Phylo::Util::Dependency 'XML::LibXML';
+use base qw'Bio::Phylo::NeXML::DOM::Element XML::LibXML::Element';
+XML::LibXML->import(':libxml');
 
 =head2 Constructor
 
@@ -54,40 +45,41 @@ BEGIN {
 
 =cut
 
-
 sub new {
     my $class = shift;
     if ( my %args = looks_like_hash @_ ) {
-	if ( $args{'-tag'} ) {
-	    my $self = XML::LibXML::Element->new($args{'-tag'} );
-	    bless $self, $class;
-	    delete $args{'-tag'};
-	    for my $key ( keys %args ) {
-		my $method = $key;
-		$method =~ s/^-//;
-		$method = 'set_' . $method;
-		eval { $self->$method( $args{$key} ); };
-		if ( $@ ) {
-		    if ( blessed $@ and $@->can('rethrow') ) {
-			$@->rethrow;
-		    }
-		    elsif ( not ref($@) and
-			$@ =~ /^Can't locate object method / ) {
-			throw 'BadArgs' => "The named argument '${key}' cannot be passed to the constructor";
-		    }
-		    else {
-			throw 'Generic' => $@;
-		    }
-		}
-	    }
-	    return $self;
-	}
-	else {
-	    throw 'BadArgs' => "Tag name required for XML::LibXML::Element";
-	}	
+        if ( $args{'-tag'} ) {
+            my $self = XML::LibXML::Element->new( $args{'-tag'} );
+            bless $self, $class;
+            delete $args{'-tag'};
+            for my $key ( keys %args ) {
+                my $method = $key;
+                $method =~ s/^-//;
+                $method = 'set_' . $method;
+                eval { $self->$method( $args{$key} ); };
+                if ($@) {
+                    if ( blessed $@ and $@->can('rethrow') ) {
+                        $@->rethrow;
+                    }
+                    elsif ( not ref($@)
+                        and $@ =~ /^Can't locate object method / )
+                    {
+                        throw 'BadArgs' =>
+"The named argument '${key}' cannot be passed to the constructor";
+                    }
+                    else {
+                        throw 'Generic' => $@;
+                    }
+                }
+            }
+            return $self;
+        }
+        else {
+            throw 'BadArgs' => "Tag name required for XML::LibXML::Element";
+        }
     }
     else {
-	throw 'BadArgs' => "Tag name required for XML::LibXML::Element";
+        throw 'BadArgs' => "Tag name required for XML::LibXML::Element";
     }
 }
 
@@ -104,7 +96,7 @@ sub new {
 
 sub parse_element {
     my ( $class, $text ) = @_;
-    my $dom = XML::LibXML->load_xml($text);
+    my $dom  = XML::LibXML->load_xml($text);
     my $root = $dom->documentElement();
     bless $root, __PACKAGE__;
     Bio::Phylo::NeXML::DOM::Element::_recurse_bless($root);
@@ -144,7 +136,7 @@ sub get_tag {
 =cut
 
 sub set_tag {
-    my ($self, $tagname, @args) = @_;
+    my ( $self, $tagname, @args ) = @_;
     $self->setNodeName($tagname);
     return $self;
 }
@@ -167,7 +159,7 @@ sub set_tag {
 =cut
 
 sub get_attributes {
-    my ($self, @attr_names) = @_;
+    my ( $self, @attr_names ) = @_;
     my %ret = map { $_ => $self->getAttribute($_) } @attr_names;
     return \%ret;
 }
@@ -185,16 +177,16 @@ sub get_attributes {
 
 sub set_attributes {
     my $self = shift;
-    if ( @_ ) {
-	my %attr;
-	if ( @_ == 1 && looks_like_instance $_[0], 'HASH' ) {
-	    %attr = %{ $_[0] };
-	}
-	else {
-	    %attr = looks_like_hash @_;
-	}
-	$self->setAttribute($_, $attr{$_}) for keys %attr;
-    }    
+    if (@_) {
+        my %attr;
+        if ( @_ == 1 && looks_like_instance $_[0], 'HASH' ) {
+            %attr = %{ $_[0] };
+        }
+        else {
+            %attr = looks_like_hash @_;
+        }
+        $self->setAttribute( $_, $attr{$_} ) for keys %attr;
+    }
     return $self;
 }
 
@@ -210,11 +202,11 @@ sub set_attributes {
 =cut
 
 sub clear_attributes {
-    my ($self, @attr_names) = @_;
+    my ( $self, @attr_names ) = @_;
     return 0 if not @attr_names;
     my %ret;
     $ret{$_} = $self->getAttribute($_) for @attr_names;
-    $self->removeAttribute( $_ ) for @attr_names;
+    $self->removeAttribute($_) for @attr_names;
     return %ret;
 }
 
@@ -253,14 +245,14 @@ sub clear_attributes {
 =cut
 
 sub set_text {
-    my ($self, $text, @args) = @_;
+    my ( $self, $text, @args ) = @_;
     if ($text) {
-	$self->appendTextNode( $text );
-	return $self;
+        $self->appendTextNode($text);
+        return $self;
     }
     else {
-	throw 'BadArgs' => "No text specified";
-    }        
+        throw 'BadArgs' => "No text specified";
+    }
 }
 
 =item get_text()
@@ -276,13 +268,14 @@ sub set_text {
 
 #no strict;
 sub get_text {
-    my ($self, @args) = @_;
+    my ( $self, @args ) = @_;
     my $text;
-    for ($self->childNodes) {
-	$text .= $_->nodeValue if $_->nodeType == XML_TEXT_NODE;
+    for ( $self->childNodes ) {
+        $text .= $_->nodeValue if $_->nodeType == XML::LibXML::XML_TEXT_NODE;
     }
     return $text;
 }
+
 #use strict;
 
 =item clear_text()
@@ -295,15 +288,17 @@ sub get_text {
  Args    : none
 
 =cut
-
 #no strict;
 sub clear_text {
-    my ($self, @args) = @_;
-    my @res = map { 
-	$_->nodeType == XML_TEXT_NODE ? $self->removeChild($_) : ()
+    my ( $self, @args ) = @_;
+    my @res = map {
+            $_->nodeType == XML::LibXML::XML_TEXT_NODE
+          ? $self->removeChild($_)
+          : ()
     } $self->childNodes;
-    return !! scalar(@res);
+    return !!scalar(@res);
 }
+
 #use strict;
 
 =back
@@ -322,7 +317,6 @@ sub clear_text {
  Args    : none
 
 =cut
-
 sub get_parent {
     my $e = shift->parentNode;
     return bless $e, __PACKAGE__;
@@ -422,9 +416,9 @@ sub get_previous_sister {
 =cut
 
 sub get_elements_by_tagname {
-    my ($self, $tagname, @args) = @_;
+    my ( $self, $tagname, @args ) = @_;
     my @a = $self->getElementsByTagName($tagname);
-    bless($_, __PACKAGE__) for (@a);
+    bless( $_, __PACKAGE__ ) for (@a);
     return @a;
 }
 
@@ -448,13 +442,13 @@ sub get_elements_by_tagname {
 =cut
 
 sub set_child {
-    my ($self, $child, @args) = @_;
+    my ( $self, $child, @args ) = @_;
     if ( looks_like_instance $child, 'XML::LibXML::Node' ) {
-	return $self->addChild($child);
+        return $self->addChild($child);
     }
     else {
-	throw 'ObjectMismatch' => "Argument is not an XML::LibXML::Node";
-    }    
+        throw 'ObjectMismatch' => "Argument is not an XML::LibXML::Node";
+    }
 }
 
 =item prune_child()
@@ -470,13 +464,13 @@ sub set_child {
 =cut
 
 sub prune_child {
-    my ($self, $child, @args) = @_;
+    my ( $self, $child, @args ) = @_;
     if ( looks_like_instance $child, 'XML::LibXML::Node' ) {
-	return $self->removeChild($child);
+        return $self->removeChild($child);
     }
     else {
-	throw 'ObjectMismatch' => "Argument is not an XML::LibXML::Node";
-    }    
+        throw 'ObjectMismatch' => "Argument is not an XML::LibXML::Node";
+    }
 }
 
 =back
@@ -497,7 +491,7 @@ sub prune_child {
 =cut
 
 sub to_xml {
-    my ($self, @args) = @_;
+    my ( $self, @args ) = @_;
     return $self->toString(@args);
 }
 
@@ -513,5 +507,4 @@ I<BMC Bioinformatics> B<12>:63.
 L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =cut
-
 1;

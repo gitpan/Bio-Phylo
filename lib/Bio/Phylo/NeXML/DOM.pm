@@ -1,19 +1,16 @@
-# $Id: DOM.pm 1593 2011-02-27 15:26:04Z rvos $
+# $Id: DOM.pm 1660 2011-04-02 18:29:40Z rvos $
 package Bio::Phylo::NeXML::DOM;
 use strict;
-use Bio::Phylo ();
-use Bio::Phylo::Util::CONSTANT qw(_DOMCREATOR_ looks_like_class);
-use Bio::Phylo::Util::Exceptions qw( throw );
+use base 'Bio::Phylo';
+use Bio::Phylo::Util::CONSTANT qw'_DOMCREATOR_ looks_like_class';
+use Bio::Phylo::Util::Exceptions 'throw';
 use Bio::Phylo::Factory;
 use File::Spec::Unix;
 
-# store DOM factory object as a global here, to avoid proliferation of 
+# store DOM factory object as a global here, to avoid proliferation of
 # function arguments
-use vars qw(@ISA $DOM);
-@ISA = qw(Bio::Phylo);
-
+our $DOM;
 {
-
     my $CONSTANT_TYPE = _DOMCREATOR_;
     my (%format);
     my $fac = Bio::Phylo::Factory->new;
@@ -176,8 +173,8 @@ obtained from the C<Element> and C<Document> POD.
 =cut
 
     sub new {
-	my $self = shift->SUPER::new( '-format' => 'twig', @_ );
-	return $DOM = $self;
+        my $self = shift->SUPER::new( '-format' => 'twig', @_ );
+        return $DOM = $self;
     }
 
 =back
@@ -199,13 +196,13 @@ obtained from the C<Element> and C<Document> POD.
 
 =cut
 
-    sub create_element { 
-	if ( my $format = shift->get_format ) {
-	    return $fac->create_element( '-format' => $format, @_ );
-	}
-	else {
-	    throw 'BadArgs' => 'DOM creator format not set';
-	}
+    sub create_element {
+        if ( my $format = shift->get_format ) {
+            return $fac->create_element( '-format' => $format, @_ );
+        }
+        else {
+            throw 'BadArgs' => 'DOM creator format not set';
+        }
     }
 
 =item parse_element()
@@ -220,13 +217,13 @@ obtained from the C<Element> and C<Document> POD.
 =cut
 
     sub parse_element {
-	if ( my $f = shift->get_format ) {
-	    return looks_like_class(__PACKAGE__.'::Element::'.$f)
-		->parse_element(shift);
-	}
-	else {
-	    throw 'BadArgs' => 'DOM creator format not set';
-	}	
+        if ( my $f = shift->get_format ) {
+            return looks_like_class( __PACKAGE__ . '::Element::' . $f )
+              ->parse_element(shift);
+        }
+        else {
+            throw 'BadArgs' => 'DOM creator format not set';
+        }
     }
 
 =item create_document()
@@ -241,12 +238,12 @@ obtained from the C<Element> and C<Document> POD.
 =cut
 
     sub create_document {
-	if ( my $format = shift->get_format ) {
-	    return $fac->create_document( '-format' => $format, @_ );
-	}
-	else {
-	    throw 'BadArgs' => 'DOM creator format not set';
-	}
+        if ( my $format = shift->get_format ) {
+            return $fac->create_document( '-format' => $format, @_ );
+        }
+        else {
+            throw 'BadArgs' => 'DOM creator format not set';
+        }
     }
 
 =item parse_document()
@@ -261,13 +258,13 @@ obtained from the C<Element> and C<Document> POD.
 =cut
 
     sub parse_document {
-	if ( my $format = shift->get_format ) {
-	    my $implementation = __PACKAGE__ . '::' . $format;
-	    return $implementation->parse_document(shift);
-	}
-	else {
-	    throw 'BadArgs' => 'DOM creator format not set';
-	}	
+        if ( my $format = shift->get_format ) {
+            my $implementation = __PACKAGE__ . '::' . $format;
+            return $implementation->parse_document(shift);
+        }
+        else {
+            throw 'BadArgs' => 'DOM creator format not set';
+        }
     }
 
 =back
@@ -288,9 +285,9 @@ obtained from the C<Element> and C<Document> POD.
 =cut
 
     sub set_format {
-	my $self = shift;
-	$format{$self->get_id} = shift;
-	return $self;
+        my $self = shift;
+        $format{ $self->get_id } = shift;
+        return $self;
     }
 
 =back
@@ -311,8 +308,8 @@ obtained from the C<Element> and C<Document> POD.
 =cut
 
     sub get_format {
-	my $self = shift;
-	return ucfirst(lc($format{$self->get_id}));
+        my $self = shift;
+        return ucfirst( lc( $format{ $self->get_id } ) );
     }
 
 =item get_dom()
@@ -325,9 +322,8 @@ obtained from the C<Element> and C<Document> POD.
  Args    : none
 
 =cut
-
     sub get_dom { $DOM ||= __PACKAGE__->new }
-    
+
 =begin comment
 
  Type    : Internal method
@@ -340,7 +336,6 @@ obtained from the C<Element> and C<Document> POD.
 =end comment
 
 =cut
-
     sub _type { $CONSTANT_TYPE }
 
 =begin comment
@@ -357,8 +352,8 @@ obtained from the C<Element> and C<Document> POD.
 =cut
 
     sub _cleanup {
-	my $self = shift;
-	delete $format{$self->get_id};    
+        my $self = shift;
+        delete $format{ $self->get_id };
     }
 
 =back
@@ -388,7 +383,5 @@ Mark A. Jensen  (maj -at- fortinbras -dot- us), refactored by Rutger Vos
 The C<Bio::Phylo::Annotation> class is not yet DOMized.
 
 =cut
-
 }
-
 1;

@@ -1,19 +1,12 @@
-#$Id: Twig.pm 1593 2011-02-27 15:26:04Z rvos $
+#$Id: Twig.pm 1660 2011-04-02 18:29:40Z rvos $
 package Bio::Phylo::NeXML::DOM::Element::Twig;
 use strict;
-use Bio::Phylo::Util::CONSTANT qw(looks_like_instance looks_like_hash);
-use Bio::Phylo::NeXML::DOM::Element ();
-use Bio::Phylo::Util::Exceptions qw(throw);
-use vars qw(@ISA %extant_ids);
+use Bio::Phylo::Util::Exceptions 'throw';
+use Bio::Phylo::Util::Dependency 'XML::Twig';
+use base qw'Bio::Phylo::NeXML::DOM::Element XML::Twig::Elt';
+use Bio::Phylo::Util::CONSTANT '/looks_like/';
 use Scalar::Util 'blessed';
-
-BEGIN {
-    eval { require XML::Twig };
-    if ($@) {
-	throw 'ExtensionError' => "Failed to load XML::Twig: $@";
-    }
-    @ISA = qw( Bio::Phylo::NeXML::DOM::Element XML::Twig::Elt );
-}
+our %extant_ids;
 
 =head1 NAME
 
@@ -52,36 +45,37 @@ Mark A. Jensen ( maj -at- fortinbras -dot- us )
 
 =cut
 
-
 sub new {
     my $class = shift;
-    my $self = XML::Twig::Elt->new;
+    my $self  = XML::Twig::Elt->new;
     bless $self, $class;
-    if ( @_ ) {
-	if ( my %arguments = looks_like_hash @_ ) {
-	    for my $key ( keys %arguments ) {
-		my $method = $key;
-		$method =~ s/^-//;
-		$method = 'set_' . $method;
-		eval { $self->$method( $arguments{$key} ); };
-		if ( $@ ) {
-		    if ( blessed $@ and $@->can('rethrow') ) {
-			$@->rethrow;
-		    }
-		    elsif ( not ref($@) and
-			$@ =~ /^Can't locate object method / ) {
-			throw 'BadArgs' => "The named argument '${key}' cannot be passed to the constructor";
-		    }
-		    else {
-			throw 'Generic' => $@;
-		    }
-		}
-	    }
-	    if ( $arguments{'-attributes'} ) {
-		my %attributes = %{ $arguments{'-attributes'} };
-		$self->_manage_ids( 'ADD', %attributes );
-	    }
-	}	
+    if (@_) {
+        if ( my %arguments = looks_like_hash @_ ) {
+            for my $key ( keys %arguments ) {
+                my $method = $key;
+                $method =~ s/^-//;
+                $method = 'set_' . $method;
+                eval { $self->$method( $arguments{$key} ); };
+                if ($@) {
+                    if ( blessed $@ and $@->can('rethrow') ) {
+                        $@->rethrow;
+                    }
+                    elsif ( not ref($@)
+                        and $@ =~ /^Can't locate object method / )
+                    {
+                        throw 'BadArgs' =>
+"The named argument '${key}' cannot be passed to the constructor";
+                    }
+                    else {
+                        throw 'Generic' => $@;
+                    }
+                }
+            }
+            if ( $arguments{'-attributes'} ) {
+                my %attributes = %{ $arguments{'-attributes'} };
+                $self->_manage_ids( 'ADD', %attributes );
+            }
+        }
     }
     return $self;
 }
@@ -163,7 +157,7 @@ sub set_tag {
 =cut
 
 sub get_attributes {
-    my ($self, @att_names) = @_;    
+    my ( $self, @att_names ) = @_;
     @att_names = $self->att_names if not @att_names;
     my %ret = map { $_ => $self->att($_) } @att_names;
     return \%ret;
@@ -182,16 +176,16 @@ sub get_attributes {
 
 sub set_attributes {
     my $self = shift;
-    if ( @_ ) {
-	my %attr;
-	if ( @_ == 1 && looks_like_instance $_[0], 'HASH' ) {
-	    %attr = %{ $_[0] };
-	}
-	else {
-	    %attr = looks_like_hash @_;
-	}
-	$self->set_att(%attr);
-	$self->_manage_ids( 'ADD', %attr );
+    if (@_) {
+        my %attr;
+        if ( @_ == 1 && looks_like_instance $_[0], 'HASH' ) {
+            %attr = %{ $_[0] };
+        }
+        else {
+            %attr = looks_like_hash @_;
+        }
+        $self->set_att(%attr);
+        $self->_manage_ids( 'ADD', %attr );
     }
     return $self;
 }
@@ -208,11 +202,11 @@ sub set_attributes {
 =cut
 
 sub clear_attributes {
-    my ($self, @attr_names) = @_;
+    my ( $self, @attr_names ) = @_;
     my %ret;
     $ret{$_} = $self->att($_) for @attr_names;
-    $self->_manage_ids('DEL', @attr_names); # must come before actual removal
-    $self->del_att( @attr_names );
+    $self->_manage_ids( 'DEL', @attr_names );  # must come before actual removal
+    $self->del_att(@attr_names);
     return %ret;
 }
 
@@ -252,13 +246,13 @@ sub clear_attributes {
 
 sub set_text {
     my ( $self, $text, @args ) = @_;
-    if ( $text ) {
-	my $t = XML::Twig::Elt->new('#PCDATA', $text);
-	$t->paste( last_child => $self );
-	return 1;
+    if ($text) {
+        my $t = XML::Twig::Elt->new( '#PCDATA', $text );
+        $t->paste( last_child => $self );
+        return 1;
     }
     else {
-	throw 'BadArgs' => "No text specified";
+        throw 'BadArgs' => "No text specified";
     }
 }
 
@@ -274,7 +268,7 @@ sub set_text {
 =cut
 
 sub get_text {
-    my ($self, @args) = @_;
+    my ( $self, @args ) = @_;
     return $self->text;
 }
 
@@ -290,9 +284,11 @@ sub get_text {
 =cut
 
 sub clear_text {
-    my ($self, @args) = @_;
+    my ( $self, @args ) = @_;
     my @res;
-    @res = map { $_->is_text ? do { $_->delete; 1 }  : () } $self->children;
+    @res = map {
+        $_->is_text ? do { $_->delete; 1 } : ()
+    } $self->children;
     return 1 if @res;
     return 0;
 }
@@ -406,8 +402,8 @@ sub get_previous_sister {
 =cut
 
 sub get_elements_by_tagname {
-    my ($self, $tagname, @args) = @_;
-    return $self->descendants_or_self( $tagname );
+    my ( $self, $tagname, @args ) = @_;
+    return $self->descendants_or_self($tagname);
 }
 
 =back
@@ -428,14 +424,14 @@ sub get_elements_by_tagname {
 =cut
 
 sub set_child {
-    my ($self, $child, @args) = @_;
+    my ( $self, $child, @args ) = @_;
     if ( looks_like_instance $child, 'XML::Twig::Elt' ) {
-	$child->paste( last_child => $self );
-	$self->_manage_ids('ADD');
-	return $child;	
+        $child->paste( last_child => $self );
+        $self->_manage_ids('ADD');
+        return $child;
     }
     else {
-	throw 'ObjectMismatch' => 'Argument is not an XML::Twig::Elt';
+        throw 'ObjectMismatch' => 'Argument is not an XML::Twig::Elt';
     }
 }
 
@@ -452,17 +448,18 @@ sub set_child {
 =cut
 
 sub prune_child {
-    my ($self, $child, @args) = @_;
+    my ( $self, $child, @args ) = @_;
     if ( looks_like_instance $child, 'XML::Twig::Elt' ) {
-	my $par = $child->parent;
-	return unless ( $par && ($par == $self) );
+        my $par = $child->parent;
+        return unless ( $par && ( $par == $self ) );
+
         # or delete?
         $child->_manage_ids('DEL');
         $child->cut;
-        return $child;	
+        return $child;
     }
     else {
-	throw 'ObjectMismatch' => 'Argument is not an XML::Twig::Elt';
+        throw 'ObjectMismatch' => 'Argument is not an XML::Twig::Elt';
     }
 }
 
@@ -508,58 +505,59 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
 # of the twig, I felt more in control doing it by by hand. The kludge
 # allows the use of the Twig method elt_id() to "get_element_by_id"
 # off a document object.
-
 sub _manage_ids {
-    my ($self, $action, @attrs) = @_;
+    my ( $self, $action, @attrs ) = @_;
     for ($action) {
-	$_ eq 'ADD' && do {
-	    my %attrs = @attrs;
-	    if (%attrs) { # changing/adding id attribute
-		my $id = $attrs{id};
-		if ($id) {
-		    $extant_ids{$id} = $self; # log this id 
-		    ${$self->twig->{twig_id_list}}{$id} = $self if $self->twig;
-		}
-		else {
-		    return 0;
-		}
-	    }
-	    else { # add this element and its descendants
-		# if all elements were created with new(), they all should
-		# logged in %extant_ids
-		if ($self->twig) {
-		    for ($self->descendants_or_self) {
-			${$self->twig->{twig_id_list}}{$_->att('id')} = $_ if $_->att('id');
-		    }
-		}
-	    }
-	    last;
-	};
-	$_ eq 'DEL' && do {
-	    if (@attrs) {
-		if (grep /^id$/, @attrs) {
-		    my $id = $self->att('id');
-		    delete $extant_ids{$id}; # clear this id 
-		    delete ${$self->twig->{twig_id_list}}{$id} if $self->twig;
-		}
-		else {
-		    return 0;
-		}
-	    }
-	    else {
-		if ($self->twig) {
-		    delete $extant_ids{$_->att('id')} for $self->descendants_or_self;
-		    delete ${$self->twig->{twig_id_list}}{$_->att('id')} for $self->descendants_or_self;
-		}
-	    }
-	    last;
-	};
-	do { 
-	    throw 'BadArgs' => 'Unknown action for _manage_ids()';
-	};
+        $_ eq 'ADD' && do {
+            my %attrs = @attrs;
+            if (%attrs) {    # changing/adding id attribute
+                my $id = $attrs{id};
+                if ($id) {
+                    $extant_ids{$id} = $self;    # log this id
+                    ${ $self->twig->{twig_id_list} }{$id} = $self
+                      if $self->twig;
+                }
+                else {
+                    return 0;
+                }
+            }
+            else {    # add this element and its descendants
+                      # if all elements were created with new(), they all should
+                      # logged in %extant_ids
+                if ( $self->twig ) {
+                    for ( $self->descendants_or_self ) {
+                        ${ $self->twig->{twig_id_list} }{ $_->att('id') } = $_
+                          if $_->att('id');
+                    }
+                }
+            }
+            last;
+        };
+        $_ eq 'DEL' && do {
+            if (@attrs) {
+                if ( grep /^id$/, @attrs ) {
+                    my $id = $self->att('id');
+                    delete $extant_ids{$id};    # clear this id
+                    delete ${ $self->twig->{twig_id_list} }{$id} if $self->twig;
+                }
+                else {
+                    return 0;
+                }
+            }
+            else {
+                if ( $self->twig ) {
+                    delete $extant_ids{ $_->att('id') }
+                      for $self->descendants_or_self;
+                    delete ${ $self->twig->{twig_id_list} }{ $_->att('id') }
+                      for $self->descendants_or_self;
+                }
+            }
+            last;
+        };
+        do {
+            throw 'BadArgs' => 'Unknown action for _manage_ids()';
+        };
     }
     return 1;
 }
-
-
 1;

@@ -1,9 +1,8 @@
-# $Id: Rna.pm 1593 2011-02-27 15:26:04Z rvos $
+# $Id: Rna.pm 1660 2011-04-02 18:29:40Z rvos $
 package Bio::Phylo::Matrices::Datatype::Rna;
-use Bio::Phylo::Matrices::Datatype ();
 use strict;
-use vars qw($LOOKUP @ISA $MISSING $GAP);
-@ISA=qw(Bio::Phylo::Matrices::Datatype);
+use base 'Bio::Phylo::Matrices::Datatype';
+our ( $LOOKUP, $MISSING, $GAP );
 
 =head1 NAME
 
@@ -45,31 +44,27 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =head1 REVISION
 
- $Id: Rna.pm 1593 2011-02-27 15:26:04Z rvos $
+ $Id: Rna.pm 1660 2011-04-02 18:29:40Z rvos $
 
 =cut
-
 $LOOKUP = {
-    'A' => [ 'A'                ],
-    'C' => [ 'C'                ],
-    'G' => [ 'G'                ],
-    'U' => [ 'U'                ],
-    'M' => [ 'A', 'C'           ],
-    'R' => [ 'A', 'G'           ],
-    'W' => [ 'A', 'U'           ],
-    'S' => [ 'C', 'G'           ],
-    'Y' => [ 'C', 'U'           ],
-    'K' => [ 'G', 'U'           ],
-    'V' => [ 'A', 'C', 'G'      ],
-    'H' => [ 'A', 'C', 'U'      ],
-    'D' => [ 'A', 'G', 'U'      ],
-    'B' => [ 'C', 'G', 'U'      ],
+    'A' => ['A'],
+    'C' => ['C'],
+    'G' => ['G'],
+    'U' => ['U'],
+    'M' => [ 'A', 'C' ],
+    'R' => [ 'A', 'G' ],
+    'W' => [ 'A', 'U' ],
+    'S' => [ 'C', 'G' ],
+    'Y' => [ 'C', 'U' ],
+    'K' => [ 'G', 'U' ],
+    'V' => [ 'A', 'C', 'G' ],
+    'H' => [ 'A', 'C', 'U' ],
+    'D' => [ 'A', 'G', 'U' ],
+    'B' => [ 'C', 'G', 'U' ],
     'X' => [ 'G', 'A', 'U', 'C' ],
     'N' => [ 'G', 'A', 'U', 'C' ],
 };
-
 $MISSING = '?';
-
-$GAP = '-';
-
+$GAP     = '-';
 1;

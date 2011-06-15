@@ -1,29 +1,20 @@
-# $Id: Phyloxml.pm 1593 2011-02-27 15:26:04Z rvos $
+# $Id: Phyloxml.pm 1660 2011-04-02 18:29:40Z rvos $
 package Bio::Phylo::Unparsers::Phyloxml;
 use strict;
-use Bio::Phylo::Unparsers::Abstract;
+use base 'Bio::Phylo::Unparsers::Abstract';
 use Bio::Phylo::Util::Exceptions 'throw';
 use Bio::Phylo::Util::CONSTANT qw':objecttypes looks_like_object';
-use vars qw(@ISA);
-@ISA=qw(Bio::Phylo::Unparsers::Abstract);
-
-eval { require XML::Twig };
-if ( $@ ) {
-    throw 'ExtensionError' => "Error loading the XML::Twig extension: $@";
-}
-
-my $phyloxml_ns = 'http://www.phyloxml.org/1.10/terms#';
-
+use Bio::Phylo::Util::Dependency 'XML::Twig';
+my $phyloxml_ns     = 'http://www.phyloxml.org/1.10/terms#';
 my $phyloxml_header = <<'HEADER';
 <?xml version="1.0" encoding="UTF-8"?>
 <phyloxml xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
    xsi:schemaLocation="http://www.phyloxml.org http://www.phyloxml.org/1.10/phyloxml.xsd"
    xmlns="http://www.phyloxml.org">
 HEADER
-
 my %has_attribute = (
-	'confidence' => 'type',
-	'id'         => 'provider',
+    'confidence' => 'type',
+    'id'         => 'provider',
 );
 
 =head1 NAME
@@ -54,129 +45,127 @@ sub _to_string {
     my $self = shift;
     my $proj = $self->{'PHYLO'};
     $self->_logger->debug("serializing object $proj");
-    
     my @trees;
     if ( looks_like_object $proj, _PROJECT_ ) {
-    	$self->_logger->debug("object is a project");
-    	for my $forest ( @{ $proj->get_forests } ) {
-    		push @trees, @{ $forest->get_entities };
-    	}
+        $self->_logger->debug("object is a project");
+        for my $forest ( @{ $proj->get_forests } ) {
+            push @trees, @{ $forest->get_entities };
+        }
     }
     elsif ( looks_like_object $proj, _FOREST_ ) {
-    	$self->_logger->debug("object is a forest");
-    	push @trees, @{ $proj->get_entities };
+        $self->_logger->debug("object is a forest");
+        push @trees, @{ $proj->get_entities };
     }
     elsif ( looks_like_object $proj, _TREE_ ) {
-    	$self->_logger->debug("object is a tree");
-    	push @trees, $proj;
+        $self->_logger->debug("object is a tree");
+        push @trees, $proj;
     }
     my $xml = $phyloxml_header;
-    $xml .= $self->_tree_to_xml( $_ ) for @trees;
+    $xml .= $self->_tree_to_xml($_) for @trees;
     $xml .= '</phyloxml>';
-    
+
     # pretty printing
-	my $twig = XML::Twig->new( 'pretty_print' => 'indented' );
-	eval { $twig->parse($xml) };
-	if ( $@ ) {
-		throw 'API' => "Couldn't build xml: " . $@;
-	}
-	else {
-		return $twig->sprint;
-	}    
+    my $twig = XML::Twig->new( 'pretty_print' => 'indented' );
+    eval { $twig->parse($xml) };
+    if ($@) {
+        throw 'API' => "Couldn't build xml: " . $@;
+    }
+    else {
+        return $twig->sprint;
+    }
 }
 
 sub _name_to_xml {
-	my ( $self, $obj ) = @_;
-	if ( my $name = $obj->get_name ) {
-		return sprintf('<name>%s</name>', $name);
-	}
-	return '';
+    my ( $self, $obj ) = @_;
+    if ( my $name = $obj->get_name ) {
+        return sprintf( '<name>%s</name>', $name );
+    }
+    return '';
 }
 
 sub _tree_to_xml {
-	my ( $self, $tree ) = @_;
-	my $rooted = $tree->is_rooted ? 'true' : 'false';
-	my $xml = sprintf('<phylogeny rooted="%s">', $rooted);
-	$xml .= $self->_name_to_xml( $tree );
-	$xml .= $self->_node_to_xml( $tree->get_root );
-	return $xml .= '</phylogeny>';
+    my ( $self, $tree ) = @_;
+    my $rooted = $tree->is_rooted ? 'true' : 'false';
+    my $xml = sprintf( '<phylogeny rooted="%s">', $rooted );
+    $xml        .= $self->_name_to_xml($tree);
+    $xml        .= $self->_node_to_xml( $tree->get_root );
+    return $xml .= '</phylogeny>';
 }
 
 sub _node_to_xml {
-	my ( $self, $node ) = @_;
-	my $xml = '<clade>' . $self->_name_to_xml( $node );
-	
-	# branch length
-	my $length = $node->get_branch_length;
-	if ( defined $length ) {
-		$xml .= '<branch_length>' . $length . '</branch_length>';
-	}
-	
-	# annotations
-	$xml .= $self->_meta_to_xml( $_ ) for @{ $node->get_meta };
-	
-	# taxon links
-	if ( my $taxon = $node->get_taxon ) {
-		$xml .= $self->_taxon_to_xml( $taxon );
-	}
-	
-	# traverse nodes
-	$xml .= $self->_node_to_xml( $_ ) for @{ $node->get_children };
-	
-	return $xml .= '</clade>';
+    my ( $self, $node ) = @_;
+    my $xml = '<clade>' . $self->_name_to_xml($node);
+
+    # branch length
+    my $length = $node->get_branch_length;
+    if ( defined $length ) {
+        $xml .= '<branch_length>' . $length . '</branch_length>';
+    }
+
+    # annotations
+    $xml .= $self->_meta_to_xml($_) for @{ $node->get_meta };
+
+    # taxon links
+    if ( my $taxon = $node->get_taxon ) {
+        $xml .= $self->_taxon_to_xml($taxon);
+    }
+
+    # traverse nodes
+    $xml .= $self->_node_to_xml($_) for @{ $node->get_children };
+    return $xml .= '</clade>';
 }
 
 sub _meta_to_xml {
-	my ( $self, $meta ) = @_;
-	my $fq_predicate = $meta->get_predicate;
-	my $xml;
-	if ( $fq_predicate =~ /^(.+?):(.+)$/ ) {
-		my ( $pre, $predicate ) = ( $1, $2 );
-		my $namespace = $meta->get_namespaces( $pre );
-		if ( $namespace eq $phyloxml_ns ) {
-			my $obj = $meta->get_object;
-			$xml = "<${predicate}>";
-			
-			# object is a single, nested annotation
-			if ( UNIVERSAL::can($obj,'_type') && $obj->_type == _META_ ) {
-				if ( my $att = $has_attribute{$predicate} ) {
-					my $inner_predicate = $obj->get_predicate;
-					my $obj = $obj->get_object;
-					$inner_predicate =~ s/^.+://;				
-					$xml = "<${predicate} ${att}=\"${inner_predicate}\">${obj}";
-					$self->_logger->debug($xml);
-				}
-				else {					
-					$xml .= $self->_meta_to_xml( $obj );					
-				}
-			}
-			
-			# object is an array of annotations
-			elsif ( UNIVERSAL::isa($obj,'ARRAY') ) {
-				for my $inner ( @{ $obj } ) {
-					$xml .= $self->_meta_to_xml( $inner );
-				}
-			}
-			else {
-				$self->_logger->debug("meta object is $obj");
-				$xml .= $obj;
-			}
-			$xml .= "</${predicate}>";
-		}
-	}
-	return $xml;
+    my ( $self, $meta ) = @_;
+    my $fq_predicate = $meta->get_predicate;
+    my $xml;
+    if ( $fq_predicate =~ /^(.+?):(.+)$/ ) {
+        my ( $pre, $predicate ) = ( $1, $2 );
+        my $namespace = $meta->get_namespaces($pre);
+        if ( $namespace eq $phyloxml_ns ) {
+            my $obj = $meta->get_object;
+            $xml = "<${predicate}>";
+
+            # object is a single, nested annotation
+            if ( UNIVERSAL::can( $obj, '_type' ) && $obj->_type == _META_ ) {
+                if ( my $att = $has_attribute{$predicate} ) {
+                    my $inner_predicate = $obj->get_predicate;
+                    my $obj             = $obj->get_object;
+                    $inner_predicate =~ s/^.+://;
+                    $xml = "<${predicate} ${att}=\"${inner_predicate}\">${obj}";
+                    $self->_logger->debug($xml);
+                }
+                else {
+                    $xml .= $self->_meta_to_xml($obj);
+                }
+            }
+
+            # object is an array of annotations
+            elsif ( UNIVERSAL::isa( $obj, 'ARRAY' ) ) {
+                for my $inner ( @{$obj} ) {
+                    $xml .= $self->_meta_to_xml($inner);
+                }
+            }
+            else {
+                $self->_logger->debug("meta object is $obj");
+                $xml .= $obj;
+            }
+            $xml .= "</${predicate}>";
+        }
+    }
+    return $xml;
 }
 
 sub _taxon_to_xml {
-	my ( $self, $taxon ) = @_;
-	my $xml = '<taxonomy>';
-	$xml .= $self->_meta_to_xml( $_ ) for @{ $taxon->get_meta };
-	return $xml .= '</taxonomy>';
+    my ( $self, $taxon ) = @_;
+    my $xml = '<taxonomy>';
+    $xml .= $self->_meta_to_xml($_) for @{ $taxon->get_meta };
+    return $xml .= '</taxonomy>';
 }
 
 sub _datum_to_xml {
-	my ( $self, $datum ) = @_;
-	return '';
+    my ( $self, $datum ) = @_;
+    return '';
 }
 
 # podinherit_insert_token
@@ -211,8 +200,7 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =head1 REVISION
 
- $Id: Phyloxml.pm 1593 2011-02-27 15:26:04Z rvos $
+ $Id: Phyloxml.pm 1660 2011-04-02 18:29:40Z rvos $
 
 =cut
-
 1;

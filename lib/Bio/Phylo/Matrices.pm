@@ -1,10 +1,8 @@
-# $Id: Matrices.pm 1593 2011-02-27 15:26:04Z rvos $
+# $Id: Matrices.pm 1660 2011-04-02 18:29:40Z rvos $
 package Bio::Phylo::Matrices;
 use strict;
-#use warnings FATAL => 'all';
-use Bio::Phylo::Listable ();
-use Bio::Phylo::Util::CONSTANT qw(_NONE_ _MATRICES_);
-use vars qw(@ISA);
+use base 'Bio::Phylo::Listable';
+use Bio::Phylo::Util::CONSTANT qw'_NONE_ _MATRICES_';
 
 =begin comment
 
@@ -13,14 +11,10 @@ This class has no internal state, no cleanup is necessary.
 =end comment
 
 =cut
-
-# classic @ISA manipulation, not using 'base'
-@ISA = qw(Bio::Phylo::Listable);
-
 {
-	my $TYPE      = _MATRICES_;
-	my $CONTAINER = _NONE_;
-	my $logger    = __PACKAGE__->get_logger;
+    my $TYPE      = _MATRICES_;
+    my $CONTAINER = _NONE_;
+    my $logger    = __PACKAGE__->get_logger;
 
 =head1 NAME
 
@@ -61,20 +55,20 @@ Matrices constructor.
 
 =cut
 
-#    sub new {
-#        # could be child class
-#        my $class = shift;
-#        
-#        # notify user
-#        $logger->info("constructor called for '$class'");
-#        
-#        # recurse up inheritance tree, get ID
-#        my $self = $class->SUPER::new( @_ );
-#        
-#        # local fields would be set here
-#        
-#        return $self;
-#    }
+    #    sub new {
+    #        # could be child class
+    #        my $class = shift;
+    #
+    #        # notify user
+    #        $logger->info("constructor called for '$class'");
+    #
+    #        # recurse up inheritance tree, get ID
+    #        my $self = $class->SUPER::new( @_ );
+    #
+    #        # local fields would be set here
+    #
+    #        return $self;
+    #    }
 
 =begin comment
 
@@ -88,7 +82,6 @@ Matrices constructor.
 =end comment
 
 =cut
-
     sub _container { $CONTAINER }
 
 =begin comment
@@ -103,14 +96,13 @@ Matrices constructor.
 =end comment
 
 =cut
-
     sub _type { $TYPE }
 
 =back
 
 =cut
 
-# podinherit_insert_token
+    # podinherit_insert_token
 
 =head1 SEE ALSO
 
@@ -138,10 +130,8 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =head1 REVISION
 
- $Id: Matrices.pm 1593 2011-02-27 15:26:04Z rvos $
+ $Id: Matrices.pm 1660 2011-04-02 18:29:40Z rvos $
 
 =cut
-
 }
-
 1;

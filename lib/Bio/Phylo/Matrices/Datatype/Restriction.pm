@@ -1,9 +1,8 @@
-# $Id: Restriction.pm 1593 2011-02-27 15:26:04Z rvos $
+# $Id: Restriction.pm 1660 2011-04-02 18:29:40Z rvos $
 package Bio::Phylo::Matrices::Datatype::Restriction;
-use Bio::Phylo::Matrices::Datatype ();
 use strict;
-use vars qw($LOOKUP @ISA $MISSING $GAP);
-@ISA = qw(Bio::Phylo::Matrices::Datatype);
+use base 'Bio::Phylo::Matrices::Datatype';
+our ( $LOOKUP, $MISSING, $GAP );
 
 =head1 NAME
 
@@ -37,9 +36,9 @@ Gets state-to-id mapping for missing and gap symbols
 
 =cut
 
-    sub get_ids_for_special_symbols {
-        return {};
-    }
+sub get_ids_for_special_symbols {
+    return {};
+}
 
 =back
 
@@ -72,13 +71,11 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =head1 REVISION
 
- $Id: Restriction.pm 1593 2011-02-27 15:26:04Z rvos $
+ $Id: Restriction.pm 1660 2011-04-02 18:29:40Z rvos $
 
 =cut
-
 $LOOKUP = {
-    '0' => [ '0' ],
-    '1' => [ '1' ],
+    '0' => ['0'],
+    '1' => ['1'],
 };
-
 1;

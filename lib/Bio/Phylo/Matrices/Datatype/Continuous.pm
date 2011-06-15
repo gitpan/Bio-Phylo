@@ -1,14 +1,12 @@
-# $Id: Continuous.pm 1593 2011-02-27 15:26:04Z rvos $
+# $Id: Continuous.pm 1660 2011-04-02 18:29:40Z rvos $
 package Bio::Phylo::Matrices::Datatype::Continuous;
-use Bio::Phylo::Util::CONSTANT qw(looks_like_number looks_like_implementor looks_like_instance);
-use Bio::Phylo::Matrices::Datatype ();
 use strict;
-use vars qw($LOOKUP $MISSING $GAP @ISA);
-@ISA=qw(Bio::Phylo::Matrices::Datatype);
-
+use base 'Bio::Phylo::Matrices::Datatype';
+use Bio::Phylo::Util::CONSTANT
+  qw(looks_like_number looks_like_implementor looks_like_instance);
+our ( $LOOKUP, $MISSING, $GAP );
 {
-
-	my $logger = __PACKAGE__->get_logger;
+    my $logger = __PACKAGE__->get_logger;
 
 =head1 NAME
 
@@ -45,10 +43,10 @@ Sets the lookup table (no-op for continuous data!).
 
 =cut
 
-	sub set_lookup {
-		$logger->info("Can't set lookup table for continuous characters");
-		return;
-	}
+    sub set_lookup {
+        $logger->info("Can't set lookup table for continuous characters");
+        return;
+    }
 
 =back
 
@@ -69,10 +67,10 @@ Gets the lookup table (no-op for continuous data!).
 
 =cut
 
-	sub get_lookup {
-		$logger->info("Can't get lookup table for continuous characters");
-		return;
-	}
+    sub get_lookup {
+        $logger->info("Can't get lookup table for continuous characters");
+        return;
+    }
 
 =back
 
@@ -97,31 +95,31 @@ Validates arguments for data validity.
 
 =cut
 
-	sub is_valid {
-		my $self = shift;
-		my @data;
-		for my $arg (@_) {
-			if ( looks_like_implementor $arg, 'get_char' ) {
-				push @data, $arg->get_char;
-			}
-			elsif ( looks_like_instance $arg, 'ARRAY' ) {
-				push @data, @{$arg};
-			}
-			else {
-				push @data, @{ $self->split($arg) };
-			}
-		}
-		my $missing = $self->get_missing;
-	  CHAR_CHECK: for my $char (@data) {
-			if ( looks_like_number $char || $char eq $missing ) {
-				next CHAR_CHECK;
-			}
-			else {
-				return 0;
-			}
-		}
-		return 1;
-	}
+    sub is_valid {
+        my $self = shift;
+        my @data;
+        for my $arg (@_) {
+            if ( looks_like_implementor $arg, 'get_char' ) {
+                push @data, $arg->get_char;
+            }
+            elsif ( looks_like_instance $arg, 'ARRAY' ) {
+                push @data, @{$arg};
+            }
+            else {
+                push @data, @{ $self->split($arg) };
+            }
+        }
+        my $missing = $self->get_missing;
+      CHAR_CHECK: for my $char (@data) {
+            if ( looks_like_number $char || $char eq $missing ) {
+                next CHAR_CHECK;
+            }
+            else {
+                return 0;
+            }
+        }
+        return 1;
+    }
 
 =back
 
@@ -142,11 +140,11 @@ Splits string of characters on whitespaces.
 
 =cut
 
-	sub split {
-		my ( $self, $string ) = @_;
-		my @array = CORE::split( /\s+/, $string );
-		return \@array;
-	}
+    sub split {
+        my ( $self, $string ) = @_;
+        my @array = CORE::split( /\s+/, $string );
+        return \@array;
+    }
 
 =item join()
 
@@ -161,18 +159,17 @@ Joins array ref of characters to a space-separated string.
 
 =cut
 
-	sub join {
-		my ( $self, $array ) = @_;
-		return CORE::join ' ', @{$array};
-	}
-
-	$MISSING = '?';
+    sub join {
+        my ( $self, $array ) = @_;
+        return CORE::join ' ', @{$array};
+    }
+    $MISSING = '?';
 
 =back
 
 =cut
 
-# podinherit_insert_token
+    # podinherit_insert_token
 
 =head1 SEE ALSO
 
@@ -201,10 +198,8 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =head1 REVISION
 
- $Id: Continuous.pm 1593 2011-02-27 15:26:04Z rvos $
+ $Id: Continuous.pm 1660 2011-04-02 18:29:40Z rvos $
 
 =cut
-
 }
-
 1;

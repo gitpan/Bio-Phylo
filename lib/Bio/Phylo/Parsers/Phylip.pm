@@ -1,10 +1,8 @@
-# $Id: Phylip.pm 1593 2011-02-27 15:26:04Z rvos $
+# $Id: Phylip.pm 1660 2011-04-02 18:29:40Z rvos $
 package Bio::Phylo::Parsers::Phylip;
 use strict;
+use base 'Bio::Phylo::Parsers::Abstract';
 use Bio::Phylo::Util::Exceptions 'throw';
-use Bio::Phylo::Parsers::Abstract;
-use vars qw(@ISA);
-@ISA=qw(Bio::Phylo::Parsers::Abstract);
 
 =head1 NAME
 
@@ -29,30 +27,34 @@ should indicate this as an argument to the Bio::Phylo::IO::parse function, i.e.:
 =cut
 
 sub _parse {
-    my $self = shift;
-	my $factory = $self->_factory;
-	my $type    = $self->_args->{'-type'} || 'standard';
-	my $handle  = $self->_handle;
-	my $matrix  = $factory->create_matrix( '-type' => $type );
-	my ( $ntax, $nchar );	
-	while(<$handle>) {
-		if ( /^\s*(\d+)\s+(\d+)\s*$/ && ! $ntax && ! $nchar ) {
-			( $ntax, $nchar ) = ( $1, $2 );
-		}
-		elsif ( /\S/ ) {
-			my $name = substr( $_, 0, 10 );
-			my $seq  = substr( $_, 10 );
-			$matrix->insert( $factory->create_datum(
-				'-type' => $type,
-				'-name' => $name,
-				'-char' => $matrix->get_type_object->split($seq),
-			) );
-		}
-	}
-	my ( $my_nchar, $my_ntax ) = ( $matrix->get_nchar, $matrix->get_ntax );
-	$nchar != $my_nchar && throw 'BadFormat' => "observed ($my_nchar) != expected ($nchar) nchar";
-	$ntax  != $my_ntax  && throw 'BadFormat' => "observed ($my_ntax) != expected ($ntax) ntax";
-	return $matrix;
+    my $self    = shift;
+    my $factory = $self->_factory;
+    my $type    = $self->_args->{'-type'} || 'standard';
+    my $handle  = $self->_handle;
+    my $matrix  = $factory->create_matrix( '-type' => $type );
+    my ( $ntax, $nchar );
+    while (<$handle>) {
+        if ( /^\s*(\d+)\s+(\d+)\s*$/ && !$ntax && !$nchar ) {
+            ( $ntax, $nchar ) = ( $1, $2 );
+        }
+        elsif (/\S/) {
+            my $name = substr( $_, 0, 10 );
+            my $seq = substr( $_, 10 );
+            $matrix->insert(
+                $factory->create_datum(
+                    '-type' => $type,
+                    '-name' => $name,
+                    '-char' => $matrix->get_type_object->split($seq),
+                )
+            );
+        }
+    }
+    my ( $my_nchar, $my_ntax ) = ( $matrix->get_nchar, $matrix->get_ntax );
+    $nchar != $my_nchar
+      && throw 'BadFormat' => "observed ($my_nchar) != expected ($nchar) nchar";
+    $ntax != $my_ntax
+      && throw 'BadFormat' => "observed ($my_ntax) != expected ($ntax) ntax";
+    return $matrix;
 }
 
 # podinherit_insert_token
@@ -83,8 +85,7 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =head1 REVISION
 
- $Id: Phylip.pm 1593 2011-02-27 15:26:04Z rvos $
+ $Id: Phylip.pm 1660 2011-04-02 18:29:40Z rvos $
 
 =cut
-
 1;

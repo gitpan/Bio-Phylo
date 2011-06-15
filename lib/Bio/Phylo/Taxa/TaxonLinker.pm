@@ -1,15 +1,12 @@
-# $Id: TaxonLinker.pm 1593 2011-02-27 15:26:04Z rvos $
+# $Id: TaxonLinker.pm 1660 2011-04-02 18:29:40Z rvos $
 package Bio::Phylo::Taxa::TaxonLinker;
 use Bio::Phylo::Mediators::TaxaMediator;
 use Bio::Phylo::Util::Exceptions;
-use Bio::Phylo::Util::CONSTANT qw(_TAXON_ looks_like_object);
+use Bio::Phylo::Util::CONSTANT qw'_TAXON_ looks_like_object';
 use strict;
-
 {
-
-	my $TAXON_CONSTANT = _TAXON_;
-
-	my $logger = Bio::Phylo->get_logger;
+    my $TAXON_CONSTANT = _TAXON_;
+    my $logger         = Bio::Phylo->get_logger;
 
 =head1 NAME
 
@@ -56,22 +53,22 @@ Links the invocant object to a taxon object.
 
 =cut
 
-	sub set_taxon {
-		my ( $self, $taxon ) = @_;
-		if ( $taxon and looks_like_object $taxon, $TAXON_CONSTANT ) {
-			$logger->info("setting taxon '$taxon'");
-			Bio::Phylo::Mediators::TaxaMediator->set_link(
-				'-one'  => $taxon,
-				'-many' => $self,
-			);
-		}
-		else {
-			$logger->info("re-setting taxon link");
-			Bio::Phylo::Mediators::TaxaMediator->remove_link(
-				'-many' => $self );
-		}
-		return $self;
-	}
+    sub set_taxon {
+        my ( $self, $taxon ) = @_;
+        if ( $taxon and looks_like_object $taxon, $TAXON_CONSTANT ) {
+            $logger->info("setting taxon '$taxon'");
+            Bio::Phylo::Mediators::TaxaMediator->set_link(
+                '-one'  => $taxon,
+                '-many' => $self,
+            );
+        }
+        else {
+            $logger->info("re-setting taxon link");
+            Bio::Phylo::Mediators::TaxaMediator->remove_link(
+                '-many' => $self );
+        }
+        return $self;
+    }
 
 =item unset_taxon()
 
@@ -87,12 +84,12 @@ Unlinks the invocant object from any taxon object.
 
 =cut
 
-	sub unset_taxon {
-		my $self = shift;
-		$logger->debug("unsetting taxon");
-		$self->set_taxon();
-		return $self;
-	}
+    sub unset_taxon {
+        my $self = shift;
+        $logger->debug("unsetting taxon");
+        $self->set_taxon();
+        return $self;
+    }
 
 =back
 
@@ -115,23 +112,24 @@ Retrieves the Bio::Phylo::Taxa::Taxon object linked to the invocant.
 
 =cut
 
-	sub get_taxon {
-		my $self = shift;
-		$logger->info("getting taxon");
-		return Bio::Phylo::Mediators::TaxaMediator->get_link(
-			'-source' => $self );
-	}
+    sub get_taxon {
+        my $self = shift;
+        $logger->info("getting taxon");
+        return Bio::Phylo::Mediators::TaxaMediator->get_link(
+            '-source' => $self );
+    }
 
-	sub _cleanup {
-		my $self = shift;
-		#$logger->debug("cleaning up '$self'");
-	}
+    sub _cleanup {
+        my $self = shift;
+
+        #$logger->debug("cleaning up '$self'");
+    }
 
 =back
 
 =cut
 
-# podinherit_insert_token
+    # podinherit_insert_token
 
 =head1 SEE ALSO
 
@@ -162,10 +160,8 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =head1 REVISION
 
- $Id: TaxonLinker.pm 1593 2011-02-27 15:26:04Z rvos $
+ $Id: TaxonLinker.pm 1660 2011-04-02 18:29:40Z rvos $
 
 =cut
-
 }
-
 1;

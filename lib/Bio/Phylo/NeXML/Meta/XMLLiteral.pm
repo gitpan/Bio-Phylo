@@ -1,16 +1,11 @@
 package Bio::Phylo::NeXML::Meta::XMLLiteral;
 use strict;
-use Bio::Phylo::Util::CONSTANT qw(
-    _META_
-    looks_like_instance
-    looks_like_implementor
-);
+use Bio::Phylo::Util::CONSTANT qw'_META_ /looks_like/';
 use Bio::Phylo::Util::Exceptions 'throw';
-
 {
     my $TYPE_CONSTANT      = _META_;
     my $CONTAINER_CONSTANT = $TYPE_CONSTANT;
-    
+
 =head1 NAME
 
 Bio::Phylo::NeXML::Meta::XMLLiteral - Annotation value adaptor, no direct usage
@@ -55,12 +50,12 @@ XML.
  
 
 =cut       
-    
+
     sub new {
         my ( $class, $obj ) = @_;
         return bless \$obj, $class;
     }
-    
+
 =back
 
 =head2 SERIALIZERS
@@ -79,60 +74,64 @@ Serializes invocant to xml.
  Args    : NONE
 
 =cut
-    
+
     sub to_xml {
         my $self = shift;
         my $objs = $$self;
-        my @objs = ref($objs) eq 'ARRAY' ? @{ $objs } : ( $objs );
+        my @objs = ref($objs) eq 'ARRAY' ? @{$objs} : ($objs);
         my $xml  = '';
-	for my $obj ( @objs ) {
-	    # for RDF::Core::Model objects
-	    if ( looks_like_instance($obj, 'RDF::Core::Model') ) {
-		eval {
-		    require RDF::Core::Model::Serializer;
-		    my $serialized_model = '';
-		    my $serializer = RDF::Core::Model::Serializer->new(
-			'Model'  => $obj,
-			'Output' => \$serialized_model,
-		    );   
-		    $xml .= $serialized_model;     			
-		};
-		if ( $@ ) {
-		    throw 'API' => $@;
-		}
-	    }	        
-	    # for XML::XMLWriter object
-	    elsif ( looks_like_instance($obj, 'XML::XMLWriter') ) {
-		$xml .= $obj->get;
-	    }	        
-	    else {
-		# duck-typing
-		# Bio::Phylo => to_xml,
-		# XML::DOM,XML::GDOME,XML::LibXML => toString,
-		# XML::Twig => sprint
-		# XML::DOM2 => xmlify,
-		# XML::DOMBacked => as_xml,
-		# XML::Handler => dump_tree,
-		# XML::Element => as_XML
-		# XML::API => _as_string,
-		# XML::Code => code	            
-		my @methods = qw(to_xml toString sprint _as_string code xmlify as_xml dump_tree as_XML);
-		SERIALIZER: for my $method ( @methods ) {
-		    if ( looks_like_implementor($obj,$method) ) {
-			$xml .= $obj->$method;
-			last SERIALIZER;
-		    }
-		}
-	    }
-	}
-        return $xml;        
+        for my $obj (@objs) {
+
+            # for RDF::Core::Model objects
+            if ( looks_like_instance( $obj, 'RDF::Core::Model' ) ) {
+                eval {
+                    require RDF::Core::Model::Serializer;
+                    my $serialized_model = '';
+                    my $serializer       = RDF::Core::Model::Serializer->new(
+                        'Model'  => $obj,
+                        'Output' => \$serialized_model,
+                    );
+                    $xml .= $serialized_model;
+                };
+                if ($@) {
+                    throw 'API' => $@;
+                }
+            }
+
+            # for XML::XMLWriter object
+            elsif ( looks_like_instance( $obj, 'XML::XMLWriter' ) ) {
+                $xml .= $obj->get;
+            }
+            else {
+
+                # duck-typing
+                # Bio::Phylo => to_xml,
+                # XML::DOM,XML::GDOME,XML::LibXML => toString,
+                # XML::Twig => sprint
+                # XML::DOM2 => xmlify,
+                # XML::DOMBacked => as_xml,
+                # XML::Handler => dump_tree,
+                # XML::Element => as_XML
+                # XML::API => _as_string,
+                # XML::Code => code
+                my @methods =
+                  qw(to_xml toString sprint _as_string code xmlify as_xml dump_tree as_XML);
+              SERIALIZER: for my $method (@methods) {
+                    if ( looks_like_implementor( $obj, $method ) ) {
+                        $xml .= $obj->$method;
+                        last SERIALIZER;
+                    }
+                }
+            }
+        }
+        return $xml;
     }
-    
+
 =back
 
 =cut
 
-# podinherit_insert_token
+    # podinherit_insert_token
 
 =head1 SEE ALSO
 
@@ -157,12 +156,11 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =head1 REVISION
 
- $Id: XMLLiteral.pm 1593 2011-02-27 15:26:04Z rvos $
+ $Id: XMLLiteral.pm 1660 2011-04-02 18:29:40Z rvos $
 
 =cut  
-    
-    sub _type { $TYPE_CONSTANT }
-    sub _container { $CONTAINER_CONSTANT }    
-    sub _cleanup {}    
+    sub _type      { $TYPE_CONSTANT }
+    sub _container { $CONTAINER_CONSTANT }
+    sub _cleanup   { }
 }
 1;

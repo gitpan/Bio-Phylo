@@ -1,33 +1,13 @@
-# $Id: Datum.pm 1633 2011-03-30 16:59:55Z rvos $
+# $Id: Datum.pm 1660 2011-04-02 18:29:40Z rvos $
 package Bio::Phylo::Matrices::Datum;
-use vars '@ISA';
 use strict;
-use Bio::Phylo::Factory;
-use Bio::Phylo::Taxa::TaxonLinker;
+use base qw'Bio::Phylo::Matrices::TypeSafeData Bio::Phylo::Taxa::TaxonLinker';
+use Bio::Phylo::Util::OptionalInterface 'Bio::Seq';
 use Bio::Phylo::Util::Exceptions 'throw';
-use Bio::Phylo::Matrices::TypeSafeData ();
-use Bio::Phylo::Util::CONSTANT qw(
-	:objecttypes 
-	looks_like_number 
-	looks_like_hash
-	looks_like_instance
-	looks_like_implementor
-);
-use Bio::Phylo::NeXML::Writable ();
-@ISA = qw(
-  Bio::Phylo::Matrices::TypeSafeData
-  Bio::Phylo::Taxa::TaxonLinker
-);
-
-eval { require Bio::Seq };
-if ( not $@ ) {
-	push @ISA, 'Bio::Seq';
-}
-else {
-	undef($@);
-}
+use Bio::Phylo::Util::CONSTANT qw':objecttypes /looks_like/';
+use Bio::Phylo::NeXML::Writable;
+use Bio::Phylo::Factory;
 my $LOADED_WRAPPERS = 0;
-
 {
     my $fac                = Bio::Phylo::Factory->new;
     my $logger             = __PACKAGE__->get_logger;
@@ -96,39 +76,23 @@ Datum object constructor.
 =cut
 
     sub new {
-	
+
         # could be child class
         my $class = shift;
 
         # notify user
         $logger->info("constructor called for '$class'");
-        
-		if ( not $LOADED_WRAPPERS ) {
-			eval do { local $/; <DATA> }; 
-			die $@ if $@;
-			$LOADED_WRAPPERS++;
-		}        
+        if ( not $LOADED_WRAPPERS ) {
+            eval do { local $/; <DATA> };
+            die $@ if $@;
+            $LOADED_WRAPPERS++;
+        }
 
         # go up inheritance tree, eventually get an ID
         my $self = $class->SUPER::new(
-		@_,
-		'-listener' => sub {
-			my $self = shift;
-			if ( my $matrix = $self->get_matrix ) {
-				my $nchar = $matrix->get_nchar;
-				my $characters = $matrix->get_characters;
-				my @chars = @{ $characters->get_entities };
-				my @defined = grep { defined $_ } @chars;
-				if ( scalar @defined != $nchar ) {
-					for my $i ( 0 .. ( $nchar - 1 ) ) {
-						if ( not $chars[$i] ) {
-							$characters->insert_at_index( $fac->create_character, $i );
-						}
-					}
-				}
-			}
-		}		
-	);
+            @_,
+            '-listener' => \&_update_characters,
+        );
         return $self;
     }
 
@@ -146,43 +110,50 @@ Datum constructor from Bio::Seq argument.
  Args    : A Bio::Seq (or similar) object
 
 =cut
-    
+
     sub new_from_bioperl {
-    	my ( $class, $seq, @args ) = @_;
-	# want $seq type-check here? Allowable: is-a Bio::PrimarySeq, 
+        my ( $class, $seq, @args ) = @_;
+
+        # want $seq type-check here? Allowable: is-a Bio::PrimarySeq,
         #  Bio::LocatableSeq /maj
-    	my $type = $seq->alphabet || $seq->_guess_alphabet || 'dna';
-    	my $self = $class->new( '-type' => $type, @args );
-        
+        my $type = $seq->alphabet || $seq->_guess_alphabet || 'dna';
+        my $self = $class->new( '-type' => $type, @args );
+
         # copy seq string
         my $seqstring = $seq->seq;
         if ( $seqstring and $seqstring =~ /\S/ ) {
-        	eval { $self->set_char( $seqstring ) };
-        	if ( $@ and looks_like_instance($@,'Bio::Phylo::Util::Exceptions::InvalidData') ) {
-        		$logger->error(
-        			"\nAn exception of type Bio::Phylo::Util::Exceptions::InvalidData was caught\n\n".
-        			$@->description                                                                  .
-        			"\n\nThe BioPerl sequence object contains invalid data ($seqstring)\n"           .
-        			"I cannot store this string, I will continue instantiating an empty object.\n"   .
-        			"---------------------------------- STACK ----------------------------------\n"  .
-        			$@->trace->as_string                                                             .
-        			"\n--------------------------------------------------------------------------"
-        		);
-        	}
-        }                
-        
+            eval { $self->set_char($seqstring) };
+            if (
+                $@
+                and looks_like_instance(
+                    $@, 'Bio::Phylo::Util::Exceptions::InvalidData'
+                )
+              )
+            {
+                $logger->error(
+"\nAn exception of type Bio::Phylo::Util::Exceptions::InvalidData was caught\n\n"
+                      . $@->description
+                      . "\n\nThe BioPerl sequence object contains invalid data ($seqstring)\n"
+                      . "I cannot store this string, I will continue instantiating an empty object.\n"
+                      . "---------------------------------- STACK ----------------------------------\n"
+                      . $@->trace->as_string
+                      . "\n--------------------------------------------------------------------------"
+                );
+            }
+        }
+
         # copy name
         my $name = $seq->display_id;
-        $self->set_name( $name ) if defined $name;
-                
-        # copy desc
-        my $desc = $seq->desc;   
-        $self->set_desc( $desc ) if defined $desc;   
+        $self->set_name($name) if defined $name;
 
-	# only Bio::LocatableSeq objs have these fields...
-        for my $field ( qw(start end strand) ) {
-	    $self->$field( $seq->$field ) if $seq->can($field);
-        } 	
+        # copy desc
+        my $desc = $seq->desc;
+        $self->set_desc($desc) if defined $desc;
+
+        # only Bio::LocatableSeq objs have these fields...
+        for my $field (qw(start end strand)) {
+            $self->$field( $seq->$field ) if $seq->can($field);
+        }
         return $self;
     }
 
@@ -246,8 +217,8 @@ Sets character state(s)
 =cut
 
     sub set_char {
-        my $self = shift;
-        my $name = $self->get_internal_name;
+        my $self   = shift;
+        my $name   = $self->get_internal_name;
         my $length = ref $_[0] ? join( '', @{ $_[0] } ) : join( '', @_ );
         $logger->info("setting $name $length chars '@_'");
         my @data;
@@ -264,21 +235,20 @@ Sets character state(s)
         for ( 1 .. $position - 1 ) {
             unshift @data, $missing;
         }
-        my @char = @{ $self->get_entities }; # store old data for rollback
+        my @char = @{ $self->get_entities };    # store old data for rollback
         eval {
             $self->clear;
-            $self->insert( @data );
+            $self->insert(@data);
         };
-        if ( $@ ) {
-        	$self->clear;
-        	eval { $self->insert(@char) };
-			undef($@);
-			throw 'InvalidData' => sprintf(
-					'Invalid data for row %s (type %s: %s)',
-					$self->get_internal_name, $self->get_type, join( ' ', @data )
-			);
-		}
-		$self->set_annotations;
+        if ($@) {
+            $self->clear;
+            eval { $self->insert(@char) };
+            undef($@);
+            throw 'InvalidData' =>
+              sprintf( 'Invalid data for row %s (type %s: %s)',
+                $self->get_internal_name, $self->get_type, join( ' ', @data ) );
+        }
+        $self->set_annotations;
         return $self;
     }
 
@@ -299,11 +269,11 @@ Set invocant starting position.
         my ( $self, $pos ) = @_;
         $pos = 1 if not defined $pos;
         if ( looks_like_number $pos && $pos >= 1 && $pos / int($pos) == 1 ) {
-            $position{$self->get_id} = $pos;
+            $position{ $self->get_id } = $pos;
             $logger->info("setting position '$pos'");
         }
         else {
-        	throw 'BadNumber' => "'$pos' not a positive integer!";
+            throw 'BadNumber' => "'$pos' not a positive integer!";
         }
     }
 
@@ -355,7 +325,7 @@ Sets single annotation.
             }
         }
         else {
-        	throw 'BadArgs' => "No character to annotate specified!";
+            throw 'BadArgs' => "No character to annotate specified!";
         }
         return $self;
     }
@@ -393,17 +363,18 @@ Sets list of annotations.
         my $self = shift;
         my @anno;
         if ( scalar @_ == 1 and looks_like_instance( $_[0], 'ARRAY' ) ) {
-        	@anno = @{ $_[0] };
+            @anno = @{ $_[0] };
         }
         else {
-			@anno = @_;
+            @anno = @_;
         }
-		my $id = $self->get_id;        
-        if ( @anno ) {
+        my $id = $self->get_id;
+        if (@anno) {
             my $max_index = $self->get_length - 1;
             for my $i ( 0 .. $#anno ) {
                 if ( $i > $max_index ) {
-                    throw 'OutOfBounds' => "Specified char ($i) does not exist!";
+                    throw 'OutOfBounds' =>
+                      "Specified char ($i) does not exist!";
                 }
                 else {
                     if ( looks_like_instance( $anno[$i], 'HASH' ) ) {
@@ -420,7 +391,7 @@ Sets list of annotations.
             }
         }
         else {
-        	$annotations{$id} = [];
+            $annotations{$id} = [];
         }
     }
 
@@ -442,8 +413,7 @@ Gets the matrix (if any) this datum belongs to
  Args    : NONE
 
 =cut
-
-	sub get_matrix { shift->_get_container }
+    sub get_matrix { shift->_get_container }
 
 =item get_weight()
 
@@ -460,7 +430,7 @@ Gets invocant weight.
 
     sub get_weight {
         my $self   = shift;
-        my $weight = $weight{$self->get_id};
+        my $weight = $weight{ $self->get_id };
         return defined $weight ? $weight : 1;
     }
 
@@ -508,7 +478,7 @@ Gets invocant starting position.
 
     sub get_position {
         my $self = shift;
-        my $pos  = $position{$self->get_id};
+        my $pos  = $position{ $self->get_id };
         return defined $pos ? $pos : 1;
     }
 
@@ -536,13 +506,14 @@ Retrieves character annotation (hashref).
         if (@_) {
             my %opt = looks_like_hash @_;
             if ( not exists $opt{'-char'} ) {
-            	throw 'BadArgs' => "No character to return annotation for specified!";
+                throw 'BadArgs' =>
+                  "No character to return annotation for specified!";
             }
             my $i   = $opt{'-char'};
             my $pos = $self->get_position;
             my $len = $self->get_length;
             if ( $i < $pos || $i > ( $pos + $len ) ) {
-            	throw 'OutOfBounds' => "Specified char ($i) does not exist!";
+                throw 'OutOfBounds' => "Specified char ($i) does not exist!";
             }
             if ( exists $opt{'-key'} ) {
                 return $annotations{$id}->[$i]->{ $opt{'-key'} };
@@ -571,7 +542,7 @@ Retrieves character annotations (array ref).
 
     sub get_annotations {
         my $self = shift;
-        return $annotations{$self->get_id} || [];
+        return $annotations{ $self->get_id } || [];
     }
 
 =item get_length()
@@ -589,7 +560,8 @@ Gets invocant number of characters.
 
     sub get_length {
         my $self = shift;
-#        $logger->info("Chars: @char");
+
+        #        $logger->info("Chars: @char");
         if ( my $matrix = $self->_get_container ) {
             return $matrix->get_nchar;
         }
@@ -613,13 +585,13 @@ Gets state at argument index.
 
     sub get_by_index {
         my ( $self, $index ) = @_;
-		$logger->debug($index);
+        $logger->debug($index);
         my $offset = $self->get_position - 1;
         return $self->get_type_object->get_missing if $offset > $index;
         my $val = $self->SUPER::get_by_index( $index - $offset );
         return defined $val ? $val : $self->get_type_object->get_missing;
     }
-    
+
 =item get_index_of()
 
 Returns the index of the first occurrence of the 
@@ -637,21 +609,22 @@ doesn't contain the argument
 
 =cut
 
-	sub get_index_of {
-		my ( $self, $obj ) = @_;
-		my $is_numerical = $self->get_type =~ m/^(Continuous|Standard|Restriction)$/;
-		my $i = 0;
-		for my $ent ( @{ $self->get_entities } ) {
-			if ( $is_numerical ) {
-				return $i if $obj == $ent;
-			}
-			else {
-				return $i if $obj eq $ent;
-			}
-			$i++;
-		}
-		return;
-	}    
+    sub get_index_of {
+        my ( $self, $obj ) = @_;
+        my $is_numerical =
+          $self->get_type =~ m/^(Continuous|Standard|Restriction)$/;
+        my $i = 0;
+        for my $ent ( @{ $self->get_entities } ) {
+            if ($is_numerical) {
+                return $i if $obj == $ent;
+            }
+            else {
+                return $i if $obj eq $ent;
+            }
+            $i++;
+        }
+        return;
+    }
 
 =back
 
@@ -700,9 +673,9 @@ Tests if invocant can contain argument.
                     my $subtype = $obj->get_type_for_site( $i - 1 );
                     next if $subtype->is_valid( $split[ $i - 1 ] );
                     throw 'InvalidData' => sprintf(
-                            'Invalid char %s at pos %s for type %s',
-                            $split[ $i - 1 ],
-                            $i, $subtype->get_type,
+                        'Invalid char %s at pos %s for type %s',
+                        $split[ $i - 1 ],
+                        $i, $subtype->get_type,
                     );
                 }
                 return 1;
@@ -712,8 +685,8 @@ Tests if invocant can contain argument.
             }
         }
         else {
-            throw 'API' => "No associated type object found,\n" 
-                         . "this is a bug - please report - thanks";
+            throw 'API' => "No associated type object found,\n"
+              . "this is a bug - please report - thanks";
         }
     }
 
@@ -736,41 +709,42 @@ Calculates occurrences of states.
 
 =cut
 
-	sub calc_state_counts {
-		my $self = shift;
-		# maybe there should be an option to bin continuous values
-		# in X categories, and return the frequencies of those?
-		if ( $self->get_type =~ /^continuous$/i ) {
-			throw 'BadArgs' => 'Matrix holds continuous values';
-		}		
-		my %counts;
-		if ( @_ ) {
-			my %focus = map { $_ => 1 } @_;
-			my @char = $self->get_char;
-			for my $c ( @char ) {
-				if ( exists $focus{$c} ) {
-					if ( not exists $counts{$c} ) {
-						$counts{$c} = 1;
-					}
-					else {
-						$counts{$c}++;
-					}
-				}
-			}
-		}
-		else {
-			my @char = $self->get_char;
-			for my $c ( @char ) {
-				if ( not exists $counts{$c} ) {
-					$counts{$c} = 1;
-				}
-				else {
-					$counts{$c}++;
-				}
-			}		
-		}
-		return \%counts;
-	}
+    sub calc_state_counts {
+        my $self = shift;
+
+        # maybe there should be an option to bin continuous values
+        # in X categories, and return the frequencies of those?
+        if ( $self->get_type =~ /^continuous$/i ) {
+            throw 'BadArgs' => 'Matrix holds continuous values';
+        }
+        my %counts;
+        if (@_) {
+            my %focus = map { $_ => 1 } @_;
+            my @char = $self->get_char;
+            for my $c (@char) {
+                if ( exists $focus{$c} ) {
+                    if ( not exists $counts{$c} ) {
+                        $counts{$c} = 1;
+                    }
+                    else {
+                        $counts{$c}++;
+                    }
+                }
+            }
+        }
+        else {
+            my @char = $self->get_char;
+            for my $c (@char) {
+                if ( not exists $counts{$c} ) {
+                    $counts{$c} = 1;
+                }
+                else {
+                    $counts{$c}++;
+                }
+            }
+        }
+        return \%counts;
+    }
 
 =item calc_state_frequencies()
 
@@ -792,26 +766,26 @@ Calculates the frequencies of the states observed in the matrix.
 
 =cut
 
-	sub calc_state_frequencies {
-		my $self = shift;
-		my $counts = $self->calc_state_counts;
-		my %args = looks_like_hash @_;
-		for my $arg ( qw(missing gap) ) {
-			if ( not exists $args{"-${arg}"} ) {
-				my $method = "get_${arg}";
-				my $symbol = $self->$method;
-				delete $counts->{$symbol};
-			}
-		}
-		my $total = 0;
-		$total += $_ for values %{ $counts };
-		if ( $total > 0 ) {
-			for my $state ( keys %{ $counts } ) {
-				$counts->{$state} /= $total;
-			}
-		}
-		return $counts;
-	}
+    sub calc_state_frequencies {
+        my $self   = shift;
+        my $counts = $self->calc_state_counts;
+        my %args   = looks_like_hash @_;
+        for my $arg (qw(missing gap)) {
+            if ( not exists $args{"-${arg}"} ) {
+                my $method = "get_${arg}";
+                my $symbol = $self->$method;
+                delete $counts->{$symbol};
+            }
+        }
+        my $total = 0;
+        $total += $_ for values %{$counts};
+        if ( $total > 0 ) {
+            for my $state ( keys %{$counts} ) {
+                $counts->{$state} /= $total;
+            }
+        }
+        return $counts;
+    }
 
 =back
 
@@ -909,19 +883,17 @@ Clones invocant.
 
 =cut
 
-	sub clone {
-		my $self = shift;
-		my %subs = @_;
-		
-		# some extra logic to copy characters from source to target
-		$subs{'set_char'} = 0;
-		
-		# some logic to copy annotations
-		$subs{'set_annotation'} = 0;
-		
-		return $self->SUPER::clone(%subs);
-	
-	}
+    sub clone {
+        my $self = shift;
+        my %subs = @_;
+
+        # some extra logic to copy characters from source to target
+        $subs{'set_char'} = 0;
+
+        # some logic to copy annotations
+        $subs{'set_annotation'} = 0;
+        return $self->SUPER::clone(%subs);
+    }
 
 =item to_xml()
 
@@ -939,65 +911,65 @@ Serializes datum to nexml format.
 
 =cut
 
-	sub to_xml {
-		my $self = shift;
-		my %args = looks_like_hash @_;
-		my $char_ids  = $args{'-chars'};
-		my $state_ids = $args{'-states'};
-		my $special   = $args{'-special'};
-		if ( my $taxon = $self->get_taxon ) {
-			$self->set_attributes( 'otu' => $taxon->get_xml_id );
-		}
-		my @char = $self->get_char;
-		my ( $missing, $gap ) = ( $self->get_missing, $self->get_gap );
-		my $xml = $self->get_xml_tag;
-		
-		if ( not $args{'-compact'} ) {
-			for my $i ( 0 .. $#char ) {
-			    my ( $c, $s );
-				if ( $missing ne $char[$i] and $gap ne $char[$i] ) {
-					if ( $char_ids and $char_ids->[$i] ) {
-						$c = $char_ids->[$i];
-					}
-					else {
-						$c = $i;
-					}
-					if ( $state_ids and $state_ids->{uc $char[$i]} ) {
-						$s = $state_ids->{uc $char[$i]};
-					}
-					else {
-						$s = uc $char[$i];
-					}
-				}
-				elsif ( $missing eq $char[$i] or $gap eq $char[$i] ) {
-					if ( $char_ids and $char_ids->[$i] ) {
-						$c = $char_ids->[$i];
-					}
-					else {
-						$c = $i;
-					}
-					if ( $special and $special->{$char[$i]} ) {
-						$s = $special->{$char[$i]};
-					}
-					else {
-						$s = $char[$i];
-					}
-				}
-#			    $cell->set_attributes( 'char' => $c, 'state' => $s );
-#			    $xml .= $cell->get_xml_tag(1);
-				$xml .= sprintf('<cell char="%s" state="%s"/>',$c,$s);
-			}
-		}
-		else {
-			my @tmp = map { uc $_ } @char;
-			my $seq = Bio::Phylo::NeXML::Writable->new(-tag => 'seq');
-			my $seq_text = $self->get_type_object->join(\@tmp);
-			$xml .= $seq->get_xml_tag . "\n$seq_text\n" . "</".$seq->get_tag.">";
-		}
-		
-		$xml .= sprintf('</%s>', $self->get_tag);
-		return $xml;
-	}
+    sub to_xml {
+        my $self      = shift;
+        my %args      = looks_like_hash @_;
+        my $char_ids  = $args{'-chars'};
+        my $state_ids = $args{'-states'};
+        my $special   = $args{'-special'};
+        if ( my $taxon = $self->get_taxon ) {
+            $self->set_attributes( 'otu' => $taxon->get_xml_id );
+        }
+        my @char = $self->get_char;
+        my ( $missing, $gap ) = ( $self->get_missing, $self->get_gap );
+        my $xml = $self->get_xml_tag;
+        if ( not $args{'-compact'} ) {
+            for my $i ( 0 .. $#char ) {
+                my ( $c, $s );
+                if ( $missing ne $char[$i] and $gap ne $char[$i] ) {
+                    if ( $char_ids and $char_ids->[$i] ) {
+                        $c = $char_ids->[$i];
+                    }
+                    else {
+                        $c = $i;
+                    }
+                    if ( $state_ids and $state_ids->{ uc $char[$i] } ) {
+                        $s = $state_ids->{ uc $char[$i] };
+                    }
+                    else {
+                        $s = uc $char[$i];
+                    }
+                }
+                elsif ( $missing eq $char[$i] or $gap eq $char[$i] ) {
+                    if ( $char_ids and $char_ids->[$i] ) {
+                        $c = $char_ids->[$i];
+                    }
+                    else {
+                        $c = $i;
+                    }
+                    if ( $special and $special->{ $char[$i] } ) {
+                        $s = $special->{ $char[$i] };
+                    }
+                    else {
+                        $s = $char[$i];
+                    }
+                }
+
+                #			    $cell->set_attributes( 'char' => $c, 'state' => $s );
+                #			    $xml .= $cell->get_xml_tag(1);
+                $xml .= sprintf( '<cell char="%s" state="%s"/>', $c, $s );
+            }
+        }
+        else {
+            my @tmp = map { uc $_ } @char;
+            my $seq = Bio::Phylo::NeXML::Writable->new( -tag => 'seq' );
+            my $seq_text = $self->get_type_object->join( \@tmp );
+            $xml .=
+              $seq->get_xml_tag . "\n$seq_text\n" . "</" . $seq->get_tag . ">";
+        }
+        $xml .= sprintf( '</%s>', $self->get_tag );
+        return $xml;
+    }
 
 =item to_dom()
 
@@ -1014,89 +986,87 @@ Analog to to_xml.
 =cut
 
     sub to_dom {
-		my $self = shift;
-		my $dom = $_[0];
-		my @args = @_;
-		# handle dom factory object...
-		if ( looks_like_instance($dom, 'SCALAR') && $dom->_type == _DOMCREATOR_ ) {
-		    splice(@args, 0, 1);
-		}
-		else {
-		    $dom = $Bio::Phylo::NeXML::DOM::DOM;
-		    unless ($dom) {
-				throw 'BadArgs' => 'DOM factory object not provided';
-		    }
-		}
-	
-		##### make sure argument handling works here....
-	
-		my %args = looks_like_hash @args;
-	
-		my $char_ids  = $args{'-chars'};
-		my $state_ids = $args{'-states'};
-		my $special   = $args{'-special'};
-		if ( my $taxon = $self->get_taxon ) {
-		    $self->set_attributes( 'otu' => $taxon->get_xml_id );
-		}
-		my @char = $self->get_char;
-		my ( $missing, $gap ) = ( $self->get_missing, $self->get_gap );
-	
-		my $elt = $self->get_dom_elt($dom);
-	
-		if ( not $args{'-compact'} ) {
-		    for my $i ( 0 .. $#char ) {
-				if ( $missing ne $char[$i] and $gap ne $char[$i] ) {
-				    my ( $c, $s );
-				    if ( $char_ids and $char_ids->[$i] ) {
-						$c = $char_ids->[$i];
-				    }
-				    else {
-						$c = $i;
-				    }
-				    if ( $state_ids and $state_ids->{uc $char[$i]} ) {
-						$s = $state_ids->{uc $char[$i]};
-				    }
-				    else {
-						$s = uc $char[$i];
-				    }
-				    my $cell_elt = $dom->create_element('-tag'=>'cell'); 
-				    $cell_elt->set_attributes( 'char' => $c );
-				    $cell_elt->set_attributes('state' => $s ); 
-				    $elt->set_child($cell_elt);
-				}
-				elsif ( $missing eq $char[$i] or $gap eq $char[$i] ) {
-				    my ( $c, $s );
-				    if ( $char_ids and $char_ids->[$i] ) {
-						$c = $char_ids->[$i];
-				    }
-				    else {
-						$c = $i;
-				    }
-				    if ( $special and $special->{$char[$i]} ) {
-						$s = $special->{$char[$i]};
-				    }
-				    else {
-						$s = $char[$i];
-				    }
-				    my $cell_elt = $dom->create_element('-tag'=>'cell');
-				    $cell_elt->set_attributes('char' => $c);
-				    $cell_elt->set_attributes( 'state' => $s );
-				    $elt->set_child($cell_elt);
-				    
-				}
-		    }
-		}
-		else {
-		    my @tmp = map { uc $_ } @char;
-		    my $seq = $self->get_type_object->join(\@tmp);
-		    my $seq_elt = $dom->create_element('-tag'=>'seq');
-	#### create a text node here....
-		    $seq_elt->set_text($seq);
-		    #$seq_elt->set_child( XML::LibXML::Text->new($seq) );
-	####
-		    $elt->set_child($seq_elt);
-		}
-		return $elt;
+        my $self = shift;
+        my $dom  = $_[0];
+        my @args = @_;
+
+        # handle dom factory object...
+        if ( looks_like_instance( $dom, 'SCALAR' )
+            && $dom->_type == _DOMCREATOR_ )
+        {
+            splice( @args, 0, 1 );
+        }
+        else {
+            $dom = $Bio::Phylo::NeXML::DOM::DOM;
+            unless ($dom) {
+                throw 'BadArgs' => 'DOM factory object not provided';
+            }
+        }
+        ##### make sure argument handling works here....
+        my %args      = looks_like_hash @args;
+        my $char_ids  = $args{'-chars'};
+        my $state_ids = $args{'-states'};
+        my $special   = $args{'-special'};
+        if ( my $taxon = $self->get_taxon ) {
+            $self->set_attributes( 'otu' => $taxon->get_xml_id );
+        }
+        my @char = $self->get_char;
+        my ( $missing, $gap ) = ( $self->get_missing, $self->get_gap );
+        my $elt = $self->get_dom_elt($dom);
+        if ( not $args{'-compact'} ) {
+            for my $i ( 0 .. $#char ) {
+                if ( $missing ne $char[$i] and $gap ne $char[$i] ) {
+                    my ( $c, $s );
+                    if ( $char_ids and $char_ids->[$i] ) {
+                        $c = $char_ids->[$i];
+                    }
+                    else {
+                        $c = $i;
+                    }
+                    if ( $state_ids and $state_ids->{ uc $char[$i] } ) {
+                        $s = $state_ids->{ uc $char[$i] };
+                    }
+                    else {
+                        $s = uc $char[$i];
+                    }
+                    my $cell_elt = $dom->create_element( '-tag' => 'cell' );
+                    $cell_elt->set_attributes( 'char'  => $c );
+                    $cell_elt->set_attributes( 'state' => $s );
+                    $elt->set_child($cell_elt);
+                }
+                elsif ( $missing eq $char[$i] or $gap eq $char[$i] ) {
+                    my ( $c, $s );
+                    if ( $char_ids and $char_ids->[$i] ) {
+                        $c = $char_ids->[$i];
+                    }
+                    else {
+                        $c = $i;
+                    }
+                    if ( $special and $special->{ $char[$i] } ) {
+                        $s = $special->{ $char[$i] };
+                    }
+                    else {
+                        $s = $char[$i];
+                    }
+                    my $cell_elt = $dom->create_element( '-tag' => 'cell' );
+                    $cell_elt->set_attributes( 'char'  => $c );
+                    $cell_elt->set_attributes( 'state' => $s );
+                    $elt->set_child($cell_elt);
+                }
+            }
+        }
+        else {
+            my @tmp     = map { uc $_ } @char;
+            my $seq     = $self->get_type_object->join( \@tmp );
+            my $seq_elt = $dom->create_element( '-tag' => 'seq' );
+            #### create a text node here....
+            $seq_elt->set_text($seq);
+
+            #$seq_elt->set_child( XML::LibXML::Text->new($seq) );
+            ####
+            $elt->set_child($seq_elt);
+        }
+        return $elt;
     }
 
 =item copy_atts()
@@ -1104,7 +1074,6 @@ Analog to to_xml.
  Not implemented!
 
 =cut
-
     sub copy_atts { }    # XXX not implemented
 
 =item complement()
@@ -1112,7 +1081,6 @@ Analog to to_xml.
  Not implemented!
 
 =cut
-
     sub complement { }   # XXX not implemented
 
 =item slice()
@@ -1137,12 +1105,18 @@ Analog to to_xml.
         my $self = shift;
         $logger->info("cleaning up '$self'");
         if ( defined( my $id = $self->get_id ) ) {
-	        for my $field (@fields) {
-	            delete $field->{$id};
-	        }
+            for my $field (@fields) {
+                delete $field->{$id};
+            }
         }
     }
-
+    
+    sub _update_characters {
+        my $self = shift;
+        if ( my $matrix = $self->get_matrix ) {
+            $matrix->_update_characters;
+        }
+    }
 }
 
 =back
@@ -1182,10 +1156,9 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =head1 REVISION
 
- $Id: Datum.pm 1633 2011-03-30 16:59:55Z rvos $
+ $Id: Datum.pm 1660 2011-04-02 18:29:40Z rvos $
 
 =cut
-
 1;
 __DATA__
 

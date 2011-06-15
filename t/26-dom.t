@@ -1,34 +1,33 @@
 use Test::More;
+
 BEGIN {
     eval { require XML::LibXML::Reader };
-    if ( $@ ) {
-         plan 'skip_all' => 'XML::LibXML not installed';
+    if ($@) {
+        plan 'skip_all' => 'XML::LibXML not installed';
     }
     eval { require XML::Twig };
-    if ( $@ ) {
-	plan 'skip_all' => 'XML::Twig not installed';
+    if ($@) {
+        plan 'skip_all' => 'XML::Twig not installed';
     }
     else {
         plan 'tests' => 80;
     }
 }
-
 use File::Temp qw(tempfile);
 use strict;
-
-my @xml_objects = qw( 
-	Bio::Phylo::Forest::Tree
-	Bio::Phylo::Forest::Node
-	Bio::Phylo::Matrices::Matrix
-	Bio::Phylo::Matrices::Datatype
-	Bio::Phylo::Matrices::Datum
-	Bio::Phylo::Project      
+my @xml_objects = qw(
+  Bio::Phylo::Forest::Tree
+  Bio::Phylo::Forest::Node
+  Bio::Phylo::Matrices::Matrix
+  Bio::Phylo::Matrices::Datatype
+  Bio::Phylo::Matrices::Datum
+  Bio::Phylo::Project
 );
+
 # check if XML::LibXML is available
 my $TEST_XML_LIBXML = eval { require XML::LibXML; 1 };
 
 # uses and cans
-
 use_ok('Bio::Phylo::Factory');
 use_ok('Bio::Phylo::IO');
 use_ok('Bio::Phylo::NeXML::DOM');
@@ -41,74 +40,75 @@ use_ok('XML::LibXML::Reader');
 foreach (@xml_objects) {
     use_ok($_);
     /Datatype/ && do {
-	can_ok($_->new('dna'), 'to_dom');
-	next;
+        can_ok( $_->new('dna'), 'to_dom' );
+        next;
     };
-    can_ok($_->new, 'to_dom');
+    can_ok( $_->new, 'to_dom' );
 }
 
 # test data
 use Bio::Phylo::IO qw( parse );
-my $data = do {local $/; <DATA>};
-ok( my $test = parse( -string=> $data, -format=>'nexml' ), 'parse <DATA>');
+my $data = do { local $/; <DATA> };
+ok( my $test = parse( -string => $data, -format => 'nexml' ), 'parse <DATA>' );
 
 # factory object
 ok( my $fac = Bio::Phylo::Factory->new(), 'make factory' );
+
 # dom element creation
 my @elts = qw(forest tree node taxa taxon matrix datum);
 my %dom_elts;
 my $forest = $$test[1];
-my $tree = $forest->get_entities->[0];
-my $node = $tree->find_node('otuD');
-my $taxa = $$test[0];
-my $taxon = $taxa->get_entities->[0];
+my $tree   = $forest->get_entities->[0];
+my $node   = $tree->find_node('otuD');
+my $taxa   = $$test[0];
+my $taxon  = $taxa->get_entities->[0];
 my $matrix = $$test[2];
-my $datum = $matrix->get_entities->[0];
+my $datum  = $matrix->get_entities->[0];
 
 # enchilada
 my $proj = $fac->create_project;
 $proj->insert($taxa);
 $proj->insert($forest);
 $proj->insert($matrix);
-
 foreach my $format (qw(twig libxml)) {
-    ok( Bio::Phylo::NeXML::DOM->new(-format => $format), "set DOM format: $format");
+    ok( Bio::Phylo::NeXML::DOM->new( -format => $format ),
+        "set DOM format: $format" );
     my %dom;
     foreach (@elts) {
-	ok( $dom{$_} = eval "\$$_->to_dom", "do \$$_->to_dom()" );
+        ok( $dom{$_} = eval "\$$_->to_dom", "do \$$_->to_dom()" );
     }
-
-    
-    ok( my $doc = $proj->get_document, "$format document from project");
-
+    ok( my $doc = $proj->get_document, "$format document from project" );
   SKIP: {
-      #skip 'env var NEXML_ROOT not set', 3 unless $ENV{'NEXML_ROOT'};
-      skip 'skipping remote NeXML validation tests', 3 if 1;
-    # write to tempfile, run validation script (at ../script/nexvl.pl) on it
-      my ( $fh, $fn ) = tempfile();
-      ok( $fh, 'make temp file' );
-      ok( print( $fh $doc->to_xml ), 'write XML from dom' );
-      $fn =~ s/\\/\//g;
-      is(system( $ENV{'NEXML_ROOT'} . '/perl/script/nexvl.pl', '-Q', $fn) + 1, 1, 'dom-generated XML is valid NeXML');
+
+        #skip 'env var NEXML_ROOT not set', 3 unless $ENV{'NEXML_ROOT'};
+        skip 'skipping remote NeXML validation tests', 3 if 1;
+
+        # write to tempfile, run validation script (at ../script/nexvl.pl) on it
+        my ( $fh, $fn ) = tempfile();
+        ok( $fh,                       'make temp file' );
+        ok( print( $fh $doc->to_xml ), 'write XML from dom' );
+        $fn =~ s/\\/\//g;
+        is(
+            system( $ENV{'NEXML_ROOT'} . '/perl/script/nexvl.pl', '-Q', $fn ) +
+              1,
+            1,
+            'dom-generated XML is valid NeXML'
+        );
     }
 
-# from here, want to check that all elements in the original file are 
-# manifested in the $doc DOM
-
-    my $twig = XML::Twig->new();
-    my $org_doc = $twig->parse( $data );
-
+    # from here, want to check that all elements in the original file are
+    # manifested in the $doc DOM
+    my $twig    = XML::Twig->new();
+    my $org_doc = $twig->parse($data);
     my %org_elts;
-
-    my @elt_tags = qw( nex:nexml otus otu trees tree node edge characters format states state uncertain_state_set member char matrix row cell );
-
+    my @elt_tags =
+      qw( nex:nexml otus otu trees tree node edge characters format states state uncertain_state_set member char matrix row cell );
     foreach (@elt_tags) {
-	my @a = $org_doc->descendants($_);
-	my @b = $doc->get_elements_by_tagname($_);
-	is(@b, @a, "number of $_ elements correct (".scalar @b.")");
+        my @a = $org_doc->descendants($_);
+        my @b = $doc->get_elements_by_tagname($_);
+        is( @b, @a, "number of $_ elements correct (" . scalar @b . ")" );
     }
 }
-
 __DATA__
 <nex:nexml 
     generator="Bio::Phylo::Project v.0.17_RC9_1175" 

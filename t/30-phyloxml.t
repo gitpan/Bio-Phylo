@@ -1,35 +1,32 @@
 use Test::More;
+
 BEGIN {
     eval { require XML::Twig };
-    if ( $@ ) {
+    if ($@) {
         plan 'skip_all' => 'XML::Twig not installed';
     }
     else {
         plan 'tests' => 2;
     }
 }
-
 use strict;
 use Bio::Phylo::IO qw'parse unparse';
 use Bio::Phylo::Util::Logger;
 use Bio::Phylo::Util::CONSTANT qw':objecttypes looks_like_object';
-
 my $project = parse(
-	'-format' => 'phyloxml',
-	'-string' => tree1(),
-	'-as_project' => 1,
+    '-format'     => 'phyloxml',
+    '-string'     => tree1(),
+    '-as_project' => 1,
 );
 ok( looks_like_object $project, _PROJECT_ );
-
 my $string = unparse(
-	'-format' => 'phyloxml',
-	'-phylo'  => $project,
+    '-format' => 'phyloxml',
+    '-phylo'  => $project,
 );
-ok( $string );
-
+ok($string);
 
 sub tree1 {
-return <<'TREE1';
+    return <<'TREE1';
 <?xml version="1.0" encoding="UTF-8"?>
 <phyloxml xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
    xsi:schemaLocation="http://www.phyloxml.org http://www.phyloxml.org/1.10/phyloxml.xsd"

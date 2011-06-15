@@ -1,13 +1,8 @@
 package Bio::Phylo::Treedrawer::Jpeg;
 use strict;
+use Bio::Phylo::Util::Dependency 'Bio::Phylo::Treedrawer::Png';
 use Bio::Phylo::Util::Exceptions 'throw';
-use vars qw(@ISA);
-
-eval { require Bio::Phylo::Treedrawer::Png };
-if ( $@ ) {
-    throw 'ExtensionError' => "Error loading the Bio::Phylo::Treedrawer::Png extension: $@";
-}
-@ISA=qw(Bio::Phylo::Treedrawer::Png);
+use base 'Bio::Phylo::Treedrawer::Png';
 
 =head1 NAME
 
@@ -37,7 +32,8 @@ sub _finish {
         return $jpg;
     }
     else {
-        throw 'ExtensionError' => "Can't create JPEG, libgd probably not compiled with it"
+        throw 'ExtensionError' =>
+          "Can't create JPEG, libgd probably not compiled with it";
     }
 }
 
@@ -67,13 +63,7 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =head1 REVISION
 
- $Id: Jpeg.pm 1593 2011-02-27 15:26:04Z rvos $
+ $Id: Jpeg.pm 1660 2011-04-02 18:29:40Z rvos $
 
 =cut
-
 1;
-
-
-
-
-

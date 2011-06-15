@@ -43,34 +43,36 @@ Stack trace object constructor.
 =cut
 
 sub new {
-	my $class = shift;
-	my $self = [];
-	my $i = 0;
-	my $j = 0;
-	package DB; # to get @_ stack from previous frames, see perldoc -f caller
-	while( my @frame = caller($i) ) {
-		my $package = $frame[0];
-		if ( not Bio::Phylo::Util::StackTrace::_skip_me( $package ) ) {
-			my @args = @DB::args;
-			$self->[$j++] = [ @frame, @args ];
-		}
-		$i++;
-	}
-	package Bio::Phylo::Util::StackTrace;
-	shift @$self; # to remove "throw" frame
-	return bless $self, $class;
+    my $class = shift;
+    my $self  = [];
+    my $i     = 0;
+    my $j     = 0;
+
+    package DB;    # to get @_ stack from previous frames, see perldoc -f caller
+    while ( my @frame = caller($i) ) {
+        my $package = $frame[0];
+        if ( not Bio::Phylo::Util::StackTrace::_skip_me($package) ) {
+            my @args = @DB::args;
+            $self->[ $j++ ] = [ @frame, @args ];
+        }
+        $i++;
+    }
+
+    package Bio::Phylo::Util::StackTrace;
+    shift @$self;    # to remove "throw" frame
+    return bless $self, $class;
 }
 
 sub _skip_me {
-	my $class = shift;
-	my $skip = 0;
-	if ( $class->isa('Bio::Phylo::Util::Exceptions') ) {
-		$skip++;
-	}
-	if ( $class->isa('Bio::Phylo::Util::ExceptionFactory') ) {
-		$skip++;
-	}
-	return $skip;
+    my $class = shift;
+    my $skip  = 0;
+    if ( $class->isa('Bio::Phylo::Util::Exceptions') ) {
+        $skip++;
+    }
+    if ( $class->isa('Bio::Phylo::Util::ExceptionFactory') ) {
+        $skip++;
+    }
+    return $skip;
 }
 
 =back
@@ -116,19 +118,22 @@ fields in frame:
 =cut
 
 sub as_string {
-	my $self = shift;
-	my $string = "";
-	for my $frame ( @$self ) {
-		my $method = $frame->[3];
-		my @args;
-		for my $i ( 10 .. $#{ $frame } ) {
-			push @args, $frame->[$i];
-		}
-		my $file = $frame->[1];
-		my $line = $frame->[2];
-		$string .= $method . "(" . join(', ', map { "'$_'" } grep { $_ } @args ) . ") called at $file line $line\n";
-	}
-	return $string;
+    my $self   = shift;
+    my $string = "";
+    for my $frame (@$self) {
+        my $method = $frame->[3];
+        my @args;
+        for my $i ( 10 .. $#{$frame} ) {
+            push @args, $frame->[$i];
+        }
+        my $file = $frame->[1];
+        my $line = $frame->[2];
+        $string .=
+            $method . "("
+          . join( ', ', map { "'$_'" } grep { $_ } @args )
+          . ") called at $file line $line\n";
+    }
+    return $string;
 }
 
 =back
@@ -163,5 +168,4 @@ L<http://dx.doi.org/10.1186/1471-2105-12-63>
  $Id: StackTrace.pm 1593 2011-02-27 15:26:04Z rvos $
 
 =cut
-
 1;
