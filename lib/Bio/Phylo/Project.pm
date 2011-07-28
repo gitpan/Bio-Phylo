@@ -55,6 +55,33 @@ Project constructor.
         return parse( '-project' => $self, @_ );
     }
 
+=item reset_xml_ids()
+
+Resets all xml ids to default values
+
+ Type    : Mutator
+ Title   : reset_xml_ids
+ Usage   : $project->reset_xml_ids
+ Function: Resets all xml ids to default values
+ Returns : A Bio::Phylo::Project object.
+ Args    : None
+
+=cut
+
+    sub reset_xml_ids {
+        my $self = shift;        
+        if ( UNIVERSAL::can($self,'set_xml_id') ) {
+            my $xml_id = $self->get_tag;
+	    my $obj_id = $self->get_id;
+            $xml_id =~ s/^(.).+(.)$/$1$2$obj_id/;
+            $self->set_xml_id($xml_id);
+        }
+        if ( UNIVERSAL::can($self,'get_entities') ) {
+            reset_xml_ids($_) for @{ $self->get_entities };
+        }
+        return $self;
+    }
+
 =back
 
 =head2 ACCESSORS
@@ -82,7 +109,7 @@ Project constructor.
 
 Getter for taxa objects
 
- Type    : Constructor
+ Type    : Accessor
  Title   : get_taxa
  Usage   : my $taxa = $proj->get_taxa;
  Function: Getter for taxa objects
@@ -100,7 +127,7 @@ Getter for taxa objects
 
 Getter for forest objects
 
- Type    : Constructor
+ Type    : Accessor
  Title   : get_forests
  Usage   : my $forest = $proj->get_forests;
  Function: Getter for forest objects
@@ -118,7 +145,7 @@ Getter for forest objects
 
 Getter for matrix objects
 
- Type    : Constructor
+ Type    : Accessor
  Title   : get_matrices
  Usage   : my $matrix = $proj->get_matrices;
  Function: Getter for matrix objects
@@ -130,6 +157,43 @@ Getter for matrix objects
     sub get_matrices {
         my $self = shift;
         return $get_object->( $self, $MATRIX );
+    }
+
+=item get_items()
+
+Gets all items of the specified type, recursively. This method can be used
+to get things like all the trees in all the forest objects as one flat list
+(or, indeed, all nodes, all taxon objects, etc.)
+
+ Type    : Accessor
+ Title   : get_items
+ Usage   : my @nodes = @{ $proj->get_items(_NODE_) };
+ Function: Getter for items of specified type
+ Returns : An array reference of objects
+ Args    : A type constant as defined in Bio::Phylo::Util::CONSTANT
+
+=cut	
+
+    sub _item_finder {
+        my ( $item, $const, $array ) = @_;
+        if ( UNIVERSAL::can($item,'_type') ) {
+            if ( $item->_type == $const ) {
+                push @{ $array }, $item;
+            }
+            elsif ( UNIVERSAL::can($item,'get_entities') ) {
+                _item_finder( $_, $const, $array ) for @{ $item->get_entities };
+            }
+        }
+    }
+    
+    sub get_items {
+        my ( $self, $const ) = @_;
+        if ( $const !~ /^\d+/ ) {
+            throw 'BadArgs' => 'Constant must be an integer';
+        }
+        my $result = [];
+        _item_finder( $self, $const, $result );
+        return $result;
     }
 
 =item get_document()
@@ -269,6 +333,7 @@ Serializes invocant to XML.
 
     sub to_xml {
         my $self = shift;
+        $self->reset_xml_ids;
 
         # creating opening tags
         $self->_add_project_metadata;
@@ -320,6 +385,46 @@ Serializes invocant to NEXUS.
 
 =cut
 
+    my $write_notes = sub {
+        my ( $self, @taxa ) = @_;
+        my $nexus = 'BEGIN NOTES;' . "\n";
+        my $version = $self->VERSION;
+        my $class   = ref $self;
+        my $time    = localtime();
+        $nexus .= "[! Notes block written by $class $version on $time ]\n";
+        for my $taxa ( @taxa ) {
+            my $name = $taxa->get_nexus_name;
+            my ( $i, $j ) = ( 1, 0 );
+            for my $taxon ( @{ $taxa->get_entities } ) {
+                if ( my $link = $taxon->get_link ) {
+                    if ( $link =~ m|/phylows/| ) {
+                        
+                        # link has no query string, append one
+                        if ( $link !~ /\?/ ) {
+                            $link .= '?';
+                        }
+                        
+                        # link has a format statement, replace format
+                        if ( $link =~ /\?.*format=/ ) {
+                            $link =~ s/(\?.*format=)\s+/$1nexus/;
+                        }
+                        
+                        # append format statement
+                        else {
+                            $link .= '&' if $link !~ /\?$/ && $link !~ /&$/;
+                            $link .= 'format=nexus';
+                        }
+                    }
+                    $nexus .= "\tSUT TAXA = $name TAXON = $i NAME = hyperlink STRING = '$link';\n";
+                    $nexus .= "\tHYPERLINK TAXA = $name TAXON = $j URL = '$link';\n";
+                }
+                $i++;
+                $j++;
+            }
+        }
+        $nexus .= 'END;' . "\n";        
+    };
+
     sub to_nexus {
         my $self   = shift;
         my $nexus  = "#NEXUS\n";
@@ -329,6 +434,7 @@ Serializes invocant to NEXUS.
         for ( values %taxa, @linked ) {
             $nexus .= $_->to_nexus(@_);
         }
+        $nexus .= $write_notes->($self,values %taxa);
         return $nexus;
     }
 

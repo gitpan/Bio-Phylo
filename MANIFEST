@@ -35,6 +35,7 @@ lib/Bio/Phylo/NeXML/DOM/Document/Twig.pm
 lib/Bio/Phylo/NeXML/DOM/Element.pm
 lib/Bio/Phylo/NeXML/DOM/Element/Libxml.pm
 lib/Bio/Phylo/NeXML/DOM/Element/Twig.pm
+lib/Bio/Phylo/NeXML/Entities.pm
 lib/Bio/Phylo/NeXML/Meta.pm
 lib/Bio/Phylo/NeXML/Meta/XMLLiteral.pm
 lib/Bio/Phylo/NeXML/Writable.pm
@@ -49,6 +50,18 @@ lib/Bio/Phylo/Parsers/Phyloxml.pm
 lib/Bio/Phylo/Parsers/Table.pm
 lib/Bio/Phylo/Parsers/Taxlist.pm
 lib/Bio/Phylo/Parsers/Tolweb.pm
+lib/Bio/Phylo/Parsers/Ubiocbmeta.pm
+lib/Bio/Phylo/Parsers/Ubiometa.pm
+lib/Bio/Phylo/Parsers/Ubiosearch.pm
+lib/Bio/Phylo/PhyloWS.pm
+lib/Bio/Phylo/PhyloWS/Client.pm
+lib/Bio/Phylo/PhyloWS/Resource.pm
+lib/Bio/Phylo/PhyloWS/Resource/Description.pm
+lib/Bio/Phylo/PhyloWS/Service.pm
+lib/Bio/Phylo/PhyloWS/Service/Timetree.pm
+lib/Bio/Phylo/PhyloWS/Service/Tolweb.pm
+lib/Bio/Phylo/PhyloWS/Service/UbioClassificationBank.pm
+lib/Bio/Phylo/PhyloWS/Service/UbioNameBank.pm
 lib/Bio/Phylo/Project.pm
 lib/Bio/Phylo/Set.pm
 lib/Bio/Phylo/Taxa.pm
@@ -75,6 +88,7 @@ lib/Bio/Phylo/Unparsers/Nexus.pm
 lib/Bio/Phylo/Unparsers/Pagel.pm
 lib/Bio/Phylo/Unparsers/Phylip.pm
 lib/Bio/Phylo/Unparsers/Phyloxml.pm
+lib/Bio/Phylo/Unparsers/Rss1.pm
 lib/Bio/Phylo/Util/CONSTANT.pm
 lib/Bio/Phylo/Util/Dependency.pm
 lib/Bio/Phylo/Util/Exceptions.pm

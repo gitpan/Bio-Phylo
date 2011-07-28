@@ -108,10 +108,10 @@ sub _to_string {
     }
     $nexml_twig->set_root($nexml_root);
     $nexml_twig->set_xml_version('1.0');
-    $nexml_twig->set_encoding('ISO-8859-1');
+    $nexml_twig->set_encoding('UTF-8');
     $nexml_twig->set_pretty_print('indented');
     $nexml_twig->set_empty_tag_style('normal');
-    my $nexml_string = $nexml_twig->sprint();
+    my $nexml_string = $nexml_twig->prolog() . "\n" . $nexml_twig->sprint();
     return $nexml_string;
 }
 

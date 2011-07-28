@@ -78,10 +78,12 @@ sub _parse {
     my $self = shift;
     $self->_init;
     $self->_logger->debug("going to parse xml");
-    $self->{'_tree'} = $self->_factory->create_tree;
-    $self->{'_tree'}->set_namespaces( 'tbe' => _NS_TWE_ );
-    $self->{'_tree'}->set_namespaces( 'dc'  => _NS_DC_ );
-    $self->{'_tree'}->set_namespaces( 'tba' => _NS_TWA_ );
+    $self->{'_tree'} = $self->_factory->create_tree(
+        '-namespaces' => {
+            'tol' => _NS_TOL_,
+            'dc'  => _NS_DC_,
+        }    
+    );
     $self->{'_twig'}->parse( $self->_string );
     $self->_logger->debug("done parsing xml");
 
@@ -106,33 +108,61 @@ sub _handle_node {
 
     # these hashes are populated so that we can build the topology
     # once we've processed all NODE elements
-    my $id = $node_elt->att('ID');    
+    my $id = $node_elt->att('ID');
+    $node_obj->set_guid($id);
+    $node_obj->add_meta(
+        $fac->create_meta( '-triple' => { 'dc:identifier' => $id } )
+    );
     $self->{'_node_of'}->{$id} = $node_obj;    
     if ( my $parent = $node_elt->parent->parent ) {
         $self->{'_parent_of'}->{$id} = $parent->att('ID');
     }
-
-    # we don't process child NODE elements here, we construct the topology
-    # afterwards. This so that we can process the element structure in chunks.
-    for my $child ( $node_elt->children ) {
-        my ( $tag, $text ) = ( $child->tag, $child->text );
-        if ( $text && $tag eq 'NAME' ) {
-            $node_obj->set_name($text);
-        }
-        elsif ( $text && $tag eq 'DESCRIPTION' ) {
-            $node_obj->add_meta( $fac->create_meta( '-triple' => { 'dc:description' => $text } ) );
-        }
-        elsif ( $text && $tag ne 'NODES' && $tag ne 'OTHERNAMES' ) {
-            $node_obj->add_meta( $fac->create_meta( '-triple' => { 'tbe:' . lc( $tag ) => $text } ) );
-        }
-    }
     
-    for my $att_name ( $node_elt->att_names ) {
-        if ( defined $node_elt->att($att_name) ) {
-            $node_obj->add_meta( $fac->create_meta( '-triple' => { 'tba:' . lc($att_name) => $node_elt->att($att_name) } ) );
+    # process node level metadata
+    $self->_process_metadata( $node_elt, $node_obj );
+    
+    # process other names
+    my ($othernames_elt) = $node_elt->children('OTHERNAMES');
+    if ( $othernames_elt ) {
+        for my $othername_elt ( $othernames_elt->children ) {
+            my ($name_elt) = $othername_elt->children('NAME');
+            my $text = $name_elt->text;
+            my $meta_obj = $fac->create_meta( '-triple' => { 'tol:othername' => $text } );
+            $node_obj->add_meta( $meta_obj );
+            $self->_process_metadata( $othername_elt, $meta_obj );        
         }
     }
     
     $node_elt->delete;
 }
+
+sub _process_metadata {
+    my ( $self, $elt, $obj ) = @_;
+    my $elt_tag = $elt->tag;
+    my $fac = $self->_factory;
+
+    # we don't process child NODE elements here, we construct the topology
+    # afterwards. This so that we can process the element structure in chunks.
+    for my $child ( $elt->children ) {
+        my ( $child_tag, $text ) = ( $child->tag, $child->text );
+        if ( $text && $child_tag eq 'NAME' ) {
+            $obj->set_name($text) if $elt_tag eq 'NODE';
+        }
+        elsif ( $text && $child_tag eq 'DESCRIPTION' ) {
+            $obj->add_meta( $fac->create_meta( '-triple' => { 'dc:description' => $text } ) );
+            $obj->set_desc( $text );
+        }
+        elsif ( $text && $child_tag ne 'NODES' && $child_tag ne 'OTHERNAMES' ) {
+            $obj->add_meta( $fac->create_meta( '-triple' => { 'tol:' . lc( $child_tag ) => $text } ) );
+        }
+    }
+    
+    for my $att_name ( $elt->att_names ) {
+        if ( defined $elt->att($att_name) ) {
+            $obj->add_meta( $fac->create_meta( '-triple' => { 'tol:' . lc($att_name) => $elt->att($att_name) } ) );
+        }
+    }
+    
+}
+
 1;

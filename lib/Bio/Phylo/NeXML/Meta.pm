@@ -79,7 +79,8 @@ as an element called 'meta', with RDFa compliant attributes.
         my %resource = ( 'xsi:type' => 'nex:ResourceMeta' );
         my %literal  = ( 'xsi:type' => 'nex:LiteralMeta' );
         if ( not ref $content ) {
-            if ( $content =~ m|^http://| ) {
+            if ( $content =~ m|^http://| or $content =~ m|^urn:| ) {
+				$content =~ s/&([^a])/&amp;$1/g;
                 $self->set_attributes( 'href' => $content, %resource );
                 if ( my $prop = $self->get_attributes('property') ) {
                     $self->set_attributes( 'rel' => $prop );
@@ -121,10 +122,7 @@ as an element called 'meta', with RDFa compliant attributes.
                 );
             }
             else {
-                $self->set_attributes(
-                    'datatype' => 'rdf:XMLLiteral',
-                    %resource
-                );
+                $self->set_attributes( 'datatype' => 'rdf:XMLLiteral', %resource );
                 $self->insert( $fac->create_xmlliteral($content) );
                 $self->unset_attribute('content');
             }
