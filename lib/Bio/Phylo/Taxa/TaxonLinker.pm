@@ -1,4 +1,3 @@
-# $Id: TaxonLinker.pm 1660 2011-04-02 18:29:40Z rvos $
 package Bio::Phylo::Taxa::TaxonLinker;
 use Bio::Phylo::Mediators::TaxaMediator;
 use Bio::Phylo::Util::Exceptions;
@@ -118,8 +117,6 @@ Retrieves the Bio::Phylo::Taxa::Taxon object linked to the invocant.
 
     sub _cleanup {
         my $self = shift;
-
-        #$logger->debug("cleaning up '$self'");
     }
 
 =back
@@ -155,10 +152,7 @@ and B<Chase Miller>, 2011. Bio::Phylo - phyloinformatic analysis using Perl.
 I<BMC Bioinformatics> B<12>:63.
 L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
-=head1 REVISION
-
- $Id: TaxonLinker.pm 1660 2011-04-02 18:29:40Z rvos $
-
 =cut
+
 }
 1;

@@ -16,6 +16,7 @@ object. It is called by the L<Bio::Phylo::Treedrawer> object, so look there to
 learn how to create tree drawings.
 
 =cut
+
 my $logger = Bio::Phylo::Util::Logger->new;
 my $black  = 0;
 my $white  = 255;
@@ -221,11 +222,8 @@ and B<Chase Miller>, 2011. Bio::Phylo - phyloinformatic analysis using Perl.
 I<BMC Bioinformatics> B<12>:63.
 L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
-=head1 REVISION
-
- $Id: Processing.pm 1660 2011-04-02 18:29:40Z rvos $
-
 =cut
+
 1;
 __DATA__
 

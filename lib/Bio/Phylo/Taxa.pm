@@ -1,4 +1,3 @@
-# $Id: Taxa.pm 1660 2011-04-02 18:29:40Z rvos $
 package Bio::Phylo::Taxa;
 use strict;
 use base 'Bio::Phylo::Listable';
@@ -13,6 +12,7 @@ This class has no internal state, no cleanup is necessary.
 =end comment
 
 =cut
+
 {
     my $logger    = __PACKAGE__->get_logger;
     my $mediator  = 'Bio::Phylo::Mediators::TaxaMediator';
@@ -105,6 +105,7 @@ Sets associated Bio::Phylo::Forest object.
            forest and matrix objects.
 
 =cut
+
     sub set_forest {
         my ( $self, $forest ) = @_;
         $logger->debug("setting forest $forest");
@@ -362,6 +363,7 @@ TEMPLATE
 =end comment
 
 =cut
+
     sub _container { $CONTAINER }
 
 =begin comment
@@ -376,6 +378,7 @@ TEMPLATE
 =end comment
 
 =cut
+
     sub _type { $TYPE }
     sub _tag  { 'otus' }
 
@@ -409,10 +412,7 @@ and B<Chase Miller>, 2011. Bio::Phylo - phyloinformatic analysis using Perl.
 I<BMC Bioinformatics> B<12>:63.
 L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
-=head1 REVISION
-
- $Id: Taxa.pm 1660 2011-04-02 18:29:40Z rvos $
-
 =cut
+
 }
 1;

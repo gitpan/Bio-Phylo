@@ -1,4 +1,3 @@
-#$Id: Twig.pm 1660 2011-04-02 18:29:40Z rvos $
 package Bio::Phylo::NeXML::DOM::Element::Twig;
 use strict;
 use Bio::Phylo::Util::Exceptions 'throw';
@@ -209,23 +208,6 @@ sub clear_attributes {
     $self->del_att(@attr_names);
     return %ret;
 }
-
-=back
-
-=head2 Namespace accessors/mutators
-
-=over
-
-=item
-
- Type    : 
- Title   :
- Usage   :
- Function:
- Returns :
- Args    :
-
-=cut
 
 =back
 

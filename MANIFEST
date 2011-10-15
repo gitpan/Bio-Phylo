@@ -40,7 +40,6 @@ lib/Bio/Phylo/NeXML/Meta.pm
 lib/Bio/Phylo/NeXML/Meta/XMLLiteral.pm
 lib/Bio/Phylo/NeXML/Writable.pm
 lib/Bio/Phylo/Parsers/Abstract.pm
-lib/Bio/Phylo/Parsers/Cdao.pm
 lib/Bio/Phylo/Parsers/Fasta.pm
 lib/Bio/Phylo/Parsers/Json.pm
 lib/Bio/Phylo/Parsers/Newick.pm
@@ -97,7 +96,6 @@ lib/Bio/Phylo/Util/Dependency.pm
 lib/Bio/Phylo/Util/Exceptions.pm
 lib/Bio/Phylo/Util/IDPool.pm
 lib/Bio/Phylo/Util/Logger.pm
-lib/Bio/Phylo/Util/MOP.pm
 lib/Bio/Phylo/Util/OptionalInterface.pm
 lib/Bio/Phylo/Util/StackTrace.pm
 LICENSE

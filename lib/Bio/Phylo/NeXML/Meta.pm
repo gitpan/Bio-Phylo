@@ -199,7 +199,8 @@ Returns triple object
  Returns : A triple object
  Args    : NONE
 
-=cut    
+=cut
+
     sub get_object { $content{ shift->get_id } }
 
 =item get_predicate()
@@ -293,11 +294,8 @@ and B<Chase Miller>, 2011. Bio::Phylo - phyloinformatic analysis using Perl.
 I<BMC Bioinformatics> B<12>:63.
 L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
-=head1 REVISION
+=cut
 
- $Id: Meta.pm 1660 2011-04-02 18:29:40Z rvos $
-
-=cut    
     sub _tag       { 'meta' }
     sub _type      { $TYPE_CONSTANT }
     sub _container { $CONTAINER_CONSTANT }

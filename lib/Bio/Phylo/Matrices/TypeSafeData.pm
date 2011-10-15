@@ -1,4 +1,3 @@
-# $Id: TypeSafeData.pm 1660 2011-04-02 18:29:40Z rvos $
 package Bio::Phylo::Matrices::TypeSafeData;
 use strict;
 use base 'Bio::Phylo::Listable';
@@ -301,6 +300,7 @@ Get gap symbol.
  Args    : None
 
 =cut
+
     sub get_gap { shift->get_type_object->get_gap }
 
 =item get_lookup()
@@ -315,6 +315,7 @@ Get ambiguity lookup table.
  Args    : None
 
 =cut
+
     sub get_lookup { shift->get_type_object->get_lookup }
 
 =item get_type_object()
@@ -329,6 +330,7 @@ Get data type object.
  Args    : None
 
 =cut
+
     sub get_type_object { $type{ $_[0]->get_id } }
 
 =back
@@ -442,9 +444,6 @@ and B<Chase Miller>, 2011. Bio::Phylo - phyloinformatic analysis using Perl.
 I<BMC Bioinformatics> B<12>:63.
 L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
-=head1 REVISION
-
- $Id: TypeSafeData.pm 1660 2011-04-02 18:29:40Z rvos $
-
 =cut
+
 1;

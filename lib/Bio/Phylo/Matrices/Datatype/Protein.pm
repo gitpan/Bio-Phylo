@@ -1,4 +1,3 @@
-# $Id: Protein.pm 1660 2011-04-02 18:29:40Z rvos $
 package Bio::Phylo::Matrices::Datatype::Protein;
 use strict;
 use base 'Bio::Phylo::Matrices::Datatype';
@@ -49,11 +48,8 @@ using this module the discussion forum is a good place to start
 posting questions (NOT bug reports, see below):
 L<http://www.cpanforum.com/dist/Bio-Phylo>
 
-=head1 REVISION
-
- $Id: Protein.pm 1660 2011-04-02 18:29:40Z rvos $
-
 =cut
+
 $LOOKUP = {
     'A' => ['A'],
     'B' => [ 'D', 'N' ],

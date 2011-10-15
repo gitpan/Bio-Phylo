@@ -14,6 +14,7 @@ This package is subclassed by all other packages within Bio::Phylo::Unparsers::.
 There is no direct usage.
 
 =cut
+
 sub _logger { $logger }
 
 sub _new {
@@ -62,9 +63,6 @@ and B<Chase Miller>, 2011. Bio::Phylo - phyloinformatic analysis using Perl.
 I<BMC Bioinformatics> B<12>:63.
 L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
-=head1 REVISION
-
- $Id: Abstract.pm 1660 2011-04-02 18:29:40Z rvos $
-
 =cut
+
 1;

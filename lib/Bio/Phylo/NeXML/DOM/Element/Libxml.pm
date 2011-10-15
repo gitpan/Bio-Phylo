@@ -1,4 +1,3 @@
-#$Id: Libxml.pm 1660 2011-04-02 18:29:40Z rvos $
 
 =head1 NAME
 
@@ -20,6 +19,7 @@ C<XML::LibXML::Element> package.
 Mark A. Jensen ( maj -at- fortinbras -dot- us )
 
 =cut
+
 package Bio::Phylo::NeXML::DOM::Element::Libxml;
 use strict;
 use Bio::Phylo::Util::Exceptions 'throw';
@@ -212,23 +212,6 @@ sub clear_attributes {
 
 =back
 
-=head2 Namespace accessors/mutators
-
-=over
-
-=item
-
- Type    : 
- Title   :
- Usage   :
- Function:
- Returns :
- Args    :
-
-=cut
-
-=back
-
 =head2 Content mutators/accessors
 
 =over
@@ -288,6 +271,7 @@ sub get_text {
  Args    : none
 
 =cut
+
 #no strict;
 sub clear_text {
     my ( $self, @args ) = @_;
@@ -317,6 +301,7 @@ sub clear_text {
  Args    : none
 
 =cut
+
 sub get_parent {
     my $e = shift->parentNode;
     return bless $e, __PACKAGE__;
@@ -507,4 +492,5 @@ I<BMC Bioinformatics> B<12>:63.
 L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
 =cut
+
 1;

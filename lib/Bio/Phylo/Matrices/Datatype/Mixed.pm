@@ -1,4 +1,3 @@
-# $Id: Mixed.pm 1660 2011-04-02 18:29:40Z rvos $
 package Bio::Phylo::Matrices::Datatype::Mixed;
 use strict;
 use base 'Bio::Phylo::Matrices::Datatype';
@@ -17,7 +16,8 @@ The Bio::Phylo::Matrices::Datatype::* classes are used to validate data
 contained by L<Bio::Phylo::Matrices::Matrix> and L<Bio::Phylo::Matrices::Datum>
 objects.
 
-=cut   
+=cut
+
     my @fields = \( my ( %range, %missing, %gap ) );
 
     sub _new {
@@ -126,6 +126,7 @@ Returns the object's missing data symbol.
  Args    : None
 
 =cut
+
     sub get_missing { return $missing{ shift->get_id } }
 
 =item get_gap()
@@ -140,6 +141,7 @@ Returns the object's gap symbol.
  Args    : None
 
 =cut
+
     sub get_gap { return $gap{ shift->get_id } }
     my $get_ranges = sub { $range{ shift->get_id } };
 
@@ -335,9 +337,6 @@ and B<Chase Miller>, 2011. Bio::Phylo - phyloinformatic analysis using Perl.
 I<BMC Bioinformatics> B<12>:63.
 L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
-=head1 REVISION
-
- $Id: Mixed.pm 1660 2011-04-02 18:29:40Z rvos $
-
 =cut
+
 1;

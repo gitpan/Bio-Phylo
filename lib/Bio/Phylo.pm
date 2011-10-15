@@ -1,4 +1,3 @@
-# $Id: Phylo.pm 1660 2011-04-02 18:29:40Z rvos $
 package Bio::Phylo;
 use strict;
 use base 'Bio::Phylo::Identifiable';
@@ -27,7 +26,7 @@ require Bio::Phylo::Mediators::TaxaMediator;
 # Include the revision number from subversion in $VERSION
 my $rev = '$Id: Phylo.pm 1660 2011-04-02 18:29:40Z rvos $';
 $rev =~ s/^[^\d]+(\d+)\b.*$/$1/;
-our $VERSION = "0.42";
+our $VERSION = "0.43";
 $VERSION .= "_$rev";
 {
     my $taxamediator = 'Bio::Phylo::Mediators::TaxaMediator';
@@ -566,6 +565,7 @@ Gets a logger object.
  Args    : None
 
 =cut
+
     sub get_logger { $logger }
 
 =back
@@ -810,6 +810,7 @@ Gets version number (including revision number).
  Comments:
 
 =cut
+
     sub VERSION { $VERSION }
 
 =begin comment
@@ -830,6 +831,7 @@ Invocant destructor.
 =end comment
 
 =cut
+
     {
         no warnings 'recursion';
         my %isa_for_class;
@@ -993,10 +995,7 @@ and B<Chase Miller>, 2011. Bio::Phylo - phyloinformatic analysis using Perl.
 I<BMC Bioinformatics> B<12>:63.
 L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
-=head1 REVISION
-
- $Id: Phylo.pm 1660 2011-04-02 18:29:40Z rvos $
-
 =cut
+
 }
 1;

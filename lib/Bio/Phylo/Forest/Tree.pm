@@ -1,4 +1,3 @@
-# $Id: Tree.pm 1660 2011-04-02 18:29:40Z rvos $
 package Bio::Phylo::Forest::Tree;
 use strict;
 use base 'Bio::Phylo::Listable';
@@ -2993,6 +2992,7 @@ Serializes invocant to SVG.
 =end comment
 
 =cut
+
     sub _container { $CONTAINER_CONSTANT }
 
 =begin comment
@@ -3007,6 +3007,7 @@ Serializes invocant to SVG.
 =end comment
 
 =cut
+
     sub _type { $TYPE_CONSTANT }
     sub _tag  { 'tree' }
 
@@ -3041,11 +3042,8 @@ and B<Chase Miller>, 2011. Bio::Phylo - phyloinformatic analysis using Perl.
 I<BMC Bioinformatics> B<12>:63.
 L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
-=head1 REVISION
-
- $Id: Tree.pm 1660 2011-04-02 18:29:40Z rvos $
-
 =cut
+
 }
 1;
 __DATA__

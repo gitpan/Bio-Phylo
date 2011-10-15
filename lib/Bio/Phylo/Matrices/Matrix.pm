@@ -1,4 +1,3 @@
-# $Id: Matrix.pm 1660 2011-04-02 18:29:40Z rvos $
 package Bio::Phylo::Matrices::Matrix;
 use strict;
 use base qw'Bio::Phylo::Matrices::TypeSafeData Bio::Phylo::Taxa::TaxaLinker';
@@ -625,6 +624,7 @@ Retrieves state labels.
  Args    : None.
 
 =cut
+
     sub get_statelabels { $statelabels{ $_[0]->get_id } || [] }
 
 =item get_charlabels()
@@ -659,6 +659,7 @@ Returns matrix gapmode.
  Args    : none
 
 =cut
+
     sub get_gapmode { $gapmode{ $_[0]->get_id } }
 
 =item get_matchchar()
@@ -673,6 +674,7 @@ Returns matrix match character.
  Args    : none
 
 =cut
+
     sub get_matchchar { $matchchar{ $_[0]->get_id } || '.' }
 
 =item get_nchar()
@@ -713,6 +715,7 @@ Calculates number of taxa (rows) in matrix.
  Args    : none
 
 =cut
+
     sub get_ntax { scalar @{ shift->get_entities } }
 
 =item get_polymorphism()
@@ -728,6 +731,7 @@ Returns matrix 'polymorphism' interpretation.
  Args    : none
 
 =cut
+
     sub get_polymorphism { $polymorphism{ $_[0]->get_id } }
 
 =item get_raw()
@@ -771,6 +775,7 @@ Returns matrix case sensitivity interpretation.
  Args    : none
 
 =cut
+
     sub get_respectcase { $case_sensitivity{ $_[0]->get_id } }
 
 =back
@@ -1903,11 +1908,8 @@ and B<Chase Miller>, 2011. Bio::Phylo - phyloinformatic analysis using Perl.
 I<BMC Bioinformatics> B<12>:63.
 L<http://dx.doi.org/10.1186/1471-2105-12-63>
 
-=head1 REVISION
-
- $Id: Matrix.pm 1660 2011-04-02 18:29:40Z rvos $
-
 =cut
+
 }
 1;
 __DATA__
