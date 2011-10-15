@@ -713,10 +713,12 @@ Calculates occurrences of states.
         my $self = shift;
 
         # maybe there should be an option to bin continuous values
-        # in X categories, and return the frequencies of those?
-        if ( $self->get_type =~ /^continuous$/i ) {
-            throw 'BadArgs' => 'Matrix holds continuous values';
-        }
+        # in X categories, and return the frequencies of those? Anyway,
+        # Hennig86 seems to want continuous values to be counted as well,
+        # so not throwing an exception here.
+        #if ( $self->get_type =~ /^continuous$/i ) {
+        #    throw 'BadArgs' => 'Matrix holds continuous values';
+        #}
         my %counts;
         if (@_) {
             my %focus = map { $_ => 1 } @_;
@@ -962,7 +964,10 @@ Serializes datum to nexml format.
         }
         else {
             my @tmp = map { uc $_ } @char;
-            my $seq = Bio::Phylo::NeXML::Writable->new( -tag => 'seq' );
+            my $seq = Bio::Phylo::NeXML::Writable->new(
+                '-tag'          => 'seq',
+                '-identifiable' => 0,
+            );
             my $seq_text = $self->get_type_object->join( \@tmp );
             $xml .=
               $seq->get_xml_tag . "\n$seq_text\n" . "</" . $seq->get_tag . ">";

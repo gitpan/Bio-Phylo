@@ -40,6 +40,7 @@ lib/Bio/Phylo/NeXML/Meta.pm
 lib/Bio/Phylo/NeXML/Meta/XMLLiteral.pm
 lib/Bio/Phylo/NeXML/Writable.pm
 lib/Bio/Phylo/Parsers/Abstract.pm
+lib/Bio/Phylo/Parsers/Cdao.pm
 lib/Bio/Phylo/Parsers/Fasta.pm
 lib/Bio/Phylo/Parsers/Json.pm
 lib/Bio/Phylo/Parsers/Newick.pm
@@ -79,7 +80,9 @@ lib/Bio/Phylo/Treedrawer/Processing.pm
 lib/Bio/Phylo/Treedrawer/Svg.pm
 lib/Bio/Phylo/Treedrawer/Swf.pm
 lib/Bio/Phylo/Unparsers/Abstract.pm
+lib/Bio/Phylo/Unparsers/Cdao.pm
 lib/Bio/Phylo/Unparsers/Fasta.pm
+lib/Bio/Phylo/Unparsers/Hennig86.pm
 lib/Bio/Phylo/Unparsers/Json.pm
 lib/Bio/Phylo/Unparsers/Mrp.pm
 lib/Bio/Phylo/Unparsers/Newick.pm
@@ -94,6 +97,7 @@ lib/Bio/Phylo/Util/Dependency.pm
 lib/Bio/Phylo/Util/Exceptions.pm
 lib/Bio/Phylo/Util/IDPool.pm
 lib/Bio/Phylo/Util/Logger.pm
+lib/Bio/Phylo/Util/MOP.pm
 lib/Bio/Phylo/Util/OptionalInterface.pm
 lib/Bio/Phylo/Util/StackTrace.pm
 LICENSE
@@ -135,6 +139,10 @@ t/32-tolweb.t
 t/34-json.t
 t/35-processing.t
 t/36-sets.t
+t/37-memory.t
+t/38-rdf.t
+t/39-nexussets.t
+t/40-hennig86.t
 t/perl-critic.t
 t/perlcriticrc
 t/pod-coverage.t

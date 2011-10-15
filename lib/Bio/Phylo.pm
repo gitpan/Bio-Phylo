@@ -27,7 +27,7 @@ require Bio::Phylo::Mediators::TaxaMediator;
 # Include the revision number from subversion in $VERSION
 my $rev = '$Id: Phylo.pm 1660 2011-04-02 18:29:40Z rvos $';
 $rev =~ s/^[^\d]+(\d+)\b.*$/$1/;
-our $VERSION = "0.40";
+our $VERSION = "0.41";
 $VERSION .= "_$rev";
 {
     my $taxamediator = 'Bio::Phylo::Mediators::TaxaMediator';
@@ -64,13 +64,13 @@ $VERSION .= "_$rev";
     # like this as well.
     my @fields = \(
         my (
-	    %guid,
+			%guid,
             %desc,
             %score,
             %generic,
             %cache,
             %container,    # XXX weak reference
-            %objects       # XXX strong reference
+            %objects       # XXX weak reference
         )
     );
 
@@ -153,9 +153,6 @@ argument "-name" in the constructor.
             $class = $reference;
         }
 
-        # notify user
-        $logger->info("constructor called for '$class'");
-
         # happens only and exactly once because this
         # root class is visited from every constructor
         my $self = $class->SUPER::new();
@@ -164,6 +161,9 @@ argument "-name" in the constructor.
         my $id = $self->get_id;
         $objects{$id} = $self;
         weaken( $objects{$id} );
+		
+		# notify user
+        $logger->info("constructor called for '$class' - $id");
 
         # processing arguments
         if ( @_ and @_ = looks_like_hash @_ ) {
