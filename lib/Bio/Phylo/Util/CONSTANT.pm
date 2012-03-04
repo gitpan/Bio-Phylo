@@ -35,6 +35,8 @@ BEGIN {
       _CHARACTERS_
       _CHARACTER_
       _SET_
+      _MODEL_
+      _OPERATION_
       looks_like_number
       looks_like_object
       looks_like_hash
@@ -53,6 +55,7 @@ BEGIN {
       _NS_TOL_
       _NS_CDAO_
       _NEXML_VERSION_
+      _PI_
     );
     %EXPORT_TAGS = (
         'all'         => [@EXPORT_OK],
@@ -86,6 +89,8 @@ BEGIN {
               _CHARACTERS_
               _CHARACTER_
               _SET_
+              _MODEL_
+              _OPERATION_
               )
         ],
         'functions' => [
@@ -161,9 +166,14 @@ sub _ELEMENT_ ()       { 23 }
 sub _CHARACTERS_ ()    { 24 }
 sub _CHARACTER_ ()     { 25 }
 sub _SET_ ()           { 26 }
+sub _MODEL_ ()         { 27 }
+sub _OPERATION_ ()     { 28 }
 
 # for PhyloWS
 sub _HTTP_SC_SEE_ALSO_ () { '303 See Other' }
+
+# for tree drawing
+sub _PI_ () { 4 * atan2(1,1) }
 
 # this is a drop in replacement for Scalar::Util's function
 my $looks_like_number;

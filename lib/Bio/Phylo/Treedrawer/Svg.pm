@@ -1,7 +1,7 @@
 package Bio::Phylo::Treedrawer::Svg;
 use strict;
 use base 'Bio::Phylo::Treedrawer::Abstract';
-use Bio::Phylo::Util::CONSTANT 'looks_like_hash';
+use Bio::Phylo::Util::CONSTANT qw'looks_like_hash _PI_';
 use Bio::Phylo::Util::Exceptions 'throw';
 use Bio::Phylo::Util::Dependency 'SVG';
 use Bio::Phylo::Util::Logger;
@@ -11,7 +11,7 @@ SVG->import(
     '-indent'    => '    ',
 );
 my $logger = Bio::Phylo::Util::Logger->new;
-my $PI     = '3.14159265358979323846';
+my $PI     = _PI_;
 my %colors;
 
 =head1 NAME
@@ -50,9 +50,9 @@ sub _new {
         )
     );
     $self->_api->tag( 'style', type => 'text/css' )
-      ->CDATA( "\n\tpolyline { fill: none; stroke: black; stroke-width: 2 }\n"
-          . "\tpath { fill: none; stroke: black; stroke-width: 2 }\n"
-          . "\tline { fill: none; stroke: black; stroke-width: 2 }\n"
+      ->CDATA( "\n\tpolyline { fill: none; stroke: black; stroke-width: 1 }\n"
+          . "\tpath { fill: none; stroke: black; stroke-width: 1 }\n"
+          . "\tline { fill: none; stroke: black; stroke-width: 1 }\n"
           . "\tcircle.node_circle  {}\n"
           . "\tcircle.taxon_circle {}\n"
           . "\ttext.node_text      {}\n"
@@ -128,8 +128,9 @@ sub _draw_triangle {
 # -text => $text,
 #
 # optional:
-# -api  => $api,
-# -url  => $url,
+# -api      => $api,
+# -url      => $url,
+# -rotation => [ $rotation, $x, $y ]
 
 =end comment
 
@@ -139,13 +140,32 @@ sub _draw_text {
     my $self = shift;
     my %args = @_;
     my ( $x, $y, $text ) = @args{qw(-x -y -text)};
-    my $api = $args{'-api'} || $self->_api;
-    my $url = $args{'-url'};
-    delete @args{qw(-x -y -text -api -url)};
-    if ($url) {
+    my $url      = $args{'-url'};
+	my $rotation = $args{'-rotation'} || [];
+    my $api      = $args{'-api'} || $self->_api;	
+    delete @args{qw(-x -y -text -api -url -rotation)};
+    if ( $url ) {
         $api = $api->tag( 'a', 'xlink:href' => $url );
     }
-    return $api->tag( 'text', 'x' => $x, 'y' => $y, %args )->cdata($text);
+	my @style;
+	if ( my $face = $args{'-font_face'} ) {
+		push @style, "font-family: ${face}";
+	}
+	if ( my $size = $args{'-font_size'} ) {
+		push @style, "font-size: ${size}"
+	}
+	if ( my $style = $args{'-font_style'} ) {
+		push @style, "font-style: ${style}";
+	}
+	no warnings 'uninitialized';
+    return $api->tag(
+		'text',
+		'x'         => $x,
+		'y'         => $y,
+		'style'     => join('; ',@style),
+		'transform' => "rotate(@${rotation})",
+		%args
+	)->cdata($text);
 }
 
 =begin comment
@@ -222,6 +242,48 @@ sub _draw_curve {
 # -x2 => $x2,
 # -y1 => $y1,
 # -y2 => $y2,
+# -radius => $radius
+# -width => $width,
+# -color => $color
+
+=end comment
+
+=cut
+
+sub _draw_arc {
+    my $self = shift;
+    
+    # process method arguments
+    my %args = @_;
+    my @keys = qw(-x1 -y1 -x2 -y2 -radius -width -color -linecap);
+    my ($x1, $y1, $x2, $y2, $radius, $width, $stroke, $linecap) = @args{@keys};
+	
+	# M = "moveto", i.e. the starting coordinates
+	# A = "elliptical Arc", The size and orientation of the ellipse are
+	#      defined by two radii ($radius,$radius) and an x-axis-rotation
+	#      (0.000), which indicates how the ellipse as a whole is rotated
+	#      relative to the current coordinate system. The center of the
+	#      ellipse is calculated automatically to satisfy the constraints
+	#      imposed by the other parameters. large_arc_flag (0) and
+	#      sweep-flag (1) contribute to the automatic calculations and
+	#      help determine how the arc is drawn
+    $self->_api->path(
+        'd' => "M $x1 $y1 A $radius $radius 0 0 1 $x2 $y2",		
+        'style' => {
+			'fill'           => 'none',			
+			'stroke'         => $stroke  || 'black',
+			'stroke-width'   => $width   || 1,
+			'stroke-linecap' => $linecap || 'butt',
+		},
+    );
+}
+
+=begin comment
+
+# -x1 => $x1,
+# -x2 => $x2,
+# -y1 => $y1,
+# -y2 => $y2,
 # -width => $width,
 # -color => $color
 
@@ -262,8 +324,8 @@ sub _draw_multi {
 sub _draw_line {
     my $self = shift;
     my %args = @_;
-    my @keys = qw(-x1  -y1  -x2  -y2  -width  -color );
-    my ( $x1, $y1, $x2, $y2, $width, $color ) = @args{@keys};
+    my @keys = qw( -x1  -y1  -x2  -y2  -width  -color -linecap );
+    my ( $x1, $y1, $x2, $y2, $width, $color, $linecap ) = @args{@keys};
     delete @args{@keys};
     return $self->_api->line(
         'x1'    => $x1,
@@ -271,8 +333,9 @@ sub _draw_line {
         'x2'    => $x2,
         'y2'    => $y2,
         'style' => {
-            'stroke'       => $color || 'black',
-            'stroke-width' => $width || 1,
+            'stroke'         => $color   || 'black',
+            'stroke-width'   => $width   || 1,
+			'stroke-linecap' => $linecap || 'butt',
         },
         %args
     );
@@ -381,7 +444,7 @@ sub _draw_legend {
                 'style'  => {
                     'fill'         => $colors{$key},
                     'stroke'       => 'black',
-                    'stroke-width' => '2',
+                    'stroke-width' => '1',
                 },
             );
             $self->_draw_text(

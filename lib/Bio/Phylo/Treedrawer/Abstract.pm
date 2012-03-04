@@ -2,7 +2,10 @@ package Bio::Phylo::Treedrawer::Abstract;
 use strict;
 use Bio::Phylo::Util::Exceptions 'throw';
 use Bio::Phylo::Util::Logger ':levels';
+
 my $logger = Bio::Phylo::Util::Logger->new;
+our $DEFAULT_FONT = 'Arial';
+our @FONT_DIR;
 
 =head1 NAME
 
@@ -50,6 +53,8 @@ sub _draw {
     $self->_tree->visit_depth_first(
         '-post' => sub {
             my $node        = shift;
+            my $x           = $node->get_x;
+            my $y           = $node->get_y;            
             my $is_terminal = $node->is_terminal;
             my $r = $is_terminal ? $td->get_tip_radius : $td->get_node_radius;
             $self->_draw_branch($node);
@@ -62,18 +67,21 @@ sub _draw {
                     $name =~ s/^'(.*)'$/$1/;
                     $name =~ s/^"(.*)"$/$1/;
                     $self->_draw_text(
-                        '-x' =>
-                          int( $node->get_x + $td->get_text_horiz_offset ),
-                        '-y' => int( $node->get_y + $td->get_text_vert_offset ),
-                        '-text' => $name,
-                        'class' => $is_terminal ? 'taxon_text' : 'node_text',
+                        '-x'          => int( $x + $td->get_text_horiz_offset ),
+                        '-y'          => int( $y + $td->get_text_vert_offset ),
+                        '-text'       => $name,
+                        '-rotation'   => [ $node->get_rotation, $x, $y ],
+                        '-font_face'  => $node->get_font_face,
+                        '-font_size'  => $node->get_font_size,
+                        '-font_style' => $node->get_font_style,
+                        'class'       => $is_terminal ? 'taxon_text' : 'node_text',
                     );
                 }
             }
             $self->_draw_circle(
                 '-radius' => $r,
-                '-x'      => $node->get_x,
-                '-y'      => $node->get_y,
+                '-x'      => $x,
+                '-y'      => $y,
                 '-width'  => $node->get_branch_width,
                 '-stroke' => $node->get_branch_color,
                 '-fill'   => $node->get_node_colour,
@@ -110,6 +118,11 @@ sub _draw_text {
 sub _draw_line {
     my $self = shift;
     throw 'NotImplemented' => ref($self) . " can't draw line";
+}
+
+sub _draw_arc {
+    my $self = shift;
+    throw 'NotImplemented' => ref($self) . " can't draw arc";    
 }
 
 sub _draw_curve {
@@ -279,8 +292,7 @@ sub _draw_branch {
     if ( my $parent = $node->get_parent ) {
         my ( $x1, $x2 ) = ( int $parent->get_x, int $node->get_x );
         my ( $y1, $y2 ) = ( int $parent->get_y, int $node->get_y );
-        my $width  = $self->_drawer->get_branch_width($node);
-        my $shape  = $self->_drawer->get_shape;
+        my $shape = $self->_drawer->get_shape;
         my $drawer = '_draw_curve';
         if ( $shape =~ m/CURVY/i ) {
             $drawer = '_draw_curve';
@@ -291,15 +303,102 @@ sub _draw_branch {
         elsif ( $shape =~ m/DIAG/i ) {
             $drawer = '_draw_line';
         }
+        elsif ( $shape =~ m/UNROOTED/i ) {
+            $drawer = '_draw_line';
+        }
+        elsif ( $shape =~ m/RADIAL/i ) {
+            return $self->_draw_radial_branch($node);
+        }
         return $self->$drawer(
             '-x1'    => $x1,
             '-y1'    => $y1,
             '-x2'    => $x2,
             '-y2'    => $y2,
-            '-width' => $width,
+            '-width' => $self->_drawer->get_branch_width($node),
             '-color' => $node->get_branch_color
         );
     }
+}
+
+=begin comment
+
+ Type    : Internal method.
+ Title   : _draw_radial_branch
+ Usage   : $svg->_draw_radial_branch($node);
+ Function: Draws radial internode between $node and $node->get_parent, if any
+ Returns :
+ Args    : 
+
+=end comment
+
+=cut
+
+sub _draw_radial_branch {
+    my ( $self, $node ) = @_;
+    
+    if ( my $parent = $node->get_parent ) {
+        my $td = $self->_drawer;
+        my $center_x = $td->get_width / 2;
+        my $center_y = $td->get_height / 2;
+        my $width    = $td->get_branch_width($node);
+    
+        # first the straight piece up to the arc
+        my ( $x1, $y1 ) = ( $node->get_x, $node->get_y );
+        my $rotation = $node->get_rotation;        
+        my $parent_radius = $parent->get_generic('radius');
+        my ( $x2, $y2 ) = $td->polar_to_cartesian( $parent_radius, $rotation );
+        $x2 += $center_x;
+        $y2 += $center_y;
+        $self->_draw_line(
+            '-x1'      => $x1,
+            '-y1'      => $y1,
+            '-x2'      => $x2,
+            '-y2'      => $y2,
+            '-width'   => $width,
+            '-color'   => $node->get_branch_color,
+            '-linecap' => 'square'
+        );
+                    
+        # then the arc
+        my ( $x3, $y3 ) = ( $parent->get_x, $parent->get_y );
+        if ( $parent->get_rotation < $rotation ) {
+            ( $x2, $x3 ) = ( $x3, $x2 );
+            ( $y2, $y3 ) = ( $y3, $y2 );
+        }
+        $self->_draw_arc(
+            '-x1'      => $x2,
+            '-y1'      => $y2,
+            '-x2'      => $x3,
+            '-y2'      => $y3,
+            '-radius'  => $parent_radius,
+            '-width'   => $width,
+            '-color'   => $node->get_branch_color,
+            '-linecap' => 'square'
+        )
+    }
+}
+
+sub _font_path {
+    my $self = shift;
+    my $font = shift || $DEFAULT_FONT;
+    if ( $^O =~ /darwin/ ) {
+        push @FONT_DIR, '/System/Library/Fonts', '/Library/Fonts';
+    }
+    elsif ( $^O =~ /linux/ ) {
+        push @FONT_DIR, '/usr/share/fonts';
+    }
+    elsif ( $^O =~ /MSWin/ ) {
+        push @FONT_DIR, $ENV{'WINDIR'} . '\Fonts';
+    }
+    else {
+        $logger->warn("Don't know where fonts are on $^O");
+    }
+    for my $dir ( @FONT_DIR ) {
+        if ( -e "${dir}/${font}.ttf" ) {
+            return "${dir}/${font}.ttf";
+        }
+    }
+    $logger->warn("Couldn't find font $font");
 }
 
 =head1 SEE ALSO
@@ -308,7 +407,7 @@ sub _draw_branch {
 
 =item L<Bio::Phylo::Treedrawer>
 
-The canvas treedrawer is called by the L<Bio::Phylo::Treedrawer> object. Look
+Treedrawer subclasses are called by the L<Bio::Phylo::Treedrawer> object. Look
 there to learn how to create tree drawings.
 
 =item L<Bio::Phylo::Manual>

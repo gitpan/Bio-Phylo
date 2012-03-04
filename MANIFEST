@@ -28,6 +28,12 @@ lib/Bio/Phylo/Matrices/Datum.pm
 lib/Bio/Phylo/Matrices/Matrix.pm
 lib/Bio/Phylo/Matrices/TypeSafeData.pm
 lib/Bio/Phylo/Mediators/TaxaMediator.pm
+lib/Bio/Phylo/Models/Substitution/Dna.pm
+lib/Bio/Phylo/Models/Substitution/Dna/F81.pm
+lib/Bio/Phylo/Models/Substitution/Dna/GTR.pm
+lib/Bio/Phylo/Models/Substitution/Dna/HKY85.pm
+lib/Bio/Phylo/Models/Substitution/Dna/JC69.pm
+lib/Bio/Phylo/Models/Substitution/Dna/K80.pm
 lib/Bio/Phylo/NeXML/DOM.pm
 lib/Bio/Phylo/NeXML/DOM/Document.pm
 lib/Bio/Phylo/NeXML/DOM/Document/Libxml.pm
@@ -134,6 +140,7 @@ t/29-treemodels.t
 t/30-phyloxml.t
 t/31-phylip.t
 t/32-tolweb.t
+t/33-models.t
 t/34-json.t
 t/35-processing.t
 t/36-sets.t
