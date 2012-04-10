@@ -26,7 +26,7 @@ require Bio::Phylo::Mediators::TaxaMediator;
 # Include the revision number from subversion in $VERSION
 my $rev = '$Id: Phylo.pm 1660 2011-04-02 18:29:40Z rvos $';
 $rev =~ s/^[^\d]+(\d+)\b.*$/$1/;
-our $VERSION = "0.46";
+our $VERSION = "0.47";
 $VERSION .= "_$rev";
 {
     my $taxamediator = 'Bio::Phylo::Mediators::TaxaMediator';
@@ -989,6 +989,9 @@ Invocant destructor.
 =back
 
 =head1 SEE ALSO
+
+There is a mailing list at L<https://groups.google.com/forum/#!forum/bio-phylo> 
+for any user or developer questions and discussions.
 
 Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>
 

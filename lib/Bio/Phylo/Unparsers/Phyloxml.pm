@@ -2,9 +2,9 @@ package Bio::Phylo::Unparsers::Phyloxml;
 use strict;
 use base 'Bio::Phylo::Unparsers::Abstract';
 use Bio::Phylo::Util::Exceptions 'throw';
-use Bio::Phylo::Util::CONSTANT qw':objecttypes looks_like_object';
+use Bio::Phylo::Util::CONSTANT qw':objecttypes looks_like_object :namespaces';
 use Bio::Phylo::Util::Dependency 'XML::Twig';
-my $phyloxml_ns     = 'http://www.phyloxml.org/1.10/terms#';
+my $phyloxml_ns     = _NS_PHYLOXML_;
 my $phyloxml_header = <<'HEADER';
 <?xml version="1.0" encoding="UTF-8"?>
 <phyloxml xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -175,6 +175,9 @@ sub _datum_to_xml {
 # podinherit_insert_token
 
 =head1 SEE ALSO
+
+There is a mailing list at L<https://groups.google.com/forum/#!forum/bio-phylo> 
+for any user or developer questions and discussions.
 
 =over
 

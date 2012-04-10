@@ -419,6 +419,38 @@ Removes specified attribute
         }
     }
 
+=item get_prefix_for_namespace()
+
+ Type    : Accessor
+ Title   : get_prefix_for_namespace
+ Usage   : my $prefix = $obj->get_prefix_for_namespace('http://example.org/')
+ Function: Retrieves the prefix for the argument namespace
+ Returns : A prefix string
+ Args    : A namespace URI
+
+=cut
+	
+	sub get_prefix_for_namespace {
+		my ( $self, $ns_uri ) = @_;
+		
+		# check argument
+		if ( not $ns_uri ) {
+			throw 'BadArgs' => "Need namespaces URI argument";
+		}
+		
+		# iterate over namespace/prefix pairs
+		my $namespaces = $self->get_namespaces;
+		for my $prefix ( keys %{ $namespaces } ) {
+			if ( $namespaces->{$prefix} eq $ns_uri ) {
+				return $prefix;
+			}
+		}
+		
+		# warn user
+		$logger->warn("No prefix for namespace $ns_uri");
+		return undef;
+	}
+
 =item get_meta()
 
 Retrieves the metadata for the element.
@@ -1005,6 +1037,9 @@ Serializes object to CDAO RDF/XML string
     # podinherit_insert_token
 
 =head1 SEE ALSO
+
+There is a mailing list at L<https://groups.google.com/forum/#!forum/bio-phylo> 
+for any user or developer questions and discussions.
 
 Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 

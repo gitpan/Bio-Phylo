@@ -1251,7 +1251,9 @@ Clones invocant.
         $subs{'set_matchchar'}  = sub { };
 		$subs{'set_characters'} = sub {
             my ( $obj, $clone ) = @_;
-			$clone->set_characters( $obj->get_characters->clone );
+			my $chars = $obj->get_characters;
+			my $clone_chars = $obj->get_characters->clone;
+			$clone->set_characters( $clone_chars );
 		};
         return $self->SUPER::clone(%subs);
     }
@@ -1886,6 +1888,9 @@ Analog to to_xml.
     # podinherit_insert_token
 
 =head1 SEE ALSO
+
+There is a mailing list at L<https://groups.google.com/forum/#!forum/bio-phylo> 
+for any user or developer questions and discussions.
 
 =over
 

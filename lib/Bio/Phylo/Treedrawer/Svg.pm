@@ -157,6 +157,9 @@ sub _draw_text {
 	if ( my $style = $args{'-font_style'} ) {
 		push @style, "font-style: ${style}";
 	}
+	if ( my $colour = $args{'-font_colour'} ) {
+		push @style, "fill: ${colour}";
+	}
 	no warnings 'uninitialized';
     return $api->tag(
 		'text',
@@ -466,6 +469,9 @@ sub _draw_legend {
 }
 
 =head1 SEE ALSO
+
+There is a mailing list at L<https://groups.google.com/forum/#!forum/bio-phylo> 
+for any user or developer questions and discussions.
 
 =over
 

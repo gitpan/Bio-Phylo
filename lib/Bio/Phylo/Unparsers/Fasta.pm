@@ -49,7 +49,7 @@ sub _to_string {
         my $def  = '>' . $name . "\n";
         my $char = $seq->get_char;
         my $n = 80;    # $n is group size.
-        my @groups = unpack "a$n" x ((length($char)/$n)-1) . "a*", $char;
+        my @groups = unpack "a$n" x (length($char)/$n) . "a*", $char;
         $string .= $def . join("\n", @groups) . "\n";
     }
     return $string;
@@ -58,6 +58,9 @@ sub _to_string {
 # podinherit_insert_token
 
 =head1 SEE ALSO
+
+There is a mailing list at L<https://groups.google.com/forum/#!forum/bio-phylo> 
+for any user or developer questions and discussions.
 
 =over
 

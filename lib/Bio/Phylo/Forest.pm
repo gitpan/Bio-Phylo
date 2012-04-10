@@ -431,10 +431,14 @@ Creates an MRP matrix object.
               for grep { $_->is_internal } @{ $node->get_children };
         };
         for my $tree ( @{ $self->get_entities } ) {
-            $recursion->( $tree->get_root, $tree, $taxa, $recursion );
+			if ( my $root = $tree->get_root ) {
+				$recursion->( $root, $tree, $taxa, $recursion );
+			}
         }
         for my $datum ( @{ $matrix->get_entities } ) {
-            $datum->set_char( $data{ $datum->get_name } );
+			if ( my $data = $data{ $datum->get_name } ) {
+				$datum->set_char( $data ) if @{ $data };
+			}
         }
         $matrix->set_charlabels( \@charlabels );
         $matrix->set_statelabels( \@statelabels );
@@ -527,13 +531,22 @@ Serializer to nexus format.
            
            # to map taxon names to indices (default is true)
            -make_translate => 1 (autogenerate translation table, overrides -translate => {})
+		   
+		   # when making a translation table, which index to start (default is
+		   # 1, BayesTraits needs 0)
+		   -translate_start => 1
  Comments:
 
 =cut
 
     sub to_nexus {
         my $self = shift;
-        my %args = ( '-rooting' => 'comment', '-make_translate' => 1, @_ );
+        my %args = (
+			'-rooting'         => 'comment',
+			'-make_translate'  => 1,
+			'-translate_start' => 1,
+			@_
+		);
         my %translate;
         my $nexus;
 
@@ -562,7 +575,7 @@ Serializer to nexus format.
                     else {
                         $name = $node->get_generic( $args{'-tipnames'} );
                     }
-                    $translate{$name} = ( 1 + $i++ )
+                    $translate{$name} = ( $args{'-translate_start'} + $i++ )
                       if not exists $translate{$name};
                 }
             }
@@ -704,6 +717,9 @@ Serializer to nexus format.
     # podinherit_insert_token
 
 =head1 SEE ALSO
+
+There is a mailing list at L<https://groups.google.com/forum/#!forum/bio-phylo> 
+for any user or developer questions and discussions.
 
 =over
 

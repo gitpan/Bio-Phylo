@@ -1089,12 +1089,13 @@ sub _compute_rooted_coordinates {
     $tree->visit(
         sub {
             my $node = shift;
+            if ( not $tallest_tip ) {
+                throw 'BadArgs' => "This tree has no branch lengths, can't draw a phylogram";
+            }            
             $node->set_x( $padding + $node->get_x * ( $width / $tallest_tip ) );
-            $node->set_y(
-                $padding + $node->get_y * ( $height / $tip_counter ) );
+            $node->set_y( $padding + $node->get_y * ( $height / $tip_counter ) );
             if ( !$phylo && $node->is_terminal ) {
-                $node->set_x(
-                    $padding + $tallest_tip * ( $width / $tallest_tip ) );
+                $node->set_x( $padding + $tallest_tip * ( $width / $tallest_tip ) );
             }
         }
     );
@@ -1157,6 +1158,9 @@ sub _reset_internal {
 =back
 
 =head1 SEE ALSO
+
+There is a mailing list at L<https://groups.google.com/forum/#!forum/bio-phylo> 
+for any user or developer questions and discussions.
 
 =over
 

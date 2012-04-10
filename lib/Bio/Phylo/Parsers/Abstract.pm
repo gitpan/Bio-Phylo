@@ -63,8 +63,8 @@ sub _open_url {
     # fetch the resource, get an HTTP::Response object
     my $response = $ua->get($url);
 
-    # i.e. 200
-    if ( $response->is_success ) {
+    # i.e. 200, or 304 (unchanged cache)
+    if ( $response->is_success or $response->status_line =~ /304/ ) {
 
         # content is a string, so we create a handle in the same way
         # as when the argument was a string
@@ -185,6 +185,9 @@ sub _encoding { shift->{'_encoding'} }
 # podinherit_insert_token
 
 =head1 SEE ALSO
+
+There is a mailing list at L<https://groups.google.com/forum/#!forum/bio-phylo> 
+for any user or developer questions and discussions.
 
 =over
 

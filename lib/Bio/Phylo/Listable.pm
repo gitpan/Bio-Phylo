@@ -256,7 +256,7 @@ Keeps the container's contents specified by an array reference of indices.
     sub keep_entities {
         my ( $self, $indices_array_ref ) = @_;
         my $id       = $self->get_id;
-        my $ent      = $entities{$id};
+        my $ent      = $entities{$id} || [];
         my @contents = @{$ent};
         my @pruned   = @contents[ @{$indices_array_ref} ];
         $entities{$id} = \@pruned;
@@ -1203,6 +1203,9 @@ Returns string representation of sets
     # podinherit_insert_token
 
 =head1 SEE ALSO
+
+There is a mailing list at L<https://groups.google.com/forum/#!forum/bio-phylo> 
+for any user or developer questions and discussions.
 
 Also see the manual: L<Bio::Phylo::Manual> and L<http://rutgervos.blogspot.com>.
 
