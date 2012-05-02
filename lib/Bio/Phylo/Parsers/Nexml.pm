@@ -2,7 +2,7 @@ package Bio::Phylo::Parsers::Nexml;
 use strict;
 use base 'Bio::Phylo::Parsers::Abstract';
 use Bio::Phylo::Util::Exceptions 'throw';
-use Bio::Phylo::Util::CONSTANT qw'looks_like_instance _NEXML_VERSION_';
+use Bio::Phylo::Util::CONSTANT qw'looks_like_instance _NEXML_VERSION_ :objecttypes';
 use Bio::Phylo::Util::Dependency 'XML::Twig';
 use Bio::Phylo::Factory;
 use Bio::Phylo::NeXML::Writable;
@@ -152,6 +152,19 @@ sub _process_set {
 # here we create the object instance that will process the file/string
 sub _init {
     my $self = shift;
+    my ( $skipchars, $skiptrees ) = ( 0, 0 );
+    if ( $self->_args && $self->_args->{'-skip'} ) {
+        for my $skip ( @{ $self->_args->{'-skip'} } ) {
+            if ( $skip == _MATRIX_ ) {
+                $skipchars = 1;
+                $self->_logger->warn("skipping all characters elements");
+            }
+            if ( $skip == _FOREST_ ) {
+                $skiptrees = 1;
+                $self->_logger->warn("skipping all trees elements");
+            }
+        }
+    }
     $self->_logger->debug("initializing $self");
     $self->{'_blocks'}        = [];
     $self->{'_taxa'}          = {};
@@ -165,8 +178,8 @@ sub _init {
         # means we can traverse it
         'TwigHandlers' => {
             'otus'       => sub { &_handle_otus( @_,   $self ) },
-            'characters' => sub { &_handle_chars( @_,  $self ) },
-            'trees'      => sub { &_handle_forest( @_, $self ) },
+            'characters' => $skipchars ? sub {} : sub { &_handle_chars( @_,  $self ) },
+            'trees'      => $skiptrees ? sub {} : sub { &_handle_forest( @_, $self ) },
             'nex:nexml'  => sub { &_handle_nexml( @_,  $self ) },
         },
 
@@ -333,11 +346,10 @@ sub _handle_chars {
 
     # create character definitions, if any
     my ( $def_hash, $def_array ) = ( {}, [] );
-    my ( $lookup, $definitions_elt );
-    if ( $definitions_elt = $characters_elt->first_child('format') ) {
-        ( $def_hash, $def_array, $lookup ) =
-          $self->_process_definitions($definitions_elt);
-    }
+    my ( $lookup );
+    my $definitions_elt = $characters_elt->first_child('format');
+    ( $def_hash, $def_array, $lookup ) = $self->_process_definitions($definitions_elt);
+    
     $matrix_obj->get_type_object->set_lookup($lookup);
     delete $args{'-type'};
     $args{'-type_object'} = $matrix_obj->get_type_object;
@@ -383,9 +395,10 @@ sub _handle_chars {
     my $characters = $matrix_obj->get_characters;
     
     # assign original xml ids to character objects
-    my $chars = $characters->get_entities;
-    for my $i ( 0 .. $#{ $chars } ) {
-        $chars->[$i]->set_xml_id($def_array->[$i]);
+    my @char_elts = $definitions_elt->children('char');
+    for my $i ( 0 .. $#char_elts ) {
+        my ($char) = $self->_obj_from_elt( $char_elts[$i], 'character' );
+        $characters->insert_at_index($char,$i);
     }
     
     # now process character sets
