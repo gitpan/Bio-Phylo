@@ -149,6 +149,7 @@ t/38-rdf.t
 t/39-nexussets.t
 t/40-hennig86.t
 t/41-charstatelabels.t
+t/42-simplify-newick.t
 t/perl-critic.t
 t/perlcriticrc
 t/pod-coverage.t
