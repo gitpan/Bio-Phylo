@@ -46,6 +46,7 @@ lib/Bio/Phylo/NeXML/Meta.pm
 lib/Bio/Phylo/NeXML/Meta/XMLLiteral.pm
 lib/Bio/Phylo/NeXML/Writable.pm
 lib/Bio/Phylo/Parsers/Abstract.pm
+lib/Bio/Phylo/Parsers/Adjacency.pm
 lib/Bio/Phylo/Parsers/Fasta.pm
 lib/Bio/Phylo/Parsers/Json.pm
 lib/Bio/Phylo/Parsers/Newick.pm
@@ -55,6 +56,7 @@ lib/Bio/Phylo/Parsers/Phylip.pm
 lib/Bio/Phylo/Parsers/Phyloxml.pm
 lib/Bio/Phylo/Parsers/Table.pm
 lib/Bio/Phylo/Parsers/Taxlist.pm
+lib/Bio/Phylo/Parsers/Tnrs.pm
 lib/Bio/Phylo/Parsers/Tolweb.pm
 lib/Bio/Phylo/Parsers/Ubiocbmeta.pm
 lib/Bio/Phylo/Parsers/Ubiometa.pm
@@ -85,9 +87,11 @@ lib/Bio/Phylo/Treedrawer/Processing.pm
 lib/Bio/Phylo/Treedrawer/Svg.pm
 lib/Bio/Phylo/Treedrawer/Swf.pm
 lib/Bio/Phylo/Unparsers/Abstract.pm
+lib/Bio/Phylo/Unparsers/Adjacency.pm
 lib/Bio/Phylo/Unparsers/Cdao.pm
 lib/Bio/Phylo/Unparsers/Fasta.pm
 lib/Bio/Phylo/Unparsers/Hennig86.pm
+lib/Bio/Phylo/Unparsers/Html.pm
 lib/Bio/Phylo/Unparsers/Json.pm
 lib/Bio/Phylo/Unparsers/Mrp.pm
 lib/Bio/Phylo/Unparsers/Newick.pm
@@ -97,6 +101,7 @@ lib/Bio/Phylo/Unparsers/Pagel.pm
 lib/Bio/Phylo/Unparsers/Phylip.pm
 lib/Bio/Phylo/Unparsers/Phyloxml.pm
 lib/Bio/Phylo/Unparsers/Rss1.pm
+lib/Bio/Phylo/Unparsers/Taxlist.pm
 lib/Bio/Phylo/Util/CONSTANT.pm
 lib/Bio/Phylo/Util/Dependency.pm
 lib/Bio/Phylo/Util/Exceptions.pm
@@ -150,6 +155,8 @@ t/39-nexussets.t
 t/40-hennig86.t
 t/41-charstatelabels.t
 t/42-simplify-newick.t
+t/43-adjacency.t
+t/44-tnrs.t
 t/perl-critic.t
 t/perlcriticrc
 t/pod-coverage.t

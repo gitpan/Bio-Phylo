@@ -60,6 +60,7 @@ BEGIN {
       _PI_
       _NS_PHYLOXML_
       _NS_TB2PURL_
+      _NS_TNRS_
     );
     %EXPORT_TAGS = (
         'all'         => [@EXPORT_OK],
@@ -124,6 +125,7 @@ BEGIN {
               _NS_SKOS_
               _NS_PHYLOXML_
               _NS_TB2PURL_
+              _NS_TNRS_
             )
         ]
     );
@@ -149,6 +151,25 @@ sub _NS_BIOPHYLO_ () { 'http://search.cpan.org/dist/Bio-Phylo/terms#' }
 sub _NS_SKOS_ ()     { 'http://www.w3.org/2004/02/skos/core#' }
 sub _NS_PHYLOXML_ () { 'http://www.phyloxml.org/1.10/terms#' }
 sub _NS_TB2PURL_ ()  { 'http://purl.org/phylo/treebase/phylows/' }
+sub _NS_TNRS_ ()     { 'http://phylotastic.org/tnrs/terms#' }
+
+our $NS = {
+    'tnrs' => _NS_TNRS_(),
+    'pxml' => _NS_PHYLOXML_(),
+    'skos' => _NS_SKOS_(),
+    'bp'   => _NS_BIOPHYLO_(),
+    'cdao' => _NS_CDAO_(),
+    'tol'  => _NS_TOL_(),
+    'xml'  => _NS_XML_(),
+    'xsd'  => _NS_XSD_(),
+    'xsi'  => _NS_XSI_(),
+    'rdf'  => _NS_RDF_(),
+    'rdfs' => _NS_RDFS_(),
+    'nex'  => _NS_NEXML_(),
+    'dc'   => _NS_DC_(),
+    'owl'  => _NS_OWL_(),
+    'dcterms' => _NS_DCTERMS_(),
+};
 
 sub _NEXML_VERSION_ () { '0.9' }
 sub _NONE_ ()          { 1 }
