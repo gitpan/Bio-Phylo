@@ -1,5 +1,5 @@
 ---
-abstract: unknown
+abstract: 'An object-oriented Perl toolkit for analyzing and manipulating phyloinformatic data.'
 author:
   - 'Rutger Vos'
 build_requires:
@@ -18,4 +18,8 @@ no_index:
     - t
     - inc
 requires: {}
-version: 0.51
+resources:
+  bugtracker: https://github.com/rvosa/bio-phylo
+  homepage: http://biophylo.blogspot.com/
+  repository: git://github.com/rvosa/bio-phylo.git
+version: 0.52

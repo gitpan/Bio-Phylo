@@ -114,6 +114,7 @@ lib/Bio/Phylo/Util/Dependency.pm
 lib/Bio/Phylo/Util/Exceptions.pm
 lib/Bio/Phylo/Util/IDPool.pm
 lib/Bio/Phylo/Util/Logger.pm
+lib/Bio/Phylo/Util/MOP.pm
 lib/Bio/Phylo/Util/OptionalInterface.pm
 lib/Bio/Phylo/Util/StackTrace.pm
 lib/Bio/PhyloRole.pm
