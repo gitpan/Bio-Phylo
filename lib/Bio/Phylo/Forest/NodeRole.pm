@@ -23,7 +23,7 @@ my $fac = Bio::Phylo::Factory->new;
 
 =head1 NAME
 
-Bio::Phylo::Forest::Node - Node in a phylogenetic tree
+Bio::Phylo::Forest::NodeRole - Extra behaviours for a node in a phylogenetic tree
 
 =head1 SYNOPSIS
 
@@ -754,8 +754,11 @@ Gets invocant's sisters.
 =cut
 
     sub get_sisters {
-        my $self    = shift;
-        my $sisters = $self->get_parent->get_children;
+        my $self = shift;
+        my $sisters;
+        if ( my $parent = $self->get_parent ) {
+            $sisters = $parent->get_children;
+        }
         return $sisters;
     }
 
@@ -865,14 +868,14 @@ Gets invocant's terminal descendants.
         }
         else {
             my @terminals;
-            my $desc = $self->get_descendants;
-            if ( @{$desc} ) {
-                foreach ( @{$desc} ) {
-                    if ( $_->is_terminal ) {
-                        push @terminals, $_;
+            $self->visit_level_order(
+                sub {
+                    my $node = shift;
+                    if ( $node->is_terminal ) {
+                        push @terminals, $node;
                     }
                 }
-            }
+            );
             return \@terminals;
         }
     }

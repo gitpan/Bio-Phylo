@@ -427,6 +427,7 @@ Sets time scale options.
            -major => ( ditto, value for major tick marks )
            -minor => ( ditto, value for minor tick marks )
            -label => ( text string displayed next to scale )
+           -units => TRUE
 
 =cut
 
@@ -441,6 +442,7 @@ sub set_scale_options {
         else {
             %o = looks_like_hash @_;
         }
+        $self->{'SCALE'}->{'-units'} = $o{'-units'};
         if ( looks_like_number $o{'-width'} or $o{'-width'} =~ m/^\d+%$/ ) {
             $self->{'SCALE'}->{'-width'} = $o{'-width'};
         }
@@ -936,14 +938,20 @@ sub draw {
 
     # Reset the stored data in the tree
     $self->_reset_internal($root);
-    
+    $self->compute_coordinates;
+
+    return $self->render;
+}
+
+sub compute_coordinates {
+    my $self = shift;
     if ( $self->get_shape =~ m/(?:radial|unrooted)/i ) {
         $self->_compute_unrooted_coordinates;
     }
     else {
         $self->_compute_rooted_coordinates;
     }
-    return $self->render;
+    return $self;
 }
 
 sub polar_to_cartesian {

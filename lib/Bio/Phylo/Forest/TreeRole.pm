@@ -31,7 +31,7 @@ my $LOADED_WRAPPERS = 0;
 
 =head1 NAME
 
-Bio::Phylo::Forest::Tree - Phylogenetic tree
+Bio::Phylo::Forest::TreeRole - Extra behaviours for a phylogenetic tree
 
 =head1 SYNOPSIS
 
@@ -114,7 +114,7 @@ Tree constructor from Bio::Tree::TreeI argument.
         my $self;
         if ( blessed $bptree && $bptree->isa('Bio::Tree::TreeI') ) {
             $self = $fac->create_tree;
-            bless $self, $class;
+#            bless $self, $class;
             $self = $self->_recurse( $bptree->get_root_node );
 
             # copy name
@@ -346,6 +346,38 @@ Get internal nodes.
         return \@internals;
     }
 
+=item get_cherries()
+
+Get all cherries, i.e. nodes that have two terminal children
+
+ Type    : Query
+ Title   : get_cherries
+ Usage   : my @cherries = @{ $tree->get_cherries };
+ Function: Returns an array ref of cherries
+ Returns : ARRAY
+ Args    : NONE
+
+=cut
+
+    sub get_cherries {
+        my $self = shift;
+        my @cherries;
+        for my $node ( @{ $self->get_entities } ) {
+            my @children = @{ $node->get_children };
+            
+            # node has to be bifurcating
+            if ( scalar(@children) == 2 ) {
+                
+                # both children need to be tips
+                if ( not @{ $children[0]->get_children } and not @{ $children[1]->get_children } ) {
+                    push @cherries, $node;
+                }
+            }
+        }        
+        return \@cherries;
+    }
+
+    
 =item get_root()
 
 Get root node.
@@ -969,11 +1001,9 @@ Calculates the sum of all branch lengths.
     sub calc_tree_length {
         my $self = shift;
         my $tl   = 0;
-        for ( @{ $self->get_entities } ) {
-            if ( my $bl = $_->get_branch_length ) {
-                $tl += $bl if defined $bl;
-            }
-        }
+        $self->visit(sub{
+        	$tl += shift->get_branch_length || 0;
+        });
         return $tl;
     }
 
@@ -2309,7 +2339,7 @@ Keeps argument nodes from invocant (i.e. prunes all others).
     sub _get_tip_objects {
         my ( $self, $arg ) = @_;
         my @tips;
-        
+
         # argument is a taxa block
         if ( blessed $arg ) {
             for my $taxon ( @{ $arg->get_entities } ) {
@@ -2319,40 +2349,40 @@ Keeps argument nodes from invocant (i.e. prunes all others).
                 }
             }
         }
-        
+
         # arg is an array ref
         else {
             my $TAXON = _TAXON_;
             my $NODE  = _NODE_;
             for my $thing ( @{ $arg } ) {
-                
+
                 # thing is a taxon or node object
                 if ( blessed $thing ) {
                     if ( $thing->_type == $TAXON ) {
                         my @nodes = @{ $thing->get_nodes };
                         for my $node ( @nodes ) {
                             push @tips, $node if $self->contains($node);
-                        }                        
+                        }
                     }
                     elsif ( $thing->_type == $NODE ) {
                         push @tips, $thing if $self->contains($thing);
                     }
                 }
-                
+
                 # thing is a name
                 else {
                     if ( my $tip = $self->get_by_name($thing) ) {
                         push @tips, $tip;
                     }
                 }
-            }            
+            }
         }
         return \@tips;
     }
 
     sub keep_tips {
         my ( $self, $tip_names ) = @_;
-        
+
         # get node objects for tips
         my @tips = @{ $self->_get_tip_objects($tip_names) };
         
@@ -2362,38 +2392,48 @@ Keeps argument nodes from invocant (i.e. prunes all others).
             my $node = $tip;
             PARENT: while ( $node ) {
                 my $id = $node->get_id;
-                if ( not $seen{$id} ) {
-                    $seen{$id} = $node;
+                if ( not exists $seen{$id} ) {
+                    $seen{$id} = 0;
                     $node = $node->get_parent;
                 }
                 else {
                     last PARENT;
-                }            
+                }
             }
         }
-        
+
         # now do the pruning
         $self->visit_depth_first(
             '-post' => sub {
+                # prune node
                 my $n = shift;
+                my $nid = $n->get_id;
                 my $p = $n->get_parent;
-                if ( not $seen{$n->get_id} ) {
+                if ( not exists $seen{$nid} ) {
                     $p->delete($n) if $p;
                     $self->delete($n);
+                    # record number of children lost by parent
+                    if (defined $p) {
+                       my $pid = $p->get_id;
+                       if ( exists $seen{$pid} ) {
+                          $seen{$pid}++;
+                       }
+                    }
                     return;
                 }
+                # remove nodes who lost children and are now down to a single one
                 my @children = @{ $n->get_children };
-                if ( scalar(@children) == 1 ) {
+                if ( (scalar @children == 1) && ($seen{$nid} > 0) ) {
                     my ($c) = @children;
                     my $bl  = $n->get_branch_length;
-                    my $cbl = $c->get_branch_length;                
+                    my $cbl = $c->get_branch_length;
                     $c->set_branch_length( $bl + $cbl ) if defined $cbl && defined $bl;
-                    $self->delete($n);                                
+                    $self->delete($n);
                     $c->set_parent($p);
                     $p->delete($n) if $p;
                 }
             }
-        );        
+        );
         return $self;
     }
 
@@ -2604,28 +2644,111 @@ Collapses internal nodes with fewer than 2 children.
 
     sub remove_unbranched_internals {
         my $self = shift;
-        for my $node ( @{ $self->get_internals } ) {
-            my @children = @{ $node->get_children };
-            if ( scalar @children == 1 ) {
-                my $child = $children[0];
-                $child->set_parent( $node->get_parent );
-                my $child_bl = $children[0]->get_branch_length;
-                my $node_bl  = $node->get_branch_length;
-                if ( defined $child_bl ) {
-                    if ( defined $node_bl ) {
-                        $child->set_branch_length( $child_bl + $node_bl );
-                    }
-                    else {
-                        $child->set_branch_length($child_bl);
-                    }
+        my @delete;
+        $self->visit_depth_first(
+            '-post' => sub {
+                my $node = shift;
+                my @children = @{ $node->get_children };
+                
+                #Êthe node is interior, now need to check for each child
+                # if it's interior as well
+                if ( @children ) {
+                    
+                    # iterate over children 
+                    for my $child ( @children ) {
+                        my @grandchildren = @{ $child->get_children };
+                        
+                        # $child is an unbranched internal, so $grandchildren[0]
+                        # needs to be connected to $node
+                        if ( 1 == scalar @grandchildren ) {
+                            my $gchild = $grandchildren[0];
+                            
+                            # compute the new branch length for $gchild
+                            my $length = (  $child->get_branch_length || 0 )
+                                       + ( $gchild->get_branch_length || 0 );
+                            $gchild->set_branch_length($length);
+                            $gchild->set_parent($node);
+                            $node->delete($child);
+                            
+                            # will delete these nodes from the tree array
+                            # after the recursion
+                            push @delete, $child;						
+                        }
+                    }				
                 }
-                else {
-                    $child->set_branch_length($node_bl) if defined $node_bl;
-                }
-                $self->delete($node);
             }
-        }
+        );
+        $self->delete($_) for @delete;
         return $self;
+    }
+
+=item remove_orphans()
+
+Removes all unconnected nodes.
+
+ Type    : Tree manipulator
+ Title   : remove_orphans
+ Usage   : $tree->remove_orphans;
+ Function: Removes all unconnected nodes
+ Returns : The modified invocant.
+ Args    : NONE
+ Comments:
+
+=cut
+
+    sub remove_orphans {
+    	my $self = shift;
+    	
+    	# collect all nodes that are topologically connected
+    	my %seen;
+    	$self->visit_depth_first(
+    		'-pre' => sub {
+    			$seen{ shift->get_id }++;
+    		}
+    	);
+    	
+    	# collect all nodes
+    	my @delete;
+    	$self->visit(sub {
+    		my $node = shift;
+    		push @delete, $node if not $seen{$node->get_id};
+    	});
+    	$self->delete($_) for @delete;
+    	
+    	# notify user
+    	if ( scalar @delete ) {
+    		$logger->warn("deleted ".scalar(@delete)." orphaned nodes");
+    	}
+    	
+    	return $self;
+    }
+
+=item deroot()
+
+Collapses on of the children of a basal bifurcation
+
+ Type    : Tree manipulator
+ Title   : deroot
+ Usage   : $tree->deroot;
+ Function: Removes root
+ Returns : The modified invocant.
+ Args    : NONE
+ Comments:
+
+=cut
+
+    sub deroot {
+        my $self = shift;
+        my $root = $self->get_root;
+        my @children = @{ $root->get_children };
+        if ( scalar @children < 3 ) {
+            my ($collapsible) = grep { $_->is_internal } @children;
+            $collapsible->collapse;
+            return $self;
+        }
+        else {
+            return $self;
+        }
     }
 
 =back
