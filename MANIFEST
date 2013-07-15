@@ -22,10 +22,13 @@ lib/Bio/Phylo/Matrices/Datatype.pm
 lib/Bio/Phylo/Matrices/Datatype/Continuous.pm
 lib/Bio/Phylo/Matrices/Datatype/Custom.pm
 lib/Bio/Phylo/Matrices/Datatype/Dna.pm
+lib/Bio/Phylo/Matrices/Datatype/Illumina.pm
 lib/Bio/Phylo/Matrices/Datatype/Mixed.pm
 lib/Bio/Phylo/Matrices/Datatype/Protein.pm
 lib/Bio/Phylo/Matrices/Datatype/Restriction.pm
 lib/Bio/Phylo/Matrices/Datatype/Rna.pm
+lib/Bio/Phylo/Matrices/Datatype/Sanger.pm
+lib/Bio/Phylo/Matrices/Datatype/Solexa.pm
 lib/Bio/Phylo/Matrices/Datatype/Standard.pm
 lib/Bio/Phylo/Matrices/Datum.pm
 lib/Bio/Phylo/Matrices/DatumRole.pm
@@ -53,6 +56,7 @@ lib/Bio/Phylo/NeXML/Writable.pm
 lib/Bio/Phylo/Parsers/Abstract.pm
 lib/Bio/Phylo/Parsers/Adjacency.pm
 lib/Bio/Phylo/Parsers/Fasta.pm
+lib/Bio/Phylo/Parsers/Fastq.pm
 lib/Bio/Phylo/Parsers/Figtree.pm
 lib/Bio/Phylo/Parsers/Json.pm
 lib/Bio/Phylo/Parsers/Newick.pm
@@ -168,6 +172,8 @@ t/41-charstatelabels.t
 t/42-simplify-newick.t
 t/43-adjacency.t
 t/44-tnrs.t
+t/45-fastq.t
+t/46-noformat.t
 t/perl-critic.t
 t/perlcriticrc
 t/pod-coverage.t
@@ -176,7 +182,6 @@ t/regress_18208.t
 t/regress_21209.t
 t/regress_21417.t
 t/regress_22813.t
-t/regress_26332.t
 t/regress_35511.t
 t/regress_41070.t
 t/regress_51602.t
