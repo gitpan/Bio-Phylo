@@ -3,8 +3,8 @@ lib/Bio/Phylo.pm
 lib/Bio/Phylo/EvolutionaryModels.pm
 lib/Bio/Phylo/Factory.pm
 lib/Bio/Phylo/Forest.pm
-lib/Bio/Phylo/Forest/DrawNode.pm
-lib/Bio/Phylo/Forest/DrawTree.pm
+lib/Bio/Phylo/Forest/DrawNodeRole.pm
+lib/Bio/Phylo/Forest/DrawTreeRole.pm
 lib/Bio/Phylo/Forest/Node.pm
 lib/Bio/Phylo/Forest/NodeRole.pm
 lib/Bio/Phylo/Forest/Tree.pm
@@ -107,6 +107,7 @@ lib/Bio/Phylo/Unparsers/Mrp.pm
 lib/Bio/Phylo/Unparsers/Newick.pm
 lib/Bio/Phylo/Unparsers/Nexml.pm
 lib/Bio/Phylo/Unparsers/Nexus.pm
+lib/Bio/Phylo/Unparsers/Nwmsrdf.pm
 lib/Bio/Phylo/Unparsers/Pagel.pm
 lib/Bio/Phylo/Unparsers/Phylip.pm
 lib/Bio/Phylo/Unparsers/Phyloxml.pm
@@ -125,9 +126,7 @@ lib/Bio/PhyloRole.pm
 LICENSE
 Makefile.PL
 MANIFEST			This list of files
-MYMETA.json
-MYMETA.yml
-README.txt
+README.md
 t/00-load.t
 t/01-phylo.t
 t/02-newick.t
@@ -174,6 +173,9 @@ t/43-adjacency.t
 t/44-tnrs.t
 t/45-fastq.t
 t/46-noformat.t
+t/47-clone.t
+t/48-drawnoderole.t
+t/49-drawtreerole.t
 t/perl-critic.t
 t/perlcriticrc
 t/pod-coverage.t

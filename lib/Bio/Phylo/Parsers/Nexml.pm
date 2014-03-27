@@ -215,10 +215,12 @@ sub _parse {
     my $ordered_blocks = $self->{'_blocks'};
 
     # prepare the requested return...
-    my $temp_project =
-      pop( @{$ordered_blocks} );    # nexml root tag is processed last!
+    my $temp_project = pop( @{$ordered_blocks} ); # nexml root tag is processed last!
+    $self->{'_project_meta'} = $temp_project->get_meta;
     return @{$ordered_blocks};
 }
+
+sub _project_meta { shift->{'_project_meta'} }
 
 # element handler
 sub _handle_nexml {
@@ -404,6 +406,7 @@ sub _handle_chars {
     # now process character sets
     $self->_process_set($definitions_elt,$characters);
     push @{ $self->{'_blocks'} }, $matrix_obj;
+    $self->_logger->info( $self->_pos . " Processed block id: $matrix_id" );
 }
 
 # here we create a hash keyed on column ids => state ids => state symbols
